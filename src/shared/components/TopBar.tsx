@@ -76,7 +76,7 @@ export default function TopBar() {
                 <Stack direction="row" spacing={3}>
                     <NavLink to="/about" label="About" />
                     <NavLink to="/explore" label="Explore" />
-                    <NavLink to="/ecotaxa" label="EcoTaxa" />
+                    <NavLink to="https://ecotaxa.obs-vlfr.fr/" label="EcoTaxa" />
                     {isAuthenticated && (
                         <>
                             <NavLink to="/projects" label="Projects" />
