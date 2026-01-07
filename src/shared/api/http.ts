@@ -1,21 +1,62 @@
-export async function http<T>(
-    input: RequestInfo,
-    init: RequestInit = {},
-): Promise<T> {
-    const token = localStorage.getItem("token");
+let isRefreshing = false;
+let refreshPromise: Promise<void> | null = null;
 
-    const res = await fetch(input, {
-        ...init,
-        headers: {
-            "Content-Type": "application/json",
-            ...(token && { Authorization: `Bearer ${token}` }),
-            ...init.headers,
-        },
+async function refreshToken() {
+    const res = await fetch("/auth/refreshToken", {
+        method: "POST",
+        credentials: "include",
     });
 
     if (!res.ok) {
-        throw new Error("HTTP error");
+        throw new Error("Refresh failed");
+    }
+}
+
+export async function http<T>(
+    input: RequestInfo,
+    init: RequestInit = {}
+): Promise<T> {
+    const response = await fetch(input, {
+        ...init,
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json",
+            ...(init.headers || {}),
+        },
+    });
+
+    if (response.status !== 401) {
+        return response.json();
     }
 
-    return res.json();
+    // Access token expired → try refresh (once)
+    if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = refreshToken()
+            .finally(() => {
+                isRefreshing = false;
+            });
+    }
+
+    try {
+        await refreshPromise;
+    } catch {
+        throw new Error("Session expired");
+    }
+
+    // Retry original request once
+    const retryResponse = await fetch(input, {
+        ...init,
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json",
+            ...(init.headers || {}),
+        },
+    });
+
+    if (!retryResponse.ok) {
+        throw new Error("Request failed after refresh");
+    }
+
+    return retryResponse.json();
 }

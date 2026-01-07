@@ -1,13 +1,21 @@
+import { http } from "@/shared/api/http";
+import type { User } from "../types/user";
+
 export async function loginRequest(email: string, password: string) {
-    const response = await fetch("/auth/login", {
+    const res = await fetch("/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
     });
 
-    if (!response.ok) {
-        throw new Error("Authentication failed");
+    if (!res.ok) {
+        throw new Error("Invalid credentials");
     }
 
-    return response.json(); // { token }
+    return res.json();
+}
+
+export function fetchMe(): Promise<User> {
+    return http<User>("/auth/user/me");
 }
