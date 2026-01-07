@@ -4,16 +4,20 @@ import { useEffect, useRef, useState } from "react";
 
 import MainLayout from "@/app/layouts/MainLayout";
 
-type Particle = {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    alpha: number;
-};
+// Particle 404 component
 function Particle404() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const particlesRef = useRef<Particle[]>([]);
+    const particlesRef = useRef<
+        {
+            x: number;
+            y: number;
+            ox: number;
+            oy: number;
+            vx: number;
+            vy: number;
+            alpha: number;
+        }[]
+    >([]);
     const [hovered, setHovered] = useState(false);
 
     useEffect(() => {
@@ -23,38 +27,37 @@ function Particle404() {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        // 🔴 Bigger canvas
         const width = 1040;
         const height = 480;
 
         canvas.width = width;
         canvas.height = height;
 
-        // Draw static or animated text
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = "#1976d2"; // MUI primary blue
+        ctx.fillStyle = "#1976d2";
         ctx.font = "bold 500px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("404", width / 2, height / 2 + 20);
 
-        if (!hovered) return;
+        // Build particles once
+        if (particlesRef.current.length === 0) {
+            const imageData = ctx.getImageData(0, 0, width, height).data;
 
-        // Extract pixels for particles
-        const imageData = ctx.getImageData(0, 0, width, height).data;
-        particlesRef.current = [];
-
-        for (let y = 0; y < height; y += 4) {
-            for (let x = 0; x < width; x += 4) {
-                const i = (y * width + x) * 4;
-                if (imageData[i + 3] > 0) {
-                    particlesRef.current.push({
-                        x,
-                        y,
-                        vx: (Math.random() - 0.5) * 8,
-                        vy: (Math.random() - 0.5) * 8,
-                        alpha: 1,
-                    });
+            for (let y = 0; y < height; y += 4) {
+                for (let x = 0; x < width; x += 4) {
+                    const i = (y * width + x) * 4;
+                    if (imageData[i + 3] > 0) {
+                        particlesRef.current.push({
+                            x,
+                            y,
+                            ox: x,
+                            oy: y,
+                            vx: (Math.random() - 0.5) * 10,
+                            vy: (Math.random() - 0.5) * 10,
+                            alpha: 1,
+                        });
+                    }
                 }
             }
         }
@@ -64,21 +67,43 @@ function Particle404() {
         const animate = () => {
             ctx.clearRect(0, 0, width, height);
 
+            let stillAnimating = false;
+
             particlesRef.current.forEach((p) => {
-                p.x += p.vx;
-                p.y += p.vy;
-                p.alpha -= 0.012;
+                if (hovered) {
+                    // Explode
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha = Math.max(p.alpha - 0.02, 0);
+                    stillAnimating = true;
+                } else {
+                    // Rebuild
+                    p.x += (p.ox - p.x) * 0.08;
+                    p.y += (p.oy - p.y) * 0.08;
+                    p.alpha = Math.min(p.alpha + 0.02, 1);
+
+                    if (
+                        Math.abs(p.x - p.ox) > 0.5 ||
+                        Math.abs(p.y - p.oy) > 0.5
+                    ) {
+                        stillAnimating = true;
+                    }
+                }
 
                 ctx.fillStyle = `rgba(25,118,210,${p.alpha})`;
                 ctx.fillRect(p.x, p.y, 3, 3);
             });
 
-            particlesRef.current = particlesRef.current.filter(
-                (p) => p.alpha > 0
-            );
-
-            if (particlesRef.current.length > 0) {
+            if (stillAnimating) {
                 raf = requestAnimationFrame(animate);
+            } else if (!hovered) {
+                // Final clean redraw
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = "#1976d2";
+                ctx.font = "bold 500px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("404", width / 2, height / 2 + 20);
             }
         };
 
@@ -93,9 +118,6 @@ function Particle404() {
                 width: 1040,
                 height: 480,
                 cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
                 mx: "auto",
             }}
             onMouseEnter={() => setHovered(true)}
@@ -105,6 +127,7 @@ function Particle404() {
         </Box>
     );
 }
+
 
 
 export default function NotFoundPage() {
