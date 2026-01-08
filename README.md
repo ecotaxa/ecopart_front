@@ -1,10 +1,3 @@
-Below is a **clean, opinionated README** you can drop at the root of the project.
-It explains **what is used, why, where code goes, and how to extend it**, with concrete examples.
-
-You can copy-paste it as `README.md`.
-
----
-
 # Ecopart Frontend
 
 Modern React frontend for the Ecopart platform.
