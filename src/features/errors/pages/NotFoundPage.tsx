@@ -96,14 +96,6 @@ function Particle404() {
 
             if (stillAnimating) {
                 raf = requestAnimationFrame(animate);
-            } else if (!hovered) {
-                // Final clean redraw
-                ctx.clearRect(0, 0, width, height);
-                ctx.fillStyle = "#1976d2";
-                ctx.font = "bold 500px Arial";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("404", width / 2, height / 2 + 20);
             }
         };
 
