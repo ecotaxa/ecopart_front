@@ -16,7 +16,7 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, useLocation } from "react-router-dom";
 
 import { loginRequest, fetchMe } from "../api/auth.api";
 import { useAuthStore } from "../store/auth.store";
@@ -24,6 +24,7 @@ import { useAuthStore } from "../store/auth.store";
 import MainLayout from "@/app/layouts/MainLayout";
 
 export default function LoginPage() {
+    const location = useLocation();
     const navigate = useNavigate();
     const setUser = useAuthStore((s) => s.setUser);
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -36,6 +37,8 @@ export default function LoginPage() {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const successMessage = location.state?.successMessage;
 
     // Already logged in → redirect
     if (isAuthenticated) {
@@ -85,6 +88,12 @@ export default function LoginPage() {
                     <Typography variant="h6" sx={{ mb: 4 }}>
                         Login into EcoPart
                     </Typography>
+
+                    {successMessage && (
+                        <Alert severity="success" sx={{ width: "100%", mb: 2 }}>
+                            {successMessage}
+                        </Alert>
+                    )}
 
                     {error && (
                         <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
