@@ -146,7 +146,8 @@ export default function LoginPage() {
                                 onChange={(e) => setRememberMe(e.target.checked)}
                             />
                         }
-                        label="Remember me"
+                        label="Remember me" // Remember me will be handled server-side (cookie duration) LATER
+
                     />
 
                     <Button
