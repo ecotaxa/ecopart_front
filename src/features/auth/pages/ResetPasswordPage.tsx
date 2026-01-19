@@ -11,8 +11,10 @@ import {
 import MainLayout from "@/app/layouts/MainLayout";
 import { requestPasswordReset } from "../api/passwordReset.api";
 
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+import {
+  isValidEmail,
+  isNonEmpty,
+} from "@/shared/utils/validation";
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
@@ -21,18 +23,17 @@ export default function ResetPasswordPage() {
   const emailIsValid = isValidEmail(email);
 
   const handleSubmit = async () => {
-  if (!emailIsValid) return;
+    if (!emailIsValid) return;
 
-  try {
-    await requestPasswordReset(email);
-  } catch {
-    // Intentionally ignore all errors
-    // Prevent email enumeration & UX issues
-  } finally {
-    // 🔴 ALWAYS show success message
-    setSubmitted(true);
-  }
-};
+    try {
+      await requestPasswordReset(email);
+    } catch {
+      // Intentionally ignore all errors
+      // Prevent email enumeration & UX issues
+    } finally {
+      setSubmitted(true);
+    }
+  };
 
 
   return (
@@ -50,10 +51,10 @@ export default function ResetPasswordPage() {
         </Typography>
 
         {!submitted && (
-            <Typography variant="body2" sx={{ mb: 3 }}>
-                Enter your user account’s verified email address and we will send you a
-                password reset link.
-            </Typography>
+          <Typography variant="body2" sx={{ mb: 3 }}>
+            Enter your user account’s verified email address and we will send you a
+            password reset link.
+          </Typography>
         )}
 
         {submitted ? (
@@ -70,9 +71,9 @@ export default function ResetPasswordPage() {
               margin="normal"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              error={email.length > 0 && !emailIsValid}
+              error={isNonEmpty(email) && !emailIsValid}
               helperText={
-                email.length > 0 && !emailIsValid
+                isNonEmpty(email) && !emailIsValid
                   ? "Please enter a valid email address"
                   : " "
               }

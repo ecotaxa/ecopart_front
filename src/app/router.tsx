@@ -2,12 +2,9 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { HomePage } from "@/features/home";
-import { LoginPage } from "@/features/auth";
+import { LoginPage, RegisterPage, ResetPasswordPage, ResetPasswordConfirmPage } from "@/features/auth";
 import { DashboardPage } from "@/features/dashboard";
 import { NotFoundPage } from "@/features/errors";
-import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
-import ResetPasswordConfirmPage from "@/features/auth/pages/ResetPasswordConfirmPage";
-import RegisterPage from "@/features/auth/pages/RegisterPage";
 
 export const router = createBrowserRouter([
     { path: "/", element: <HomePage /> },

@@ -14,7 +14,13 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 import MainLayout from "@/app/layouts/MainLayout";
-import { resetPassword } from "../api/passwordResetConfirm.api";
+import { resetPassword } from "../api/passwordReset.api";
+import {
+  isValidPassword,
+  passwordsMatch,
+  isNonEmpty,
+} from "@/shared/utils/validation";
+
 
 export default function ResetPasswordConfirmPage() {
   const { token } = useParams<{ token: string }>();
@@ -26,10 +32,14 @@ export default function ResetPasswordConfirmPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const passwordsMatch = password.length > 0 && password === confirm;
+  const passwordIsValid = isValidPassword(password);
+  const passwordsAreEqual = passwordsMatch(password, confirm);
+
+
+  const formIsValid = isNonEmpty(password) && passwordIsValid && passwordsAreEqual;
 
   const handleSubmit = async () => {
-    if (!token || !passwordsMatch) return;
+    if (!token || !formIsValid) return;
 
     setLoading(true);
     setError(null);
@@ -64,57 +74,63 @@ export default function ResetPasswordConfirmPage() {
           Choose your new password
         </Typography>
 
-            <TextField
-              fullWidth
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              margin="normal"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword((v) => !v)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
+        <TextField
+          fullWidth
+          label="Password"
+          type={showPassword ? "text" : "password"}
+          margin="normal"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={isNonEmpty(password) && !passwordIsValid}
+          helperText={
+            isNonEmpty(password) && !passwordIsValid
+              ? "8 chars, uppercase, lowercase, number, special char"
+              : " "
+          }
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword((v) => !v)}
+                  edge="end"
+                >
+                  {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
 
-            <TextField
-              fullWidth
-              label="Confirm password"
-              type={showPassword ? "text" : "password"}
-              margin="normal"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              error={confirm.length > 0 && !passwordsMatch}
-              helperText={
-                confirm.length > 0 && !passwordsMatch
-                  ? "Passwords do not match"
-                  : " "
-              }
-            />
+        <TextField
+          fullWidth
+          label="Confirm password"
+          type={showPassword ? "text" : "password"}
+          margin="normal"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          error={isNonEmpty(confirm) && !formIsValid}
+          helperText={
+            isNonEmpty(confirm) && !formIsValid
+              ? "Passwords do not match"
+              : " "
+          }
+        />
 
-            {error && (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {error}
-              </Alert>
-            )}
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
 
-            <Button
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3 }}
-              disabled={!passwordsMatch || loading}
-              onClick={handleSubmit}
-            >
-              {loading ? "Saving…" : "Reset password"}
-            </Button>
+        <Button
+          fullWidth
+          variant="contained"
+          sx={{ mt: 3 }}
+          disabled={!passwordIsValid || loading}
+          onClick={handleSubmit}
+        >
+          {loading ? "Saving…" : "Reset password"}
+        </Button>
       </Container>
     </MainLayout>
   );

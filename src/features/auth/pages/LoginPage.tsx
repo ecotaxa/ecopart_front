@@ -38,7 +38,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const successMessage = location.state?.successMessage;
+    const successMessage = location.state?.successMessage; // Show success message if redirected from another page
 
     // Already logged in → redirect
     if (isAuthenticated) {
@@ -146,8 +146,7 @@ export default function LoginPage() {
                                 onChange={(e) => setRememberMe(e.target.checked)}
                             />
                         }
-                        label="Remember me" // Remember me will be handled server-side (cookie duration) LATER
-
+                        label="Remember me"
                     />
 
                     <Button

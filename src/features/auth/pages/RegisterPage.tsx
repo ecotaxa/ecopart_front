@@ -10,7 +10,6 @@ import {
   FormControlLabel,
   InputAdornment,
   IconButton,
-  MenuItem,
   Autocomplete,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -22,20 +21,16 @@ import { CountriesWrapper, CountryOption } from "@/shared/country-wrapper";
 import MainLayout from "@/app/layouts/MainLayout";
 import { registerUser } from "../api/register.api";
 
-/* ---------------- VALIDATIONS ---------------- */
+import {
+  isValidEmail,
+  isValidPassword,
+  passwordsMatch,
+  isNonEmpty,
+} from "@/shared/utils/validation";
 
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-const isValidPassword = (password: string) =>
-  password.length >= 8 &&
-  /[0-9]/.test(password) &&
-  /[a-z]/.test(password) &&
-  /[A-Z]/.test(password) &&
-  /[@!#$%^&*()_+.,;:]/.test(password);
 
 /* ---------------- ORGANISATIONS ---------------- */
-
+// TODO : fetch from backend API when available
 const organisationTypes = [
   { value: "Sorbonne Université", label: "Sorbonne Université" },
   { value: "CNRS", label: "CNRS" },
@@ -50,7 +45,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [organisation, setOrganisation] = useState("");
 
-  // ✅ Store ISO code ("FR") as requested
+  // Store ISO code ("FR")
   const [countryCode, setCountryCode] = useState<string>("");
 
   const [usage, setUsage] = useState("");
@@ -69,17 +64,17 @@ export default function RegisterPage() {
 
   const emailIsValid = isValidEmail(email);
   const passwordIsValid = isValidPassword(password);
-  const passwordsMatch = password === confirm;
+  const passwordsAreEqual = passwordsMatch(password, confirm);
 
   const formIsValid =
-    firstName.trim().length > 0 &&
-    lastName.trim().length > 0 &&
+    isNonEmpty(firstName) &&
+    isNonEmpty(lastName) &&
     emailIsValid &&
     passwordIsValid &&
-    passwordsMatch &&
-    organisation.trim().length > 0 &&
-    countryCode.trim().length > 0 &&
-    usage.trim().length > 0 &&
+    passwordsAreEqual &&
+    isNonEmpty(organisation) &&
+    isNonEmpty(countryCode) &&
+    isNonEmpty(usage) &&
     acceptedTerms;
 
   const handleSubmit = async () => {
@@ -94,8 +89,8 @@ export default function RegisterPage() {
         email: email.trim(),
         password,
         organisation: organisation.trim(),
-        country: countryCode, // ✅ send "FR"
-        user_planned_usage: usage.trim(), // REQUIRED by backend
+        country: countryCode,
+        user_planned_usage: usage.trim(),
       });
 
       setSubmitted(true);
@@ -158,9 +153,9 @@ export default function RegisterPage() {
                   label="Email*"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  error={email.length > 0 && !emailIsValid}
+                  error={isNonEmpty(email) && !emailIsValid}
                   helperText={
-                    !emailIsValid && email.length > 0
+                    !emailIsValid && isNonEmpty(email)
                       ? "Invalid email address"
                       : " "
                   }
@@ -174,9 +169,9 @@ export default function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  error={password.length > 0 && !passwordIsValid}
+                  error={isNonEmpty(password) && !passwordIsValid}
                   helperText={
-                    password.length > 0 && !passwordIsValid
+                    isNonEmpty(password) && !passwordIsValid
                       ? "8 chars, uppercase, lowercase, number, special char"
                       : " "
                   }
@@ -203,9 +198,9 @@ export default function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  error={confirm.length > 0 && !passwordsMatch}
+                  error={isNonEmpty(confirm) && !passwordsMatch}
                   helperText={
-                    !passwordsMatch && confirm.length > 0
+                    !passwordsMatch && isNonEmpty(confirm)
                       ? "Passwords do not match"
                       : " "
                   }
@@ -222,18 +217,10 @@ export default function RegisterPage() {
                     setOrganisation(newValue);
                   }}
                   renderInput={(params) => (
+                    //TODO : should be customize in a shared component or trought theme
                     <TextField
                       {...params}
                       label="Organisation*"
-                      helperText="Select your organisation or type a new one"
-                      // Customize helper text style
-                      FormHelperTextProps={{
-                      sx: {
-                        fontSize: '1rem',  
-                        color: '#7FB3E6', 
-                        fontWeight: 600,    
-                      }
-                    }}
                     />
                   )}
                 />
