@@ -7,8 +7,7 @@ import { DashboardPage } from "@/features/dashboard";
 import { NotFoundPage } from "@/features/errors";
 import ResetPasswordPage from "@/features/auth/pages/ResetPasswordPage";
 import ResetPasswordConfirmPage from "@/features/auth/pages/ResetPasswordConfirmPage";
-// import AdminRoute from "./AdminRoute"; TO ENABLE LATER
-// import { AdminPage } from "@/features/admin"; TO ENABLE LATER
+import RegisterPage from "@/features/auth/pages/RegisterPage";
 
 export const router = createBrowserRouter([
     { path: "/", element: <HomePage /> },
@@ -29,6 +28,11 @@ export const router = createBrowserRouter([
         path: "/reset-password/:token",
         element: <ResetPasswordConfirmPage />,
     },
+    {
+        path: "/register",
+        element: <RegisterPage />,
+    },
+
     // {
     //     path: "/admin",
     //     element: (
