@@ -1,19 +1,7 @@
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  Container,
-  TextField,
-  Typography,
-  Alert,
-  InputAdornment,
-  IconButton,
-} from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
-import MainLayout from "@/app/layouts/MainLayout";
 import { resetPassword } from "../api/passwordReset.api";
 import {
   isValidPassword,
@@ -21,22 +9,30 @@ import {
   isNonEmpty,
 } from "@/shared/utils/validation";
 
+// Shared components & messages
+import { AuthPageLayout } from "@/shared/components/AuthPageLayout";
+import { PasswordInput } from "@/shared/components/PasswordInput";
+import { VALIDATION_MESSAGES } from "@/shared/utils/validation/messages";
 
 export default function ResetPasswordConfirmPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
 
+  // Form State
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+
+  // UI State
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Validation Checkers
+  // Enforces complexity: 8 chars, Upper, Lower, Number, Special char
   const passwordIsValid = isValidPassword(password);
   const passwordsAreEqual = passwordsMatch(password, confirm);
 
-
-  const formIsValid = isNonEmpty(password) && passwordIsValid && passwordsAreEqual;
+  const formIsValid =
+    isNonEmpty(password) && passwordIsValid && passwordsAreEqual;
 
   const handleSubmit = async () => {
     if (!token || !formIsValid) return;
@@ -46,6 +42,7 @@ export default function ResetPasswordConfirmPage() {
 
     try {
       await resetPassword(token, password);
+      // Redirect to login with success toast
       navigate("/login", {
         state: { successMessage: "Your password has been successfully reset." },
       });
@@ -56,82 +53,52 @@ export default function ResetPasswordConfirmPage() {
   };
 
   return (
-    <MainLayout>
-      <Container maxWidth="sm" sx={{ mt: 10, textAlign: "center" }}>
-        {/* Logo */}
-        <Box
-          component="img"
-          src="/logo_ecopart_e.png"
-          alt="EcoPart"
-          sx={{ height: 80, mb: 3 }}
-        />
+    <AuthPageLayout title="Reset password" error={error}>
+      <Typography variant="body2" sx={{ mb: 3 }}>
+        Choose your new password
+      </Typography>
 
-        <Typography variant="h5" gutterBottom>
-          Reset password
-        </Typography>
+      <PasswordInput
+        fullWidth
+		required 
+        label="Password"
+        margin="normal"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        error={isNonEmpty(password) && !passwordIsValid}
+        // Uses the updated message with special chars list
+        helperText={
+          isNonEmpty(password) && !passwordIsValid
+            ? VALIDATION_MESSAGES.PASSWORD_REQ
+            : " "
+        }
+      />
 
-        <Typography variant="body2" sx={{ mb: 3 }}>
-          Choose your new password
-        </Typography>
+      <PasswordInput
+        fullWidth
+		required 
+        label="Confirm password"
+        margin="normal"
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+        error={isNonEmpty(confirm) && !formIsValid}
+        helperText={
+          isNonEmpty(confirm) && !formIsValid
+            ? VALIDATION_MESSAGES.PASSWORD_MISMATCH
+            : " "
+        }
+      />
 
-        <TextField
-          fullWidth
-          label="Password"
-          type={showPassword ? "text" : "password"}
-          margin="normal"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={isNonEmpty(password) && !passwordIsValid}
-          helperText={
-            isNonEmpty(password) && !passwordIsValid
-              ? "8 chars, uppercase, lowercase, number, special char"
-              : " "
-          }
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  onClick={() => setShowPassword((v) => !v)}
-                  edge="end"
-                >
-                  {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        <TextField
-          fullWidth
-          label="Confirm password"
-          type={showPassword ? "text" : "password"}
-          margin="normal"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          error={isNonEmpty(confirm) && !formIsValid}
-          helperText={
-            isNonEmpty(confirm) && !formIsValid
-              ? "Passwords do not match"
-              : " "
-          }
-        />
-
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        <Button
-          fullWidth
-          variant="contained"
-          sx={{ mt: 3 }}
-          disabled={!passwordIsValid || loading}
-          onClick={handleSubmit}
-        >
-          {loading ? "Saving…" : "Reset password"}
-        </Button>
-      </Container>
-    </MainLayout>
+      <Button
+        fullWidth
+        variant="contained"
+        sx={{ mt: 3 }}
+        // Prevent submission if password logic is not satisfied
+        disabled={!formIsValid || loading}
+        onClick={handleSubmit}
+      >
+        {loading ? "Saving…" : "Reset password"}
+      </Button>
+    </AuthPageLayout>
   );
 }
