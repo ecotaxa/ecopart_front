@@ -11,34 +11,34 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
  * Centralizes the icon logic so it looks the same everywhere in the app.
  */
 export const PasswordInput = (props: TextFieldProps) => {
-  const [showPassword, setShowPassword] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
-  const handleClickShowPassword = () => setShowPassword((show) => !show);
+    const handleClickShowPassword = () => setShowPassword((show) => !show);
 
-  // Prevent the button from stealing focus when clicked (keeps keyboard on input)
-  const handleMouseDownPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-  };
+    // Prevent the button from stealing focus when clicked (keeps keyboard on input)
+    const handleMouseDownPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+    };
 
-  return (
-    <TextField
-      {...props}
-      // Toggle between text (visible) and password (hidden)
-      type={showPassword ? "text" : "password"}
-      InputProps={{
-        endAdornment: (
-          <InputAdornment position="end">
-            <IconButton
-              aria-label="toggle password visibility"
-              onClick={handleClickShowPassword}
-              onMouseDown={handleMouseDownPassword}
-              edge="end"
-            >
-              {showPassword ? <VisibilityOff /> : <Visibility />}
-            </IconButton>
-          </InputAdornment>
-        ),
-      }}
-    />
-  );
+    return (
+        <TextField
+            {...props}
+            // Toggle between text (visible) and password (hidden)
+            type={showPassword ? "text" : "password"}
+            InputProps={{
+                endAdornment: (
+                    <InputAdornment position="end">
+                        <IconButton
+                            aria-label="toggle password visibility"
+                            onClick={handleClickShowPassword}
+                            onMouseDown={handleMouseDownPassword}
+                            edge="end"
+                        >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                    </InputAdornment>
+                ),
+            }}
+        />
+    );
 };
