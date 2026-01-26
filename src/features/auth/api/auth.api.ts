@@ -19,4 +19,4 @@ export async function loginRequest(email: string, password: string) {
 export async function fetchMe(): Promise<User> {
     // Uses shared http function to benefit from automatic token refresh
     return http<User>("/auth/user/me");
-}  
+}
