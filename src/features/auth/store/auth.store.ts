@@ -5,7 +5,7 @@ type AuthState = {
     user: User | null;
     isAuthenticated: boolean;
     isAuthLoading: boolean;
-    setUser: (user: User) => void;
+    setUser: (user: User | null) => void;
     clearUser: () => void;
     finishAuthLoading: () => void;
 };
