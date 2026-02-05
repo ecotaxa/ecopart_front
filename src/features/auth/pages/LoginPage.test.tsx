@@ -15,6 +15,8 @@ import { expectInvalidEmailMessage } from '@/test/assertions/email.assertions';
 import { expectSubmitDisabled } from '@/test/assertions/submitButton.assertions';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 
+import { VALIDATION_MESSAGES } from '@/shared/utils/validation/messages';
+
 describe('LoginPage (Functional)', () => {
 
     // RESET STORE BEFORE EACH TEST
@@ -89,7 +91,7 @@ describe('LoginPage (Functional)', () => {
 
         // Ensure we stayed on page and got an error
         expectNotOnDashboard();
-        expect(await screen.findByText(/Invalid email or password/i)).toBeInTheDocument();
+        expect(await screen.findByText(VALIDATION_MESSAGES.LOGIN_FAILED)).toBeInTheDocument();
     });
 
     // TC-A5: Redirect if authenticated

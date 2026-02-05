@@ -7,4 +7,6 @@ export const VALIDATION_MESSAGES = {
     PASSWORD_MISMATCH: "Passwords do not match.",
     REQUIRED_FIELD: "This field is required.",
     GENERIC_ERROR: "An unexpected error occurred. Please try again.",
+    EXIST_EMAIL: "An account with this email already exists.",
+    LOGIN_FAILED: "Invalid email or password",
 };

@@ -5,6 +5,7 @@ import { ReactElement } from "react";
 /**
  * Custom render function that wraps the component in a MemoryRouter.
  * This is essential for testing components that use 'useNavigate' or 'useLocation'.
+ * It simulates a mini-true-browser.
  */
 export function renderWithRouter(ui: ReactElement, { route = "/" } = {}) {
     return {

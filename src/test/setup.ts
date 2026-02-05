@@ -16,3 +16,9 @@ afterEach(() => {
 
 // Close the server when all tests are done
 afterAll(() => server.close());
+/**
+ * This guarantees:
+➡️ No test pollutes others.
+➡️ No persistent state.
+➡️ Fully simulated network requests.
+ */

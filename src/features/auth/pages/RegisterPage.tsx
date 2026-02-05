@@ -234,6 +234,8 @@ export default function RegisterPage() {
                 // Disable sign up until form is valid
                 disabled={!formIsValid}
                 onClick={handleSubmit}
+
+                data-testid="register-submit"
             >
                 Sign up
             </Button>
