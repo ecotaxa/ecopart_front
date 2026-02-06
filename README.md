@@ -428,93 +428,67 @@ We follow a modular strategy to ensure the suite remains DRY (*Don't Repeat Your
 
 `ID` | `Title` | `Preconditions` | `Steps` | `Expected Result`
 
+
 ---
+
+## 📋 Test Scenarios
 
 ### A. LOGIN PAGE
 
-#### Functional Tests
-
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
-| **TC-A1** | Initial Rendering | User not authenticated. | Navigate to `/login`. | Form displayed; Login button disabled; No errors visible. |
-| **TC-A2** | Validation Logic | On Login page. | Enter invalid email + Blur field. | Email error message displayed; Button remains disabled. |
-| **TC-A3** | Successful Login | API available. | Enter valid credentials + Click "LOG IN". | API called; User redirected to `/dashboard`. |
-| **TC-A4** | API Error Handling | Backend returns 401/500. | Enter valid format + Click "LOG IN". | No crash; "Invalid email or password" displayed; User stays on page. |
-| **TC-A5** | Auth Redirect | Session exists. | Navigate to `/login`. | User immediately redirected to `/dashboard`. |
-
-#### Accessibility Tests
-
-| ID | Title | Steps | Expected Result |
-| --- | --- | --- | --- |
-| **TC-A6** | Keyboard Nav | Fill form + Tab through. | Inputs have `<label>`; Focus order: Email → Password → Toggle → Remember → Button. |
-
----
+| **TC-A1** | Initial State | User not authenticated. | Navigate to `/login`. | Form displayed; Button disabled; No errors. |
+| **TC-A2** | Validation Logic | On Login page. | Enter invalid email + blur. | Error message displayed; Button disabled. |
+| **TC-A3** | Success Login | API available. | Enter valid credentials + Login. | API called; Redirected to `/dashboard`. |
+| **TC-A4** | API Error | Backend 401/500. | Enter valid format + Login. | Graceful error shown; User stays on page. |
+| **TC-A5** | Redirect Auth | User authenticated. | Navigate to `/login`. | Redirected immediately to `/dashboard`. |
+| **TC-A6** | A11y: Keyboard | On Login page. | Fill form + Tab through. | Proper labels; Logical focus order. |
 
 ### B. REGISTER PAGE
 
-#### Functional Tests
-
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
-| **TC-B1** | Initial State | Not authenticated. | Navigate to `/register`. | Form displayed; Submit button disabled. |
-| **TC-B2** | Password Logic | On Register page. | Enter weak password or mismatch. | Specific error displayed; Submit button disabled. |
-| **TC-B3** | Success | Valid fields. | Complete form + Click "Sign up". | API called; Success message shown; Form hidden. |
-| **TC-B4** | API Error | 409 (Conflict) or 500. | Submit valid data. | Error shown; Form visible; Data is preserved. |
-
-#### Accessibility Tests
-
-| ID | Title | Steps | Expected Result |
-| --- | --- | --- | --- |
-| **TC-B5** | Advanced Nav | Tab through form. | Logical top-to-bottom order; Autocomplete accessible via arrows; Checkbox via Spacebar. |
-
----
+| **TC-B1** | Initial State | User not authenticated. | Navigate to `/register`. | Form displayed; Submit button disabled. |
+| **TC-B2** | Password Logic | On Register page. | Enter weak/mismatch pass. | Error displayed; Submit button disabled. |
+| **TC-B3** | Success | All fields valid. | Complete form + Sign up. | API called; Success shown; Form hidden. |
+| **TC-B4** | API Error | Backend 409/500. | Submit valid data. | Error shown; Form visible; Data preserved. |
+| **TC-B5** | A11y: Nav | On Register page. | Tab through form. | Logic order; Autocomplete accessible via keys. |
 
 ### C. RESET PASSWORD (REQUEST)
 
-#### Functional Tests
-
-| ID | Title | Steps | Expected Result |
-| --- | --- | --- | --- |
-| **TC-C1** | Rendering | Navigate to `/reset-password`. | Email input displayed; Button disabled if invalid. |
-| **TC-C2** | Success | Valid email + Submit. | API called; Success message shown (Anti-enumeration policy). |
-| **TC-C3** | Server Error | Submit form while API is down. | No white screen; Graceful error or success message shown. |
-
-#### Accessibility Tests
-
-| ID | Title | Steps | Expected Result |
-| --- | --- | --- | --- |
-| **TC-C4** | Keyboard Nav | Tab through page. | Proper labels; Focus moves logically from Input to Button. |
-
----
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-C1** | Rendering | User not authenticated. | Navigate to `/reset-password`. | Input displayed; Button disabled if invalid. |
+| **TC-C2** | Success | Backend available. | Enter valid email + Send. | API called; Generic success message shown. |
+| **TC-C3** | Server Error | Backend 500. | Submit email form. | No white screen; Graceful message shown. |
+| **TC-C4** | A11y: Nav | On Reset page. | Tab through page. | Input has label; Focus moves to button. |
 
 ### D. RESET PASSWORD CONFIRMATION
 
-#### Functional Tests
-
-| ID | Title | Preconditions | Expected Result |
-| --- | --- | --- | --- |
-| **TC-D1** | Valid Token | Valid token in URL. | New password fields displayed; Button disabled. |
-| **TC-D2** | Invalid Token | Missing/expired token. | Error message displayed or redirected; Submission blocked. |
-| **TC-D3** | Validation | Weak/mismatching pass. | Validation error displayed; Button disabled. |
-| **TC-D4** | Reset Success | Valid token/data. | API called; Redirect to `/login` with success message. |
-
----
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-D1** | Valid Token | Valid token in URL. | Navigate to `/reset.../:token`. | Fields displayed; Submit disabled. |
+| **TC-D2** | Invalid Token | Invalid/Missing token. | Navigate to URL. | Error displayed or Redirect; Form blocked. |
+| **TC-D3** | Validation | User on page. | Enter weak/mismatch pass. | Error displayed; Submit disabled. |
+| **TC-D4** | Success | Token & Data valid. | Click "Reset password". | API called; Redirect to login + Success msg. |
+| **TC-D5** | API Error | Token expired mid-way. | Submit valid form. | Error message displayed; User stays on page. |
+| **TC-D6** | A11y: Nav | User on page. | Verify labels & Tab. | Labels present; Navigation is logical. |
 
 ### E. PROFILE PAGE
 
-#### Functional Tests
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-E1** | Initial Loading | User authenticated. | Navigate to `/settings`. | Loader shown; Data loaded; Usage read-only. |
+| **TC-E2** | Update Success | User authenticated. | Modify fields + Save/Cancel. | SAVE: API called; CANCEL: Values restored. |
+| **TC-E3** | Update Failure | Backend error. | Click Save. | Error shown; Changes not persisted in UI. |
+| **TC-E4** | Change Pass | User authenticated. | Enter Current + New pass. | API called; Success shown; Fields cleared. |
+| **TC-E5** | Delete Account | User authenticated. | Click DELETE + Confirm. | API called; Session cleared; Redirect to Login. |
+| **TC-E6** | A11y: Nav | On Profile page. | Navigate via Tab. | Labels present; Tabs keyboard-selectable. |
 
-| ID | Title | Steps | Expected Result |
-| --- | --- | --- | --- |
-| **TC-E1** | Initial Loading | Navigate to `/settings`. | Loading indicator shown; Profile data loaded; "Planned usage" read-only. |
-| **TC-E2** | Update Profile | Test "SAVE" and "CANCEL". | SAVE: API called + success; CANCEL: Values restored. |
-| **TC-E3** | Update Failure | Save changes (API Error). | Error message displayed; UI does not persist changes. |
-| **TC-E4** | Change Password | Enter current + new password. | API called; Success message; Fields cleared. |
-| **TC-E5** | Delete Account | Click "DELETE" + Confirm. | API called; Session cleared; Redirect to `/login`. |
+### F. ROUTING & GUARDS
 
-#### Accessibility Tests
-
-| ID | Title | Steps | Expected Result |
-| --- | --- | --- | --- |
-| **TC-E6** | Keyboard Nav | Navigate using Tab. | Labels present; Tabs (EcoPart/EcoTaxa) selectable via keyboard; Logical focus. |
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-R1** | Block Unauth | User NOT authenticated. | Access `/dashboard`. | Redirect to `/login`; Content not rendered. |
+| **TC-R2** | Allow Auth | User IS authenticated. | Access `/dashboard`. | Content rendered; No redirection. |
 

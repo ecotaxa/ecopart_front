@@ -96,6 +96,7 @@ export default function ResetPasswordConfirmPage() {
                 // Prevent submission if password logic is not satisfied
                 disabled={!formIsValid || loading}
                 onClick={handleSubmit}
+                data-testid="reset-confirm-submit"
             >
                 {loading ? "Saving…" : "Reset password"}
             </Button>

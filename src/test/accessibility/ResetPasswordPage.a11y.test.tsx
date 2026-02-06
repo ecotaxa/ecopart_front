@@ -23,7 +23,7 @@ describe('ResetPasswordPage (Accessibility)', () => {
         expect(emailInput).toHaveFocus();
 
         // Tab -> Submit Button
-        await user.tab(); 
+        await user.tab();
         expect(submitButton).toHaveFocus();
     });
 });

@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 
+// Fake server
 // We use a simple variable to simulate server-side session state.
 // By default, the user is NOT logged in.
 let isLoggedIn = false;
@@ -56,5 +57,10 @@ export const handlers = [
     http.post('*/auth/reset', async () => {
         // We simulate a slight delay for realism
         return HttpResponse.json({ message: "Reset email sent" }, { status: 200 });
+    }),
+
+    // --- MOCK RESET PASSWORD CONFIRM ---
+    http.put('*/auth/password/reset', async () => {
+        return HttpResponse.json({ message: "Password successfully reset" }, { status: 200 });
     }),
 ];
