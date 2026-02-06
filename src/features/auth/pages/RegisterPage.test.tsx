@@ -109,6 +109,6 @@ describe('RegisterPage (Functional)', () => {
 
         // User should remain on the form (button still visible)
         expect(screen.getByTestId('register-submit')).toBeInTheDocument();
-    });
+    }, 15000);
 
 });

@@ -9,4 +9,5 @@ export const VALIDATION_MESSAGES = {
     GENERIC_ERROR: "An unexpected error occurred. Please try again.",
     EXIST_EMAIL: "An account with this email already exists.",
     LOGIN_FAILED: "Invalid email or password",
+    RESET_LINK_SENT: "If this email address exists, you will receive an email with instructions to reset your password."
 };

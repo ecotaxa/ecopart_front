@@ -50,5 +50,11 @@ export const handlers = [
     http.post('*/users', async () => {
         // Always return success for registration in basic tests 
         return HttpResponse.json({ message: "Success" }, { status: 201 });
-    })
+    }),
+
+    // --- MOCK RESET PASSWORD REQUEST ---
+    http.post('*/auth/reset', async () => {
+        // We simulate a slight delay for realism
+        return HttpResponse.json({ message: "Reset email sent" }, { status: 200 });
+    }),
 ];

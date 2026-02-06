@@ -12,7 +12,7 @@ import { server } from '@/test/msw/server';
 import { fillAuthForm, submitAuthForm } from '@/test/helpers/authForm.helpers';
 import { expectDashboard, expectNotOnDashboard } from '@/test/helpers/navigation.helpers';
 import { expectInvalidEmailMessage } from '@/test/assertions/email.assertions';
-import { expectSubmitDisabled } from '@/test/assertions/submitButton.assertions';
+import { expectSubmitDisabled, expectSubmitEnabled } from '@/test/assertions/submitButton.assertions';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 
 import { VALIDATION_MESSAGES } from '@/shared/utils/validation/messages';
@@ -41,7 +41,8 @@ describe('LoginPage (Functional)', () => {
         const user = userEvent.setup();
         renderWithRouter(<LoginPage />);
 
-        // We pass empty password to verify button stays disabled even if email is typed (but invalid)
+        // Here we explicitly provide an empty password if we want, or just rely on email invalidity.
+        // But to be consistent with the new helper:
         await fillAuthForm(user, { email: 'invalid-email', password: '' });
 
         // Trigger validation by clicking outside
@@ -61,7 +62,8 @@ describe('LoginPage (Functional)', () => {
             </Routes>
         );
 
-        await fillAuthForm(user, {}); // Default valid credentials
+        await fillAuthForm(user, { email: 'john@doe.com', password: 'Valid123!' });
+        expectSubmitEnabled('auth-submit');
         await submitAuthForm(user);
 
         await expectDashboard();
@@ -86,7 +88,8 @@ describe('LoginPage (Functional)', () => {
             </Routes>
         );
 
-        await fillAuthForm(user, {});
+        await fillAuthForm(user, { email: 'john@doe.com', password: 'Valid123!' });
+        expectSubmitEnabled('auth-submit');
         await submitAuthForm(user);
 
         // Ensure we stayed on page and got an error

@@ -1,5 +1,4 @@
 import { screen } from '@testing-library/react';
-// We import the UserEvent type to type the 'user' parameter correctly
 import type { UserEvent } from '@testing-library/user-event';
 
 type FillAuthFormArgs = {
@@ -8,25 +7,27 @@ type FillAuthFormArgs = {
 };
 
 /**
- * Fill authentication form with valid credentials.
- * Reusable for Login / Register / Reset Password pages.
- * * @param user - The userEvent instance created in the test (ensures single instance).
- * @param args - The email and password to type.
+ * Fill authentication form.
+ * Compatible with Login (Email + Password) AND Reset Password (Email only).
  */
 export async function fillAuthForm(
     user: UserEvent,
-    { email = 'john@doe.com', password = 'Valid123!' }: FillAuthFormArgs
+    // We REMOVE the default value for password here to detect if it's undefined
+    { email = 'john@doe.com', password }: FillAuthFormArgs
 ) {
+    // 1. Always fill Email
     const emailInput = screen.getByLabelText(/email address/i);
-    // We specify { selector: 'input' } to avoid selecting the wrapper div
-    const passwordInput = screen.getByLabelText(/password/i, { selector: 'input' });
-
     await user.clear(emailInput);
     await user.type(emailInput, email);
 
-    await user.clear(passwordInput);
-    // We only type the password if it's provided (user.type throws on empty string)
-    if (password) await user.type(passwordInput, password);
+    // 2. Conditionally fill Password
+    // We only look for the password input IF a password was explicitly provided.
+    // This prevents the test from crashing on the ResetPasswordPage where the input doesn't exist.
+    if (password) {
+        const passwordInput = screen.getByLabelText(/password/i, { selector: 'input' });
+        await user.clear(passwordInput);
+        await user.type(passwordInput, password);
+    }
 }
 
 /**

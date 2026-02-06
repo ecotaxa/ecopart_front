@@ -6,6 +6,7 @@ import LoginPage from '@/features/auth/pages/LoginPage';
 import { renderWithRouter } from '@/test/utils';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { fillAuthForm } from '@/test/helpers/authForm.helpers';
+import { expectSubmitEnabled } from '../assertions/submitButton.assertions';
 
 describe('LoginPage (Accessibility)', () => {
 
@@ -22,7 +23,8 @@ describe('LoginPage (Accessibility)', () => {
 
         // Enable the submit button by filling the form first.
         // A disabled button is not focusable, which would break the tab flow test.
-        await fillAuthForm(user, {});
+        await fillAuthForm(user, { email: 'john@doe.com', password: 'Valid123!' });
+        expectSubmitEnabled('auth-submit');
 
         const emailInput = screen.getByLabelText(/Email address/i);
         const passwordInput = screen.getByLabelText(/Password/i, { selector: 'input' });
