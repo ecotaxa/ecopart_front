@@ -6,6 +6,7 @@ export type User = {
     is_admin: boolean;
     organisation: string;
     country: string;
+    user_planned_usage: string;
 };
 
 export type RegisterPayload = {
