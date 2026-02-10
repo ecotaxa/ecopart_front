@@ -3,11 +3,9 @@ import type { User } from "@/features/auth/types/user";
 
 /**
  * Fetches the current connected user's details.
- * Endpoint: GET /auth/user/me
+ * Delegates to the auth API implementation to avoid duplication.
  */
-export async function fetchMe(): Promise<User> {
-    return http<User>("/auth/user/me");
-}
+export { fetchMe } from "@/features/auth/api/auth.api";
 
 /**
  * Updates the user profile information.
