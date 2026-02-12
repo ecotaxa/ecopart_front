@@ -61,8 +61,9 @@ export default function LoginPage() {
             const user = await fetchMe();
             setUser(user);
             navigate("/dashboard");
-        } catch {
-            setError("Invalid email or password");
+        } catch (err) {
+            console.error("Login error:", err);
+            setError(VALIDATION_MESSAGES.LOGIN_FAILED);
         } finally {
             setLoading(false);
         }

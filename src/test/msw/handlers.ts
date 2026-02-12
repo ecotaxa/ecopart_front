@@ -98,9 +98,9 @@ export const handlers = [
     // --- MOCK REFRESH TOKEN ---
     // Prevent errors when the http interceptor tries to refresh on 401
     http.post('*/auth/refreshToken', async () => {
-        return HttpResponse.json({ 
-            token: 'new_fake_jwt', 
-            refresh_token: 'new_fake_refresh' 
+        return HttpResponse.json({
+            token: 'new_fake_jwt',
+            refresh_token: 'new_fake_refresh'
         }, { status: 200 });
     }),
 ];

@@ -84,5 +84,5 @@ describe('ProfilePage (Accessibility)', () => {
         // 15. Tab -> DELETE Button
         await user.tab();
         expect(screen.getByRole('button', { name: /^DELETE$/i })).toHaveFocus();
-    },15000);
+    }, 15000);
 });

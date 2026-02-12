@@ -1,5 +1,5 @@
 // vite.config.ts
-import { defineConfig } from "vite";
+import { defineConfig } from 'vitest/config';
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -25,7 +25,6 @@ export default defineConfig({
     },
 
     // --- TEST CONFIGURATION ---
-    // @ts-expect-error - Vitest types are injected via setup or tsconfig
     test: {
         globals: true,                // Allows using describe, it, expect without importing them
         environment: "jsdom",         // Simulates a browser environment (window, document)
@@ -33,7 +32,11 @@ export default defineConfig({
         css: true,                    // Processes CSS files (useful if components depend on styles)
         coverage: {
             provider: "v8",
-            reporter: ["text", "html"],
+            reporter: ["text", "html", "json"],
+            exclude: [
+                 'node_modules/',
+                 'src/test/setup.ts',
+             ],
         },
     },
 });

@@ -427,11 +427,11 @@ We follow a modular strategy to ensure the suite remains DRY (*Don't Repeat Your
 ### Convention Used:
 
 `ID` | `Title` | `Preconditions` | `Steps` | `Expected Result`
+|---|---|---|---|---|
 
 
 ---
 
-## 📋 Test Scenarios
 
 ### A. LOGIN PAGE
 
