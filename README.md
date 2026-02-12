@@ -391,3 +391,121 @@ This frontend is:
 * Easy to reason about
 
 The structure forces good decisions and prevents common React project decay.
+
+---
+
+# Test Scenarios & Strategy
+
+This document outlines the testing architecture, tools, and specific test cases for the application.
+
+## 🛠 Testing Tech Stack
+
+| Tool | Purpose | Why? |
+| --- | --- | --- |
+| **Vitest** | Test Runner | Ultra-fast runner with a Jest-compatible API for unit and integration testing. |
+| **Vitest UI** | Visual Interface | A web-based UI to run, filter, and inspect tests live via `vitest --ui`. |
+| **Testing Library** | UI Testing | Encourages testing from the user's perspective (roles, labels) rather than implementation details. |
+| **MSW** | API Mocking | Mock Service Worker intercepts network calls at the network level, allowing for realistic API simulations. |
+| **React Router** | Navigation | Uses `MemoryRouter` via a custom `renderWithRouter` helper to simulate URLs and redirects. |
+| **Zustand** | State Management | Global auth state is reset before each test to prevent "Zombie User" issues (cross-test contamination). |
+
+---
+
+## 🏗 Testing Architecture
+
+We follow a modular strategy to ensure the suite remains DRY (*Don't Repeat Yourself*) and maintainable:
+
+* **Feature Tests** (`src/features/*/pages/*.test.tsx`): Focus strictly on business logic, user flows, and error handling.
+* **Accessibility Tests** (`src/test/accessibility/*.a11y.test.tsx`): Focus on technical compliance (tab order, ARIA labels, focus management).
+* **Test Helpers** (`src/test/helpers/*.ts`): Reusable functions to simulate user actions (e.g., `fillAuthForm`) to keep test files clean.
+* **Shared Assertions** (`src/test/assertions/*.ts`): Reusable expectations (e.g., `expectSubmitDisabled`) for UI consistency.
+
+---
+
+## 📋 Test Scenarios
+
+### Convention Used:
+
+`ID` | `Title` | `Preconditions` | `Steps` | `Expected Result`
+|---|---|---|---|---|
+
+
+---
+
+
+### A. LOGIN PAGE
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-A1** | Initial State | User not authenticated. | Navigate to `/login`. | Form displayed; Button disabled; No errors. |
+| **TC-A2** | Validation Logic | On Login page. | Enter invalid email + blur. | Error message displayed; Button disabled. |
+| **TC-A3** | Success Login | API available. | Enter valid credentials + Login. | API called; Redirected to `/dashboard`. |
+| **TC-A4** | API Error | Backend 401/500. | Enter valid format + Login. | Graceful error shown; User stays on page. |
+| **TC-A5** | Redirect Auth | User authenticated. | Navigate to `/login`. | Redirected immediately to `/dashboard`. |
+| **TC-A6** | A11y: Keyboard Nav | On Login page. | Fill form + Tab through. | Proper labels; Logical focus order. |
+
+### B. REGISTER PAGE
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-B1** | Initial State | User not authenticated. | Navigate to `/register`. | Form displayed; Submit button disabled. |
+| **TC-B2** | Password Logic | On Register page. | Enter weak/mismatch pass. | Error displayed; Submit button disabled. |
+| **TC-B3** | Success | All fields valid. | Complete form + Sign up. | API called; Success shown; Form hidden. |
+| **TC-B4** | API Error | Backend 409/500. | Submit valid data. | Error shown; Form visible; Data preserved. |
+| **TC-B5** | A11y: Keyboard Nav | On Register page. | Tab through form. | Logic order; Autocomplete accessible via keys. |
+
+### C. RESET PASSWORD (REQUEST)
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-C1** | Rendering | User not authenticated. | Navigate to `/reset-password`. | Input displayed; Button disabled if invalid. |
+| **TC-C2** | Success | Backend available. | Enter valid email + Send. | API called; Generic success message shown. |
+| **TC-C3** | Server Error | Backend 500. | Submit email form. | No white screen; Graceful message shown. |
+| **TC-C4** | A11y: Keyboard Nav | On Reset page. | Tab through page. | Input has label; Focus moves to button. |
+
+### D. RESET PASSWORD CONFIRMATION
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-D1** | Valid Token | Valid token in URL. | Navigate to `/reset.../:token`. | Fields displayed; Submit disabled. |
+| **TC-D2** | Invalid Token | Invalid/Missing token. | Navigate to URL. | Error displayed or Redirect; Form blocked. |
+| **TC-D3** | Validation | User on page. | Enter weak/mismatch pass. | Error displayed; Submit disabled. |
+| **TC-D4** | Success | Token & Data valid. | Click "Reset password". | API called; Redirect to login + Success msg. |
+| **TC-D5** | API Error | Token expired mid-way. | Submit valid form. | Error message displayed; User stays on page. |
+| **TC-D6** | A11y: Keyboard Nav | User on page. | Verify labels & Tab. | Labels present; Navigation is logical. |
+
+### E. USER PROFILE (Settings)
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| :--- | :--- | :--- | :--- | :--- |
+| **TC-E1** | Initial Loading | User authenticated. | Navigate to `/settings`. | Profile renders; Fields populated; `Planned usage` editable; `Email` disabled. |
+| **TC-E2** | Update Profile (Cancel) | User is on settings page. | Modify fields and click `CANCEL`. | Form inputs revert to their original database values. |
+| **TC-E3** | Update Profile (Validation) | User is on settings page. | Clear required fields (e.g., First name, Country). | `SAVE` button is disabled; Specific error messages displayed. |
+| **TC-E4** | Update Profile (Success) | User is on settings page. | Modify valid fields and click `SAVE`. | API called; Success message displayed; Data persists in UI. |
+| **TC-E5** | Update Profile (API Error) | Backend returns HTTP 500. | Modify fields and click `SAVE`. | Specific error message displayed; Data not permanently saved. |
+| **TC-E6** | Change Pass (Validation) | User is on settings page. | Enter weak passwords or mismatching confirmation. | `CHANGE` button remains disabled. |
+| **TC-E7** | Change Pass (Success) | User is on settings page. | Enter valid current, new, and confirmed password. | API called; Success message displayed; Password fields cleared. |
+| **TC-E8** | Delete Account (Error) | Backend returns HTTP 500. | Click `DELETE`, then confirm in dialog. | Dialog closes; Error message displayed on page; No redirect. |
+| **TC-E9** | Delete Account (Success) | User authenticated. | Click `DELETE`, then confirm in dialog. | API called; Local session cleared; Redirected to `/login`. |
+| **TC-E10** | Admin Navigation | Authenticated as Admin (`is_admin: true`). | Click the `ADMIN DASHBOARD` button. | User is successfully routed to the `/admin` page. |
+| **TC-E11** | A11y: Keyboard Nav | User is on settings page. | Navigate completely through the form using `Tab`. | Focus jumps sequentially through inputs/buttons; Skips disabled elements. |
+
+
+### F. ROUTING & GUARDS
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| :--- | :--- | :--- | :--- | :--- |
+| **TC-R1** | Block Unauthenticated | User is NOT authenticated. | Attempt to access a protected route (e.g., `/dashboard`). | Redirected to `/login`; Protected content is NOT rendered. |
+| **TC-R2** | Allow Authenticated | User IS authenticated. | Attempt to access a protected route. | Protected content is rendered; No redirection occurs. |
+
+
+### H. CORE API UTILITY (http.ts)
+
+**Unit Tests (Network & Interceptors)**
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| :--- | :--- | :--- | :--- | :--- |
+| **TC-H1** | Standard Success | Target endpoint works. | Call `http('/url')`. | Returns parsed JSON seamlessly. |
+| **TC-H2** | Standard API Error | Target endpoint returns 4xx/5xx (non-401). | Call `http('/url')`. | Promise rejects and throws an error to be caught by the component. |
+| **TC-H3** | Refresh Token Loop (Success) | Target returns 401, but refresh token is still valid. | Call `http('/url')`. | `http` intercepts 401, calls `/auth/refreshToken`, updates local tokens, and **retries** the original request automatically. Returns data gracefully without component awareness. |
+| **TC-H4** | Refresh Token Loop (Failure) | Target returns 401 AND refresh endpoint also returns 401 (both tokens expired). | Call `http('/url')`. | Throws "Session expired" error. User session is purged. |

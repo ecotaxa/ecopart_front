@@ -31,7 +31,7 @@ export default function ResetPasswordPage() {
         return (
             <AuthPageLayout
                 title="Reset password"
-                successMessage="If this email address exists, you will receive an email with instructions to reset your password."
+                successMessage={VALIDATION_MESSAGES.RESET_LINK_SENT}
             />
         );
     }
@@ -66,6 +66,7 @@ export default function ResetPasswordPage() {
                 sx={{ mt: 3 }}
                 disabled={!emailIsValid}
                 onClick={handleSubmit}
+                data-testid="reset-request-submit"
             >
                 Send password reset email
             </Button>
