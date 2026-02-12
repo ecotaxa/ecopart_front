@@ -13,7 +13,7 @@ describe('RegisterPage (Accessibility)', () => {
 
     // TC-B5: Keyboard Navigation
     it('TC-B5: should allow navigating the complete form using Tab order', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<RegisterPage />);
 
         const firstName = screen.getByLabelText(/First name/i);

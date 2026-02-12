@@ -10,7 +10,7 @@ describe('ResetPasswordConfirmPage (Accessibility)', () => {
 
     // TC-D6: Keyboard Navigation
     it('TC-D6: should allow navigating the form using Tab order', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         // Need to render with a token to see the form
         renderWithRouter(
             <Routes>

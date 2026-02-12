@@ -18,7 +18,7 @@ describe('LoginPage (Accessibility)', () => {
     // TC-A6: Keyboard Navigation
     // We verify that a keyboard-only user can navigate the form logically.
     it('TC-A6: should allow navigating the form using Tab order', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<LoginPage />);
 
         // Enable the submit button by filling the form first.

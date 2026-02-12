@@ -1,32 +1,30 @@
 import { useAuthStore } from '@/features/auth/store/auth.store';
-import type { User } from '@/features/auth/types/user';
+// IMPORT the new MSW helper
+import { setMockAuth } from '@/test/msw/handlers';
 
-// Default mock user matching your interface
-export const MOCK_USER: User = {
-    user_id: 1,
-    email: 'test@user.com',
-    first_name: 'Test',
-    last_name: 'User',
-    is_admin: false,
-    organisation: 'Test Org',
-    country: 'FR'
+export const loginAsUser = () => {
+    // 1. Update the global state
+    useAuthStore.setState({
+        isAuthenticated: true,
+        user: {
+            user_id: 1,
+            first_name: 'John',
+            last_name: 'Doe',
+            email: 'john@doe.com',
+            is_admin: false,
+            organisation: 'Sorbonne Université',
+            country: 'FR',
+            user_planned_usage: 'Scientific Research',
+        }
+    });
+
+    // 2. IMPORTANT: Tell the fake server that the user is logged in
+    // This allows subsequent API calls like GET /me to succeed
+    setMockAuth(true);
 };
 
-/**
- * Helper to manually set the auth store to "authenticated" state.
- * Useful for testing protected routes or redirection logic.
- * * @param overrides - Optional object to override specific user fields (e.g. { is_admin: true })
- */
-export function loginAsUser(overrides: Partial<User> = {}) {
-    useAuthStore.setState({
-        user: { ...MOCK_USER, ...overrides },
-        isAuthenticated: true
-    });
-}
-
-/**
- * Helper to force logout (reset store)
- */
-export function logoutUser() {
+export const logoutUser = () => {
     useAuthStore.setState({ user: null, isAuthenticated: false });
-}
+    // Tell the fake server the user is logged out
+    setMockAuth(false);
+};

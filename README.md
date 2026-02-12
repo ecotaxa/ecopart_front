@@ -442,7 +442,7 @@ We follow a modular strategy to ensure the suite remains DRY (*Don't Repeat Your
 | **TC-A3** | Success Login | API available. | Enter valid credentials + Login. | API called; Redirected to `/dashboard`. |
 | **TC-A4** | API Error | Backend 401/500. | Enter valid format + Login. | Graceful error shown; User stays on page. |
 | **TC-A5** | Redirect Auth | User authenticated. | Navigate to `/login`. | Redirected immediately to `/dashboard`. |
-| **TC-A6** | A11y: Keyboard | On Login page. | Fill form + Tab through. | Proper labels; Logical focus order. |
+| **TC-A6** | A11y: Keyboard Nav | On Login page. | Fill form + Tab through. | Proper labels; Logical focus order. |
 
 ### B. REGISTER PAGE
 
@@ -452,7 +452,7 @@ We follow a modular strategy to ensure the suite remains DRY (*Don't Repeat Your
 | **TC-B2** | Password Logic | On Register page. | Enter weak/mismatch pass. | Error displayed; Submit button disabled. |
 | **TC-B3** | Success | All fields valid. | Complete form + Sign up. | API called; Success shown; Form hidden. |
 | **TC-B4** | API Error | Backend 409/500. | Submit valid data. | Error shown; Form visible; Data preserved. |
-| **TC-B5** | A11y: Nav | On Register page. | Tab through form. | Logic order; Autocomplete accessible via keys. |
+| **TC-B5** | A11y: Keyboard Nav | On Register page. | Tab through form. | Logic order; Autocomplete accessible via keys. |
 
 ### C. RESET PASSWORD (REQUEST)
 
@@ -461,7 +461,7 @@ We follow a modular strategy to ensure the suite remains DRY (*Don't Repeat Your
 | **TC-C1** | Rendering | User not authenticated. | Navigate to `/reset-password`. | Input displayed; Button disabled if invalid. |
 | **TC-C2** | Success | Backend available. | Enter valid email + Send. | API called; Generic success message shown. |
 | **TC-C3** | Server Error | Backend 500. | Submit email form. | No white screen; Graceful message shown. |
-| **TC-C4** | A11y: Nav | On Reset page. | Tab through page. | Input has label; Focus moves to button. |
+| **TC-C4** | A11y: Keyboard Nav | On Reset page. | Tab through page. | Input has label; Focus moves to button. |
 
 ### D. RESET PASSWORD CONFIRMATION
 
@@ -472,23 +472,40 @@ We follow a modular strategy to ensure the suite remains DRY (*Don't Repeat Your
 | **TC-D3** | Validation | User on page. | Enter weak/mismatch pass. | Error displayed; Submit disabled. |
 | **TC-D4** | Success | Token & Data valid. | Click "Reset password". | API called; Redirect to login + Success msg. |
 | **TC-D5** | API Error | Token expired mid-way. | Submit valid form. | Error message displayed; User stays on page. |
-| **TC-D6** | A11y: Nav | User on page. | Verify labels & Tab. | Labels present; Navigation is logical. |
+| **TC-D6** | A11y: Keyboard Nav | User on page. | Verify labels & Tab. | Labels present; Navigation is logical. |
 
-### E. PROFILE PAGE
+### E. USER PROFILE (Settings)
 
 | ID | Title | Preconditions | Steps | Expected Result |
-| --- | --- | --- | --- | --- |
-| **TC-E1** | Initial Loading | User authenticated. | Navigate to `/settings`. | Loader shown; Data loaded; Usage read-only. |
-| **TC-E2** | Update Success | User authenticated. | Modify fields + Save/Cancel. | SAVE: API called; CANCEL: Values restored. |
-| **TC-E3** | Update Failure | Backend error. | Click Save. | Error shown; Changes not persisted in UI. |
-| **TC-E4** | Change Pass | User authenticated. | Enter Current + New pass. | API called; Success shown; Fields cleared. |
-| **TC-E5** | Delete Account | User authenticated. | Click DELETE + Confirm. | API called; Session cleared; Redirect to Login. |
-| **TC-E6** | A11y: Nav | On Profile page. | Navigate via Tab. | Labels present; Tabs keyboard-selectable. |
+| :--- | :--- | :--- | :--- | :--- |
+| **TC-E1** | Initial Loading | User authenticated. | Navigate to `/settings`. | Profile renders; Fields populated; `Planned usage` editable; `Email` disabled. |
+| **TC-E2** | Update Profile (Cancel) | User is on settings page. | Modify fields and click `CANCEL`. | Form inputs revert to their original database values. |
+| **TC-E3** | Update Profile (Validation) | User is on settings page. | Clear required fields (e.g., First name, Country). | `SAVE` button is disabled; Specific error messages displayed. |
+| **TC-E4** | Update Profile (Success) | User is on settings page. | Modify valid fields and click `SAVE`. | API called; Success message displayed; Data persists in UI. |
+| **TC-E5** | Update Profile (API Error) | Backend returns HTTP 500. | Modify fields and click `SAVE`. | Specific error message displayed; Data not permanently saved. |
+| **TC-E6** | Change Pass (Validation) | User is on settings page. | Enter weak passwords or mismatching confirmation. | `CHANGE` button remains disabled. |
+| **TC-E7** | Change Pass (Success) | User is on settings page. | Enter valid current, new, and confirmed password. | API called; Success message displayed; Password fields cleared. |
+| **TC-E8** | Delete Account (Error) | Backend returns HTTP 500. | Click `DELETE`, then confirm in dialog. | Dialog closes; Error message displayed on page; No redirect. |
+| **TC-E9** | Delete Account (Success) | User authenticated. | Click `DELETE`, then confirm in dialog. | API called; Local session cleared; Redirected to `/login`. |
+| **TC-E10** | Admin Navigation | Authenticated as Admin (`is_admin: true`). | Click the `ADMIN DASHBOARD` button. | User is successfully routed to the `/admin` page. |
+| **TC-E11** | A11y: Keyboard Nav | User is on settings page. | Navigate completely through the form using `Tab`. | Focus jumps sequentially through inputs/buttons; Skips disabled elements. |
+
 
 ### F. ROUTING & GUARDS
 
 | ID | Title | Preconditions | Steps | Expected Result |
-| --- | --- | --- | --- | --- |
-| **TC-R1** | Block Unauth | User NOT authenticated. | Access `/dashboard`. | Redirect to `/login`; Content not rendered. |
-| **TC-R2** | Allow Auth | User IS authenticated. | Access `/dashboard`. | Content rendered; No redirection. |
+| :--- | :--- | :--- | :--- | :--- |
+| **TC-R1** | Block Unauthenticated | User is NOT authenticated. | Attempt to access a protected route (e.g., `/dashboard`). | Redirected to `/login`; Protected content is NOT rendered. |
+| **TC-R2** | Allow Authenticated | User IS authenticated. | Attempt to access a protected route. | Protected content is rendered; No redirection occurs. |
 
+
+### H. CORE API UTILITY (http.ts)
+
+**Unit Tests (Network & Interceptors)**
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| :--- | :--- | :--- | :--- | :--- |
+| **TC-H1** | Standard Success | Target endpoint works. | Call `http('/url')`. | Returns parsed JSON seamlessly. |
+| **TC-H2** | Standard API Error | Target endpoint returns 4xx/5xx (non-401). | Call `http('/url')`. | Promise rejects and throws an error to be caught by the component. |
+| **TC-H3** | Refresh Token Loop (Success) | Target returns 401, but refresh token is still valid. | Call `http('/url')`. | `http` intercepts 401, calls `/auth/refreshToken`, updates local tokens, and **retries** the original request automatically. Returns data gracefully without component awareness. |
+| **TC-H4** | Refresh Token Loop (Failure) | Target returns 401 AND refresh endpoint also returns 401 (both tokens expired). | Call `http('/url')`. | Throws "Session expired" error. User session is purged. |

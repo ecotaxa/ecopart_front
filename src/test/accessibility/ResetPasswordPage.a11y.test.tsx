@@ -9,7 +9,7 @@ describe('ResetPasswordPage (Accessibility)', () => {
 
     // TC-C4: Keyboard Navigation
     it('TC-C4: should allow navigating the form using Tab order', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<ResetPasswordPage />);
 
         // Enable button

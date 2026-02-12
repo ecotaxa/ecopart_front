@@ -64,8 +64,11 @@ describe('ResetPasswordPage (Functional)', () => {
 
         // Simulate Server Crash (500)
         server.use(
-            http.post('*/auth/reset', () => {
-                return new HttpResponse(null, { status: 500 });
+            http.post('*/auth/password/reset', () => {
+                return HttpResponse.json(
+                    { message: "Internal error" },
+                    { status: 500 }
+                );
             })
         );
 
@@ -78,7 +81,7 @@ describe('ResetPasswordPage (Functional)', () => {
         // (to prevent user enumeration), the UI will show the SUCCESS message even on 500.
         // We verify here that the app doesn't crash and shows the "safe" message.
         expect(await screen.findByText(VALIDATION_MESSAGES.RESET_LINK_SENT)).toBeInTheDocument();
-        
+
         // Ensure no error message is leaking
         expect(screen.queryByText(VALIDATION_MESSAGES.GENERIC_ERROR)).not.toBeInTheDocument();
     });

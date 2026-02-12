@@ -31,5 +31,9 @@ export default defineConfig({
         environment: "jsdom",         // Simulates a browser environment (window, document)
         setupFiles: "./src/test/setup.ts", // Path to the test initialization file
         css: true,                    // Processes CSS files (useful if components depend on styles)
+        coverage: {
+            provider: "v8",
+            reporter: ["text", "html"],
+        },
     },
 });

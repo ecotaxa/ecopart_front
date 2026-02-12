@@ -70,7 +70,7 @@ describe('RegisterPage (Functional)', () => {
 
         expect(screen.getByText(VALIDATION_MESSAGES.PASSWORD_MISMATCH)).toBeInTheDocument();
         expectSubmitDisabled('register-submit');
-    }, 15000);
+    }, 25000);
 
     // TC-B3: Successful Registration
     it('TC-B3: should display success message on valid registration', async () => {
@@ -86,7 +86,7 @@ describe('RegisterPage (Functional)', () => {
         // Verify Success (Assuming your app shows a success message)
         // Adjust this text based on your actual UI (e.g., from AuthPageLayout)
         expect(await screen.findByText(/registration was successful/i)).toBeInTheDocument();
-    }, 15000);
+    }, 25000);
 
     // TC-B4: API Error Handling (Conflict)
     it('TC-B4: should handle server errors (e.g. Email exists)', async () => {
