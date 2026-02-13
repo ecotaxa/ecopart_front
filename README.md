@@ -1,3 +1,5 @@
+[![CI/CD - Build and Publish Docker Image](https://github.com/ecotaxa/ecopart_front/actions/workflows/ci.yml/badge.svg)](https://github.com/ecotaxa/ecopart_front/actions/workflows/ci.yml)
+
 # Ecopart Frontend
 
 Modern React frontend for the Ecopart platform.

@@ -29,9 +29,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Run the tests
-      - name: Run tests
-        run: npm run test -- --run
+      # Run the tests with coverage
+      - name: Run tests with coverage
+        run: npm run test -- --coverage
+
+      # Upload coverage reports to Codecov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+            token: ${{ secrets.CODECOV_TOKEN }}
+            slug: <TON_USER>/<TON_REPO>
 
   # Job to build and push the Docker image. Requires 'test' job to pass.
   build-and-push:
