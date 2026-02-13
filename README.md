@@ -1,4 +1,5 @@
 [![CI/CD - Build and Publish Docker Image](https://github.com/ecotaxa/ecopart_front/actions/workflows/ci.yml/badge.svg)](https://github.com/ecotaxa/ecopart_front/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/ecotaxa/ecopart_front/graph/badge.svg?token=A5RXX8GAU2)](https://codecov.io/github/ecotaxa/ecopart_front)
 
 # Ecopart Frontend
 
