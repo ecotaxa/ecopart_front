@@ -76,6 +76,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           file: ./Dockerfile
           push: true
+          build-args: |
+            VITE_BACKEND_URL=http://localhost:4000
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/ecopart_front:${{ steps.version.outputs.VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/ecopart_front:latest

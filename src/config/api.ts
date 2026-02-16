@@ -1,3 +1,7 @@
-// En DEV, on utilise une chaîne vide pour profiter du Proxy Vite (ex: /auth/login).
-// En PROD, on utilise l'URL complète définie dans les variables d'environnement.
-export const API_BASE_URL = import.meta.env.DEV ? "" : (import.meta.env.VITE_BACKEND_URL || "");
+// config/api.ts
+
+// En production, on utilise OBLIGATOIREMENT la variable d'environnement
+// car le proxy Vite n'existe plus.
+export const API_BASE_URL = import.meta.env.DEV 
+    ? ""  // En dev, on laisse vide pour utiliser le proxy localhost:5173 -> localhost:4000
+    : import.meta.env.VITE_BACKEND_URL; // En prod, c'est l'URL injectée par Docker

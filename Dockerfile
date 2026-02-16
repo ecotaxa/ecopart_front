@@ -1,5 +1,11 @@
 FROM node:20-alpine AS builder
 
+# 1. Déclarer les arguments (ce que la CI va envoyer)
+ARG VITE_BACKEND_URL
+
+# 2. Les transformer en variables d'environnement pour que Vite les lise
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
 # Set working directory
 WORKDIR /app
 
