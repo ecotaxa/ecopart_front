@@ -1,4 +1,5 @@
 import { RegisterPayload } from "../types/user";
+import { API_BASE_URL } from '@/config/api';
 
 function extractErrorMessage(data: any): string | null {
 
@@ -15,7 +16,7 @@ function extractErrorMessage(data: any): string | null {
 }
 
 export async function registerUser(payload: RegisterPayload) {
-    const res = await fetch("/users", {
+    const res = await fetch(`${API_BASE_URL}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

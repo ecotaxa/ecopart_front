@@ -1,8 +1,9 @@
+import { API_BASE_URL } from '@/config/api';
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
 async function refreshToken() {
-    const res = await fetch("/auth/refreshToken", {
+    const res = await fetch(`${API_BASE_URL}/auth/refreshToken`, {
         method: "POST",
         credentials: "include",
     });

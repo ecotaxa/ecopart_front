@@ -15,6 +15,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CloudIcon from "@mui/icons-material/Cloud";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import { API_BASE_URL } from '@/config/api';
 
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 
@@ -34,7 +35,7 @@ export default function TopBar() {
 
     const handleLogout = async () => {
         try {
-            await fetch("/auth/logout", {
+            await fetch(`${API_BASE_URL}/auth/logout`, {
                 method: "POST",
                 credentials: "include",
             });
