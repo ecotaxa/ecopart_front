@@ -30,4 +30,5 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 
 # Start the server
-CMD ["serve", "-s", "dist", "-l", "3000"] #>TODO: Verifier que le port 3000 est bien celui utilisé par serve, sinon adapter en fonction du port défini dans .env (VITE_PORT)
+CMD ["serve", "-s", "dist", "-l", "3000"] 
+# TODO: Verifier que le port 3000 est bien celui utilisé par serve, sinon adapter en fonction du port défini dans .env (VITE_PORT)
