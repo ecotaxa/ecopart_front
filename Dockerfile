@@ -1,12 +1,5 @@
 FROM node:20-alpine AS builder
 
-# Define build arguments (with empty default values)
-ARG VITE_BACKEND_URL
-
-# Set environment variables for the build
-ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
-
-
 # Set working directory
 WORKDIR /app
 
@@ -37,4 +30,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 
 # Start the server
-CMD ["serve", "-s", "dist", "-l", "3000"]
+CMD ["serve", "-s", "dist", "-l", "3000"] #>TODO: Verifier que le port 3000 est bien celui utilisé par serve, sinon adapter en fonction du port défini dans .env (VITE_PORT)
