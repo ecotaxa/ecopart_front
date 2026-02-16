@@ -77,7 +77,7 @@ jobs:
           file: ./Dockerfile
           push: true
           build-args: |
-            VITE_BACKEND_URL=http://localhost:5006
+            VITE_BACKEND_URL=http://ecotaxa-dev.imev-mer.fr:5006
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/ecopart_front:${{ steps.version.outputs.VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/ecopart_front:latest
