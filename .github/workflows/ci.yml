@@ -79,7 +79,6 @@ jobs:
           # injects the variable for the DEV server
           build-args: |
             VITE_BACKEND_URL=http://ecopart_back:4000
-            VITE_PORT=5173
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/ecopart_front:${{ steps.version.outputs.VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/ecopart_front:latest

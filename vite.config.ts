@@ -16,11 +16,11 @@ export default defineConfig(({ mode }) => {
         server: {
             proxy: {
                 "/auth": {
-                    target: env.VITE_BACKEND_URL || "http://localhost:4000",
+                    target: env.VITE_BACKEND_URL,
                     changeOrigin: true,
                 },
                 "/users": {
-                    target: env.VITE_BACKEND_URL || "http://localhost:4000",
+                    target: env.VITE_BACKEND_URL,
                     changeOrigin: true,
                 },
             },
