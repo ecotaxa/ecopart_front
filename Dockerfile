@@ -1,5 +1,13 @@
 FROM node:20-alpine AS builder
 
+# Define build arguments (with empty default values)
+ARG VITE_BACKEND_URL
+ARG VITE_PORT
+
+# Set environment variables for the build
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ENV VITE_PORT=$VITE_PORT
+
 # Set working directory
 WORKDIR /app
 
