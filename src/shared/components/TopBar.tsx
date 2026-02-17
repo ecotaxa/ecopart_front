@@ -147,13 +147,24 @@ export default function TopBar() {
                         </Menu>
                     </>
                 ) : (
-                    <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={() => navigate("/login")}
-                    >
-                        Log in
-                    </Button>
+                    <Stack direction="row" spacing={2}>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => navigate("/login")}
+                            sx={{ minWidth: 110 }}
+                        >
+                            Log in
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => navigate("/register")}
+                            sx={{ minWidth: 110 }}
+                        >
+                            Register
+                        </Button>
+                    </Stack>
                 )}
 
             </Toolbar>
