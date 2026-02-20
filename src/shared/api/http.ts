@@ -1,8 +1,9 @@
+import { API_BASE_URL } from '@/config/api';
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 
 async function refreshToken() {
-    const res = await fetch("/auth/refreshToken", {
+    const res = await fetch(`${API_BASE_URL}/auth/refreshToken`, {
         method: "POST",
         credentials: "include",
     });
@@ -16,8 +17,10 @@ export async function http<T>(
     input: RequestInfo,
     init: RequestInit = {}
 ): Promise<T> {
+    const url = typeof input === 'string' ? `${API_BASE_URL}${input}` : input;
+
     // 1. Initial Request
-    const response = await fetch(input, {
+    const response = await fetch(url, {
         ...init,
         credentials: "include",
         headers: {
@@ -61,7 +64,7 @@ export async function http<T>(
     }
 
     // 5. Retry original request once
-    const retryResponse = await fetch(input, {
+    const retryResponse = await fetch(url, {
         ...init,
         credentials: "include",
         headers: {
