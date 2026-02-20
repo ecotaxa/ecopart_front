@@ -29,7 +29,7 @@ WORKDIR /app
 
 # Copy only necessary files from builder
 COPY --from=builder /app/package.json /app/package-lock.json ./
-RUN npm ci --omit=dev && npm install -g serve
+RUN npm ci --omit=dev && npm install -g serve@14.2.1
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000

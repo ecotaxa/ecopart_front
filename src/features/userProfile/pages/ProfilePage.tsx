@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
 import {
     Box,
     Button,
@@ -35,6 +34,8 @@ import { useNavigate } from "react-router-dom";
 import MainLayout from "@/app/layouts/MainLayout";
 import { CountriesWrapper, CountryOption } from "@/shared/country-wrapper";
 import { PasswordInput } from "@/shared/components/PasswordInput";
+
+import { useEffect, useMemo, useState, useCallback } from "react";
 
 // Validation utils
 import {
@@ -121,6 +122,26 @@ export default function ProfilePage() {
         []
     );
 
+    // --- HELPERS ---
+    const fetchLinkedAccounts = useCallback(async (userId: number) => {
+        try {
+            const accounts = await getEcoTaxaAccounts(userId);
+            setLinkedAccounts(accounts);
+            // Logic: If user has accounts, default to list view (hide form). 
+            // If no accounts, show form.
+            if (accounts && accounts.length > 0) {
+                setShowLinkForm(false);
+            } else {
+                setShowLinkForm(true);
+            }
+        } catch (err) {
+            console.error("Failed to load linked accounts", err);
+            // SAFETY NET: If the API fails, show the form so the user isn't stuck on an empty screen
+            setLinkedAccounts([]);
+            setShowLinkForm(true);
+        }
+    }, []);
+
     // --- INITIAL LOAD ---
     useEffect(() => {
         const loadUserData = async () => {
@@ -148,27 +169,7 @@ export default function ProfilePage() {
         };
 
         loadUserData();
-    }, [countryOptions]);
-
-    // --- HELPERS ---
-    const fetchLinkedAccounts = async (userId: number) => {
-        try {
-            const accounts = await getEcoTaxaAccounts(userId);
-            setLinkedAccounts(accounts);
-            // Logic: If user has accounts, default to list view (hide form). 
-            // If no accounts, show form.
-            if (accounts && accounts.length > 0) {
-                setShowLinkForm(false);
-            } else {
-                setShowLinkForm(true);
-            }
-        } catch (err) {
-            console.error("Failed to load linked accounts", err);
-            // SAFETY NET: If the API fails, show the form so the user isn't stuck on an empty screen
-            setLinkedAccounts([]);
-            setShowLinkForm(true);
-        }
-    };
+    }, [countryOptions, fetchLinkedAccounts]);
 
     const getDaysLeft = (expirationDate: string) => {
         if (!expirationDate) return 0;
@@ -182,7 +183,7 @@ export default function ProfilePage() {
     // --- HANDLERS ---
 
     // ... (Keep handleProfileSave, handleProfileCancel, handleChangePassword, handleDeleteClick, handleConfirmDelete AS IS) ...
-    const handleProfileSave = async () => { /* ... existing code ... */
+    const handleProfileSave = async () => { 
         if (!user) return;
         setProfileMessage(null);
         setProfileSaving(true);
@@ -199,13 +200,13 @@ export default function ProfilePage() {
         } finally { setProfileSaving(false); }
     };
 
-    const handleProfileCancel = () => { /* ... existing code ... */
+    const handleProfileCancel = () => { 
         if (user) {
             setFirstName(user.first_name || ""); setLastName(user.last_name || ""); setOrganisation(user.organisation || ""); setCountryCode(user.country || ""); setPlannedUsage(user.user_planned_usage || ""); setProfileMessage(null);
         }
     };
 
-    const handleChangePassword = async () => { /* ... existing code ... */
+    const handleChangePassword = async () => { 
         if (!user || !isNonEmpty(currentPassword) || !isValidPassword(newPassword) || !passwordsMatch(newPassword, confirmPassword)) return;
         setPasswordMessage(null); setPasswordSaving(true);
         try {
@@ -221,7 +222,7 @@ export default function ProfilePage() {
 
     const handleDeleteClick = () => { setOpenDeleteDialog(true); };
 
-    const handleConfirmDelete = async () => { /* ... existing code ... */
+    const handleConfirmDelete = async () => { 
         if (!user) return;
         setDeleteError(null);
         try {
@@ -303,7 +304,7 @@ export default function ProfilePage() {
                     </Tabs>
                 </Box>
 
-                {/* TAB 0: ECOPART PROFILE (Collapsed for brevity - keep your existing code) */}
+                {/* TAB 0: ECOPART PROFILE (Collapsed for brevity) */}
                 {tabValue === 0 && (
                     <>
                         {/* ... Reuse your existing Profile & Password sections here ... */}

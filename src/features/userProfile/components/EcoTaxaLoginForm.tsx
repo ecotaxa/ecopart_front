@@ -115,7 +115,7 @@ export const EcoTaxaLoginForm = ({
             />
 
             <Typography variant="h6" sx={{ mt: 1 }}>
-                Login into EcoTaxa
+                Log in to EcoTaxa
             </Typography>
 
             {/* Feedback Message (Success/Error) */}
@@ -171,7 +171,7 @@ export const EcoTaxaLoginForm = ({
                 }
                 label={
                     <Typography variant="body2" sx={{ textAlign: 'left' }}>
-                        I consent to giving EcoPart all access to my EcoTaxa account to allow it to manage my data on Ecotaxa
+                        I consent to granting EcoPart full access to my EcoTaxa account so it can manage my data on EcoTaxa.
                     </Typography>
                 }
                 sx={{ alignItems: 'flex-start', mt: 1, width: '100%' }}
