@@ -6,6 +6,7 @@ import { LoginPage, RegisterPage, ResetPasswordPage, ResetPasswordConfirmPage } 
 import { DashboardPage } from "@/features/dashboard";
 import { NotFoundPage } from "@/features/errors";
 import { ProfilePage } from "@/features/userProfile";
+import ProjectsPage from "@/features/projects/pages/ProjectsPage";
 
 export const router = createBrowserRouter([
     { path: "/", element: <HomePage /> },
@@ -35,6 +36,14 @@ export const router = createBrowserRouter([
         element: (
             <ProtectedRoute>
                 <ProfilePage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/projects",
+        element: (
+            <ProtectedRoute>
+                <ProjectsPage />
             </ProtectedRoute>
         ),
     },
