@@ -19,48 +19,70 @@ import { useNavigate } from "react-router-dom";
 import MainLayout from "@/app/layouts/MainLayout";
 import { Project } from "../api/projects.api";
 
-// IMPORT OUR NEW BRAIN (The Custom Hook)
 import { useProjectsTable } from "../hooks/useProjectsTable";
 
+/**
+ * ProjectsPage Component
+ * 
+ * Displays a paginated list of projects with filtering, searching, and selection capabilities.
+ * It integrates with the `useProjectsTable` hook for server-side data fetching.
+ */
 export default function ProjectsPage() {
     const navigate = useNavigate();
 
-    // 1. WE CONNECT THE BRAIN TO THE FACE
+    // ---------------------------------------------------------------------------
+    // State Management (via Custom Hook)
+    // ---------------------------------------------------------------------------
     const {
         projects, loading, totalRows,
         searchText, setSearchText,
+        searchAttribute, setSearchAttribute, // The specific field to search on (e.g., title, acronym)
         selectedFilter, setSelectedFilter,
-        paginationModel, setPaginationModel,
-        rowSelectionModel, setRowSelectionModel
+        paginationModel, setPaginationModel, // Controls current page and page size
+        rowSelectionModel, setRowSelectionModel // Manages selected row IDs
     } = useProjectsTable();
 
-    // 2. UI-ONLY STATES (These stay in the component because they relate to the DOM)
-    const [attribute, setAttribute] = useState("Property 1");
+    // ---------------------------------------------------------------------------
+    // Local UI State
+    // ---------------------------------------------------------------------------
     const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLButtonElement | null>(null);
     const openFilter = Boolean(filterAnchorEl);
 
-    // 3. UI HANDLERS
+    // ---------------------------------------------------------------------------
+    // Event Handlers
+    // ---------------------------------------------------------------------------
     const handleFilterClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setFilterAnchorEl(event.currentTarget);
     };
 
+    /**
+     * Closes the filter menu and updates the selected filter if a value is provided.
+     */
     const handleFilterClose = (filterValue?: string) => {
         setFilterAnchorEl(null);
         if (typeof filterValue === "string") {
-            setSelectedFilter(filterValue); // Updates the hook's state
+            setSelectedFilter(filterValue);
         }
     };
 
+    /**
+     * Navigates to the Explore page passing the selected project IDs as query parameters.
+     */
     const handleExploreSelection = () => {
         const joinedIds = Array.from(rowSelectionModel.ids).join(",");
         navigate(`/explore?projects=${joinedIds}`);
     };
 
+    /**
+     * Clears the current selection of rows.
+     */
     const handleClearSelection = () => {
         setRowSelectionModel({ type: "include", ids: new Set() });
     };
 
-    // 4. COLUMNS
+    // ---------------------------------------------------------------------------
+    // DataGrid Columns Configuration
+    // ---------------------------------------------------------------------------
     const columns: GridColDef[] = [
         {
             field: "title", headerName: "Title [ID]", flex: 1.5,
@@ -96,7 +118,9 @@ export default function ProjectsPage() {
         },
     ];
 
-    // 5. RENDER
+    // ---------------------------------------------------------------------------
+    // Render
+    // ---------------------------------------------------------------------------
     return (
         <MainLayout>
             <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
@@ -116,7 +140,7 @@ export default function ProjectsPage() {
 
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
                         <TextField
-                            placeholder="Name, email, etc..."
+                            placeholder="Search..."
                             size="small"
                             sx={{ flexGrow: 1 }}
                             value={searchText}
@@ -124,26 +148,29 @@ export default function ProjectsPage() {
                             InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon color="action" /></InputAdornment>) }}
                         />
 
+
                         <TextField
-                            select label="Attribute" value={attribute}
-                            onChange={(e) => setAttribute(e.target.value)}
+                            select label="Attribute" value={searchAttribute}
+                            onChange={(e) => setSearchAttribute(e.target.value)}
                             size="small" sx={{ width: 150 }}
                         >
-                            <MenuItem value="Property 1">Property 1</MenuItem>
-                            <MenuItem value="Property 2">Property 2</MenuItem>
+                            <MenuItem value="project_title">Title</MenuItem>
+                            <MenuItem value="project_acronym">Acronym</MenuItem>
+                            <MenuItem value="cruise">Cruise</MenuItem>
+                            <MenuItem value="data_owner_email">Owner Email</MenuItem>
                         </TextField>
 
                         <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick}>
                             {selectedFilter === "All" ? "Filter" : `Filter: ${selectedFilter}`}
                         </Button>
-                        
+
                         <Menu anchorEl={filterAnchorEl} open={openFilter} onClose={() => handleFilterClose()}>
                             <MenuItem onClick={() => handleFilterClose("All")}>All Projects</MenuItem>
                             <MenuItem onClick={() => handleFilterClose("Manager")}>My Managed Projects</MenuItem>
                             <MenuItem onClick={() => handleFilterClose("Validated")}>Validated QC</MenuItem>
                         </Menu>
 
-                        <Button variant="contained" startIcon={<AddIcon />}>NEW PROJECT</Button>
+                        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/new-project")}>NEW PROJECT</Button>
                     </Stack>
                 </Paper>
 
@@ -167,21 +194,21 @@ export default function ProjectsPage() {
                             rows={projects}
                             columns={columns}
                             getRowId={(row) => row.project_id}
-                            
+
                             pagination
                             paginationMode="server"
                             rowCount={totalRows}
                             paginationModel={paginationModel}
                             onPaginationModelChange={setPaginationModel}
-                            
+
                             checkboxSelection
                             rowSelectionModel={rowSelectionModel}
                             onRowSelectionModelChange={setRowSelectionModel}
-                            
+
                             loading={loading}
                             pageSizeOptions={[5, 10, 25]}
                             disableRowSelectionOnClick
-                            
+
                             sx={{ border: 0, "& .MuiDataGrid-columnHeaders": { backgroundColor: "#f5f5f5", fontWeight: "bold", borderTop: rowSelectionModel.ids.size > 0 ? "none" : undefined } }}
                         />
                     </Box>

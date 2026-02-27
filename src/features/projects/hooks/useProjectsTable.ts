@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
-import { searchProjects, Project } from "../api/projects.api";
+import { searchProjects, Project, SearchFilter } from "../api/projects.api";
 
 export const useProjectsTable = () => {
     // --- 1. STATES ---
@@ -10,6 +10,10 @@ export const useProjectsTable = () => {
 
     const [searchText, setSearchText] = useState("");
     const [debouncedSearchText, setDebouncedSearchText] = useState("");
+    
+    // We add a state to track WHICH column the user wants to search in.
+    // Default is "project_title" matching the DB column.
+    const [searchAttribute, setSearchAttribute] = useState<string>("project_title");
     
     const [selectedFilter, setSelectedFilter] = useState<string>("All");
 
@@ -31,27 +35,51 @@ export const useProjectsTable = () => {
         return () => clearTimeout(timerId);
     }, [searchText]);
 
-    // --- 3. FIX: PAGINATION RESET LOGIC ---
-    // If the user types a new search or changes a filter, we MUST go back to page 1 (index 0)
-    // Otherwise, if they are on page 4 and search for something that has only 1 page, the grid crashes/empties.
+    // --- 3. PAGINATION RESET LOGIC ---
     useEffect(() => {
         setPaginationModel((prev) => ({ ...prev, page: 0 }));
-    }, [debouncedSearchText, selectedFilter]);
+    // FIX: Also reset pagination if the search attribute changes
+    }, [debouncedSearchText, selectedFilter, searchAttribute]);
 
     // --- 4. FETCH LOGIC ---
     const fetchProjects = async () => {
         setLoading(true);
         try {
+            const activeFilters: SearchFilter[] = [];
+
+            // FIX: Dynamic attribute search
+            if (debouncedSearchText) {
+                activeFilters.push({
+                    // Instead of hardcoding "project_title", we use the state from the dropdown!
+                    field: searchAttribute, 
+                    operator: "LIKE",       
+                    value: `%${debouncedSearchText}%` 
+                });
+            }
+
+            // EXPLANATION OF WHY 'qc_state' FAILS:
+            // Your backend 'filter_params_restricted' array DOES NOT include 'qc_state'.
+            // If we send it, the backend throws a 401 error.
+            // For now, I am logging a warning instead of crashing the API.
+            if (selectedFilter !== "All") {
+                console.warn("Backend does not support filtering by qc_state yet. Skipping this filter in API call.");
+                /* // UNCOMMENT THIS WHEN BACKEND SUPPORTS IT
+                activeFilters.push({
+                    field: "qc_state", 
+                    operator: "=", 
+                    value: selectedFilter 
+                });
+                */
+            }
+
             const response = await searchProjects({
                 page: paginationModel.page + 1,
                 limit: paginationModel.pageSize,
-                search_text: debouncedSearchText,
-                // FIX: We now send the filter to the API!
-                status_filter: selectedFilter === "All" ? undefined : selectedFilter,
+                filters: activeFilters
             });
 
-            if (response) {
-                setProjects(response.projects || []);
+            if (response && response.projects) {
+                setProjects(response.projects);
                 setTotalRows(response.search_info?.total || 0);
             } else {
                 setProjects([]);
@@ -66,29 +94,18 @@ export const useProjectsTable = () => {
         }
     };
 
-    // Trigger fetch when pagination, debounced text, or filter changes
     useEffect(() => {
         fetchProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paginationModel.page, paginationModel.pageSize, debouncedSearchText, selectedFilter]);
+    }, [paginationModel.page, paginationModel.pageSize, debouncedSearchText, selectedFilter, searchAttribute]);
 
-    // --- 5. EXPORT EVERYTHING THE UI NEEDS ---
     return {
-        // Data
-        projects,
-        loading,
-        totalRows,
-        // Search
-        searchText,
-        setSearchText,
-        // Filter
-        selectedFilter,
-        setSelectedFilter,
-        // Pagination
-        paginationModel,
-        setPaginationModel,
-        // Selection
-        rowSelectionModel,
-        setRowSelectionModel,
+        projects, loading, totalRows,
+        searchText, setSearchText,
+        // Exporting the attribute states to the UI
+        searchAttribute, setSearchAttribute, 
+        selectedFilter, setSelectedFilter,
+        paginationModel, setPaginationModel,
+        rowSelectionModel, setRowSelectionModel,
     };
 };

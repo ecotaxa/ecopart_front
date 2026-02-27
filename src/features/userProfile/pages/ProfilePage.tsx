@@ -23,7 +23,7 @@ import Grid from "@mui/material/Grid";
 import PersonIcon from "@mui/icons-material/Person";
 import CloudIcon from "@mui/icons-material/Cloud";
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'; // Icon for admin
-// New icons for the list view to match mockup
+// icons for the list view to match mockup
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -53,16 +53,16 @@ import {
     changePassword,
     deleteAccount,
     // linkEcoTaxaAccount, <-- REMOVED: handled by child component now
-    getEcoTaxaAccounts, // New API call
-    unlinkEcoTaxaAccount, // New API call for unlinking
-    type EcoTaxaAccountLink // New Type
+    getEcoTaxaAccounts, // API call
+    unlinkEcoTaxaAccount, // API call for unlinking
+    type EcoTaxaAccountLink // Type
 } from "../api/profile.api";
 import { User } from "@/features/auth/types/user";
 
 // Auth Store (to logout user after deletion)
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
-// NEW IMPORT: The extracted Login Form Component
+// IMPORT: The extracted Login Form Component
 import { EcoTaxaLoginForm } from "../components/EcoTaxaLoginForm";
 
 /* ---------------- CONSTANTS ---------------- */
@@ -113,7 +113,7 @@ export default function ProfilePage() {
     const [linkedAccounts, setLinkedAccounts] = useState<EcoTaxaAccountLink[]>([]);
     const [showLinkForm, setShowLinkForm] = useState(false);
 
-    // New states for the Unlink Confirmation Dialog
+    // states for the Unlink Confirmation Dialog
     const [openUnlinkDialog, setOpenUnlinkDialog] = useState(false);
     const [accountToUnlink, setAccountToUnlink] = useState<number | null>(null);
 
@@ -158,7 +158,7 @@ export default function ProfilePage() {
                 setCountryCode(isValidCode ? code : "");
                 setPlannedUsage(userData.user_planned_usage || "");
 
-                // NEW: Load connected accounts immediately when profile loads
+                // Load connected accounts immediately when profile loads
                 fetchLinkedAccounts(userData.user_id);
 
             } catch (error) {
