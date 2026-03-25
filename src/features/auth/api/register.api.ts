@@ -8,7 +8,7 @@ function extractErrorMessage(errorData: ApiErrorResponse): string | null {
         const first = errorData.errors[0];
 
         if (typeof first === "string") return first;
-        if (typeof first === "object" && first?.msg === "string") return first.msg;
+        if (typeof first === "object" && typeof first?.msg === "string") return first.msg;
     }
 
     if (typeof errorData?.message === "string") return errorData.message;

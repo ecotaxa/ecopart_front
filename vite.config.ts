@@ -5,6 +5,9 @@ import path from "path";
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
+
+    // Make sure there is no trailing slash at the end of the backend URL
+    const backendUrl = (env.VITE_BACKEND_URL || 'http://localhost:4000').replace(/\/$/, '');
     return {
         plugins: [react()],
         resolve: {
@@ -23,6 +26,22 @@ export default defineConfig(({ mode }) => {
                     target: env.VITE_BACKEND_URL,
                     changeOrigin: true,
                 },
+                /// Smartly intercept "/projects"
+                "/projects": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                    // The bypass function decides whether the request should go to the backend or the React frontend
+                    bypass: (req) => {
+                        // If the request comes from the browser (address bar, refresh) -> "text/html"
+                        if (req.headers.accept?.includes('text/html')) {
+                            // Cancel the proxy and let React Router display <ProjectsPage />
+                            return '/index.html';
+                        }
+                        // If it is a fetch() or axios from your code -> "application/json"
+                        // Return null, so the proxy activates and sends it to the Backend (localhost:4000)
+                        return null;
+                    }
+                }
             },
         },
 

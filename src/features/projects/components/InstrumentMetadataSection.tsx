@@ -8,16 +8,15 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
-// Import only the specific slice of types we need
 import { NewProjectFormValues } from "../types/newProject.types";
 
-/**
- * Props definition.
- * Expects exactly the 'instrument' object from our form state.
- */
 interface InstrumentMetadataSectionProps {
-    values: NewProjectFormValues['instrument'];
-    onChange: (data: Partial<NewProjectFormValues['instrument']>) => void;
+    values: NewProjectFormValues["instrument"];
+    onChange: (data: Partial<NewProjectFormValues["instrument"]>) => void;
+    errors?: {
+        model?: string;
+        serialNumber?: string;
+    };
 }
 
 // Hardcoded mock data for the dropdown (can be replaced by API call later)
@@ -28,7 +27,7 @@ const INSTRUMENT_MODELS = [
     "UVP6LP",
     "UVP6HF",
     "UVP6MHP",
-    "UVP6MHF"
+    "UVP6MHF",
 ];
 
 /**
@@ -36,7 +35,8 @@ const INSTRUMENT_MODELS = [
  */
 export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps> = ({
     values,
-    onChange
+    onChange,
+    errors,
 }) => {
     return (
         <Box sx={{ mb: 4 }}>
@@ -54,11 +54,11 @@ export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps>
                         required
                         label="Instrument"
                         value={values.model}
-                        // We pass an object with just the 'model' key updated
                         onChange={(e) => onChange({ model: e.target.value })}
                         size="small"
+                        error={Boolean(errors?.model)}
+                        helperText={errors?.model}
                     >
-                        {/* Map over our constants to create the dropdown options */}
                         {INSTRUMENT_MODELS.map((model) => (
                             <MenuItem key={model} value={model}>
                                 {model}
@@ -75,9 +75,10 @@ export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps>
                         label="Instrument serial number"
                         placeholder="e.g., sn000"
                         value={values.serialNumber}
-                        // We pass an object with just the 'serialNumber' key updated
                         onChange={(e) => onChange({ serialNumber: e.target.value })}
                         size="small"
+                        error={Boolean(errors?.serialNumber)}
+                        helperText={errors?.serialNumber}
                     />
                 </Grid>
             </Grid>

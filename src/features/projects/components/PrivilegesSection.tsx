@@ -10,82 +10,98 @@ import {
     ToggleButton,
     ToggleButtonGroup,
     Stack,
-    Divider
+    Divider,
+    FormHelperText,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
-// Icons
-import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
 
 import { NewProjectFormValues } from "../types/newProject.types";
 
 /**
  * Type representing a single row in our Privileges UI table.
  */
-type PrivilegeRow = NewProjectFormValues['privileges'][0];
+type PrivilegeRow = NewProjectFormValues["privileges"][0];
 
 interface PrivilegesSectionProps {
-    values: NewProjectFormValues['privileges'];
-    // For arrays, we usually pass the whole updated array back to the parent
-    onChange: (data: NewProjectFormValues['privileges']) => void;
-    // The raw users list directly from the API
-    availableUsers: Array<{ user_id: number; first_name: string; last_name: string; email: string; deleted?: string | null }>;
+    values: NewProjectFormValues["privileges"];
+    onChange: (data: NewProjectFormValues["privileges"]) => void;
+    availableUsers: Array<{
+        user_id: number;
+        first_name: string;
+        last_name: string;
+        email: string;
+        deleted?: string | null;
+    }>;
+    currentUserId: number | null;
+    managerError?: string;
+    contactError?: string;
 }
 
-export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({ values, onChange, availableUsers }) => {
-
+export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
+    values,
+    onChange,
+    availableUsers,
+    currentUserId,
+    managerError,
+    contactError,
+}) => {
     // --- FILTER ACTIVE USERS ---
-    // We use useMemo to avoid re-filtering the array on every single keystroke.
-    // It will only re-calculate if 'availableUsers' from the API changes.
     const activeUsers = useMemo(() => {
-        return availableUsers.filter(user => {
-            // 1. Check if the 'deleted' property exists and is not null
+        return availableUsers.filter((user) => {
             if (user.deleted) return false;
-            
-            // 2. Extra safety: Check if the name contains "anonym" (as seen in your DB)
-            if (user.first_name.toLowerCase().includes("anonym") || user.last_name.toLowerCase().includes("anonym")) {
+
+            if (
+                user.first_name.toLowerCase().includes("anonym") ||
+                user.last_name.toLowerCase().includes("anonym")
+            ) {
                 return false;
             }
-            
-            return true; // Keep the user
+
+            return true;
         });
     }, [availableUsers]);
 
     // --- LOCAL ARRAY HANDLERS ---
 
-    // Adds a new empty row to the privileges array
     const handleAddRow = () => {
+        // The new row is automatically prefilled with the currently authenticated user,
+        // manager role, and contact selected.
         const newRow: PrivilegeRow = {
-            userId: "",
-            role: "Member", // Default role
-            contact: false
+            userId: currentUserId ? currentUserId.toString() : "",
+            role: "Manager",
+            contact: true,
         };
-        // Create a new array with the new row appended
-        onChange([...values, newRow]);
+
+        // Only one user can be contact, so we clear the previous ones.
+        const normalizedRows = values.map((row) => ({
+            ...row,
+            contact: false,
+        }));
+
+        onChange([...normalizedRows, newRow]);
     };
 
-    // Removes a row at a specific index
     const handleRemoveRow = (indexToRemove: number) => {
-        // Filter out the row that matches the index
         const newValues = values.filter((_, index) => index !== indexToRemove);
         onChange(newValues);
     };
 
-    // Updates a specific field of a specific row
-    const handleUpdateRow = <K extends keyof PrivilegeRow>(indexToUpdate: number, field: K, newValue: PrivilegeRow[K]) => {
+    const handleUpdateRow = <K extends keyof PrivilegeRow>(
+        indexToUpdate: number,
+        field: K,
+        newValue: PrivilegeRow[K]
+    ) => {
         const newValues = values.map((row, index) => {
-            // If it's not the row we are updating, we check for the contact exclusivity
             if (index !== indexToUpdate) {
-                // RULE: Only ONE user can be the contact.
-                // If we are setting another row to be the contact, remove the contact flag from this one.
-                if (field === 'contact' && newValue === true) {
+                if (field === "contact" && newValue === true) {
                     return { ...row, contact: false };
                 }
-                return row; // Keep row unchanged
+                return row;
             }
 
-            // If it IS the row we want to update, merge the new value
             return { ...row, [field]: newValue };
         });
 
@@ -98,32 +114,39 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({ values, on
                 Privileges
             </Typography>
 
-            {/* Table Header (Hidden on extra small screens for better responsiveness) */}
-            <Grid container spacing={2} sx={{ mb: 1, display: { xs: 'none', sm: 'flex' } }}>
-                <Grid size={{ sm: 4 }}><Typography variant="subtitle2" color="text.secondary">User</Typography></Grid>
-                <Grid size={{ sm: 4 }}><Typography variant="subtitle2" color="text.secondary">Privilege</Typography></Grid>
-                <Grid size={{ sm: 3 }}><Typography variant="subtitle2" color="text.secondary">Contact</Typography></Grid>
-                <Grid size={{ sm: 1 }}></Grid> {/* Empty space for the delete button */}
+            <Grid container spacing={2} sx={{ mb: 1, display: { xs: "none", sm: "flex" } }}>
+                <Grid size={{ sm: 4 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                        User
+                    </Typography>
+                </Grid>
+                <Grid size={{ sm: 4 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                        Privilege
+                    </Typography>
+                </Grid>
+                <Grid size={{ sm: 3 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                        Contact
+                    </Typography>
+                </Grid>
+                <Grid size={{ sm: 1 }}></Grid>
             </Grid>
             <Divider sx={{ mb: 2 }} />
 
-            {/* Dynamic Rows */}
             <Stack spacing={2}>
                 {values.map((row, index) => (
                     <Grid container spacing={2} alignItems="center" key={index}>
-
-                        {/* User Selection */}
                         <Grid size={{ xs: 12, sm: 4 }}>
                             <TextField
                                 select
                                 fullWidth
                                 size="small"
                                 label={row.userId === "" ? "Select user" : ""}
-                                slotProps={{ inputLabel: { shrink: false } }} // Hides label when value is selected to match mockup
+                                slotProps={{ inputLabel: { shrink: false } }}
                                 value={row.userId}
-                                onChange={(e) => handleUpdateRow(index, 'userId', e.target.value)}
+                                onChange={(e) => handleUpdateRow(index, "userId", e.target.value)}
                             >
-                                {/* NEW: We map over 'activeUsers' instead of 'availableUsers' */}
                                 {activeUsers.map((user) => (
                                     <MenuItem key={user.user_id} value={user.user_id.toString()}>
                                         {user.first_name} {user.last_name}
@@ -132,53 +155,64 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({ values, on
                             </TextField>
                         </Grid>
 
-                        {/* Privilege Toggle (Manager / Member) */}
                         <Grid size={{ xs: 12, sm: 4 }}>
                             <ToggleButtonGroup
                                 color="primary"
                                 value={row.role}
                                 exclusive
-                                onChange={(_, newRole) => {
-                                    if (newRole !== null) { // Prevent unselecting both
-                                        handleUpdateRow(index, 'role', newRole);
+                                onChange={(_, newRole: PrivilegeRow["role"] | null) => {
+                                    if (newRole !== null) {
+                                        handleUpdateRow(index, "role", newRole);
                                     }
                                 }}
                                 size="small"
                                 sx={{ height: 40 }}
                             >
-                                <ToggleButton value="Manager" sx={{ textTransform: 'none', borderRadius: '20px 0 0 20px' }}>Manager</ToggleButton>
-                                <ToggleButton value="Member" sx={{ textTransform: 'none', borderRadius: '0 20px 20px 0' }}>Member</ToggleButton>
+                                <ToggleButton
+                                    value="Manager"
+                                    sx={{ textTransform: "none", borderRadius: "20px 0 0 20px" }}
+                                >
+                                    Manager
+                                </ToggleButton>
+                                <ToggleButton
+                                    value="Member"
+                                    sx={{ textTransform: "none", borderRadius: "0 20px 20px 0" }}
+                                >
+                                    Member
+                                </ToggleButton>
                             </ToggleButtonGroup>
                         </Grid>
 
-                        {/* Contact Radio Button */}
                         <Grid size={{ xs: 10, sm: 3 }}>
-                            {/* We use a radio button to visually indicate exclusivity */}
                             <Radio
                                 checked={row.contact}
-                                onChange={(e) => handleUpdateRow(index, 'contact', e.target.checked)}
+                                onChange={(e) => handleUpdateRow(index, "contact", e.target.checked)}
                                 color="primary"
                             />
                         </Grid>
 
-                        {/* Remove Row Button */}
-                        <Grid size={{ xs: 2, sm: 1 }} sx={{ textAlign: 'right' }}>
+                        <Grid size={{ xs: 2, sm: 1 }} sx={{ textAlign: "right" }}>
                             <IconButton onClick={() => handleRemoveRow(index)} color="default">
                                 <CloseIcon />
                             </IconButton>
                         </Grid>
-
                     </Grid>
                 ))}
             </Stack>
 
-            {/* Add User Button */}
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            {(managerError || contactError) && (
+                <Box sx={{ mt: 2 }}>
+                    {managerError && <FormHelperText error>{managerError}</FormHelperText>}
+                    {contactError && <FormHelperText error>{contactError}</FormHelperText>}
+                </Box>
+            )}
+
+            <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
                 <Button
                     variant="outlined"
                     startIcon={<AddIcon />}
                     onClick={handleAddRow}
-                    sx={{ textTransform: 'none', borderRadius: 2 }}
+                    sx={{ textTransform: "none", borderRadius: 2 }}
                 >
                     Add user
                 </Button>

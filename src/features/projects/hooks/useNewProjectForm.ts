@@ -1,7 +1,185 @@
 import { useEffect, useState } from "react";
+import { AlertColor } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+
 import { NewProjectFormValues } from "../types/newProject.types";
-import { PublicProjectRequestCreationModel } from "../api/projects.api";
-import { fetchActiveUsers, UserSearchResponse } from "@/features/auth/api/users.api"; // Adjust path as needed
+import { PublicProjectRequestCreationModel, createProject } from "../api/projects.api";
+import { fetchActiveUsers, UserSearchResponse } from "@/features/auth/api/users.api";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+
+/**
+ * Field-level errors used to display inline validation messages directly under inputs.
+ * This is intentionally flat because it is easier to pass down to presentational components.
+ */
+export interface NewProjectFormErrors {
+    rootFolderPath?: string;
+
+    instrumentModel?: string;
+    instrumentSerialNumber?: string;
+
+    projectTitle?: string;
+    projectAcronym?: string;
+    ship?: string;
+    cruise?: string;
+    projectDescription?: string;
+
+    dataOwnerName?: string;
+    dataOwnerEmail?: string;
+    chiefScientistName?: string;
+    chiefScientistEmail?: string;
+    operatorName?: string;
+    operatorEmail?: string;
+
+    ecoTaxaInstance?: string;
+    ecoTaxaAccount?: string;
+    ecoTaxaProject?: string;
+
+    privilegesManager?: string;
+    privilegesContact?: string;
+
+    privateMonths?: string;
+    visibleMonths?: string;
+    publicMonths?: string;
+}
+
+/**
+ * Backend validation item shape commonly returned by express-validator style APIs.
+ */
+interface BackendValidationItem {
+    msg?: string;
+}
+
+/**
+ * Backend error response shape.
+ */
+interface BackendErrorResponse {
+    errors?: Array<string | BackendValidationItem>;
+    message?: string;
+}
+
+/**
+ * Type guard for a plain object.
+ */
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === "object" && value !== null;
+};
+
+/**
+ * Type guard for backend error payloads.
+ */
+const isBackendErrorResponse = (value: unknown): value is BackendErrorResponse => {
+    if (!isRecord(value)) return false;
+
+    const maybeErrors = value["errors"];
+    const maybeMessage = value["message"];
+
+    const errorsOk =
+        maybeErrors === undefined ||
+        (Array.isArray(maybeErrors) &&
+            maybeErrors.every(
+                (item) =>
+                    typeof item === "string" ||
+                    (isRecord(item) && (item["msg"] === undefined || typeof item["msg"] === "string"))
+            ));
+
+    const messageOk = maybeMessage === undefined || typeof maybeMessage === "string";
+
+    return errorsOk && messageOk;
+};
+
+/**
+ * Safely extract a readable error message from any thrown value.
+ */
+const extractErrorMessage = (error: unknown): string => {
+    // FIX: Add early return if error is undefined or null
+    if (!error) return "An unexpected error occurred.";
+    if (typeof error === "string") return error;
+
+    if (error instanceof Error && error.message.trim()) {
+        return error.message;
+    }
+
+    if (isBackendErrorResponse(error)) {
+        if (Array.isArray(error.errors) && error.errors.length > 0) {
+            const firstError = error.errors[0];
+
+            if (typeof firstError === "string") {
+                return firstError;
+            }
+
+            if (typeof firstError.msg === "string" && firstError.msg.trim()) {
+                return firstError.msg;
+            }
+        }
+
+        if (typeof error.message === "string" && error.message.trim()) {
+            return error.message;
+        }
+    }
+
+    return "An unexpected error occurred while creating the project.";
+};
+
+/**
+ * Maps a backend error message to the most relevant inline field error(s).
+ * This lets us keep the raw backend message while also placing it near the correct UI area.
+ */
+const mapBackendErrorToFieldErrors = (message: string): Partial<NewProjectFormErrors> => {
+    const lowered = message.toLowerCase();
+
+    if (lowered.includes("manager")) {
+        return { privilegesManager: message };
+    }
+
+    if (lowered.includes("contact")) {
+        return { privilegesContact: message };
+    }
+
+    if (lowered.includes("ship")) {
+        return { ship: message };
+    }
+
+    if (lowered.includes("ecotaxa") && lowered.includes("project")) {
+        return { ecoTaxaProject: message };
+    }
+
+    if (lowered.includes("privacy") || lowered.includes("delay")) {
+        return {
+            privateMonths: message,
+            visibleMonths: message,
+            publicMonths: message,
+        };
+    }
+
+    return {};
+};
+
+/**
+ * Parse a positive integer from a string.
+ * If the value is invalid or below 1, fallback to 1.
+ */
+const parsePositiveInt = (value: string | number): number => {
+    // FIX: Safely handle if the value is already a number
+    const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
+
+    if (Number.isNaN(parsed) || parsed < 1) {
+        return 1;
+    }
+
+    return parsed;
+};
+
+/**
+ * Parse a numeric select value to nullable integer.
+ * Empty string returns null.
+ */
+const toNullableInt = (value: string | number | null | undefined): number | null => {
+    if (value === undefined || value === null || value === "") {
+        return null;
+    }
+    const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
+    return Number.isNaN(parsed) ? null : parsed;
+};
 
 export const useNewProjectForm = () => {
     // --------------------------------------------------
@@ -42,9 +220,9 @@ export const useNewProjectForm = () => {
         },
         privileges: [],
         privacy: {
-            privateMonths: 0,
-            visibleMonths: 0,
-            publicMonths: 0,
+            privateMonths: 1,
+            visibleMonths: 1,
+            publicMonths: 1,
         },
         dataServer: {
             host: "",
@@ -55,12 +233,36 @@ export const useNewProjectForm = () => {
         },
     });
 
-    // State to store real users fetched from DB
-    const [availableUsers, setAvailableUsers] = useState<UserSearchResponse['users']>([]);
+    // Initialise le hook de navigation
+    const navigate = useNavigate();
 
-    // Computed property to check if the instrument is "remote"
-    // We check if the selected string contains the word "remote" (case insensitive)
+    /**
+     * Inline errors state used by the UI components.
+     */
+    const [errors, setErrors] = useState<NewProjectFormErrors>({});
+
+    const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
     const isRemoteProject = values.instrument.model.toLowerCase().includes("remote");
+
+    // NEW: Current authenticated user used for privilege auto-fill
+    const currentUser = useAuthStore((state) => state.user);
+
+    // State to manage the MUI Snackbar (toast notifications)
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
+        open: false,
+        message: "",
+        severity: "info",
+    });
+
+    // Helper function to easily trigger a notification
+    const showSnackbar = (message: string, severity: AlertColor = "info") => {
+        setSnackbar({ open: true, message, severity });
+    };
+
+    // Function to close the notification (used by the UI)
+    const closeSnackbar = () => {
+        setSnackbar((prev) => ({ ...prev, open: false }));
+    };
 
     // --------------------------------------------------
     // 2. FETCH USERS ON MOUNT
@@ -74,162 +276,296 @@ export const useNewProjectForm = () => {
                 }
             } catch (error) {
                 console.error("Failed to fetch users", error);
+                showSnackbar("Failed to load users from the server.", "error");
             }
         };
+
         loadUsers();
     }, []);
 
     // --------------------------------------------------
-    // 2. DYNAMIC FIELD UPDATER
+    // 3. DYNAMIC FIELD UPDATER
     // --------------------------------------------------
-    // T extends keyof NewProjectFormValues limits T to valid sections (e.g. 'metadata', 'rootFolderPath')
-    // The data parameter can be a Partial object (for merging) OR the exact type (for replacing primitives)
     const updateField = <T extends keyof NewProjectFormValues>(
         section: T,
         data: Partial<NewProjectFormValues[T]> | NewProjectFormValues[T]
     ) => {
         setValues((prev) => {
-            // Get the current value of the targeted section
             const currentValue = prev[section];
 
-            // SCENARIO A: It's a nested object (like metadata or people)
-            // We ensure it's an object, not an array, and not null.
             if (typeof currentValue === "object" && !Array.isArray(currentValue) && currentValue !== null) {
                 return {
-                    ...prev, // Keep all other sections intact
+                    ...prev,
                     [section]: {
-                        ...(currentValue as object), // Keep existing fields inside this section
-                        ...(data as object),         // Overwrite with the newly changed fields
+                        ...(currentValue as object),
+                        ...(data as object),
                     },
                 };
             }
 
-            // SCENARIO B: It's a primitive (like rootFolderPath string) or an array (privileges)
-            // We just replace the entire value instead of trying to merge it
             return {
                 ...prev,
                 [section]: data as NewProjectFormValues[T],
             };
         });
+
+        // Clear related errors when the user edits the corresponding section.
+        setErrors((prev) => {
+            const next = { ...prev };
+
+            if (section === "rootFolderPath") {
+                delete next.rootFolderPath;
+            }
+
+            if (section === "instrument") {
+                delete next.instrumentModel;
+                delete next.instrumentSerialNumber;
+            }
+
+            if (section === "metadata") {
+                delete next.projectTitle;
+                delete next.projectAcronym;
+                delete next.ship;
+                delete next.cruise;
+                delete next.projectDescription;
+            }
+
+            if (section === "people") {
+                delete next.dataOwnerName;
+                delete next.dataOwnerEmail;
+                delete next.chiefScientistName;
+                delete next.chiefScientistEmail;
+                delete next.operatorName;
+                delete next.operatorEmail;
+            }
+
+            if (section === "ecoTaxa") {
+                delete next.ecoTaxaInstance;
+                delete next.ecoTaxaAccount;
+                delete next.ecoTaxaProject;
+            }
+
+            if (section === "privileges") {
+                delete next.privilegesManager;
+                delete next.privilegesContact;
+            }
+
+            if (section === "privacy") {
+                delete next.privateMonths;
+                delete next.visibleMonths;
+                delete next.publicMonths;
+            }
+
+            return next;
+        });
     };
 
     // --------------------------------------------------
-    // 4. METADATA PARSER (Auto-fill logic)
+    // 4. METADATA PARSER
     // --------------------------------------------------
     const handleLoadMetadata = async () => {
         if (!values.rootFolderPath) {
-            alert("Please enter a root folder path first.");
+            showSnackbar("Please enter a root folder path first.", "warning");
+            setErrors((prev) => ({ ...prev, rootFolderPath: "Root folder path is required." }));
             return;
         }
 
-        console.log(`[MOCK PARSER] Extracting metadata from: ${values.rootFolderPath}`);
-
-        // 1. Extract the folder name from the path (e.g., "plankton/uvp5/uvp5_sn000_tara2011" -> "uvp5_sn000_tara2011")
-        const pathParts = values.rootFolderPath.split('/');
+        const pathParts = values.rootFolderPath.split("/");
         const folderName = pathParts[pathParts.length - 1];
+        const nameParts = folderName.split("_");
 
-        // 2. Split the folder name by underscores (e.g., ["uvp5", "sn000", "tara2011"])
-        const nameParts = folderName.split('_');
-
-        // 3. Map the extracted parts to the form fields
         if (nameParts.length >= 3) {
-            // Backend requires specific instrument names (e.g., "UVP5HD" instead of just "uvp5")
-            // We do a simple fallback formatting here.
             const parsedInstrumentRaw = nameParts[0].toUpperCase();
-            // In a real app, you might map "UVP5" to "UVP5HD" by default if needed by the backend
             const parsedInstrument = parsedInstrumentRaw.includes("UVP5") ? "UVP5HD" : parsedInstrumentRaw;
+            const parsedSerial = nameParts[1];
+            const parsedCruise = nameParts.slice(2).join("_");
 
-            const parsedSerial = nameParts[1]; // "sn000"
-            const parsedCruise = nameParts.slice(2).join('_'); // "tara2011" (handles cases where cruise has underscores)
-
-            // Update Instrument fields
-            updateField('instrument', {
+            updateField("instrument", {
                 model: parsedInstrument,
-                serialNumber: parsedSerial
+                serialNumber: parsedSerial,
             });
 
-            // Update Metadata fields
-            updateField('metadata', {
-                title: folderName, // e.g., "uvp5_sn000_tara2011"
-                acronym: parsedCruise, // e.g., "tara2011"
-                cruise: parsedCruise
+            updateField("metadata", {
+                title: folderName,
+                acronym: parsedCruise,
+                cruise: parsedCruise,
             });
 
-            // Note: We don't touch 'ship', user will enter it manually or we fetch it later
+            showSnackbar("Metadata successfully loaded!", "success");
         } else {
-            alert("The folder name format does not match the expected {instrument}_{serial}_{cruise} format.");
+            showSnackbar("The folder format does not match {instrument}_{serial}_{cruise}.", "error");
         }
     };
 
     // --------------------------------------------------
-    // 3. SUBMIT HANDLER
+    // 5. VALIDATION LOGIC
+    // --------------------------------------------------
+    const validateForm = (): boolean => {
+        const nextErrors: NewProjectFormErrors = {};
+
+        // We trim() strings to prevent users from bypassing validation with whitespace.
+        if (!values.rootFolderPath.trim()) nextErrors.rootFolderPath = "Root folder path is required.";
+
+        if (!values.instrument.model.trim()) nextErrors.instrumentModel = "Instrument model is required.";
+        if (!values.instrument.serialNumber.trim()) nextErrors.instrumentSerialNumber = "Instrument serial number is required.";
+
+        if (!values.metadata.title.trim()) nextErrors.projectTitle = "Project title is required.";
+        if (!values.metadata.acronym.trim()) nextErrors.projectAcronym = "Project acronym is required.";
+        if (values.metadata.ship.length === 0) nextErrors.ship = "At least one ship must be selected.";
+        if (!values.metadata.cruise.trim()) nextErrors.cruise = "Cruise is required.";
+        if (!values.metadata.description.trim()) nextErrors.projectDescription = "Project description is required.";
+
+        if (!values.people.dataOwnerName.trim()) nextErrors.dataOwnerName = "Data owner name is required.";
+        if (!values.people.dataOwnerEmail.trim()) nextErrors.dataOwnerEmail = "Data owner email is required.";
+        if (!values.people.chiefScientistName.trim()) nextErrors.chiefScientistName = "Chief scientist name is required.";
+        if (!values.people.chiefScientistEmail.trim()) nextErrors.chiefScientistEmail = "Chief scientist email is required.";
+        if (!values.people.operatorName.trim()) nextErrors.operatorName = "Operator name is required.";
+        if (!values.people.operatorEmail.trim()) nextErrors.operatorEmail = "Operator email is required.";
+
+        // EcoTaxa project is required only if we are NOT creating a new project.
+        // if (!values.ecoTaxa.createNewProject && !values.ecoTaxa.project.trim()) {
+        //     nextErrors.ecoTaxaProject = "EcoTaxa project is required.";
+        // }
+
+        // Privileges rules
+        const hasManager = values.privileges.some((row) => row.role === "Manager");
+        if (!hasManager) {
+            nextErrors.privilegesManager = "At least one user must be a manager.";
+        }
+
+        const selectedContact = values.privileges.find((row) => row.contact === true);
+        if (!selectedContact) {
+            nextErrors.privilegesContact = "A contact is required.";
+        } else if (!selectedContact.userId.trim()) {
+            nextErrors.privilegesContact = "The contact must be linked to a valid user.";
+        }
+
+        // Delays must be at least 1 month
+        if (values.privacy.privateMonths < 1) nextErrors.privateMonths = "Delay must be at least 1 month.";
+        if (values.privacy.visibleMonths < 1) nextErrors.visibleMonths = "Delay must be at least 1 month.";
+        if (values.privacy.publicMonths < 1) nextErrors.publicMonths = "Delay must be at least 1 month.";
+
+        setErrors(nextErrors);
+
+        const firstError = Object.values(nextErrors)[0];
+        if (firstError) {
+            showSnackbar(firstError, "warning");
+            return false;
+        }
+
+        return true;
+    };
+
+    // --------------------------------------------------
+    // 6. SUBMIT HANDLER
     // --------------------------------------------------
     const handleSubmit = async () => {
         try {
-            // 1. DATA MAPPING (Transformation Front -> Back)
-            // On convertit notre objet 'values' en ce que l'API attend exactement
-            const payload: PublicProjectRequestCreationModel = {
-                root_folder_path: values.rootFolderPath,
+            if (!validateForm()) {
+                return;
+            }
 
-                // Metadata
-                project_title: values.metadata.title,
-                project_acronym: values.metadata.acronym,
-                // Le backend veut une string. On transforme notre tableau ["tara", "purquoi_pas"] en "tara, pourquoi_pas"
-                ship: values.metadata.ship.join(", "),
-                cruise: values.metadata.cruise,
-                project_description: values.metadata.description,
-                project_information: "", // Si tu as un champ pour ça plus tard
+            const selectedContact = values.privileges.find((row) => row.contact === true);
+            if (!selectedContact) {
+                return;
+            }
 
-                // Peoples
-                data_owner_name: values.people.dataOwnerName,
-                data_owner_email: values.people.dataOwnerEmail,
-                operator_name: values.people.operatorName,
-                operator_email: values.people.operatorEmail,
-                chief_scientist_name: values.people.chiefScientistName,
-                chief_scientist_email: values.people.chiefScientistEmail,
-
-                // Instrument & Settings
-                instrument_model: values.instrument.model,
-                serial_number: values.instrument.serialNumber,
-                override_depth_offset: values.importSettings.overrideDepthOffset,
-                enable_descent_filter: values.importSettings.enableDescentFilter,
-
-                // Privacy (Backend sets defaults 2, 24, 36 if not provided)
-                privacy_duration: values.privacy.privateMonths,
-                visible_duration: values.privacy.visibleMonths,
-                public_duration: values.privacy.publicMonths,
-
-                // Ecotaxa
-                new_ecotaxa_project: values.ecoTaxa.createNewProject,
-                ecotaxa_account_id: values.ecoTaxa.account ? parseInt(values.ecoTaxa.account) : null,
-                ecotaxa_instance_id: values.ecoTaxa.instance ? parseInt(values.ecoTaxa.instance) : null,
-                ecotaxa_project_id: values.ecoTaxa.project ? parseInt(values.ecoTaxa.project) : null,
-                ecotaxa_project_name: null, // Ou la valeur correspondante
-
-                // Privileges (Transforming our simple array into the array of objects the backend needs)
-                // Ex: [{ user_id: 1 }]
-                contact: { user_id: 1 }, // TODO: Remplacer par le vrai user_id sélectionné dans l'UI
-                members: values.privileges.filter(p => p.role === 'Member').map(p => ({ user_id: parseInt(p.userId) })),
-                managers: values.privileges.filter(p => p.role === 'Manager').map(p => ({ user_id: parseInt(p.userId) })),
+            // Safely parse integers to prevent sending NaN to backend which causes 500 errors
+            const safeParseInt = (val: string, fallback: number = 1): number => {
+                const parsed = Number.parseInt(val, 10);
+                return Number.isNaN(parsed) ? fallback : parsed;
             };
 
-            console.log("Mapped Payload ready for API:", payload);
+            // 1. Data Mapping: Transform Frontend state to Backend payload format
+            // We build the object incrementally to avoid sending undefined values
+            // which might break strict backend validation.
+            const payload: any = {
+                root_folder_path: values.rootFolderPath.trim(),
+                project_title: values.metadata.title.trim(),
+                project_acronym: values.metadata.acronym.trim(),
+                project_description: values.metadata.description.trim(),
+                project_information: "test", // Forced to match your Postman example which worked
+                cruise: values.metadata.cruise.trim(),
+                ship: values.metadata.ship.join(", "),
+                
+                data_owner_name: values.people.dataOwnerName.trim(),
+                data_owner_email: values.people.dataOwnerEmail.trim(),
+                operator_name: values.people.operatorName.trim(),
+                operator_email: values.people.operatorEmail.trim(),
+                chief_scientist_name: values.people.chiefScientistName.trim(),
+                chief_scientist_email: values.people.chiefScientistEmail.trim(),
 
-            // 2. APPEL API
-            // const response = await createProject(payload);
-            // alert("Projet créé avec succès !");
+                instrument_model: values.instrument.model, 
+                serial_number: values.instrument.serialNumber.trim(),
+                
+                override_depth_offset: typeof values.importSettings.overrideDepthOffset === 'string' ? parseFloat(values.importSettings.overrideDepthOffset) : values.importSettings.overrideDepthOffset,
+                enable_descent_filter: values.importSettings.enableDescentFilter,
 
-        } catch (error) {
-            console.error("Validation or API Error:", error);
+                privacy_duration: parsePositiveInt(values.privacy.privateMonths),
+                visible_duration: parsePositiveInt(values.privacy.visibleMonths),
+                public_duration: parsePositiveInt(values.privacy.publicMonths),
+
+                // Strict privilege formatting matching your successful Postman structure
+                contact: { user_id: safeParseInt(selectedContact.userId) },
+                managers: values.privileges
+                    .filter((row) => row.role === "Manager" && row.userId.trim() !== "")
+                    .map((row) => ({ user_id: safeParseInt(row.userId) })),
+                members: values.privileges
+                    .filter((row) => row.role === "Member" && row.userId.trim() !== "")
+                    .map((row) => ({ user_id: safeParseInt(row.userId) })),
+            };
+
+            // Only add ecotaxa fields if they actually exist to avoid sending nulls 
+            // if the backend DB doesn't like them during creation.
+            const instanceId = toNullableInt(values.ecoTaxa.instance);
+            const accountId = toNullableInt(values.ecoTaxa.account);
+            
+            if (values.ecoTaxa.createNewProject) {
+                payload.new_ecotaxa_project = true;
+                if (instanceId) payload.ecotaxa_instance_id = instanceId;
+                if (accountId) payload.ecotaxa_account_id = accountId;
+            } else {
+                const projectId = toNullableInt(values.ecoTaxa.project);
+                if (projectId) payload.ecotaxa_project_id = projectId;
+                if (instanceId) payload.ecotaxa_instance_id = instanceId;
+                if (accountId) payload.ecotaxa_account_id = accountId;
+            }
+
+            // DEBUG: Log exactly what we are sending
+            console.log("[NewProject] Payload being sent:", JSON.stringify(payload, null, 2));
+
+            await createProject(payload as PublicProjectRequestCreationModel);
+
+            showSnackbar("Project successfully created! Redirecting...", "success");
+
+            setTimeout(() => {
+                navigate("/projects");
+            }, 1500);
+        } catch (error: unknown) {
+            console.error("API Error during project creation:", error);
+
+            const errorMessage = extractErrorMessage(error);
+            const mappedErrors = mapBackendErrorToFieldErrors(errorMessage);
+
+            setErrors((prev) => ({
+                ...prev,
+                ...mappedErrors,
+            }));
+
+            showSnackbar(errorMessage, "error");
         }
     };
 
     return {
         values,
+        errors,
         updateField,
         handleSubmit,
         handleLoadMetadata,
-        availableUsers, // EXPORT the users to the UI
-        isRemoteProject // EXPORT the remote condition
+        availableUsers,
+        currentUser,
+        isRemoteProject,
+        snackbar,
+        closeSnackbar,
     };
 };
