@@ -198,7 +198,7 @@ export const useNewProjectForm = () => {
             cruise: "",
             description: "",
             filteredBeforeImport: false,
-            timeDurationCheck: false,
+            timeDurationCheck: true,
         },
         people: {
             dataOwnerName: "",
@@ -210,7 +210,7 @@ export const useNewProjectForm = () => {
         },
         importSettings: {
             overrideDepthOffset: 0,
-            enableDescentFilter: false,
+            enableDescentFilter: true,
         },
         ecoTaxa: {
             instance: "",
@@ -487,7 +487,7 @@ export const useNewProjectForm = () => {
                 project_information: "test", // Forced to match your Postman example which worked
                 cruise: values.metadata.cruise.trim(),
                 ship: values.metadata.ship.join(", "),
-                
+
                 data_owner_name: values.people.dataOwnerName.trim(),
                 data_owner_email: values.people.dataOwnerEmail.trim(),
                 operator_name: values.people.operatorName.trim(),
@@ -495,9 +495,9 @@ export const useNewProjectForm = () => {
                 chief_scientist_name: values.people.chiefScientistName.trim(),
                 chief_scientist_email: values.people.chiefScientistEmail.trim(),
 
-                instrument_model: values.instrument.model, 
+                instrument_model: values.instrument.model,
                 serial_number: values.instrument.serialNumber.trim(),
-                
+
                 override_depth_offset: typeof values.importSettings.overrideDepthOffset === 'string' ? parseFloat(values.importSettings.overrideDepthOffset) : values.importSettings.overrideDepthOffset,
                 enable_descent_filter: values.importSettings.enableDescentFilter,
 
@@ -519,7 +519,7 @@ export const useNewProjectForm = () => {
             // if the backend DB doesn't like them during creation.
             const instanceId = toNullableInt(values.ecoTaxa.instance);
             const accountId = toNullableInt(values.ecoTaxa.account);
-            
+
             if (values.ecoTaxa.createNewProject) {
                 payload.new_ecotaxa_project = true;
                 if (instanceId) payload.ecotaxa_instance_id = instanceId;

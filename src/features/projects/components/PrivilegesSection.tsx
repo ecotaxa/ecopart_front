@@ -108,6 +108,14 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
         onChange(newValues);
     };
 
+    // NEW: Helper function to determine if a user is already selected in ANOTHER row.
+    // This allows us to disable the user in the dropdown.
+    const isUserAlreadySelected = (targetUserId: string, currentRowIndex: number) => {
+        return values.some(
+            (row, index) => index !== currentRowIndex && row.userId === targetUserId
+        );
+    };
+
     return (
         <Box sx={{ mb: 5 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
@@ -147,11 +155,22 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
                                 value={row.userId}
                                 onChange={(e) => handleUpdateRow(index, "userId", e.target.value)}
                             >
-                                {activeUsers.map((user) => (
-                                    <MenuItem key={user.user_id} value={user.user_id.toString()}>
-                                        {user.first_name} {user.last_name}
-                                    </MenuItem>
-                                ))}
+                                {activeUsers.map((user) => {
+                                    const userIdStr = user.user_id.toString();
+                                    // FIX: Check if this user is selected somewhere else to disable the option
+                                    const isDisabled = isUserAlreadySelected(userIdStr, index);
+
+                                    return (
+                                        <MenuItem
+                                            key={user.user_id}
+                                            value={userIdStr}
+                                            disabled={isDisabled}
+                                        >
+                                            {user.first_name} {user.last_name}
+                                            {isDisabled && " (Already added)"}
+                                        </MenuItem>
+                                    );
+                                })}
                             </TextField>
                         </Grid>
 

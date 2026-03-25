@@ -13,11 +13,11 @@ export const useProjectsTable = () => {
 
     const [searchText, setSearchText] = useState("");
     const [debouncedSearchText, setDebouncedSearchText] = useState("");
-    
+
     // We add a state to track WHICH column the user wants to search in.
     // Default is "project_title" matching the DB column.
     const [searchAttribute, setSearchAttribute] = useState<string>("project_title");
-    
+
     const [selectedFilter, setSelectedFilter] = useState<string>("All");
 
     const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
@@ -41,7 +41,7 @@ export const useProjectsTable = () => {
     // --- 3. PAGINATION RESET LOGIC ---
     useEffect(() => {
         setPaginationModel((prev) => ({ ...prev, page: 0 }));
-    // FIX: Also reset pagination if the search attribute changes
+        // FIX: Also reset pagination if the search attribute changes
     }, [debouncedSearchText, selectedFilter, searchAttribute]);
 
     // --- 4. FETCH LOGIC ---
@@ -59,9 +59,9 @@ export const useProjectsTable = () => {
             if (debouncedSearchText) {
                 activeFilters.push({
                     // Instead of hardcoding "project_title", we use the state from the dropdown!
-                    field: searchAttribute, 
-                    operator: "LIKE",       
-                    value: `%${debouncedSearchText}%` 
+                    field: searchAttribute,
+                    operator: "LIKE",
+                    value: `%${debouncedSearchText}%`
                 });
             }
 
@@ -98,7 +98,7 @@ export const useProjectsTable = () => {
             }
         } catch (err: any) {
             console.error("Failed to fetch projects", err);
-            
+
             // NEW: Extract the error message from the API response if possible
             // Our custom http client usually throws the backend error directly, 
             // or an Error object. We try to catch both.
@@ -130,7 +130,7 @@ export const useProjectsTable = () => {
         error, // Export the error state
         searchText, setSearchText,
         // Exporting the attribute states to the UI
-        searchAttribute, setSearchAttribute, 
+        searchAttribute, setSearchAttribute,
         selectedFilter, setSelectedFilter,
         paginationModel, setPaginationModel,
         rowSelectionModel, setRowSelectionModel,

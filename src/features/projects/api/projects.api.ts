@@ -5,86 +5,86 @@ import { http } from "@/shared/api/http";
  * The backend currently returns at least user_id, and may also include user_name / email.
  */
 export interface MinimalUserModel {
-  user_id: number;
-  user_name?: string;
-  email?: string;
+    user_id: number;
+    user_name?: string;
+    email?: string;
 }
 
 export interface Project {
-  project_id: number;
-  project_title: string;
-  project_acronym: string;
-  instrument_model: string;
-  ecotaxa_project_name: string | null;
-  root_folder_path: string;
+    project_id: number;
+    project_title: string;
+    project_acronym: string;
+    instrument_model: string;
+    ecotaxa_project_name: string | null;
+    root_folder_path: string;
 
-  // Note: The following fields exist in the mockup but are NOT currently returned by the backend.
-  // They are marked as optional so TypeScript doesn't complain when mapping the backend response.
-  nbr_sample?: number;
+    // Note: The following fields exist in the mockup but are NOT currently returned by the backend.
+    // They are marked as optional so TypeScript doesn't complain when mapping the backend response.
+    nbr_sample?: number;
 
-  /**
-   * IMPORTANT:
-   * `privilege` is NOT returned directly by the backend.
-   * We keep it optional only because the UI may derive and inject it later if needed.
-   */
-  privilege?: string;
+    /**
+     * IMPORTANT:
+     * `privilege` is NOT returned directly by the backend.
+     * We keep it optional only because the UI may derive and inject it later if needed.
+     */
+    privilege?: string;
 
-  qc_state?: string;
-  serial_number?: string;
-  ship?: string;
-  cruise?: string;
-  project_description?: string;
-  data_owner_name?: string;
-  data_owner_email?: string;
-  chief_scientist_name?: string;
-  chief_scientist_email?: string;
-  operator_name?: string;
-  operator_email?: string;
-  override_depth_offset?: number;
-  enable_descent_filter?: boolean;
-  ecotaxa_instance_id?: number | null;
-  ecotaxa_project_id?: number | null;
-  privacy_duration?: number;
-  visible_duration?: number;
-  public_duration?: number;
+    qc_state?: string;
+    serial_number?: string;
+    ship?: string;
+    cruise?: string;
+    project_description?: string;
+    data_owner_name?: string;
+    data_owner_email?: string;
+    chief_scientist_name?: string;
+    chief_scientist_email?: string;
+    operator_name?: string;
+    operator_email?: string;
+    override_depth_offset?: number;
+    enable_descent_filter?: boolean;
+    ecotaxa_instance_id?: number | null;
+    ecotaxa_project_id?: number | null;
+    privacy_duration?: number;
+    visible_duration?: number;
+    public_duration?: number;
 
-  /**
-   * The backend public project model returns privileges through these fields,
-   * not through a flat `privilege` string.
-   */
-  members?: MinimalUserModel[];
-  managers?: MinimalUserModel[];
-  contact?: MinimalUserModel;
+    /**
+     * The backend public project model returns privileges through these fields,
+     * not through a flat `privilege` string.
+     */
+    members?: MinimalUserModel[];
+    managers?: MinimalUserModel[];
+    contact?: MinimalUserModel;
 }
 
 /**
  * Represents a single search filter condition.
  */
 export interface SearchFilter {
-  field: string;
-  operator: string;
-  value: string | number | boolean | string[] | null;
+    field: string;
+    operator: string;
+    value: string | number | boolean | string[] | null;
 }
 
 /**
  * Parameters required to search projects (pagination + filters).
  */
 export interface ProjectSearchFilters {
-  page: number;
-  limit: number;
-  filters: SearchFilter[];
+    page: number;
+    limit: number;
+    filters: SearchFilter[];
 }
 
 /**
  * Normalized frontend response used everywhere in the UI.
  */
 export interface ProjectSearchResponse {
-  search_info: {
-    total: number;
-    page: number;
-    limit: number;
-  };
-  projects: Project[];
+    search_info: {
+        total: number;
+        page: number;
+        limit: number;
+    };
+    projects: Project[];
 }
 
 /**
@@ -92,18 +92,18 @@ export interface ProjectSearchResponse {
  * We intentionally keep this flexible and normalize it afterwards.
  */
 type RawProjectSearchResponse = {
-  search_info?: {
+    search_info?: {
+        total?: number;
+        page?: number;
+        limit?: number;
+    };
+    projects?: Project[];
+    results?: Project[];
+    rows?: Project[];
+    data?: Project[];
     total?: number;
     page?: number;
     limit?: number;
-  };
-  projects?: Project[];
-  results?: Project[];
-  rows?: Project[];
-  data?: Project[];
-  total?: number;
-  page?: number;
-  limit?: number;
 };
 
 /**
@@ -111,62 +111,62 @@ type RawProjectSearchResponse = {
  * This prevents the page and hook from depending on backend-specific structures.
  */
 function normalizeProjectSearchResponse(
-  raw: RawProjectSearchResponse
+    raw: RawProjectSearchResponse
 ): ProjectSearchResponse {
-  const projects =
-    raw.projects ??
-    raw.results ??
-    raw.rows ??
-    raw.data ??
-    [];
+    const projects =
+        raw.projects ??
+        raw.results ??
+        raw.rows ??
+        raw.data ??
+        [];
 
-  const total =
-    raw.search_info?.total ??
-    raw.total ??
-    projects.length;
+    const total =
+        raw.search_info?.total ??
+        raw.total ??
+        projects.length;
 
-  const page =
-    raw.search_info?.page ??
-    raw.page ??
-    1;
+    const page =
+        raw.search_info?.page ??
+        raw.page ??
+        1;
 
-  const limit =
-    raw.search_info?.limit ??
-    raw.limit ??
-    projects.length;
+    const limit =
+        raw.search_info?.limit ??
+        raw.limit ??
+        projects.length;
 
-  return {
-    search_info: {
-      total,
-      page,
-      limit,
-    },
-    projects,
-  };
+    return {
+        search_info: {
+            total,
+            page,
+            limit,
+        },
+        projects,
+    };
 }
 
 /**
  * Performs a search for projects based on filters and pagination.
  */
 export async function searchProjects(
-  params: ProjectSearchFilters
+    params: ProjectSearchFilters
 ): Promise<ProjectSearchResponse> {
-  const query = new URLSearchParams({
-    page: String(params.page),
-    limit: String(params.limit),
-  });
+    const query = new URLSearchParams({
+        page: String(params.page),
+        limit: String(params.limit),
+    });
 
-  // In Express, req.query corresponds to URL parameters (?page=1&limit=10)
-  // And req.body corresponds to the JSON array of filters.
-  const rawResponse = await http<RawProjectSearchResponse>(
-    `/projects/searches?${query.toString()}`,
-    {
-      method: "POST",
-      body: JSON.stringify(params.filters ?? []),
-    }
-  );
+    // In Express, req.query corresponds to URL parameters (?page=1&limit=10)
+    // And req.body corresponds to the JSON array of filters.
+    const rawResponse = await http<RawProjectSearchResponse>(
+        `/projects/searches?${query.toString()}`,
+        {
+            method: "POST",
+            body: JSON.stringify(params.filters ?? []),
+        }
+    );
 
-  return normalizeProjectSearchResponse(rawResponse);
+    return normalizeProjectSearchResponse(rawResponse);
 }
 
 /**
@@ -174,72 +174,72 @@ export async function searchProjects(
  * Copied and adapted from the backend's validation model.
  */
 export interface PublicProjectRequestCreationModel {
-  root_folder_path: string;
-  project_title: string;
-  project_acronym: string;
-  project_description: string;
-  project_information?: string;
-  cruise: string;
-  ship: string;
-  data_owner_name: string;
-  data_owner_email: string;
-  operator_name: string;
-  operator_email: string;
-  chief_scientist_name: string;
-  chief_scientist_email: string;
-  override_depth_offset?: number;
-  enable_descent_filter: boolean;
-  privacy_duration: number;
-  visible_duration: number;
-  public_duration: number;
-  instrument_model: string;
-  serial_number: string;
+    root_folder_path: string;
+    project_title: string;
+    project_acronym: string;
+    project_description: string;
+    project_information?: string;
+    cruise: string;
+    ship: string;
+    data_owner_name: string;
+    data_owner_email: string;
+    operator_name: string;
+    operator_email: string;
+    chief_scientist_name: string;
+    chief_scientist_email: string;
+    override_depth_offset?: number;
+    enable_descent_filter: boolean;
+    privacy_duration: number;
+    visible_duration: number;
+    public_duration: number;
+    instrument_model: string;
+    serial_number: string;
 
-  // Privilege arrays
-  members: MinimalUserModel[];
-  managers: MinimalUserModel[];
-  contact: MinimalUserModel;
+    // Privilege arrays
+    members: MinimalUserModel[];
+    managers: MinimalUserModel[];
+    contact: MinimalUserModel;
 
-  // EcoTaxa Link
-  ecotaxa_project_id: number | null;
-  ecotaxa_project_name: string | null;
-  ecotaxa_instance_id: number | null;
-  new_ecotaxa_project: boolean;
-  ecotaxa_account_id: number | null;
+    // EcoTaxa Link
+    ecotaxa_project_id: number | null;
+    ecotaxa_project_name: string | null;
+    ecotaxa_instance_id: number | null;
+    new_ecotaxa_project: boolean;
+    ecotaxa_account_id: number | null;
 }
 
 /**
  * Payload expected by PATCH /projects/:id
  */
 export interface PublicProjectUpdateModel {
-  root_folder_path?: string;
-  project_title?: string;
-  project_acronym?: string;
-  project_description?: string;
-  project_information?: string;
-  cruise?: string;
-  ship?: string;
-  data_owner_name?: string;
-  data_owner_email?: string;
-  operator_name?: string;
-  operator_email?: string;
-  chief_scientist_name?: string;
-  chief_scientist_email?: string;
-  override_depth_offset?: number;
-  enable_descent_filter?: boolean;
-  privacy_duration?: number;
-  visible_duration?: number;
-  public_duration?: number;
-  instrument_model?: string;
-  serial_number?: string;
+    root_folder_path?: string;
+    project_title?: string;
+    project_acronym?: string;
+    project_description?: string;
+    project_information?: string;
+    cruise?: string;
+    ship?: string;
+    data_owner_name?: string;
+    data_owner_email?: string;
+    operator_name?: string;
+    operator_email?: string;
+    chief_scientist_name?: string;
+    chief_scientist_email?: string;
+    override_depth_offset?: number;
+    enable_descent_filter?: boolean;
+    privacy_duration?: number;
+    visible_duration?: number;
+    public_duration?: number;
+    instrument_model?: string;
+    serial_number?: string;
 
-  // If privileges are updated, backend expects full arrays again
-  members?: MinimalUserModel[];
-  managers?: MinimalUserModel[];
-  contact?: MinimalUserModel;
+    // If privileges are updated, backend expects full arrays again
+    members?: MinimalUserModel[];
+    managers?: MinimalUserModel[];
+    contact?: MinimalUserModel;
 
-  ecotaxa_project_id?: number | null;
-  ecotaxa_instance_id?: number | null;
+    ecotaxa_project_id?: number | null;
+    ecotaxa_instance_id?: number | null;
 }
 
 // ============================================================================
@@ -251,12 +251,12 @@ export interface PublicProjectUpdateModel {
  * Endpoint: POST /projects
  */
 export async function createProject(
-  payload: PublicProjectRequestCreationModel
+    payload: PublicProjectRequestCreationModel
 ): Promise<Project> {
-  return http<Project>("/projects", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+    return http<Project>("/projects", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
 }
 
 /**
@@ -264,19 +264,19 @@ export async function createProject(
  * Endpoint: POST /projects/searches
  */
 export async function getProjectById(
-  projectId: number
+    projectId: number
 ): Promise<Project> {
-  const response = await searchProjects({
-    page: 1,
-    limit: 1,
-    filters: [{ field: "project_id", operator: "=", value: projectId }],
-  });
+    const response = await searchProjects({
+        page: 1,
+        limit: 1,
+        filters: [{ field: "project_id", operator: "=", value: projectId }],
+    });
 
-  if (response.projects.length > 0) {
-    return response.projects[0];
-  }
+    if (response.projects.length > 0) {
+        return response.projects[0];
+    }
 
-  throw new Error(`Project with ID ${projectId} not found.`);
+    throw new Error(`Project with ID ${projectId} not found.`);
 }
 
 /**
@@ -284,11 +284,11 @@ export async function getProjectById(
  * Endpoint: PATCH /projects/:id
  */
 export async function updateProject(
-  projectId: number,
-  payload: PublicProjectUpdateModel
+    projectId: number,
+    payload: PublicProjectUpdateModel
 ): Promise<Project> {
-  return http<Project>(`/projects/${projectId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+    return http<Project>(`/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+    });
 }

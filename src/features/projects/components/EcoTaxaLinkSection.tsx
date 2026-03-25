@@ -80,7 +80,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 <Typography variant="h6" gutterBottom>
                     Link to EcoTaxa
                 </Typography>
-                <Button variant="text" size="small" onClick={() => { navigate("/settings", { state: { activeTab: 1 } });}}>
+                <Button variant="text" size="small" onClick={() => { navigate("/settings", { state: { activeTab: 1 } }); }}>
                     ADD AN ECOTAXA ACCOUNT →
                 </Button>
             </Box>

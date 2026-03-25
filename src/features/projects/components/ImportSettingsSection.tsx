@@ -40,49 +40,49 @@ export const ImportSettingsSection: React.FC<ImportSettingsSectionProps> = ({
 
             <Grid container spacing={4}>
                 {/* LEFT COLUMN: Settings */}
-                    <Stack spacing={3}>
-                        <TextField
-                            fullWidth
-                            label="Override depth offset"
-                            // If the value is 0, we can display an empty string or '0' based on preference.
-                            // Here we bind it directly to the state.
-                            value={values.overrideDepthOffset}
-                            onChange={(e) => {
-                                // FIX: We use parseFloat() on s string input because TextField always returns a string, even if type="number".
-                                const parsedValue = parseFloat(e.target.value);
+                <Stack spacing={3}>
+                    <TextField
+                        fullWidth
+                        label="Override depth offset"
+                        // If the value is 0, we can display an empty string or '0' based on preference.
+                        // Here we bind it directly to the state.
+                        value={values.overrideDepthOffset}
+                        onChange={(e) => {
+                            // FIX: We use parseFloat() on s string input because TextField always returns a string, even if type="number".
+                            const parsedValue = parseFloat(e.target.value);
 
-                                onChange({
-                                    // if the field is cleared, we can decide to set it to 0 or null. Here we choose 0 for simplicity.
-                                    overrideDepthOffset: isNaN(parsedValue) ? 0 : parsedValue
-                                });
-                            }}
-                            size="small"
-                            slotProps={{
-                                htmlInput: {
-                                    // Native HTML attributes to restrict input to decimal numbers
-                                    type: "number",
-                                    step: "0.1",
-                                }
-                            }}
-                        />
-
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={values.enableDescentFilter}
-                                    onChange={(e) => onChange({ enableDescentFilter: e.target.checked })}
-                                    color="primary"
-                                />
+                            onChange({
+                                // if the field is cleared, we can decide to set it to 0 or null. Here we choose 0 for simplicity.
+                                overrideDepthOffset: isNaN(parsedValue) ? 0 : parsedValue
+                            });
+                        }}
+                        size="small"
+                        slotProps={{
+                            htmlInput: {
+                                // Native HTML attributes to restrict input to decimal numbers
+                                type: "number",
+                                step: "0.1",
                             }
-                            label="Enable descent filter"
-                        />
-                    </Stack>
-                </Grid>
+                        }}
+                    />
 
-                {/* RIGHT COLUMN: Empty for now to match the mockup grid structure */}
-                <Grid size={{ xs: 12, md: 6 }}>
-                    {/* Intentionally left blank as per mockup design */}
-                </Grid>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={values.enableDescentFilter}
+                                onChange={(e) => onChange({ enableDescentFilter: e.target.checked })}
+                                color="primary"
+                            />
+                        }
+                        label="Enable descent filter"
+                    />
+                </Stack>
+            </Grid>
+
+            {/* RIGHT COLUMN: Empty for now to match the mockup grid structure */}
+            <Grid size={{ xs: 12, md: 6 }}>
+                {/* Intentionally left blank as per mockup design */}
+            </Grid>
         </Box>
     );
 };

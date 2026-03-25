@@ -22,7 +22,7 @@ export const useProjectMetadataTab = (projectId: number) => {
 
     const [loading, setLoading] = useState(true);
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse['users']>([]);
-    
+
     // Snackbar State
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
         open: false, message: "", severity: "info",
@@ -50,7 +50,7 @@ export const useProjectMetadataTab = (projectId: number) => {
             // REAL API CALL
             // ---------------------------------------------------------
             const projectData = await getProjectById(projectId);
-            
+
             // MAPPER: Backend (Snake Case) -> Frontend (Nested Camel Case)
             // We use '|| ""' to safely handle null values from the DB and avoid React uncontrolled input errors
             setValues({
@@ -89,7 +89,7 @@ export const useProjectMetadataTab = (projectId: number) => {
                 },
                 // Note: Privileges usually require a separate fetch from the PrivilegeRepository
                 // For now we leave it empty to match the UI mockup
-                privileges: [], 
+                privileges: [],
                 privacy: {
                     privateMonths: projectData.privacy_duration || 0,
                     visibleMonths: projectData.visible_duration || 0,
@@ -129,7 +129,7 @@ export const useProjectMetadataTab = (projectId: number) => {
     const handleSave = async () => {
         try {
             showSnackbar("Saving changes...", "info");
-            
+
             // 1. REVERSE MAPPING: Frontend -> Backend Format
             // Prepare the payload for the PATCH request
             const payload: PublicProjectUpdateModel = {
@@ -138,27 +138,27 @@ export const useProjectMetadataTab = (projectId: number) => {
                 ship: values.metadata.ship.join(", "),
                 cruise: values.metadata.cruise,
                 project_description: values.metadata.description,
-                
+
                 data_owner_name: values.people.dataOwnerName,
                 data_owner_email: values.people.dataOwnerEmail,
                 operator_name: values.people.operatorName,
                 operator_email: values.people.operatorEmail,
                 chief_scientist_name: values.people.chiefScientistName,
                 chief_scientist_email: values.people.chiefScientistEmail,
-                
+
                 override_depth_offset: values.importSettings.overrideDepthOffset,
                 enable_descent_filter: values.importSettings.enableDescentFilter,
-                
+
                 privacy_duration: values.privacy.privateMonths,
                 visible_duration: values.privacy.visibleMonths,
                 public_duration: values.privacy.publicMonths,
             };
 
             console.log("Payload to patch:", payload);
-            
+
             // REAL API CALL
             await updateProject(projectId, payload);
-            
+
             showSnackbar("Project metadata updated successfully!", "success");
         } catch (error) {
             console.error("Error saving project", error);

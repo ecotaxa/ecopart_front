@@ -128,25 +128,31 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
 
                 <Grid size={{ xs: 12, md: 6 }}>
                     <Stack spacing={2} sx={{ mt: 1 }}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={values.filteredBeforeImport}
-                                    onChange={(e) => onChange({ filteredBeforeImport: e.target.checked })}
-                                />
-                            }
-                            label="Data filtered before import into EcoPart"
-                        />
+                        <Box>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={values.filteredBeforeImport}
+                                        onChange={(e) => onChange({ filteredBeforeImport: e.target.checked })}
+                                    />
+                                }
+                                label="Data filtered before import into EcoPart"
+                            />
 
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={values.timeDurationCheck}
-                                    onChange={(e) => onChange({ timeDurationCheck: e.target.checked })}
-                                />
-                            }
-                            label="Time duration check"
-                        />
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={values.timeDurationCheck}
+                                        onChange={(e) => onChange({ timeDurationCheck: e.target.checked })}
+                                    />
+                                }
+                                label="Time duration check"
+
+                            />
+                            <Typography variant="caption" color="text.secondary">
+                                <br />Disable if the project is longer than 1 year.
+                            </Typography>
+                        </Box>
                     </Stack>
                 </Grid>
             </Grid>

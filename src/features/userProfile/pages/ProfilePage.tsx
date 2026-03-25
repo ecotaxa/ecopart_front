@@ -79,14 +79,14 @@ export default function ProfilePage() {
     const navigate = useNavigate();
     // FIX: Initialize the location hook
     const location = useLocation();
-    
+
     // Get setUser to update profile locally, and clearUser for deletion
     const { setUser, clearUser } = useAuthStore();
 
     // FIX: Read the initial tab from location.state if it exists, otherwise default to 0
     const initialTab = location.state?.activeTab ?? 0;
     const [tabValue, setTabValue] = useState(initialTab);
-    
+
     const [loadingUser, setLoadingUser] = useState(true);
 
     // --- STATES: PROFILE ---
@@ -197,7 +197,7 @@ export default function ProfilePage() {
     // --- HANDLERS ---
 
     // ... (Keep handleProfileSave, handleProfileCancel, handleChangePassword, handleDeleteClick, handleConfirmDelete AS IS) ...
-    const handleProfileSave = async () => { 
+    const handleProfileSave = async () => {
         if (!user) return;
         setProfileMessage(null);
         setProfileSaving(true);
@@ -214,13 +214,13 @@ export default function ProfilePage() {
         } finally { setProfileSaving(false); }
     };
 
-    const handleProfileCancel = () => { 
+    const handleProfileCancel = () => {
         if (user) {
             setFirstName(user.first_name || ""); setLastName(user.last_name || ""); setOrganisation(user.organisation || ""); setCountryCode(user.country || ""); setPlannedUsage(user.user_planned_usage || ""); setProfileMessage(null);
         }
     };
 
-    const handleChangePassword = async () => { 
+    const handleChangePassword = async () => {
         if (!user || !isNonEmpty(currentPassword) || !isValidPassword(newPassword) || !passwordsMatch(newPassword, confirmPassword)) return;
         setPasswordMessage(null); setPasswordSaving(true);
         try {
@@ -236,7 +236,7 @@ export default function ProfilePage() {
 
     const handleDeleteClick = () => { setOpenDeleteDialog(true); };
 
-    const handleConfirmDelete = async () => { 
+    const handleConfirmDelete = async () => {
         if (!user) return;
         setDeleteError(null);
         try {

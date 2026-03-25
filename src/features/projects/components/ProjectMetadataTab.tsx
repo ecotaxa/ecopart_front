@@ -49,67 +49,67 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
     // 2. Render the assembled UI
     return (
         <Box sx={{ maxWidth: 1000, margin: '0 auto', p: { xs: 2, md: 4 } }}>
-            
+
             {/* The top part of the mockup is likely handled by a parent component (Tabs, Title). 
                 We start directly at the "Metadata" form content. */}
 
-            <RootFolderSection 
-                value={values.rootFolderPath} 
-                onChange={(val) => updateField('rootFolderPath', val)} 
+            <RootFolderSection
+                value={values.rootFolderPath}
+                onChange={(val) => updateField('rootFolderPath', val)}
                 onLoadMetadata={() => { /* Implement if needed in edit mode */ }}
             />
 
-            <InstrumentMetadataSection 
-                values={values.instrument} 
-                onChange={(data) => updateField('instrument', data)} 
+            <InstrumentMetadataSection
+                values={values.instrument}
+                onChange={(data) => updateField('instrument', data)}
             />
 
-            <ProjectMetadataSection 
-                values={values.metadata} 
-                onChange={(data) => updateField('metadata', data)} 
+            <ProjectMetadataSection
+                values={values.metadata}
+                onChange={(data) => updateField('metadata', data)}
             />
 
-            <ProjectPeopleSection 
-                values={values.people} 
-                onChange={(data) => updateField('people', data)} 
+            <ProjectPeopleSection
+                values={values.people}
+                onChange={(data) => updateField('people', data)}
             />
 
-            <ImportSettingsSection 
-                values={values.importSettings} 
-                onChange={(data) => updateField('importSettings', data)} 
+            <ImportSettingsSection
+                values={values.importSettings}
+                onChange={(data) => updateField('importSettings', data)}
             />
 
-            <EcoTaxaLinkSection 
-                values={values.ecoTaxa} 
-                onChange={(data) => updateField('ecoTaxa', data)} 
+            <EcoTaxaLinkSection
+                values={values.ecoTaxa}
+                onChange={(data) => updateField('ecoTaxa', data)}
                 projectTitle={values.metadata.title}
             />
 
-            <DataPrivacySection 
-                values={values.privacy} 
-                onChange={(data) => updateField('privacy', data)} 
+            <DataPrivacySection
+                values={values.privacy}
+                onChange={(data) => updateField('privacy', data)}
             />
 
             {/* Note: The mockup shows "Data privacy" before "Connexion to data server" */}
-            <DataServerSection 
-                values={values.dataServer} 
-                onChange={(data) => updateField('dataServer', data)} 
-                isRemoteProject={isRemoteProject} 
+            <DataServerSection
+                values={values.dataServer}
+                onChange={(data) => updateField('dataServer', data)}
+                isRemoteProject={isRemoteProject}
             />
 
             {/* Action Buttons (Save / Cancel) matching the bottom of the mockup */}
             <Box sx={{ mt: 6, pt: 3, borderTop: '1px solid #e0e0e0', display: 'flex', gap: 2 }}>
-                <Button 
-                    variant="contained" 
-                    color="primary" 
+                <Button
+                    variant="contained"
+                    color="primary"
                     onClick={handleSave}
                     sx={{ minWidth: 120, fontWeight: 'bold' }}
                 >
                     SAVE
                 </Button>
-                <Button 
-                    variant="outlined" 
-                    color="primary" 
+                <Button
+                    variant="outlined"
+                    color="primary"
                     onClick={handleCancel}
                     sx={{ minWidth: 120, fontWeight: 'bold' }}
                 >
@@ -118,9 +118,9 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
             </Box>
 
             {/* Shared Notification System */}
-            <Snackbar 
-                open={snackbar.open} 
-                autoHideDuration={6000} 
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
                 onClose={closeSnackbar}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
