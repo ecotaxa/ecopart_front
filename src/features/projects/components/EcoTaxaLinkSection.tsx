@@ -13,6 +13,8 @@ import {
     FormHelperText,
 } from "@mui/material";
 
+import { useNavigate } from "react-router-dom";
+
 import { NewProjectFormValues } from "../types/newProject.types";
 import { getEcoTaxaAccounts, EcoTaxaAccountLink } from "@/features/userProfile/api/profile.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -34,6 +36,8 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
     projectTitle,
     errors,
 }) => {
+    const navigate = useNavigate();
+
     // --- 1. LOCAL STATE FOR EXTERNAL DATA ---
     const { user } = useAuthStore();
     const [accounts, setAccounts] = useState<EcoTaxaAccountLink[]>([]);
@@ -76,7 +80,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 <Typography variant="h6" gutterBottom>
                     Link to EcoTaxa
                 </Typography>
-                <Button variant="text" size="small" href="https://ecotaxa.obs-vlfr.fr/register" target="_blank">
+                <Button variant="text" size="small" onClick={() => { navigate("/settings", { state: { activeTab: 1 } });}}>
                     ADD AN ECOTAXA ACCOUNT →
                 </Button>
             </Box>

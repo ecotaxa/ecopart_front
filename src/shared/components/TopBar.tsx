@@ -128,12 +128,23 @@ export default function TopBar() {
 
                             <Divider />
 
-                            <MenuItem onClick={() => navigate("/settings")}>
+                            {/* * FIX: Navigate to settings directly 
+                              */}
+                            <MenuItem onClick={() => {
+                                handleClose();
+                                navigate("/settings");
+                            }}>
                                 <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
                                 Settings
                             </MenuItem>
 
-                            <MenuItem onClick={() => navigate("/ecotaxa-account")}>
+                            {/* * FIX: Navigate to settings, but pass state telling it to open Tab 1
+                              * This replaces the 404 error with a smooth transition to the correct tab.
+                              */}
+                            <MenuItem onClick={() => {
+                                handleClose();
+                                navigate("/settings", { state: { activeTab: 1 } });
+                            }}>
                                 <CloudIcon fontSize="small" sx={{ mr: 1 }} />
                                 EcoTaxa account
                             </MenuItem>
