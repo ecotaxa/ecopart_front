@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Typography, Button, Snackbar, Alert, CircularProgress, Divider } from "@mui/material";
+import { Box, Button, Snackbar, Alert, CircularProgress, } from "@mui/material";
 
 // Import all our reusable Dumb Components
 import { RootFolderSection } from "./RootFolderSection";
@@ -9,7 +9,7 @@ import { ProjectPeopleSection } from "./ProjectPeopleSection";
 import { ImportSettingsSection } from "./ImportSettingsSection";
 import { EcoTaxaLinkSection } from "./EcoTaxaLinkSection";
 import { DataServerSection } from "./DataServerSection";
-import { PrivilegesSection } from "./PrivilegesSection";
+//import { PrivilegesSection } from "./PrivilegesSection";
 import { DataPrivacySection } from "./DataPrivacySection";
 
 import { useProjectMetadataTab } from "../hooks/useProjectMetadataTab";
@@ -31,7 +31,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         updateField,
         handleSave,
         handleCancel,
-        availableUsers,
+        //availableUsers,
         isRemoteProject,
         snackbar,
         closeSnackbar

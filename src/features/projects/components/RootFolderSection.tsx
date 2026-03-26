@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Button, Divider, InputAdornment, TextField, Typography } from "@mui/material";
+import { Box, Button, Divider, InputAdornment, TextField } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 interface RootFolderSectionProps {

@@ -44,7 +44,7 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
     values,
     onChange,
     availableUsers,
-    currentUserId,
+    //currentUserId, // We keep this prop even if not used in handleAddRow anymore, it might be useful later
     managerError,
     contactError,
 }) => {
@@ -67,21 +67,16 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
     // --- LOCAL ARRAY HANDLERS ---
 
     const handleAddRow = () => {
-        // The new row is automatically prefilled with the currently authenticated user,
-        // manager role, and contact selected.
+        // NEW: When adding an extra row, we create a blank "Member" instead of defaulting to the current user.
+        // This prevents duplicating the authenticated user who is already pre-filled on page load.
         const newRow: PrivilegeRow = {
-            userId: currentUserId ? currentUserId.toString() : "",
-            role: "Manager",
-            contact: true,
+            userId: "", // Start with a blank selection
+            role: "Member", // Default secondary users to Member
+            contact: false, // Do not override the main contact by default
         };
 
-        // Only one user can be contact, so we clear the previous ones.
-        const normalizedRows = values.map((row) => ({
-            ...row,
-            contact: false,
-        }));
-
-        onChange([...normalizedRows, newRow]);
+        // We append the new blank row to the existing rows without overriding the contacts
+        onChange([...values, newRow]);
     };
 
     const handleRemoveRow = (indexToRemove: number) => {
@@ -108,7 +103,7 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
         onChange(newValues);
     };
 
-    // NEW: Helper function to determine if a user is already selected in ANOTHER row.
+    // Helper function to determine if a user is already selected in ANOTHER row.
     // This allows us to disable the user in the dropdown.
     const isUserAlreadySelected = (targetUserId: string, currentRowIndex: number) => {
         return values.some(
@@ -157,7 +152,7 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
                             >
                                 {activeUsers.map((user) => {
                                     const userIdStr = user.user_id.toString();
-                                    // FIX: Check if this user is selected somewhere else to disable the option
+                                    // Check if this user is selected somewhere else to disable the option
                                     const isDisabled = isUserAlreadySelected(userIdStr, index);
 
                                     return (

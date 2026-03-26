@@ -19,6 +19,17 @@ import { NewProjectFormValues } from "../types/newProject.types";
 import { getEcoTaxaAccounts, EcoTaxaAccountLink } from "@/features/userProfile/api/profile.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
+// NEW: Import the HTTP client to fetch instances directly from the backend
+import { http } from "@/shared/api/http";
+
+// NEW: Interface mirroring your SQLite table 'ecotaxa_instance'
+interface EcoTaxaInstance {
+    ecotaxa_instance_id: number;
+    ecotaxa_instance_name: string;
+    ecotaxa_instance_description: string;
+    ecotaxa_instance_url: string;
+}
+
 interface EcoTaxaLinkSectionProps {
     values: NewProjectFormValues["ecoTaxa"];
     onChange: (data: Partial<NewProjectFormValues["ecoTaxa"]>) => void;
@@ -38,25 +49,49 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
 }) => {
     const navigate = useNavigate();
 
-    // --- 1. LOCAL STATE FOR EXTERNAL DATA ---
+    // --- 1. LOCAL STATES ---
     const { user } = useAuthStore();
     const [accounts, setAccounts] = useState<EcoTaxaAccountLink[]>([]);
-    const [loadingAccounts, setLoadingAccounts] = useState(false);
+    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]); // Store the rich DB instances
+    const [loadingData, setLoadingData] = useState(false);
 
+    // Filter accounts to show only those matching the selected instance
     const availableAccounts = accounts.filter(
         (account) => values.instance === "" || account.ecotaxa_account_instance_id.toString() === values.instance
     );
 
-    // --- 2. FETCH LINKED ACCOUNTS ---
+    // --- 2. FETCH DATA (ACCOUNTS & INSTANCES) ---
     useEffect(() => {
-        const fetchAccounts = async () => {
+        const fetchData = async () => {
             if (!user?.user_id) return;
 
-            setLoadingAccounts(true);
+            setLoadingData(true);
             try {
+                // 1. Fetch user's linked accounts
                 const linkedAccounts = await getEcoTaxaAccounts(user.user_id);
                 setAccounts(linkedAccounts);
 
+                // 2. Fetch full instance details from DB to get descriptions and URLs
+                try {
+                    // Try to fetch from the real backend route (if the backend dev created it)
+                    const dbInstances = await http<EcoTaxaInstance[]>("/ecotaxa_instances");
+                    setInstances(dbInstances);
+                } catch (apiError) {
+                    // FIX 1: Use the apiError variable so ESLint doesn't complain
+                    console.warn("Backend route for instances not found. Using fallback DB mock.", apiError);
+                    
+                    // FALLBACK: Perfectly matches your SQLite screenshot so the UI works today!
+                    setInstances([
+                        {
+                            ecotaxa_instance_id: 1,
+                            ecotaxa_instance_name: "FR",
+                            ecotaxa_instance_description: "French instance of EcoTaxa, can be used world wilde.",
+                            ecotaxa_instance_url: "https://ecotaxa.obs-vlfr.fr/"
+                        }
+                    ]);
+                }
+
+                // 3. Auto-select if none chosen
                 if (linkedAccounts.length > 0 && !values.instance) {
                     onChange({
                         instance: linkedAccounts[0].ecotaxa_account_instance_id.toString(),
@@ -64,13 +99,13 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     });
                 }
             } catch (error) {
-                console.error("Failed to load EcoTaxa accounts", error);
+                console.error("Failed to load EcoTaxa data", error);
             } finally {
-                setLoadingAccounts(false);
+                setLoadingData(false);
             }
         };
 
-        fetchAccounts();
+        fetchData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.user_id, values.instance]);
 
@@ -100,15 +135,47 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                             project: "",
                         });
                     }}
-                    size="small"
+                    size="medium" // Increased size to comfortably fit the multi-line text
                     error={Boolean(errors?.instance)}
                     helperText={errors?.instance}
+                    // SelectProps configures how the *selected* value is rendered in the closed input
+                    SelectProps={{
+                        // FIX 2: Explicitly define 'selected' as unknown and cast to string to satisfy TypeScript ReactNode requirements
+                        renderValue: (selected: unknown) => {
+                            const selectedString = selected as string;
+                            const instanceData = instances.find(inst => inst.ecotaxa_instance_id.toString() === selectedString);
+                            
+                            if (!instanceData) return selectedString; // Returns a string, which is a valid ReactNode
+                            
+                            return (
+                                <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
+                                    <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description} <br />
+                                    ({instanceData.ecotaxa_instance_url})
+                                </Box>
+                            );
+                        }
+                    }}
                 >
+                    {/* Only show instances where the user has at least one account linked */}
                     {Array.from(new Set(accounts.map((account) => account.ecotaxa_account_instance_id))).map((instanceId) => {
-                        const account = accounts.find((item) => item.ecotaxa_account_instance_id === instanceId);
+                        // Find the rich data from the DB instances table
+                        const instanceData = instances.find(inst => inst.ecotaxa_instance_id === instanceId);
+                        const fallbackAccount = accounts.find((item) => item.ecotaxa_account_instance_id === instanceId);
+
                         return (
-                            <MenuItem key={instanceId} value={instanceId.toString()}>
-                                {account?.ecotaxa_account_instance_name}
+                            <MenuItem key={instanceId} value={instanceId.toString()} sx={{ py: 1.5 }}>
+                                {instanceData ? (
+                                    // FORMAT MATCHING THE MOCKUP
+                                    <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
+                                        <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description} <br />
+                                        <Typography variant="body2" color="text.secondary">
+                                            ({instanceData.ecotaxa_instance_url})
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    // Fallback if DB instance data isn't loaded
+                                    <Box><strong>{fallbackAccount?.ecotaxa_account_instance_name}</strong></Box>
+                                )}
                             </MenuItem>
                         );
                     })}
@@ -128,11 +195,11 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     value={values.account}
                     onChange={(e) => onChange({ account: e.target.value, project: "" })}
                     size="small"
-                    disabled={!values.instance || loadingAccounts}
+                    disabled={!values.instance || loadingData}
                     error={Boolean(errors?.account)}
                     helperText={errors?.account}
                     InputProps={{
-                        endAdornment: loadingAccounts ? <CircularProgress size={20} /> : null,
+                        endAdornment: loadingData ? <CircularProgress size={20} /> : null,
                     }}
                 >
                     {availableAccounts.map((account) => (
@@ -156,7 +223,6 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                         <TextField
                             select
                             fullWidth
-                            //required
                             label="EcoTaxa project"
                             value={values.project}
                             onChange={(e) => onChange({ project: e.target.value })}

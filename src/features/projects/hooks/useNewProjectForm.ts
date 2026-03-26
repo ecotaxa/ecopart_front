@@ -219,11 +219,14 @@ export const useNewProjectForm = () => {
             createNewProject: false,
         },
         privileges: [],
+
+        // FIX: Update default privacy duration delays (in months)
         privacy: {
-            privateMonths: 1,
-            visibleMonths: 1,
-            publicMonths: 1,
+            privateMonths: 2,   // Default delay until visible
+            visibleMonths: 24,  // Default delay until public
+            publicMonths: 36,   // Default delay until open
         },
+
         dataServer: {
             host: "",
             username: "",
@@ -479,7 +482,7 @@ export const useNewProjectForm = () => {
             // 1. Data Mapping: Transform Frontend state to Backend payload format
             // We build the object incrementally to avoid sending undefined values
             // which might break strict backend validation.
-            const payload: any = {
+            const payload: Partial<PublicProjectRequestCreationModel> = {
                 root_folder_path: values.rootFolderPath.trim(),
                 project_title: values.metadata.title.trim(),
                 project_acronym: values.metadata.acronym.trim(),

@@ -96,7 +96,7 @@ export const useProjectsTable = () => {
                 setProjects([]);
                 setTotalRows(0);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Failed to fetch projects", err);
 
             // NEW: Extract the error message from the API response if possible
@@ -107,9 +107,12 @@ export const useProjectsTable = () => {
                 errorMessage = err.message;
             } else if (typeof err === "string") {
                 errorMessage = err;
-            } else if (err?.errors && Array.isArray(err.errors)) {
-                // If backend sends { errors: ["Cannot find privileges"] }
-                errorMessage = err.errors.join(", ");
+            } else if (typeof err === "object" && err !== null) {
+                const errorObj = err as Record<string, unknown>;
+                if (Array.isArray(errorObj.errors)) {
+                    // If backend sends { errors: ["Cannot find privileges"] }
+                    errorMessage = errorObj.errors.join(", ");
+                }
             }
 
             // Keep the table empty but also expose the backend error
