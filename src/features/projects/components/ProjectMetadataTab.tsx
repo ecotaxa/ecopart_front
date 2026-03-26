@@ -1,5 +1,6 @@
 import React from "react";
-import { Box, Button, Snackbar, Alert, CircularProgress, } from "@mui/material";
+import { Box, Button, Snackbar, Alert, CircularProgress, Paper, Container } from "@mui/material";
+import Grid from "@mui/material/Grid";
 
 // Import all our reusable Dumb Components
 import { RootFolderSection } from "./RootFolderSection";
@@ -9,10 +10,8 @@ import { ProjectPeopleSection } from "./ProjectPeopleSection";
 import { ImportSettingsSection } from "./ImportSettingsSection";
 import { EcoTaxaLinkSection } from "./EcoTaxaLinkSection";
 import { DataServerSection } from "./DataServerSection";
-//import { PrivilegesSection } from "./PrivilegesSection";
-import { DataPrivacySection } from "./DataPrivacySection";
 
-import { useProjectMetadataTab } from "../hooks/useProjectMetadataTab";
+import { useProjectMetadataTab } from "@/features/projects/hooks/useProjectMetadataTab";
 
 interface ProjectMetadataTabProps {
     // The ID of the project we are currently viewing
@@ -22,20 +21,22 @@ interface ProjectMetadataTabProps {
 /**
  * ProjectMetadataTab Component
  * Displays and allows editing of a project's metadata.
+ * Structure matches NewProjectPage exactly.
  */
 export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectId }) => {
     // 1. Connect to the "Brain" (Hook)
     const {
         values,
         loading,
+        saving, 
         updateField,
         handleSave,
         handleCancel,
-        //availableUsers,
         isRemoteProject,
         snackbar,
         closeSnackbar
     } = useProjectMetadataTab(projectId);
+
 
     // Show a loading spinner while data is being fetched
     if (loading) {
@@ -46,89 +47,93 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         );
     }
 
-    // 2. Render the assembled UI
+    // 2. Render the assembled UI 
+    // FIX: We wrap the Paper in a Container with maxWidth="md" and disable padding
+    // so it perfectly matches the width constraints of NewProjectPage!
     return (
-        <Box sx={{ maxWidth: 1000, margin: '0 auto', p: { xs: 2, md: 4 } }}>
+        <Container maxWidth="md" disableGutters>
+            <Paper sx={{ p: { xs: 3, md: 5 }, borderRadius: 2, boxShadow: "none" }}>
+                
+                <RootFolderSection
+                    value={values.rootFolderPath}
+                    onChange={(val) => updateField('rootFolderPath', val)}
+                    onLoadMetadata={() => { /* Not needed in edit mode */ }}
+                />
 
-            {/* The top part of the mockup is likely handled by a parent component (Tabs, Title). 
-                We start directly at the "Metadata" form content. */}
+                <InstrumentMetadataSection
+                    values={values.instrument}
+                    onChange={(data) => updateField('instrument', data)}
+                />
 
-            <RootFolderSection
-                value={values.rootFolderPath}
-                onChange={(val) => updateField('rootFolderPath', val)}
-                onLoadMetadata={() => { /* Implement if needed in edit mode */ }}
-            />
+                <ProjectMetadataSection
+                    values={values.metadata}
+                    onChange={(data) => updateField('metadata', data)}
+                />
 
-            <InstrumentMetadataSection
-                values={values.instrument}
-                onChange={(data) => updateField('instrument', data)}
-            />
+                <ProjectPeopleSection
+                    values={values.people}
+                    onChange={(data) => updateField('people', data)}
+                />
 
-            <ProjectMetadataSection
-                values={values.metadata}
-                onChange={(data) => updateField('metadata', data)}
-            />
+                
+                <Grid container spacing={4}>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <ImportSettingsSection
+                            values={values.importSettings}
+                            onChange={(data) => updateField('importSettings', data)}
+                        />
+                    </Grid>
 
-            <ProjectPeopleSection
-                values={values.people}
-                onChange={(data) => updateField('people', data)}
-            />
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <EcoTaxaLinkSection
+                            values={values.ecoTaxa}
+                            onChange={(data) => updateField('ecoTaxa', data)}
+                            projectTitle={values.metadata.title}
+                        />
+                    </Grid>
+                </Grid>
 
-            <ImportSettingsSection
-                values={values.importSettings}
-                onChange={(data) => updateField('importSettings', data)}
-            />
+                <DataServerSection
+                    values={values.dataServer}
+                    onChange={(data) => updateField('dataServer', data)}
+                    isRemoteProject={isRemoteProject}
+                />
 
-            <EcoTaxaLinkSection
-                values={values.ecoTaxa}
-                onChange={(data) => updateField('ecoTaxa', data)}
-                projectTitle={values.metadata.title}
-            />
+                {/* Action Buttons (Save / Cancel) matching the bottom of the mockup */}
+                <Box sx={{ mt: 6, pt: 3, display: 'flex', gap: 2 }}>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleSave}
+                        disabled={saving} 
+                        sx={{ minWidth: 120, fontWeight: 'bold' }}
+                    >
+                        {saving ? "SAVING..." : "SAVE"}
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={handleCancel}
+                        disabled={saving} 
+                        sx={{ minWidth: 120, fontWeight: 'bold' }}
+                    >
+                        CANCEL
+                    </Button>
+                </Box>
 
-            <DataPrivacySection
-                values={values.privacy}
-                onChange={(data) => updateField('privacy', data)}
-            />
-
-            {/* Note: The mockup shows "Data privacy" before "Connexion to data server" */}
-            <DataServerSection
-                values={values.dataServer}
-                onChange={(data) => updateField('dataServer', data)}
-                isRemoteProject={isRemoteProject}
-            />
-
-            {/* Action Buttons (Save / Cancel) matching the bottom of the mockup */}
-            <Box sx={{ mt: 6, pt: 3, borderTop: '1px solid #e0e0e0', display: 'flex', gap: 2 }}>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleSave}
-                    sx={{ minWidth: 120, fontWeight: 'bold' }}
+                {/* Shared Notification System */}
+                <Snackbar
+                    open={snackbar.open}
+                    autoHideDuration={6000}
+                    onClose={closeSnackbar}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
                 >
-                    SAVE
-                </Button>
-                <Button
-                    variant="outlined"
-                    color="primary"
-                    onClick={handleCancel}
-                    sx={{ minWidth: 120, fontWeight: 'bold' }}
-                >
-                    CANCEL
-                </Button>
-            </Box>
+                    <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
+                        {snackbar.message}
+                    </Alert>
+                </Snackbar>
 
-            {/* Shared Notification System */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={6000}
-                onClose={closeSnackbar}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-            >
-                <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: '100%' }}>
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
-
-        </Box>
+            </Paper>
+        </Container>
     );
 };

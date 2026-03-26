@@ -8,6 +8,7 @@ import { NotFoundPage } from "@/features/errors";
 import { ProfilePage } from "@/features/userProfile";
 import ProjectsPage from "@/features/projects/pages/ProjectsPage";
 import NewProjectPage from "@/features/projects/pages/NewProjectPage";
+import ProjectDetailsPage from "@/features/projects/pages/ProjectDetailsPage";
 
 export const router = createBrowserRouter([
     { path: "/", element: <HomePage /> },
@@ -53,6 +54,15 @@ export const router = createBrowserRouter([
         element: (
             <ProtectedRoute>
                 <NewProjectPage />
+            </ProtectedRoute>
+        ),
+    },
+
+    {
+        path: "/projects/:id", 
+        element: (
+            <ProtectedRoute>
+                <ProjectDetailsPage />
             </ProtectedRoute>
         ),
     },

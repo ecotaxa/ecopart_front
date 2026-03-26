@@ -28,7 +28,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
 
-// FIX: Import useLocation to read the state passed from TopBar
+// Import useLocation to read the state passed from TopBar
 import { useNavigate, useLocation } from "react-router-dom";
 
 // Shared components & layouts
@@ -77,13 +77,13 @@ const organisationTypes = [
 
 export default function ProfilePage() {
     const navigate = useNavigate();
-    // FIX: Initialize the location hook
+    // Initialize the location hook
     const location = useLocation();
 
     // Get setUser to update profile locally, and clearUser for deletion
     const { setUser, clearUser } = useAuthStore();
 
-    // FIX: Read the initial tab from location.state if it exists, otherwise default to 0
+    // Read the initial tab from location.state if it exists, otherwise default to 0
     const initialTab = location.state?.activeTab ?? 0;
     const [tabValue, setTabValue] = useState(initialTab);
 
@@ -178,7 +178,7 @@ export default function ProfilePage() {
         loadUserData();
     }, [countryOptions, fetchLinkedAccounts]);
 
-    // FIX: Add useEffect to update tab if user clicks the menu while already on the settings page
+    // Add useEffect to update tab if user clicks the menu while already on the settings page
     useEffect(() => {
         if (location.state?.activeTab !== undefined) {
             setTabValue(location.state.activeTab);
@@ -574,7 +574,7 @@ export default function ProfilePage() {
                     </DialogActions>
                 </Dialog>
 
-                {/* NEW UNLINK CONFIRMATION DIALOG */}
+                {/* UNLINK CONFIRMATION DIALOG */}
                 <Dialog open={openUnlinkDialog} onClose={() => setOpenUnlinkDialog(false)}>
                     <DialogTitle>Disconnect EcoTaxa Account?</DialogTitle>
                     <DialogContent>

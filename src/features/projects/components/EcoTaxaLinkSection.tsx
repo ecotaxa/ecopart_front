@@ -77,7 +77,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     const dbInstances = await http<EcoTaxaInstance[]>("/ecotaxa_instances");
                     setInstances(dbInstances);
                 } catch (apiError) {
-                    // FIX 1: Use the apiError variable so ESLint doesn't complain
+                    // Use the apiError variable so ESLint doesn't complain
                     console.warn("Backend route for instances not found. Using fallback DB mock.", apiError);
                     
                     // FALLBACK: Perfectly matches your SQLite screenshot so the UI works today!
@@ -140,7 +140,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     helperText={errors?.instance}
                     // SelectProps configures how the *selected* value is rendered in the closed input
                     SelectProps={{
-                        // FIX 2: Explicitly define 'selected' as unknown and cast to string to satisfy TypeScript ReactNode requirements
+                        // Explicitly define 'selected' as unknown and cast to string to satisfy TypeScript ReactNode requirements
                         renderValue: (selected: unknown) => {
                             const selectedString = selected as string;
                             const instanceData = instances.find(inst => inst.ecotaxa_instance_id.toString() === selectedString);

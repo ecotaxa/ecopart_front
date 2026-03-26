@@ -48,7 +48,7 @@ export const ImportSettingsSection: React.FC<ImportSettingsSectionProps> = ({
                         // Here we bind it directly to the state.
                         value={values.overrideDepthOffset}
                         onChange={(e) => {
-                            // FIX: We use parseFloat() on s string input because TextField always returns a string, even if type="number".
+                            // We use parseFloat() on s string input because TextField always returns a string, even if type="number".
                             const parsedValue = parseFloat(e.target.value);
 
                             onChange({

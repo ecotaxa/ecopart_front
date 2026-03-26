@@ -18,6 +18,7 @@ import {
     DataGrid,
     GridColDef,
     GridRenderCellParams,
+    GridRowParams, // NEW: Import this type for the row click handler
 } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
@@ -48,8 +49,6 @@ export default function ProjectsPage() {
     // ---------------------------------------------------------------------------
     // Auth State
     // ---------------------------------------------------------------------------
-    // We need the current user id to derive the displayed privilege
-    // from the backend privilege arrays (members / managers).
     const currentUser = useAuthStore((s) => s.user);
 
     // ---------------------------------------------------------------------------
@@ -81,8 +80,6 @@ export default function ProjectsPage() {
     // ---------------------------------------------------------------------------
     // Debug Helpers
     // ---------------------------------------------------------------------------
-    // We normalize the current user id once so comparisons are stable.
-    // This avoids subtle bugs like "1" !== 1.
     const normalizedCurrentUserId = useMemo(() => {
         if (!currentUser?.user_id && currentUser?.user_id !== 0) {
             return null;
@@ -93,14 +90,12 @@ export default function ProjectsPage() {
     }, [currentUser]);
 
     useEffect(() => {
-        // Helpful debug log to verify what the app believes is the current user.
         console.log("[ProjectsPage] currentUser from store:", currentUser);
         console.log("[ProjectsPage] normalizedCurrentUserId:", normalizedCurrentUserId);
     }, [currentUser, normalizedCurrentUserId]);
 
     useEffect(() => {
         if (projects.length > 0) {
-            // Helpful debug log to inspect the first project returned by the API.
             console.log("[ProjectsPage] first project:", projects[0]);
         }
     }, [projects]);
@@ -112,9 +107,6 @@ export default function ProjectsPage() {
         setFilterAnchorEl(event.currentTarget);
     };
 
-    /**
-     * Closes the filter menu and updates the selected filter if a value is provided.
-     */
     const handleFilterClose = (filterValue?: string) => {
         setFilterAnchorEl(null);
         if (typeof filterValue === "string") {
@@ -122,32 +114,26 @@ export default function ProjectsPage() {
         }
     };
 
-    /**
-     * Navigates to the Explore page passing the selected project IDs as query parameters.
-     */
     const handleExploreSelection = () => {
         const joinedIds = Array.from(rowSelectionModel.ids).join(",");
         navigate(`/explore?projects=${joinedIds}`);
     };
 
-    /**
-     * Clears the current selection of rows.
-     */
     const handleClearSelection = () => {
         setRowSelectionModel({ type: "include", ids: new Set() });
+    };
+
+    // NEW: Handle clicking on a specific row to view/edit project details
+    const handleRowClick = (params: GridRowParams<Project>) => {
+        // Navigate to the project details/edit page using the specific project ID.
+        // Make sure you have a route configured in your App.tsx like: <Route path="/projects/:id" element={<ProjectEditPage />} />
+        navigate(`/projects/${params.row.project_id}`);
     };
 
     // ---------------------------------------------------------------------------
     // Helper Functions
     // ---------------------------------------------------------------------------
 
-    /**
-     * Safely checks whether a user list contains the authenticated user.
-     *
-     * IMPORTANT:
-     * Backend ids may be numbers, while frontend auth-store ids may sometimes be strings.
-     * We normalize both sides before comparing them.
-     */
     const hasCurrentUser = (
         users: MinimalUserModel[] | undefined,
         currentUserId: number | null
@@ -162,31 +148,17 @@ export default function ProjectsPage() {
         });
     };
 
-    /**
-     * Derives the current user's privilege from the backend privilege arrays.
-     *
-     * IMPORTANT:
-     * The backend does not return a flat `privilege` field.
-     * Instead, it returns `members` and `managers`.
-     * So we compute the displayed privilege at render time.
-     */
     const getCurrentUserPrivilege = (project: Project): string | null => {
-        // FIX:
-        // We do not compare raw ids directly anymore.
-        // We compare normalized numeric ids.
         if (normalizedCurrentUserId === null) {
             return null;
         }
 
-        // Check if managers array exists and contains the user
         const isManager = hasCurrentUser(project.managers, normalizedCurrentUserId);
         if (isManager) return "Manager";
 
-        // Check if members array exists and contains the user
         const isMember = hasCurrentUser(project.members, normalizedCurrentUserId);
         if (isMember) return "Member";
 
-        // Check contact as a final fallback
         const normalizedContactUserId =
             project.contact && project.contact.user_id !== undefined
                 ? Number(project.contact.user_id)
@@ -222,7 +194,6 @@ export default function ProjectsPage() {
             field: "ecotaxa_project_name",
             headerName: "EcoTaxa Project",
             flex: 1.5,
-            // Custom renderCell to handle null values gracefully
             renderCell: (params) =>
                 params.value ? (
                     <Typography variant="body2">{params.value}</Typography>
@@ -237,23 +208,13 @@ export default function ProjectsPage() {
                 ),
         },
         { field: "root_folder_path", headerName: "RootFolder", flex: 2 },
-
-        // Note: nbr_sample is not currently provided by the backend.
-        // It will render empty until the backend API is updated.
         { field: "nbr_sample", headerName: "Nbr Sample", width: 120 },
-
         {
-            // IMPORTANT:
-            // We keep the field name "privilege" for the table column,
-            // but the actual displayed value is derived from params.row.
             field: "privilege",
             headerName: "Privilege",
             width: 120,
             renderCell: (params: GridRenderCellParams<Project>) => {
                 const privilege = getCurrentUserPrivilege(params.row);
-
-                // Only render the Chip if we successfully derived a role,
-                // otherwise render a fallback.
                 return privilege ? (
                     <Chip
                         label={privilege}
@@ -286,7 +247,6 @@ export default function ProjectsPage() {
                         </Stack>
                     );
 
-                // Return a fallback dash if the backend provides no data
                 return params.value ? (
                     <Typography variant="caption">{params.value}</Typography>
                 ) : (
@@ -366,7 +326,6 @@ export default function ProjectsPage() {
                     </Stack>
                 </Paper>
 
-                {/* Display the error message clearly above the table if it exists */}
                 {error && (
                     <Box sx={{ mb: 2 }}>
                         <Alert severity="error" variant="outlined">
@@ -421,8 +380,13 @@ export default function ProjectsPage() {
                             loading={loading}
                             pageSizeOptions={[5, 10, 25]}
                             disableRowSelectionOnClick
+                            onRowClick={handleRowClick} // Attach the click handler to the grid rows
                             sx={{
                                 border: 0,
+                                // Add pointer cursor to indicate rows are clickable
+                                '& .MuiDataGrid-row': {
+                                    cursor: 'pointer',
+                                },
                                 "& .MuiDataGrid-columnHeaders": {
                                     backgroundColor: "#f5f5f5",
                                     fontWeight: "bold",

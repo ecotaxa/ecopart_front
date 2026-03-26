@@ -41,7 +41,7 @@ export const useProjectsTable = () => {
     // --- 3. PAGINATION RESET LOGIC ---
     useEffect(() => {
         setPaginationModel((prev) => ({ ...prev, page: 0 }));
-        // FIX: Also reset pagination if the search attribute changes
+        // Also reset pagination if the search attribute changes
     }, [debouncedSearchText, selectedFilter, searchAttribute]);
 
     // --- 4. FETCH LOGIC ---

@@ -91,7 +91,7 @@ const isBackendErrorResponse = (value: unknown): value is BackendErrorResponse =
  * Safely extract a readable error message from any thrown value.
  */
 const extractErrorMessage = (error: unknown): string => {
-    // FIX: Add early return if error is undefined or null
+    // Add early return if error is undefined or null
     if (!error) return "An unexpected error occurred.";
     if (typeof error === "string") return error;
 
@@ -159,7 +159,7 @@ const mapBackendErrorToFieldErrors = (message: string): Partial<NewProjectFormEr
  * If the value is invalid or below 1, fallback to 1.
  */
 const parsePositiveInt = (value: string | number): number => {
-    // FIX: Safely handle if the value is already a number
+    // Safely handle if the value is already a number
     const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
 
     if (Number.isNaN(parsed) || parsed < 1) {
@@ -220,7 +220,7 @@ export const useNewProjectForm = () => {
         },
         privileges: [],
 
-        // FIX: Update default privacy duration delays (in months)
+        // Update default privacy duration delays (in months)
         privacy: {
             privateMonths: 2,   // Default delay until visible
             visibleMonths: 24,  // Default delay until public

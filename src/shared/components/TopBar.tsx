@@ -128,7 +128,7 @@ export default function TopBar() {
 
                             <Divider />
 
-                            {/* * FIX: Navigate to settings directly 
+                            {/* * Navigate to settings directly 
                               */}
                             <MenuItem onClick={() => {
                                 handleClose();
@@ -138,7 +138,7 @@ export default function TopBar() {
                                 Settings
                             </MenuItem>
 
-                            {/* * FIX: Navigate to settings, but pass state telling it to open Tab 1
+                            {/* * Navigate to settings, but pass state telling it to open Tab 1
                               * This replaces the 404 error with a smooth transition to the correct tab.
                               */}
                             <MenuItem onClick={() => {
