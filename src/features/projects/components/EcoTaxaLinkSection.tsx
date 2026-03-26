@@ -19,10 +19,10 @@ import { NewProjectFormValues } from "../types/newProject.types";
 import { getEcoTaxaAccounts, EcoTaxaAccountLink } from "@/features/userProfile/api/profile.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
-// NEW: Import the HTTP client to fetch instances directly from the backend
+// Import the HTTP client to fetch instances directly from the backend
 import { http } from "@/shared/api/http";
 
-// NEW: Interface mirroring your SQLite table 'ecotaxa_instance'
+// Interface mirroring your SQLite table 'ecotaxa_instance'
 interface EcoTaxaInstance {
     ecotaxa_instance_id: number;
     ecotaxa_instance_name: string;

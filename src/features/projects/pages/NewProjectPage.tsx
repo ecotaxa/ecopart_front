@@ -1,4 +1,3 @@
-// NEW: Import useEffect to trigger the initial state population
 import { useEffect } from "react";
 import { Box, Container, Typography, Button, Paper, Snackbar, Alert } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -32,7 +31,7 @@ export default function NewProjectPage() {
 
     const currentUser = useAuthStore((state) => state.user);
 
-    // NEW: Auto-fill the first privilege row with the logged-in user on component mount
+    // Auto-fill the first privilege row with the logged-in user on component mount
     useEffect(() => {
         // If we have a logged-in user, and the privileges list is currently empty
         if (currentUser && values.privileges.length === 0) {

@@ -18,7 +18,7 @@ import {
     DataGrid,
     GridColDef,
     GridRenderCellParams,
-    GridRowParams, // NEW: Import this type for the row click handler
+    GridRowParams, // Import this type for the row click handler
 } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
@@ -123,7 +123,7 @@ export default function ProjectsPage() {
         setRowSelectionModel({ type: "include", ids: new Set() });
     };
 
-    // NEW: Handle clicking on a specific row to view/edit project details
+    // Handle clicking on a specific row to view/edit project details
     const handleRowClick = (params: GridRowParams<Project>) => {
         // Navigate to the project details/edit page using the specific project ID.
         // Make sure you have a route configured in your App.tsx like: <Route path="/projects/:id" element={<ProjectEditPage />} />

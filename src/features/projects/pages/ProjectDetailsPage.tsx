@@ -12,6 +12,7 @@ import MainLayout from "@/app/layouts/MainLayout";
 
 // Import your tabs
 import { ProjectMetadataTab } from "../components/ProjectMetadataTab";
+import { ProjectSecurityTab } from "../components/ProjectSecurityTab";
 
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -129,6 +130,7 @@ export default function ProjectDetailsPage() {
                             </Typography>
                         </Box>
                     )}
+                    {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
                 </Box>
             </Container>
         </MainLayout>

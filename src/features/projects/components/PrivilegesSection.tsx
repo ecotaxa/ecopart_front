@@ -67,7 +67,7 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
     // --- LOCAL ARRAY HANDLERS ---
 
     const handleAddRow = () => {
-        // NEW: When adding an extra row, we create a blank "Member" instead of defaulting to the current user.
+        // When adding an extra row, we create a blank "Member" instead of defaulting to the current user.
         // This prevents duplicating the authenticated user who is already pre-filled on page load.
         const newRow: PrivilegeRow = {
             userId: "", // Start with a blank selection

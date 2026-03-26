@@ -8,7 +8,7 @@ export const useProjectsTable = () => {
     const [loading, setLoading] = useState(false);
     const [totalRows, setTotalRows] = useState(0);
 
-    // NEW: Explicit error state to display backend failures in the UI
+    // Explicit error state to display backend failures in the UI
     const [error, setError] = useState<string | null>(null);
 
     const [searchText, setSearchText] = useState("");
@@ -49,7 +49,7 @@ export const useProjectsTable = () => {
     // across renders unless its dependencies change. This resolves the ESLint warning.
     const fetchProjects = useCallback(async () => {
         setLoading(true);
-        // NEW: Clear previous error before a new request
+        // Clear previous error before a new request
         setError(null);
 
         try {
@@ -86,7 +86,7 @@ export const useProjectsTable = () => {
                 filters: activeFilters
             });
 
-            // NEW: Helpful debug log to inspect the real backend response
+            // Helpful debug log to inspect the real backend response
             console.log("[Projects] search response:", response);
 
             if (response && response.projects) {
@@ -99,7 +99,7 @@ export const useProjectsTable = () => {
         } catch (err: unknown) {
             console.error("Failed to fetch projects", err);
 
-            // NEW: Extract the error message from the API response if possible
+            // Extract the error message from the API response if possible
             // Our custom http client usually throws the backend error directly, 
             // or an Error object. We try to catch both.
             let errorMessage = "Unknown error while fetching projects.";

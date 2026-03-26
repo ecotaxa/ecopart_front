@@ -247,7 +247,7 @@ export const useNewProjectForm = () => {
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
     const isRemoteProject = values.instrument.model.toLowerCase().includes("remote");
 
-    // NEW: Current authenticated user used for privilege auto-fill
+    // Current authenticated user used for privilege auto-fill
     const currentUser = useAuthStore((state) => state.user);
 
     // State to manage the MUI Snackbar (toast notifications)

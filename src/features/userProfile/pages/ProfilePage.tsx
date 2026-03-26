@@ -252,7 +252,7 @@ export default function ProfilePage() {
     // --- REMOVED: handleLinkEcoTaxa ---
     // The logic is now inside the child component.
 
-    // --- NEW HANDLER: Callback from Child ---
+    // --- HANDLER: Callback from Child ---
     const handleLoginSuccess = async () => {
         if (!user) return;
         // 1. Refresh list
