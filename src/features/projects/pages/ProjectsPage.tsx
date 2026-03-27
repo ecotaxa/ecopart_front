@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
     Box,
     Container,
@@ -89,16 +89,6 @@ export default function ProjectsPage() {
         return Number.isNaN(parsed) ? null : parsed;
     }, [currentUser]);
 
-    useEffect(() => {
-        console.log("[ProjectsPage] currentUser from store:", currentUser);
-        console.log("[ProjectsPage] normalizedCurrentUserId:", normalizedCurrentUserId);
-    }, [currentUser, normalizedCurrentUserId]);
-
-    useEffect(() => {
-        if (projects.length > 0) {
-            console.log("[ProjectsPage] first project:", projects[0]);
-        }
-    }, [projects]);
 
     // ---------------------------------------------------------------------------
     // Event Handlers

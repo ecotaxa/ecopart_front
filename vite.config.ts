@@ -19,11 +19,11 @@ export default defineConfig(({ mode }) => {
         server: {
             proxy: {
                 "/auth": {
-                    target: env.VITE_BACKEND_URL,
+                    target: backendUrl,
                     changeOrigin: true,
                 },
                 "/users": {
-                    target: env.VITE_BACKEND_URL,
+                    target: backendUrl,
                     changeOrigin: true,
                 },
                 /// Smartly intercept "/projects"

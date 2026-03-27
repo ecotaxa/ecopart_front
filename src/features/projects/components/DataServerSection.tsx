@@ -39,7 +39,7 @@ export const DataServerSection: React.FC<DataServerSectionProps> = ({ values, on
 
             {/* RIGHT SIDE: The Form */}
             <Grid size={{ xs: 12, md: 8 }}>
-                <Typography variant="h6" fontWeight="bold">Connexion to data server</Typography>
+                <Typography variant="h6" fontWeight="bold">Connection to data server</Typography>
                 <Typography variant="body2" color="warning.main" gutterBottom sx={{ mb: 3 }}>
                     Please, don't forget to fill this section, now or later.
                 </Typography>

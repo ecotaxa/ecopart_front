@@ -85,7 +85,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                         {
                             ecotaxa_instance_id: 1,
                             ecotaxa_instance_name: "FR",
-                            ecotaxa_instance_description: "French instance of EcoTaxa, can be used world wilde.",
+                            ecotaxa_instance_description: "French instance of EcoTaxa, can be used worldwide.",
                             ecotaxa_instance_url: "https://ecotaxa.obs-vlfr.fr/"
                         }
                     ]);

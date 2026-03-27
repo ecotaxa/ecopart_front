@@ -86,9 +86,6 @@ export const useProjectsTable = () => {
                 filters: activeFilters
             });
 
-            // Helpful debug log to inspect the real backend response
-            console.log("[Projects] search response:", response);
-
             if (response && response.projects) {
                 setProjects(response.projects);
                 setTotalRows(response.search_info?.total || 0);
