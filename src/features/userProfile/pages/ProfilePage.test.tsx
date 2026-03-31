@@ -2,16 +2,22 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
+import { http, HttpResponse } from 'msw';
 
 import ProfilePage from './ProfilePage';
 import { renderWithRouter } from '@/test/utils';
-import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 
-describe('ProfilePage (Functional)', () => {
+//import { EcoTaxaAccountLink } from '../api/profile.api';
+
+// ============================================================================
+// SUITE 1: ECOPART ACCOUNT TAB (TAB 0)
+// ============================================================================
+describe('ProfilePage - Ecopart Tab (Functional)', () => {
 
     beforeEach(() => {
+        // Authenticate the user before each test in this suite
         loginAsUser();
     });
 
@@ -252,6 +258,239 @@ describe('ProfilePage (Functional)', () => {
 
         // Verification of navigation
         expect(await screen.findByText(/Admin Page/i)).toBeInTheDocument();
+    });
+
+});
+
+
+// ============================================================================
+// SUITE 2: ECOTAXA ACCOUNTS TAB (TAB 1)
+// ============================================================================
+describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
+
+    beforeEach(() => {
+        // Authenticate the user before each test in this suite
+        loginAsUser();
+    });
+
+    // TC-F1: Initial Loading & Display (List View)
+    it('TC-F1: should display the list of accounts when the user has existing links', async () => {
+        // 1. Arrange: Mock the API to return 1 existing account
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => {
+                return HttpResponse.json({
+                    ecotaxa_accounts: [
+                        {
+                            ecotaxa_account_id: 123,
+                            ecotaxa_account_instance_id: 1,
+                            ecotaxa_user_login: 'mock_ecotaxa_user',
+                            ecotaxa_account_instance_name: 'FR',
+                            ecotaxa_expiration_date: '2026-12-31'
+                        }
+                    ]
+                });
+            })
+        );
+
+        // 2. Act: Render the component, forcing the router to open Tab 1 (EcoTaxa)
+        renderWithRouter(
+            <Routes>
+                <Route path="/settings" element={<ProfilePage />} />
+            </Routes>,
+            { route: '/settings', state: { activeTab: 1 } } 
+        );
+
+        // 3. Assert: Check if the list UI is rendered
+        expect(await screen.findByText(/Accounts on EcoTaxa instances/i)).toBeInTheDocument();
+        expect(await screen.findByText(/mock_ecotaxa_user/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Connect to another account/i })).toBeInTheDocument();
+    });
+
+    // TC-F2: Initial Loading & Display (Form View)
+    it('TC-F2: should display the form directly if the user has NO linked accounts', async () => {
+        // Arrange: Mock the API to return an empty array
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => {
+                return HttpResponse.json({ ecotaxa_accounts: [] });
+            })
+        );
+
+        // Act
+        renderWithRouter(
+            <Routes>
+                <Route path="/settings" element={<ProfilePage />} />
+            </Routes>,
+            { route: '/settings', state: { activeTab: 1 } }
+        );
+
+        // Assert: Form header is present, Cancel button is absent
+        // Use findByText for headings if findByRole is flaky with MUI Typography
+        expect(await screen.findByText(/Log in to EcoTaxa/i)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Cancel and go back to list/i })).not.toBeInTheDocument();
+    });
+
+    // TC-F3: Form Validation & Disabled State
+    it('TC-F3: should keep the LOG IN button disabled until the form is fully valid', async () => {
+        const user = userEvent.setup();
+        
+        // Force empty list to show form
+        server.use(http.get('*/users/:id/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] })));
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        // FIX: Wait for the specific heading text
+        const formHeading = await screen.findByText('Log in to EcoTaxa');
+        
+        // FIX: We need to find the specific "LOG IN" button for EcoTaxa, not the "SAVE" button of the profile.
+        // Since we are isolated in Tab 1, getByRole should be safe, but let's be specific.
+        const loginButton = screen.getByRole('button', { name: 'LOG IN' });
+
+        // Assert initially disabled
+        expect(loginButton).toBeDisabled();
+
+        // FIX: SCOPING - We need to find the inputs specifically inside the EcoTaxa form.
+        // We find the parent container. The safest way is to go up a few levels from the heading.
+        const formContainer = formHeading.closest('.MuiStack-root');
+        if (!formContainer) throw new Error("Form container not found");
+
+        // Act: Fill inputs using `within` the specific container
+        const emailInput = within(formContainer as HTMLElement).getByLabelText(/Email address/i);
+        await user.type(emailInput, 'test@test.com');
+
+        // Note: Password fields in MUI can be tricky. We use the same selector strategy as in fillAuthForm.
+        const passwordInput = within(formContainer as HTMLElement).getByLabelText(/^Password/i, { selector: 'input' });
+        await user.type(passwordInput, 'password123');
+        
+        expect(loginButton).toBeDisabled();
+
+        // Act: Check consent
+        const consentCheckbox = within(formContainer as HTMLElement).getByRole('checkbox');
+        await user.click(consentCheckbox);
+
+        // Assert enabled
+        expect(loginButton).toBeEnabled();
+    });
+
+    // TC-F4: Link Account (Success)
+    it('TC-F4: should successfully link an account and return to the list view', async () => {
+        const user = userEvent.setup();
+        
+        // STRONG TYPING
+        type MockAccountType = {
+            ecotaxa_account_id: number;
+            ecotaxa_account_instance_id: number;
+            ecotaxa_user_login: string;
+            ecotaxa_account_instance_name: string;
+            ecotaxa_expiration_date: string;
+        };
+        let mockAccounts: MockAccountType[] = [];
+        
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => {
+                return HttpResponse.json({ ecotaxa_accounts: mockAccounts });
+            }),
+            // Mock the POST request to succeed and update the mock state
+            http.post('*/users/:id/ecotaxa_account', () => {
+                mockAccounts = [{
+                    ecotaxa_account_id: 999,
+                    ecotaxa_account_instance_id: 1,
+                    ecotaxa_user_login: 'new_linked_user',
+                    ecotaxa_account_instance_name: 'FR',
+                    ecotaxa_expiration_date: '2026-12-31'
+                }];
+                return HttpResponse.json({ message: 'Account linked' }, { status: 201 });
+            })
+        );
+
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        // Wait for the form to appear
+        const formHeading = await screen.findByText('Log in to EcoTaxa');
+        const formContainer = formHeading.closest('.MuiStack-root');
+        if (!formContainer) throw new Error("Form container not found");
+
+        // Fill the form using scoping
+        const emailInput = within(formContainer as HTMLElement).getByLabelText(/Email address/i);
+        await user.type(emailInput, 'test@test.com');
+
+        const passwordInput = within(formContainer as HTMLElement).getByLabelText(/^Password/i, { selector: 'input' });
+        await user.type(passwordInput, 'password123');
+        
+        const consentCheckbox = within(formContainer as HTMLElement).getByRole('checkbox');
+        await user.click(consentCheckbox);
+        
+        // Submit
+        const loginButton = within(formContainer as HTMLElement).getByRole('button', { name: 'LOG IN' });
+        await user.click(loginButton);
+
+        // Assertions: We expect to see the new user in the list view
+        expect(await screen.findByText(/new_linked_user/i)).toBeInTheDocument();
+        // Form should be gone
+        expect(screen.queryByText('Log in to EcoTaxa')).not.toBeInTheDocument();
+    });
+
+    // TC-F6: Unlink Account (Success)
+    it('TC-F6: should remove the account from the list after successful unlinking', async () => {
+        const user = userEvent.setup();
+        
+        // Strong typing for the mock state
+        type MockAccountType = {
+            ecotaxa_account_id: number;
+            ecotaxa_account_instance_id: number;
+            ecotaxa_user_login: string;
+            ecotaxa_account_instance_name: string;
+            ecotaxa_expiration_date: string;
+        };
+
+        let mockAccounts: MockAccountType[] = [{
+            ecotaxa_account_id: 123,
+            ecotaxa_account_instance_id: 1,
+            ecotaxa_user_login: 'doomed_user',
+            ecotaxa_account_instance_name: 'FR',
+            ecotaxa_expiration_date: '2026-12-31'
+        }];
+
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => {
+                return HttpResponse.json({ ecotaxa_accounts: mockAccounts });
+            }),
+            // Mock the DELETE request to succeed and clear the array
+            http.delete('*/users/:userId/ecotaxa_account/:connectionId', () => {
+                mockAccounts = []; // Update state so the next GET returns empty
+                return HttpResponse.json({ message: 'Account unlinked' }, { status: 200 });
+            })
+        );
+
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        // 1. Verify item is there
+        expect(await screen.findByText(/doomed_user/i)).toBeInTheDocument();
+
+        // 2. Click the logout/unlink icon button
+        const unlinkButtons = screen.getAllByRole('button');
+        const logoutButton = unlinkButtons.find(btn => btn.querySelector('svg[data-testid="LogoutIcon"]'));
+        if (!logoutButton) throw new Error("Logout icon button not found");
+        
+        await user.click(logoutButton);
+
+        // 3. Confirm in dialog
+        const dialog = await screen.findByRole('dialog', { name: /Disconnect EcoTaxa Account/i });
+        const confirmButton = within(dialog).getByRole('button', { name: /Disconnect/i });
+        await user.click(confirmButton);
+
+        // 4. Assertions: Dialog closes and item is gone
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+        
+        // FIX: The core issue in TC-F6 was here. 
+        // We need to use `waitFor` to give the component time to complete its internal 
+        // fetch -> setState -> re-render cycle before asserting that the form text appears.
+        await waitFor(async () => {
+            // Using findByText as a more robust fallback than findByRole for MUI headings
+            expect(await screen.findByText('Log in to EcoTaxa')).toBeInTheDocument();
+        }, { timeout: 3000 }); // Optional: give it a slightly longer timeout just in case
+
+        expect(screen.queryByText(/doomed_user/i)).not.toBeInTheDocument();
     });
 
 });
