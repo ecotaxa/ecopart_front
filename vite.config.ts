@@ -26,6 +26,16 @@ export default defineConfig(({ mode }) => {
                     target: backendUrl,
                     changeOrigin: true,
                 },
+                // Proxy for EcoTaxa instances endpoint
+                "/ecotaxa_instances": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
+                // Proxy for instrument models endpoint
+                "/instrument_models": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
                 /// Smartly intercept "/projects"
                 "/projects": {
                     target: backendUrl,

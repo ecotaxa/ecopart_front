@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Button,
     TextField,
     Checkbox,
     FormControlLabel,
     Autocomplete,
+    CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import { CountriesWrapper, CountryOption } from "@/shared/country-wrapper";
@@ -23,16 +24,16 @@ import { VALIDATION_MESSAGES } from "@/shared/utils/validation/messages";
 import { AuthPageLayout } from "@/shared/components/AuthPageLayout";
 import { PasswordInput } from "@/shared/components/PasswordInput";
 
-/* ---------------- ORGANISATIONS ---------------- */
-// Mock data - should come from API
-const organisationTypes = [
-    { value: "Sorbonne Université", label: "Sorbonne Université" },
-    { value: "CNRS", label: "CNRS" },
-];
+// Import centralized API function for fetching organisations
+import { getOrganisations } from "@/shared/api/referenceData.api";
 
 export default function RegisterPage() {
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // State for organisation names fetched from API (already string[])
+    const [organisationOptions, setOrganisationOptions] = useState<string[]>([]);
+    const [loadingOrganisations, setLoadingOrganisations] = useState(true);
 
     // Form Fields
     const [firstName, setFirstName] = useState("");
@@ -50,6 +51,26 @@ export default function RegisterPage() {
         () => CountriesWrapper.list(),
         []
     );
+
+    // Fetch organisations on mount
+    useEffect(() => {
+        const fetchOrganisations = async () => {
+            setLoadingOrganisations(true);
+            try {
+                // getOrganisations now returns string[] directly
+                const fetchedOrganisations = await getOrganisations();
+                setOrganisationOptions(fetchedOrganisations);
+            } catch (err) {
+                console.error("Failed to fetch organisations:", err);
+                // Leave the list empty - freeSolo allows manual input
+                setOrganisationOptions([]);
+            } finally {
+                setLoadingOrganisations(false);
+            }
+        };
+
+        fetchOrganisations();
+    }, []);
 
     // Validation Checkers
     const emailIsValid = isValidEmail(email);
@@ -179,11 +200,25 @@ export default function RegisterPage() {
                     <Autocomplete
                         freeSolo
                         fullWidth
-                        options={organisationTypes.map((o) => o.value)}
+                        options={organisationOptions}
                         value={organisation}
                         onInputChange={(_, newValue) => setOrganisation(newValue)}
+                        loading={loadingOrganisations}
                         renderInput={(params) => (
-                            <TextField {...params} required label="Organisation" />
+                            <TextField
+                                {...params}
+                                required
+                                label="Organisation"
+                                InputProps={{
+                                    ...params.InputProps,
+                                    endAdornment: (
+                                        <>
+                                            {loadingOrganisations ? <CircularProgress size={20} /> : null}
+                                            {params.InputProps.endAdornment}
+                                        </>
+                                    ),
+                                }}
+                            />
                         )}
                     />
                 </Grid>

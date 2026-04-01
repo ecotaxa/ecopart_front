@@ -55,6 +55,13 @@ export const useProjectsTable = () => {
         try {
             const activeFilters: SearchFilter[] = [];
 
+            // Always filter to show only projects where current user is a manager
+            activeFilters.push({
+                field: "for_managing",
+                operator: "=",
+                value: true
+            });
+
             // Dynamic attribute search
             if (debouncedSearchText) {
                 activeFilters.push({

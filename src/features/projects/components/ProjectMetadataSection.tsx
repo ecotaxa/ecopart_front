@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
     Box,
     Typography,
@@ -8,10 +8,13 @@ import {
     FormControlLabel,
     Switch,
     Autocomplete,
+    CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
 import { NewProjectFormValues } from "../types/newProject.types";
+// Import centralized API function for fetching ships
+import { getShips } from "@/shared/api/referenceData.api";
 
 interface ProjectMetadataSectionProps {
     values: NewProjectFormValues["metadata"];
@@ -25,24 +28,40 @@ interface ProjectMetadataSectionProps {
     };
 }
 
-const SHIP_OPTIONS = [
-    "pourquoi_pas",
-    "tara",
-    "boat1",
-    "boat2",
-    "thalassa",
-    "atalante",
-];
-
 /**
  * Presentational component for project metadata.
  * This component stays reusable because it only receives values + callbacks + errors.
+ * Now fetches ships dynamically from the API instead of using hardcoded values.
  */
 export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
     values,
     onChange,
     errors,
 }) => {
+    // State for ship names fetched from API (already string[])
+    const [shipOptions, setShipOptions] = useState<string[]>([]);
+    const [loadingShips, setLoadingShips] = useState(true);
+
+    // Fetch ships on mount
+    useEffect(() => {
+        const fetchShips = async () => {
+            setLoadingShips(true);
+            try {
+                // getShips now returns string[] directly
+                const fetchedShips = await getShips();
+                setShipOptions(fetchedShips);
+            } catch (error) {
+                console.error("Failed to fetch ships:", error);
+                // Leave the list empty - UI will handle gracefully with freeSolo input
+                setShipOptions([]);
+            } finally {
+                setLoadingShips(false);
+            }
+        };
+
+        fetchShips();
+    }, []);
+
     return (
         <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom>
@@ -68,9 +87,10 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
                     <Autocomplete
                         multiple
                         freeSolo
-                        options={SHIP_OPTIONS}
+                        options={shipOptions}
                         value={values.ship}
                         onChange={(_, newValue) => onChange({ ship: newValue })}
+                        loading={loadingShips}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
@@ -80,6 +100,15 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
                                 label="Ship"
                                 error={Boolean(errors?.ship)}
                                 helperText={errors?.ship}
+                                InputProps={{
+                                    ...params.InputProps,
+                                    endAdornment: (
+                                        <>
+                                            {loadingShips ? <CircularProgress size={20} /> : null}
+                                            {params.InputProps.endAdornment}
+                                        </>
+                                    ),
+                                }}
                             />
                         )}
                     />
