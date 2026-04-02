@@ -200,12 +200,12 @@ export interface PublicProjectRequestCreationModel {
     managers: MinimalUserModel[];
     contact: MinimalUserModel;
 
-    // EcoTaxa Link
-    ecotaxa_project_id: number | null;
-    ecotaxa_project_name: string | null;
-    ecotaxa_instance_id: number | null;
-    new_ecotaxa_project: boolean;
-    ecotaxa_account_id: number | null;
+    // EcoTaxa Link (conditionally included when linking to EcoTaxa)
+    ecotaxa_project_id?: number | null;
+    ecotaxa_project_name?: string | null;
+    ecotaxa_instance_id?: number | null;
+    new_ecotaxa_project?: boolean;
+    ecotaxa_account_id?: number | null;
 }
 
 /**

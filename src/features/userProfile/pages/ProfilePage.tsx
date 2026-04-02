@@ -271,7 +271,7 @@ export default function ProfilePage() {
 
     // 2. User confirms -> Call API and refresh list
     const handleConfirmUnlink = async () => {
-        if (!user || !accountToUnlink) return;
+        if (!user || accountToUnlink === null) return;
 
         try {
             await unlinkEcoTaxaAccount(user.user_id, accountToUnlink);
@@ -532,6 +532,7 @@ export default function ProfilePage() {
                                             size="small"
                                             color="primary"
                                             onClick={() => handleUnlinkClick(account.ecotaxa_account_id)}
+                                            aria-label="Disconnect EcoTaxa account"
                                         >
                                             <LogoutIcon />
                                         </IconButton>

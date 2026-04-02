@@ -297,7 +297,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
             <Routes>
                 <Route path="/settings" element={<ProfilePage />} />
             </Routes>,
-            { route: '/settings', state: { activeTab: 1 } } 
+            { route: '/settings', state: { activeTab: 1 } }
         );
 
         // 3. Assert: Check if the list UI is rendered
@@ -332,14 +332,14 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
     // TC-F3: Form Validation & Disabled State
     it('TC-F3: should keep the LOG IN button disabled until the form is fully valid', async () => {
         const user = userEvent.setup();
-        
+
         // Force empty list to show form
         server.use(http.get('*/users/:id/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] })));
         renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
 
         // FIX: Wait for the specific heading text
         const formHeading = await screen.findByText('Log in to EcoTaxa');
-        
+
         // FIX: We need to find the specific "LOG IN" button for EcoTaxa, not the "SAVE" button of the profile.
         // Since we are isolated in Tab 1, getByRole should be safe, but let's be specific.
         const loginButton = screen.getByRole('button', { name: 'LOG IN' });
@@ -359,7 +359,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         // Note: Password fields in MUI can be tricky. We use the same selector strategy as in fillAuthForm.
         const passwordInput = within(formContainer as HTMLElement).getByLabelText(/^Password/i, { selector: 'input' });
         await user.type(passwordInput, 'password123');
-        
+
         expect(loginButton).toBeDisabled();
 
         // Act: Check consent
@@ -373,7 +373,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
     // TC-F4: Link Account (Success)
     it('TC-F4: should successfully link an account and return to the list view', async () => {
         const user = userEvent.setup();
-        
+
         // STRONG TYPING
         type MockAccountType = {
             ecotaxa_account_id: number;
@@ -383,7 +383,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
             ecotaxa_expiration_date: string;
         };
         let mockAccounts: MockAccountType[] = [];
-        
+
         server.use(
             http.get('*/users/:id/ecotaxa_account', () => {
                 return HttpResponse.json({ ecotaxa_accounts: mockAccounts });
@@ -414,10 +414,10 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
 
         const passwordInput = within(formContainer as HTMLElement).getByLabelText(/^Password/i, { selector: 'input' });
         await user.type(passwordInput, 'password123');
-        
+
         const consentCheckbox = within(formContainer as HTMLElement).getByRole('checkbox');
         await user.click(consentCheckbox);
-        
+
         // Submit
         const loginButton = within(formContainer as HTMLElement).getByRole('button', { name: 'LOG IN' });
         await user.click(loginButton);
@@ -431,7 +431,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
     // TC-F6: Unlink Account (Success)
     it('TC-F6: should remove the account from the list after successful unlinking', async () => {
         const user = userEvent.setup();
-        
+
         // Strong typing for the mock state
         type MockAccountType = {
             ecotaxa_account_id: number;
@@ -465,11 +465,9 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         // 1. Verify item is there
         expect(await screen.findByText(/doomed_user/i)).toBeInTheDocument();
 
-        // 2. Click the logout/unlink icon button
-        const unlinkButtons = screen.getAllByRole('button');
-        const logoutButton = unlinkButtons.find(btn => btn.querySelector('svg[data-testid="LogoutIcon"]'));
-        if (!logoutButton) throw new Error("Logout icon button not found");
-        
+        // 2. Click the logout/unlink icon button using the aria-label
+        const logoutButton = screen.getByRole('button', { name: /Disconnect EcoTaxa account/i });
+
         await user.click(logoutButton);
 
         // 3. Confirm in dialog
@@ -481,7 +479,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         await waitFor(() => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
-        
+
         // FIX: The core issue in TC-F6 was here. 
         // We need to use `waitFor` to give the component time to complete its internal 
         // fetch -> setState -> re-render cycle before asserting that the form text appears.

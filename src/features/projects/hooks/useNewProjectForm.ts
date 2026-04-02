@@ -520,7 +520,7 @@ export const useNewProjectForm = () => {
                 project_title: values.metadata.title.trim(),
                 project_acronym: values.metadata.acronym.trim(),
                 project_description: values.metadata.description.trim(),
-                project_information: "test", // Forced to match your Postman example which worked
+                project_information: "",
                 cruise: values.metadata.cruise.trim(),
                 ship: values.metadata.ship.join(", "),
 
