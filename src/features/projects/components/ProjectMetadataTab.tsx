@@ -48,7 +48,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
     }
 
     // 2. Render the assembled UI 
-    // FIX: We wrap the Paper in a Container with maxWidth="md" and disable padding
+    // We wrap the Paper in a Container with maxWidth="md" and disable padding
     // so it perfectly matches the width constraints of NewProjectPage!
     return (
         <Container maxWidth="md" disableGutters>

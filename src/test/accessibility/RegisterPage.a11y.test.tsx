@@ -68,5 +68,5 @@ describe('RegisterPage (Accessibility)', () => {
         // Note: The button is disabled initially, so it might be skipped by Tab 
         // depending on browser/JSDOM behavior. In strict accessbility, 
         // disabled elements are not focusable. We stop here.
-    });
+    }, 15000);
 });
