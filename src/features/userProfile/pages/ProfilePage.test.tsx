@@ -337,17 +337,17 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         server.use(http.get('*/users/:id/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] })));
         renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
 
-        // FIX: Wait for the specific heading text
+        // Wait for the specific heading text
         const formHeading = await screen.findByText('Log in to EcoTaxa');
         
-        // FIX: We need to find the specific "LOG IN" button for EcoTaxa, not the "SAVE" button of the profile.
+        // We need to find the specific "LOG IN" button for EcoTaxa, not the "SAVE" button of the profile.
         // Since we are isolated in Tab 1, getByRole should be safe, but let's be specific.
         const loginButton = screen.getByRole('button', { name: 'LOG IN' });
 
         // Assert initially disabled
         expect(loginButton).toBeDisabled();
 
-        // FIX: SCOPING - We need to find the inputs specifically inside the EcoTaxa form.
+        // SCOPING - We need to find the inputs specifically inside the EcoTaxa form.
         // We find the parent container. The safest way is to go up a few levels from the heading.
         const formContainer = formHeading.closest('.MuiStack-root');
         if (!formContainer) throw new Error("Form container not found");
@@ -482,7 +482,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
         
-        // FIX: The core issue in TC-F6 was here. 
+        // The core issue in TC-F6 was here. 
         // We need to use `waitFor` to give the component time to complete its internal 
         // fetch -> setState -> re-render cycle before asserting that the form text appears.
         await waitFor(async () => {
