@@ -106,7 +106,7 @@ describe('ProjectsPage (Functional)', () => {
         await user.type(searchInput, 'Tara');
         expect(searchInput).toHaveValue('Tara');
 
-        // FIX: The default text is "All My Projects" based on the Hook's initial state
+        // The default text is "All My Projects" based on the Hook's initial state
         const filterButton = screen.getByRole('button', { name: 'All My Projects' });
         await user.click(filterButton);
 

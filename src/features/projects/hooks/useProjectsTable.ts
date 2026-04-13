@@ -82,9 +82,9 @@ export const useProjectsTable = () => {
                 if (selectedFilter === "Validated") {
                     // Note: Ensure 'qc_state' is added to the backend's allowed filters list
                     activeFilters.push({
-                        field: "qc_state", 
-                        operator: "=", 
-                        value: "validated" 
+                        field: "qc_state",
+                        operator: "=",
+                        value: "validated"
                     });
                 }
             }
@@ -131,7 +131,7 @@ export const useProjectsTable = () => {
 
     return {
         projects, loading, totalRows,
-        error, 
+        error,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
         selectedFilter, setSelectedFilter,

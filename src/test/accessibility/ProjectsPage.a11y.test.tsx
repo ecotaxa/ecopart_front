@@ -37,7 +37,7 @@ describe('ProjectsPage (Accessibility)', () => {
 
         // 2. Tab -> Filter Button
         await user.tab();
-        // FIX: The default selectedFilter is "All", so the button says "All My Projects"
+        // The default selectedFilter is "All", so the button says "All My Projects"
         expect(screen.getByRole('button', { name: /All My Projects/i })).toHaveFocus();
 
         // 3. Tab -> NEW PROJECT Button
