@@ -13,16 +13,20 @@ interface DataPrivacySectionProps {
 }
 
 /**
- * Parse and clamp to a minimum of 1 month.
+ * We now allow empty strings ("") so the user can easily clear the input field 
+ * to type a new number. The parent component's submit handler will validate that the final value is a positive integer.
+ * This is a common pattern for handling controlled number inputs in React.
  */
-const parsePositiveInt = (value: string): number => {
-    const parsed = Number.parseInt(value, 10);
-
-    if (Number.isNaN(parsed) || parsed < 1) {
-        return 1;
+const handleNumberChange = (value: string): number => {
+    if (value === "") {
+        // Return an empty string temporarily to allow clearing the field.
+        // We cast to unknown then number here locally to bypass the strict number requirement 
+        // of the parent state, knowing the parent's submit handler will validate it.
+        return "" as unknown as number; 
     }
-
-    return parsed;
+    
+    const parsed = Number.parseInt(value, 10);
+    return Number.isNaN(parsed) ? ("" as unknown as number) : parsed;
 };
 
 export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
@@ -34,7 +38,7 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
 }) => {
     const renderTimelineStep = (label: string, isBlue: boolean) => (
         <Stack direction="row" alignItems="center" spacing={1}>
-            {isBlue ? <CheckCircleIcon color="primary" /> : <CancelIcon sx={{ color: "#9e9e9e" }} />}
+            {isBlue ? <CheckCircleIcon color="primary" aria-hidden="true" /> : <CancelIcon sx={{ color: "#9e9e9e" }} aria-hidden="true" />}
             <Typography
                 variant="body2"
                 fontWeight={isBlue ? "bold" : "normal"}
@@ -69,7 +73,7 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     type="number"
                     label="Delay until visible"
                     value={values.privateMonths}
-                    onChange={(e) => onChange({ privateMonths: parsePositiveInt(e.target.value) })}
+                    onChange={(e) => onChange({ privateMonths: handleNumberChange(e.target.value) })}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(privateMonthsError)}
@@ -84,7 +88,7 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     type="number"
                     label="Delay until public"
                     value={values.visibleMonths}
-                    onChange={(e) => onChange({ visibleMonths: parsePositiveInt(e.target.value) })}
+                    onChange={(e) => onChange({ visibleMonths: handleNumberChange(e.target.value) })}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(visibleMonthsError)}
@@ -99,7 +103,7 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     type="number"
                     label="Delay until open"
                     value={values.publicMonths}
-                    onChange={(e) => onChange({ publicMonths: parsePositiveInt(e.target.value) })}
+                    onChange={(e) => onChange({ publicMonths: handleNumberChange(e.target.value) })}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(publicMonthsError)}

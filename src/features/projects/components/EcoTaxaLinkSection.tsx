@@ -79,7 +79,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 } catch (apiError) {
                     // Use the apiError variable so ESLint doesn't complain
                     console.warn("Backend route for instances not found. Using fallback DB mock.", apiError);
-                    
+
                     // FALLBACK: Perfectly matches your SQLite screenshot so the UI works today!
                     setInstances([
                         {
@@ -144,9 +144,9 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                         renderValue: (selected: unknown) => {
                             const selectedString = selected as string;
                             const instanceData = instances.find(inst => inst.ecotaxa_instance_id.toString() === selectedString);
-                            
+
                             if (!instanceData) return selectedString; // Returns a string, which is a valid ReactNode
-                            
+
                             return (
                                 <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
                                     <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description} <br />

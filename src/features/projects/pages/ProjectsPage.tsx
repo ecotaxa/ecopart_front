@@ -18,7 +18,7 @@ import {
     DataGrid,
     GridColDef,
     GridRenderCellParams,
-    GridRowParams, // Import this type for the row click handler
+    GridRowParams, 
 } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
@@ -33,8 +33,6 @@ import { useNavigate } from "react-router-dom";
 import MainLayout from "@/app/layouts/MainLayout";
 import { MinimalUserModel, Project } from "../api/projects.api";
 import { useProjectsTable } from "../hooks/useProjectsTable";
-
-// Read the authenticated user from the auth store
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
 /**
@@ -113,10 +111,7 @@ export default function ProjectsPage() {
         setRowSelectionModel({ type: "include", ids: new Set() });
     };
 
-    // Handle clicking on a specific row to view/edit project details
     const handleRowClick = (params: GridRowParams<Project>) => {
-        // Navigate to the project details/edit page using the specific project ID.
-        // Make sure you have a route configured in your App.tsx like: <Route path="/projects/:id" element={<ProjectEditPage />} />
         navigate(`/projects/${params.row.project_id}`);
     };
 
@@ -292,25 +287,31 @@ export default function ProjectsPage() {
                             value={searchAttribute}
                             onChange={(e) => setSearchAttribute(e.target.value)}
                             size="small"
-                            sx={{ width: 150 }}
+                            sx={{ width: 170 }}
                         >
+                            {/* Extended attributes based on backend allowed filters */}
                             <MenuItem value="project_title">Title</MenuItem>
                             <MenuItem value="project_acronym">Acronym</MenuItem>
                             <MenuItem value="cruise">Cruise</MenuItem>
+                            <MenuItem value="ship">Ship</MenuItem>
+                            <MenuItem value="instrument_model">Instrument</MenuItem>
                             <MenuItem value="data_owner_email">Owner Email</MenuItem>
+                            <MenuItem value="operator_name">Operator</MenuItem>
                         </TextField>
 
-                        <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick}>
-                            {selectedFilter === "All" ? "Filter" : `Filter: ${selectedFilter}`}
+                        <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick} sx={{ whiteSpace: 'nowrap' }}>
+                            {selectedFilter === "All" ? "All My Projects" : 
+                             selectedFilter === "Manager" ? "My Managed Projects" : 
+                             `Filter: ${selectedFilter}`}
                         </Button>
 
                         <Menu anchorEl={filterAnchorEl} open={openFilter} onClose={() => handleFilterClose()}>
-                            <MenuItem onClick={() => handleFilterClose("All")}>All Projects</MenuItem>
+                            <MenuItem onClick={() => handleFilterClose("All")}>All My Projects</MenuItem>
                             <MenuItem onClick={() => handleFilterClose("Manager")}>My Managed Projects</MenuItem>
                             <MenuItem onClick={() => handleFilterClose("Validated")}>Validated QC</MenuItem>
                         </Menu>
 
-                        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/new-project")}>
+                        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/new-project")} sx={{ whiteSpace: 'nowrap' }}>
                             NEW PROJECT
                         </Button>
                     </Stack>
@@ -370,10 +371,9 @@ export default function ProjectsPage() {
                             loading={loading}
                             pageSizeOptions={[5, 10, 25]}
                             disableRowSelectionOnClick
-                            onRowClick={handleRowClick} // Attach the click handler to the grid rows
+                            onRowClick={handleRowClick} 
                             sx={{
                                 border: 0,
-                                // Add pointer cursor to indicate rows are clickable
                                 '& .MuiDataGrid-row': {
                                     cursor: 'pointer',
                                 },

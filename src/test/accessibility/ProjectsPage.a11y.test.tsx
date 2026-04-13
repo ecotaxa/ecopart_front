@@ -12,7 +12,7 @@ describe('ProjectsPage (Accessibility)', () => {
 
     beforeEach(() => {
         loginAsUser();
-        
+
         // Mock API so the page renders without errors
         server.use(
             http.post('*/projects/searches', () => {
@@ -26,13 +26,6 @@ describe('ProjectsPage (Accessibility)', () => {
         const user = userEvent.setup({ delay: null });
         renderWithRouter(<ProjectsPage />);
 
-        // Wait for page to load by finding the main header
-
-        // The entire page includes the TopBar (MainLayout) which has many links.
-        // Instead of starting from body and tabbing through the entire menu,
-        // we explicitly place focus on the main heading (which we make programmatically focusable just for the test)
-        // or we just find the element right before our target and focus it.
-        
         // A robust way is to focus the "Search" input directly, then test the SUBSEQUENT tab order.
         const searchInput = screen.getByPlaceholderText('Search...');
         searchInput.focus();
@@ -44,7 +37,8 @@ describe('ProjectsPage (Accessibility)', () => {
 
         // 2. Tab -> Filter Button
         await user.tab();
-        expect(screen.getByRole('button', { name: /Filter/i })).toHaveFocus();
+        // FIX: The default selectedFilter is "All", so the button says "All My Projects"
+        expect(screen.getByRole('button', { name: /All My Projects/i })).toHaveFocus();
 
         // 3. Tab -> NEW PROJECT Button
         await user.tab();

@@ -23,7 +23,7 @@ async function fillValidProjectForm(user: UserEvent) {
     // 3. Metadata
     await user.type(screen.getByLabelText(/Project title/i), 'Test Project Title');
     await user.type(screen.getByLabelText(/Project acronym/i), 'TPT');
-    
+
     // Ship is an autocomplete (multiple)
     const shipInput = screen.getByLabelText(/Ship/i);
     await user.type(shipInput, 'tara');
@@ -80,12 +80,12 @@ describe('NewProjectPage (Functional)', () => {
         // Verify Privileges Auto-fill
         // The component automatically adds the logged-in user (John Doe, ID 1) as a Manager.
         const privilegesSection = screen.getByText('Privileges').closest('.MuiBox-root')!;
-        
+
         // The user list comes from an async API call (GET /users).
         // Therefore, we must use 'await findByText' instead of 'getByText'.
         // Also, MUI Selects display their current value text directly in the DOM.
         expect(await within(privilegesSection as HTMLElement).findByText(/John Doe/i)).toBeInTheDocument();
-        
+
         // Check that the Manager toggle is pressed
         const managerToggle = within(privilegesSection as HTMLElement).getByRole('button', { name: /Manager/i });
         expect(managerToggle).toHaveAttribute('aria-pressed', 'true');
@@ -194,7 +194,7 @@ describe('NewProjectPage (Functional)', () => {
         await screen.findByRole('heading', { name: /^New project$/i });
 
         // --- 1. Interact with Privileges Section ---
-        
+
         const privilegesSection = screen.getByText('Privileges').closest('.MuiBox-root')!;
 
         // Wait for the first auto-filled user to be present

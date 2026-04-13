@@ -13,7 +13,7 @@ describe('ProjectDetailsPage (Accessibility)', () => {
 
     beforeEach(() => {
         loginAsUser();
-        
+
         // Prevent API errors during render
         server.use(
             http.post('*/projects/searches', () => HttpResponse.json({ search_info: { total: 1, page: 1, limit: 1 }, projects: [{ project_id: 101 }] })),

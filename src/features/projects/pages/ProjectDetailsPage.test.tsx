@@ -110,7 +110,7 @@ describe('ProjectDetailsPage (Functional)', () => {
         // Verify STATS tab (mock content)
         const statsTab = screen.getByRole('tab', { name: /STATS/i });
         await user.click(statsTab);
-        
+
         expect(await screen.findByText(/Stats Tab \(Coming Soon\)/i)).toBeInTheDocument();
     });
 
@@ -134,7 +134,7 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         // Verify navigation occurred
         expect(await screen.findByText('Explore Page Mock')).toBeInTheDocument();
-        
+
         // Note: In a real test we might spy on the useNavigate hook, 
         // but checking the rendered route mock is the React Testing Library way.
     });

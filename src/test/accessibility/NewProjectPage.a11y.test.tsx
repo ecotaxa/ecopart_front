@@ -12,7 +12,7 @@ describe('NewProjectPage (Accessibility)', () => {
 
     beforeEach(() => {
         loginAsUser();
-        
+
         server.use(
             http.get('*/users', () => HttpResponse.json({ users: [] })),
             http.get('*/ecotaxa_instances', () => HttpResponse.json([])),

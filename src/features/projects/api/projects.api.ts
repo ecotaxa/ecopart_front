@@ -130,10 +130,11 @@ function normalizeProjectSearchResponse(
         raw.page ??
         1;
 
+    // We default to 10 if no limit is provided by the backend to keep pagination mathematically sound.
     const limit =
         raw.search_info?.limit ??
         raw.limit ??
-        projects.length;
+        (projects.length > 0 ? projects.length : 10);
 
     return {
         search_info: {
