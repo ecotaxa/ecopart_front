@@ -338,6 +338,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
 
         // Wait for the specific heading text
+        // Wait for the specific heading text
         const formHeading = await screen.findByText('Log in to EcoTaxa');
 
         // We need to find the specific "LOG IN" button for EcoTaxa, not the "SAVE" button of the profile.
@@ -347,6 +348,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         // Assert initially disabled
         expect(loginButton).toBeDisabled();
 
+        // SCOPING - We need to find the inputs specifically inside the EcoTaxa form.
         // SCOPING - We need to find the inputs specifically inside the EcoTaxa form.
         // We find the parent container. The safest way is to go up a few levels from the heading.
         const formContainer = formHeading.closest('.MuiStack-root');
