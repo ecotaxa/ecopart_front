@@ -236,7 +236,7 @@ export default function ProfilePage() {
 
     const handleDeleteClick = () => { setOpenDeleteDialog(true); };
 
-    const handleConfirmDelete = async () => {
+    const handleConfirmDelete = async () => { 
         if (!user) return;
         setDeleteError(null);
         try {
