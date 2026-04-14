@@ -103,4 +103,41 @@ export const handlers = [
             refresh_token: 'new_fake_refresh'
         }, { status: 200 });
     }),
+
+    // --- MOCK ECOTAXA INSTANCES ---
+    // Return available EcoTaxa instances that users can link to
+    http.get('*/ecotaxa_instances', () => {
+        return HttpResponse.json([
+            {
+                ecotaxa_instance_id: 1,
+                ecotaxa_instance_name: 'FR',
+                ecotaxa_instance_description: 'France instance',
+                ecotaxa_instance_url: 'https://ecotaxa.obs-vlfr.fr'
+            },
+            {
+                ecotaxa_instance_id: 2,
+                ecotaxa_instance_name: 'USA',
+                ecotaxa_instance_description: 'USA instance',
+                ecotaxa_instance_url: 'https://ecotaxa.sst.nao.ac.uk'
+            }
+        ]);
+    }),
+
+    // --- MOCK GET LINKED ECOTAXA ACCOUNTS ---
+    // Return the list of linked EcoTaxa accounts for a user
+    http.get('*/users/:id/ecotaxa_account', () => {
+        return HttpResponse.json({ ecotaxa_accounts: [] });
+    }),
+
+    // --- MOCK LINK ECOTAXA ACCOUNT ---
+    // Success response when linking a new EcoTaxa account
+    http.post('*/users/:id/ecotaxa_account', () => {
+        return HttpResponse.json({ message: 'Account linked successfully' }, { status: 201 });
+    }),
+
+    // --- MOCK UNLINK ECOTAXA ACCOUNT ---
+    // Success response when unlinking an EcoTaxa account
+    http.delete('*/users/:userId/ecotaxa_account/:connectionId', () => {
+        return HttpResponse.json({ message: 'Account unlinked successfully' }, { status: 200 });
+    }),
 ];

@@ -41,6 +41,11 @@ export default defineConfig(({ mode }) => {
                         // Return null, so the proxy activates and sends it to the Backend (localhost:4000)
                         return null;
                     }
+                },
+                // Tells Vite to forward all /ecotaxa_instances requests to the backend
+                "/ecotaxa_instances": {
+                    target: backendUrl,
+                    changeOrigin: true,
                 }
             },
         },

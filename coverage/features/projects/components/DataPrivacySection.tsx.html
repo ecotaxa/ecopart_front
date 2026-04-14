@@ -30,15 +30,9 @@
         
             
             <div class='fl pad1y space-right2'>
-<<<<<<< HEAD
                 <span class="strong">90% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>9/10</span>
-=======
-                <span class="strong">100% </span>
-                <span class="quiet">Branches</span>
-                <span class='fraction'>10/10</span>
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
             </div>
         
             
@@ -182,7 +176,6 @@
 <a name='L111'></a><a href='#L111'>111</a>
 <a name='L112'></a><a href='#L112'>112</a>
 <a name='L113'></a><a href='#L113'>113</a>
-<<<<<<< HEAD
 <a name='L114'></a><a href='#L114'>114</a>
 <a name='L115'></a><a href='#L115'>115</a>
 <a name='L116'></a><a href='#L116'>116</a>
@@ -190,9 +183,6 @@
 <a name='L118'></a><a href='#L118'>118</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-=======
-<a name='L114'></a><a href='#L114'>114</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -212,20 +202,13 @@
 <span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<<<<<<< HEAD
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-=======
-<span class="cline-any cline-yes">3x</span>
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
-<<<<<<< HEAD
 <span class="cline-any cline-yes">2x</span>
-=======
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">5x</span>
@@ -329,7 +312,6 @@ interface DataPrivacySectionProps {
 }
 &nbsp;
 /**
-<<<<<<< HEAD
  * We now allow empty strings ("") so the user can easily clear the input field 
  * to type a new number. The parent component's submit handler will validate that the final value is a positive integer.
  * This is a common pattern for handling controlled number inputs in React.
@@ -344,18 +326,6 @@ const handleNumberChange = (value: string): number =&gt; {
     
     const parsed = Number.parseInt(value, 10);
     return Number.isNaN(parsed) ? (<span class="branch-0 cbranch-no" title="branch not covered" >"" as unknown as number) : p</span>arsed;
-=======
- * Parse and clamp to a minimum of 1 month.
- */
-const parsePositiveInt = (value: string): number =&gt; {
-    const parsed = Number.parseInt(value, 10);
-&nbsp;
-    if (Number.isNaN(parsed) || parsed &lt; 1) {
-        return 1;
-    }
-&nbsp;
-    return parsed;
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
 };
 &nbsp;
 export const DataPrivacySection: React.FC&lt;DataPrivacySectionProps&gt; = ({
@@ -367,11 +337,7 @@ export const DataPrivacySection: React.FC&lt;DataPrivacySectionProps&gt; = ({
 }) =&gt; {
     const renderTimelineStep = (label: string, isBlue: boolean) =&gt; (
         &lt;Stack direction="row" alignItems="center" spacing={1}&gt;
-<<<<<<< HEAD
             {isBlue ? &lt;CheckCircleIcon color="primary" aria-hidden="true" /&gt; : &lt;CancelIcon sx={{ color: "#9e9e9e" }} aria-hidden="true" /&gt;}
-=======
-            {isBlue ? &lt;CheckCircleIcon color="primary" /&gt; : &lt;CancelIcon sx={{ color: "#9e9e9e" }} /&gt;}
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
             &lt;Typography
                 variant="body2"
                 fontWeight={isBlue ? "bold" : "normal"}
@@ -406,11 +372,7 @@ export const DataPrivacySection: React.FC&lt;DataPrivacySectionProps&gt; = ({
                     type="number"
                     label="Delay until visible"
                     value={values.privateMonths}
-<<<<<<< HEAD
                     onChange={(e) =&gt; onChange({ privateMonths: handleNumberChange(e.target.value) })}
-=======
-                    onChange={(e) =&gt; onChange({ privateMonths: parsePositiveInt(e.target.value) })}
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(privateMonthsError)}
@@ -425,11 +387,7 @@ export const DataPrivacySection: React.FC&lt;DataPrivacySectionProps&gt; = ({
                     type="number"
                     label="Delay until public"
                     value={values.visibleMonths}
-<<<<<<< HEAD
                     onChange={<span class="fstat-no" title="function not covered" >(e</span>) =&gt; <span class="cstat-no" title="statement not covered" >onChange({ visibleMonths: handleNumberChange(e.target.value) })}</span>
-=======
-                    onChange={<span class="fstat-no" title="function not covered" >(e</span>) =&gt; <span class="cstat-no" title="statement not covered" >onChange({ visibleMonths: parsePositiveInt(e.target.value) })}</span>
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(visibleMonthsError)}
@@ -444,11 +402,7 @@ export const DataPrivacySection: React.FC&lt;DataPrivacySectionProps&gt; = ({
                     type="number"
                     label="Delay until open"
                     value={values.publicMonths}
-<<<<<<< HEAD
                     onChange={<span class="fstat-no" title="function not covered" >(e</span>) =&gt; <span class="cstat-no" title="statement not covered" >onChange({ publicMonths: handleNumberChange(e.target.value) })}</span>
-=======
-                    onChange={<span class="fstat-no" title="function not covered" >(e</span>) =&gt; <span class="cstat-no" title="statement not covered" >onChange({ publicMonths: parsePositiveInt(e.target.value) })}</span>
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(publicMonthsError)}
@@ -467,11 +421,7 @@ export const DataPrivacySection: React.FC&lt;DataPrivacySectionProps&gt; = ({
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-<<<<<<< HEAD
-                at 2026-04-13T11:48:58.851Z
-=======
-                at 2026-04-07T13:30:32.081Z
->>>>>>> aaed5c151b928b60eec5e67fd8444f25dbdbaa6f
+                at 2026-04-14T08:15:12.039Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
