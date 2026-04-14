@@ -418,12 +418,45 @@ export const useNewProjectForm = () => {
         if (!values.metadata.cruise.trim()) nextErrors.cruise = "Cruise is required.";
         if (!values.metadata.description.trim()) nextErrors.projectDescription = "Project description is required.";
 
-        if (!values.people.dataOwnerName.trim()) nextErrors.dataOwnerName = "Data owner name is required.";
-        if (!values.people.dataOwnerEmail.trim()) nextErrors.dataOwnerEmail = "Data owner email is required.";
-        if (!values.people.chiefScientistName.trim()) nextErrors.chiefScientistName = "Chief scientist name is required.";
-        if (!values.people.chiefScientistEmail.trim()) nextErrors.chiefScientistEmail = "Chief scientist email is required.";
-        if (!values.people.operatorName.trim()) nextErrors.operatorName = "Operator name is required.";
-        if (!values.people.operatorEmail.trim()) nextErrors.operatorEmail = "Operator email is required.";
+        // Simple email regex for client-side validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        // Data Owner validation
+        if (!values.people.dataOwnerName.trim()) {
+            nextErrors.dataOwnerName = "Data owner name is required.";
+        } else if (emailRegex.test(values.people.dataOwnerName.trim())) {
+            // Warn if name field looks like an email (user likely swapped fields)
+            nextErrors.dataOwnerName = "This looks like an email address. Please enter a name.";
+        }
+        if (!values.people.dataOwnerEmail.trim()) {
+            nextErrors.dataOwnerEmail = "Data owner email is required.";
+        } else if (!emailRegex.test(values.people.dataOwnerEmail.trim())) {
+            nextErrors.dataOwnerEmail = "Please enter a valid email address.";
+        }
+
+        // Chief Scientist validation
+        if (!values.people.chiefScientistName.trim()) {
+            nextErrors.chiefScientistName = "Chief scientist name is required.";
+        } else if (emailRegex.test(values.people.chiefScientistName.trim())) {
+            nextErrors.chiefScientistName = "This looks like an email address. Please enter a name.";
+        }
+        if (!values.people.chiefScientistEmail.trim()) {
+            nextErrors.chiefScientistEmail = "Chief scientist email is required.";
+        } else if (!emailRegex.test(values.people.chiefScientistEmail.trim())) {
+            nextErrors.chiefScientistEmail = "Please enter a valid email address.";
+        }
+
+        // Operator validation
+        if (!values.people.operatorName.trim()) {
+            nextErrors.operatorName = "Operator name is required.";
+        } else if (emailRegex.test(values.people.operatorName.trim())) {
+            nextErrors.operatorName = "This looks like an email address. Please enter a name.";
+        }
+        if (!values.people.operatorEmail.trim()) {
+            nextErrors.operatorEmail = "Operator email is required.";
+        } else if (!emailRegex.test(values.people.operatorEmail.trim())) {
+            nextErrors.operatorEmail = "Please enter a valid email address.";
+        }
 
         // EcoTaxa project is required only if we are NOT creating a new project.
         // if (!values.ecoTaxa.createNewProject && !values.ecoTaxa.project.trim()) {
@@ -487,7 +520,7 @@ export const useNewProjectForm = () => {
                 project_title: values.metadata.title.trim(),
                 project_acronym: values.metadata.acronym.trim(),
                 project_description: values.metadata.description.trim(),
-                project_information: "test", // Forced to match your Postman example which worked
+                project_information: "",
                 cruise: values.metadata.cruise.trim(),
                 ship: values.metadata.ship.join(", "),
 

@@ -1,5 +1,6 @@
 // vite.config.ts
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -23,6 +24,16 @@ export default defineConfig(({ mode }) => {
                     changeOrigin: true,
                 },
                 "/users": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
+                // Proxy for EcoTaxa instances endpoint
+                "/ecotaxa_instances": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
+                // Proxy for instrument models endpoint
+                "/instrument_models": {
                     target: backendUrl,
                     changeOrigin: true,
                 },

@@ -265,7 +265,7 @@ export default function ProjectsPage() {
                         <Box sx={{ flexGrow: 1 }}>
                             <Typography variant="h6">Your projects</Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Projects in which you have privilege
+                                Projects you manage
                             </Typography>
                         </Box>
                     </Box>
