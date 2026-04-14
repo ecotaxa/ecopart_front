@@ -1,6 +1,7 @@
+import { API_BASE_URL } from '@/config/api';
 export async function requestPasswordReset(email: string) {
     try {
-        await fetch("/auth/password/reset", {
+        await fetch(`${API_BASE_URL}/auth/password/reset`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email }),
@@ -14,7 +15,7 @@ export async function resetPassword(
     token: string,
     password: string
 ) {
-    const res = await fetch("/auth/password/reset", {
+    const res = await fetch(`${API_BASE_URL}/auth/password/reset`, {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
