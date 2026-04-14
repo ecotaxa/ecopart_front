@@ -13,20 +13,16 @@ interface DataPrivacySectionProps {
 }
 
 /**
- * We now allow empty strings ("") so the user can easily clear the input field 
- * to type a new number. The parent component's submit handler will validate that the final value is a positive integer.
- * This is a common pattern for handling controlled number inputs in React.
+ * Parse and clamp to a minimum of 1 month.
  */
-const handleNumberChange = (value: string): number => {
-    if (value === "") {
-        // Return an empty string temporarily to allow clearing the field.
-        // We cast to unknown then number here locally to bypass the strict number requirement 
-        // of the parent state, knowing the parent's submit handler will validate it.
-        return "" as unknown as number; 
-    }
-    
+const parsePositiveInt = (value: string): number => {
     const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) ? ("" as unknown as number) : parsed;
+
+    if (Number.isNaN(parsed) || parsed < 1) {
+        return 1;
+    }
+
+    return parsed;
 };
 
 export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
@@ -73,7 +69,7 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     type="number"
                     label="Delay until visible"
                     value={values.privateMonths}
-                    onChange={(e) => onChange({ privateMonths: handleNumberChange(e.target.value) })}
+                    onChange={(e) => onChange({ privateMonths: parsePositiveInt(e.target.value) })}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(privateMonthsError)}

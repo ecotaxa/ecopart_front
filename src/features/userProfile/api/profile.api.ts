@@ -14,6 +14,19 @@ export interface EcoTaxaAccountLink {
 }
 
 /**
+ * Interface mirroring the backend 'ecotaxa_instance' table.
+ * This is used across the application wherever EcoTaxa instances are needed.
+ * Centralized here to ensure consistency and reusability.
+ */
+export interface EcoTaxaInstance {
+    ecotaxa_instance_id: number;
+    ecotaxa_instance_name: string;
+    ecotaxa_instance_description: string;
+    ecotaxa_instance_url: string;
+    ecotaxa_instance_creation_date?: string; // Optional field from backend
+}
+
+/**
  * Fetches the current connected user's details.
  * Delegates to the auth API implementation to avoid duplication.
  */
@@ -115,4 +128,23 @@ export async function linkEcoTaxaAccount(
         },
         body: params.toString(),
     });
+}
+
+/**
+ * Fetches all available EcoTaxa instances from the backend.
+ * Endpoint: GET /ecotaxa_instances
+ * 
+ * This is a centralized function that can be reused across the application
+ * wherever EcoTaxa instance data is needed (e.g., EcoTaxaLinkSection, EcoTaxaLoginForm).
+ * 
+ * @returns Promise<EcoTaxaInstance[]> - Array of EcoTaxa instances from the database
+ */
+export async function getEcoTaxaInstances(): Promise<EcoTaxaInstance[]> {
+    const response = await http<EcoTaxaInstance[] | { ecotaxa_instances: EcoTaxaInstance[] }>("/ecotaxa_instances");
+    
+    // Handle both direct array and wrapped object responses
+    if (Array.isArray(response)) {
+        return response.filter((inst) => inst && inst.ecotaxa_instance_id);
+    }
+    return (response.ecotaxa_instances || []).filter((inst) => inst && inst.ecotaxa_instance_id);
 }

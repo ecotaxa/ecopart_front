@@ -16,19 +16,14 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { NewProjectFormValues } from "../types/newProject.types";
-import { getEcoTaxaAccounts, EcoTaxaAccountLink } from "@/features/userProfile/api/profile.api";
+// Import the centralized API functions and types from profile.api
+import {
+    getEcoTaxaAccounts,
+    getEcoTaxaInstances,
+    EcoTaxaAccountLink,
+    EcoTaxaInstance
+} from "@/features/userProfile/api/profile.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
-
-// Import the HTTP client to fetch instances directly from the backend
-import { http } from "@/shared/api/http";
-
-// Interface mirroring your SQLite table 'ecotaxa_instance'
-interface EcoTaxaInstance {
-    ecotaxa_instance_id: number;
-    ecotaxa_instance_name: string;
-    ecotaxa_instance_description: string;
-    ecotaxa_instance_url: string;
-}
 
 interface EcoTaxaLinkSectionProps {
     values: NewProjectFormValues["ecoTaxa"];
@@ -71,24 +66,16 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 const linkedAccounts = await getEcoTaxaAccounts(user.user_id);
                 setAccounts(linkedAccounts);
 
-                // 2. Fetch full instance details from DB to get descriptions and URLs
+                // 2. Fetch full instance details from DB using the centralized API function
+                // This ensures consistency across all components that need instance data
                 try {
-                    // Try to fetch from the real backend route (if the backend dev created it)
-                    const dbInstances = await http<EcoTaxaInstance[]>("/ecotaxa_instances");
+                    const dbInstances = await getEcoTaxaInstances();
                     setInstances(dbInstances);
                 } catch (apiError) {
-                    // Use the apiError variable so ESLint doesn't complain
-                    console.warn("Backend route for instances not found. Using fallback DB mock.", apiError);
-
-                    // FALLBACK: Perfectly matches your SQLite screenshot so the UI works today!
-                    setInstances([
-                        {
-                            ecotaxa_instance_id: 1,
-                            ecotaxa_instance_name: "FR",
-                            ecotaxa_instance_description: "French instance of EcoTaxa, can be used worldwide.",
-                            ecotaxa_instance_url: "https://ecotaxa.obs-vlfr.fr/"
-                        }
-                    ]);
+                    // Log the error for debugging purposes
+                    console.warn("Failed to fetch EcoTaxa instances from API.", apiError);
+                    // Leave instances empty - UI will handle gracefully with fallback display
+                    setInstances([]);
                 }
 
                 // 3. Auto-select if none chosen

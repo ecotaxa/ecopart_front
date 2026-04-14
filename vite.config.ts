@@ -26,6 +26,16 @@ export default defineConfig(({ mode }) => {
                     target: backendUrl,
                     changeOrigin: true,
                 },
+                // Proxy for EcoTaxa instances endpoint
+                "/ecotaxa_instances": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
+                // Proxy for instrument models endpoint
+                "/instrument_models": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
                 /// Smartly intercept "/projects"
                 "/projects": {
                     target: backendUrl,
@@ -41,11 +51,6 @@ export default defineConfig(({ mode }) => {
                         // Return null, so the proxy activates and sends it to the Backend (localhost:4000)
                         return null;
                     }
-                },
-                // Tells Vite to forward all /ecotaxa_instances requests to the backend
-                "/ecotaxa_instances": {
-                    target: backendUrl,
-                    changeOrigin: true,
                 }
             },
         },

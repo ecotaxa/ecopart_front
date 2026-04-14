@@ -10,27 +10,17 @@ import {
     Link,
     Alert,
     Stack,
-    CircularProgress // FIX: Added for loading state
+    CircularProgress
 } from "@mui/material";
 
 // Importing shared components based on your architecture image
 import { PasswordInput } from "@/shared/components/PasswordInput";
 // Validation utility
 import { isNonEmpty } from "@/shared/utils/validation";
-// API calls
-import { linkEcoTaxaAccount } from "../api/profile.api";
-import { http } from "@/shared/api/http"; // FIX: Import http client to fetch instances
+// API calls - using centralized functions from profile.api
+import { linkEcoTaxaAccount, getEcoTaxaInstances, EcoTaxaInstance } from "../api/profile.api";
 
 /* ---------------- TYPES ---------------- */
-
-// FIX: Define the shape of the data returned by GET /ecotaxa_instances
-interface EcoTaxaInstance {
-    ecotaxa_instance_id: number;
-    ecotaxa_instance_name: string;
-    ecotaxa_instance_description: string;
-    ecotaxa_instance_url: string;
-}
-
 // We define what the parent MUST provide to this component
 interface EcoTaxaLoginFormProps {
     userId: number;             // Needed to perform the API request
@@ -42,6 +32,7 @@ interface EcoTaxaLoginFormProps {
 /**
  * EcoTaxaLoginForm Component
  * Handles the interaction and state for linking a new EcoTaxa account.
+ * Now fetches instances dynamically from the API instead of using hardcoded values.
  */
 export const EcoTaxaLoginForm = ({
     userId,
@@ -53,43 +44,42 @@ export const EcoTaxaLoginForm = ({
     // --- LOCAL STATE ---
     // These states are confined to this component. 
     // When this component unmounts, these states are destroyed automatically.
-    const [etInstance, setEtInstance] = useState<number | "">(""); // FIX: Initialize as empty until fetched
+
+    // State for EcoTaxa instances fetched from API
+    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]);
+    const [loadingInstances, setLoadingInstances] = useState(true);
+
+    // Form state - instance ID will be set after instances are loaded
+    const [etInstance, setEtInstance] = useState<number | "">("");
     const [etEmail, setEtEmail] = useState("");
     const [etPassword, setEtPassword] = useState("");
     const [etConsent, setEtConsent] = useState(false);
-    
-    // --- API STATES ---
-    const [etLinking, setEtLinking] = useState(false); // Loading state for submit
+    const [etLinking, setEtLinking] = useState(false); // Loading state for form submission
     const [etMessage, setEtMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    
-    // FIX: New states to hold the dynamically fetched instances
-    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]);
-    const [loadingInstances, setLoadingInstances] = useState(true);
 
     // --- FETCH INSTANCES ON MOUNT ---
     useEffect(() => {
         const fetchInstances = async () => {
             setLoadingInstances(true);
             try {
-                // Call your backend endpoint
-                const dbInstances = await http<EcoTaxaInstance[]>("/ecotaxa_instances");
-                setInstances(dbInstances);
-                
-                // Automatically select the first instance if available
-                if (dbInstances.length > 0) {
-                    setEtInstance(dbInstances[0].ecotaxa_instance_id);
+                // Fetch instances from the centralized API function
+                const fetchedInstances = await getEcoTaxaInstances();
+                setInstances(fetchedInstances);
+
+                // Auto-select the first instance if available
+                if (fetchedInstances.length > 0) {
+                    setEtInstance(fetchedInstances[0].ecotaxa_instance_id);
                 }
-            } catch (err) {
-                console.error("Failed to load EcoTaxa instances", err);
-                setEtMessage({ type: 'error', text: "Failed to load EcoTaxa instances from server." });
-                // We do NOT use fallback data here. If the DB fails, the user shouldn't be able to proceed.
+            } catch (error) {
+                console.error("Failed to fetch EcoTaxa instances", error);
+                setEtMessage({ type: 'error', text: "Failed to load EcoTaxa instances. Please try again later." });
             } finally {
                 setLoadingInstances(false);
             }
         };
 
         fetchInstances();
-    }, []); // Empty dependency array means this runs ONCE when the component mounts
+    }, []);
 
     // --- HANDLERS ---
 
@@ -98,7 +88,11 @@ export const EcoTaxaLoginForm = ({
      * Calls the API and notifies the parent upon success.
      */
     const handleLinkEcoTaxa = async () => {
-        if (etInstance === "") return; // Safety check
+        // Ensure instance is selected before submitting
+        if (etInstance === "") {
+            setEtMessage({ type: 'error', text: "Please select an EcoTaxa instance." });
+            return;
+        }
 
         // Reset message and start loading
         setEtMessage(null);
@@ -116,7 +110,32 @@ export const EcoTaxaLoginForm = ({
 
         } catch (err) {
             console.error(err);
-            const msg = err instanceof Error ? err.message : "Failed to link EcoTaxa account.";
+            // Provide more explicit error messages based on common failure scenarios
+            let msg = "Failed to link EcoTaxa account.";
+            if (err instanceof Error) {
+                const errorText = err.message.toLowerCase();
+                // Handle specific error cases with user-friendly messages
+                if (errorText.includes("self-signed") || errorText.includes("certificate") || errorText.includes("ssl") || errorText.includes("depth_zero")) {
+                    msg = "SSL certificate error: The EcoTaxa server is using a self-signed certificate. Please contact your administrator to configure the backend properly.";
+                } else if (errorText.includes("invalid url") || errorText.includes("err_invalid_url")) {
+                    msg = "Invalid EcoTaxa instance URL configured. Please contact your administrator to fix the instance configuration.";
+                } else if (errorText.includes("500") || errorText.includes("internal server error")) {
+                    msg = "Unable to connect to EcoTaxa. Please verify your credentials (email/password) are correct for the selected instance.";
+                } else if (errorText.includes("401") || errorText.includes("unauthorized")) {
+                    msg = "Invalid credentials. Please check your email and password.";
+                } else if (errorText.includes("404")) {
+                    msg = "EcoTaxa instance not found. Please try again or contact support.";
+                } else if (errorText.includes("network") || errorText.includes("fetch")) {
+                    msg = "Network error. Please check your internet connection and try again.";
+                } else if (errorText.includes("timeout")) {
+                    msg = "Connection timed out. The EcoTaxa server may be temporarily unavailable.";
+                } else if (errorText.includes("session expired")) {
+                    msg = "Your session has expired. Please refresh the page and try again.";
+                } else {
+                    // Use the original error message if it's already meaningful
+                    msg = err.message;
+                }
+            }
             setEtMessage({ type: 'error', text: msg });
         } finally {
             // Stop loading
@@ -125,20 +144,12 @@ export const EcoTaxaLoginForm = ({
     };
 
     // --- VALIDATION ---
-    // Ensure all fields are filled, including the dynamically loaded instance
-    const canLinkEcoTaxa = isNonEmpty(etEmail) && isNonEmpty(etPassword) && etConsent && etInstance !== "";
+    // Include instance check in validation - must have a valid instance selected
+    const canLinkEcoTaxa = etInstance !== "" && isNonEmpty(etEmail) && isNonEmpty(etPassword) && etConsent;
 
-    // Helper to find selected instance details (for the register link and labels)
+    // Helper to find selected instance details (for the register link)
+    // Now uses the dynamically fetched instances instead of hardcoded values
     const selectedEtInstance = instances.find(i => i.ecotaxa_instance_id === etInstance);
-
-    // Render a global loading state if instances are still fetching
-    if (loadingInstances) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
 
     return (
         <Stack spacing={3} sx={{ maxWidth: 400, mx: 'auto', textAlign: 'center', alignItems: 'center' }}>
@@ -162,7 +173,7 @@ export const EcoTaxaLoginForm = ({
                 </Alert>
             )}
 
-            {/* FIX: Instance Selection (Now dynamically populated) */}
+            {/* Instance Selection - Now dynamically populated from API */}
             <TextField
                 select
                 fullWidth
@@ -170,16 +181,23 @@ export const EcoTaxaLoginForm = ({
                 value={etInstance}
                 onChange={(e) => setEtInstance(Number(e.target.value))}
                 size="small"
-                disabled={instances.length === 0} // Disable if API returned empty array
+                disabled={loadingInstances}
+                InputProps={{
+                    endAdornment: loadingInstances ? <CircularProgress size={20} /> : null,
+                }}
             >
-                {instances.map((option) => (
-                    <MenuItem key={option.ecotaxa_instance_id} value={option.ecotaxa_instance_id}>
-                        {/* You asked to display 'ecotaxa_instance_name' */}
-                        {option.ecotaxa_instance_name} 
-                        {/* Optional: Add the description if you want it to be more informative, like in the other component */}
-                        {/* {option.ecotaxa_instance_name} ({option.ecotaxa_instance_description}) */}
+                {instances.map((instance) => (
+                    <MenuItem key={instance.ecotaxa_instance_id} value={instance.ecotaxa_instance_id}>
+                        {/* Display format: "NAME (URL)" for clarity */}
+                        {instance.ecotaxa_instance_name} ({instance.ecotaxa_instance_url.replace(/^https?:\/\//, '').replace(/\/$/, '')})
                     </MenuItem>
                 ))}
+                {/* Show message when no instances are available */}
+                {!loadingInstances && instances.length === 0 && (
+                    <MenuItem value="" disabled>
+                        No instances available
+                    </MenuItem>
+                )}
             </TextField>
 
             {/* Email Input */}
@@ -190,6 +208,7 @@ export const EcoTaxaLoginForm = ({
                 value={etEmail}
                 onChange={(e) => setEtEmail(e.target.value)}
                 size="small"
+                disabled={loadingInstances}
             />
 
             {/* Password Input (Using Shared Component) */}
@@ -199,6 +218,7 @@ export const EcoTaxaLoginForm = ({
                 value={etPassword}
                 onChange={(e) => setEtPassword(e.target.value)}
                 size="small"
+                disabled={loadingInstances}
             />
 
             {/* Consent Checkbox */}
@@ -208,6 +228,7 @@ export const EcoTaxaLoginForm = ({
                         checked={etConsent}
                         onChange={(e) => setEtConsent(e.target.checked)}
                         color="primary"
+                        disabled={loadingInstances}
                     />
                 }
                 label={
@@ -224,15 +245,15 @@ export const EcoTaxaLoginForm = ({
                 fullWidth
                 size="large"
                 onClick={handleLinkEcoTaxa}
-                disabled={!canLinkEcoTaxa || etLinking}
+                disabled={!canLinkEcoTaxa || etLinking || loadingInstances}
             >
                 {etLinking ? "Connecting..." : "LOG IN"}
             </Button>
 
-            {/* FIX: Helper Link now uses dynamic DB url */}
+            {/* Helper Link - Uses the dynamically fetched instance URL for registration */}
             {selectedEtInstance && (
                 <Link
-                    href={selectedEtInstance.ecotaxa_instance_url}
+                    href={`${selectedEtInstance.ecotaxa_instance_url}${selectedEtInstance.ecotaxa_instance_url.endsWith('/') ? '' : '/'}register`}
                     target="_blank"
                     rel="noopener noreferrer"
                     variant="body2"
