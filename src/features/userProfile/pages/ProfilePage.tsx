@@ -28,7 +28,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
 
-import { useNavigate } from "react-router-dom";
+// Import useLocation to read the state passed from TopBar
+import { useNavigate, useLocation } from "react-router-dom";
 
 // Shared components & layouts
 import MainLayout from "@/app/layouts/MainLayout";
@@ -76,10 +77,16 @@ const organisationTypes = [
 
 export default function ProfilePage() {
     const navigate = useNavigate();
+    // Initialize the location hook
+    const location = useLocation();
+
     // Get setUser to update profile locally, and clearUser for deletion
     const { setUser, clearUser } = useAuthStore();
 
-    const [tabValue, setTabValue] = useState(0);
+    // Read the initial tab from location.state if it exists, otherwise default to 0
+    const initialTab = location.state?.activeTab ?? 0;
+    const [tabValue, setTabValue] = useState(initialTab);
+
     const [loadingUser, setLoadingUser] = useState(true);
 
     // --- STATES: PROFILE ---
@@ -171,6 +178,13 @@ export default function ProfilePage() {
         loadUserData();
     }, [countryOptions, fetchLinkedAccounts]);
 
+    // Add useEffect to update tab if user clicks the menu while already on the settings page
+    useEffect(() => {
+        if (location.state?.activeTab !== undefined) {
+            setTabValue(location.state.activeTab);
+        }
+    }, [location.state]);
+
     const getDaysLeft = (expirationDate: string) => {
         if (!expirationDate) return 0;
         const today = new Date();
@@ -183,7 +197,7 @@ export default function ProfilePage() {
     // --- HANDLERS ---
 
     // ... (Keep handleProfileSave, handleProfileCancel, handleChangePassword, handleDeleteClick, handleConfirmDelete AS IS) ...
-    const handleProfileSave = async () => { 
+    const handleProfileSave = async () => {
         if (!user) return;
         setProfileMessage(null);
         setProfileSaving(true);
@@ -200,13 +214,13 @@ export default function ProfilePage() {
         } finally { setProfileSaving(false); }
     };
 
-    const handleProfileCancel = () => { 
+    const handleProfileCancel = () => {
         if (user) {
             setFirstName(user.first_name || ""); setLastName(user.last_name || ""); setOrganisation(user.organisation || ""); setCountryCode(user.country || ""); setPlannedUsage(user.user_planned_usage || ""); setProfileMessage(null);
         }
     };
 
-    const handleChangePassword = async () => { 
+    const handleChangePassword = async () => {
         if (!user || !isNonEmpty(currentPassword) || !isValidPassword(newPassword) || !passwordsMatch(newPassword, confirmPassword)) return;
         setPasswordMessage(null); setPasswordSaving(true);
         try {
@@ -238,7 +252,7 @@ export default function ProfilePage() {
     // --- REMOVED: handleLinkEcoTaxa ---
     // The logic is now inside the child component.
 
-    // --- NEW HANDLER: Callback from Child ---
+    // --- HANDLER: Callback from Child ---
     const handleLoginSuccess = async () => {
         if (!user) return;
         // 1. Refresh list
@@ -304,10 +318,9 @@ export default function ProfilePage() {
                     </Tabs>
                 </Box>
 
-                {/* TAB 0: ECOPART PROFILE (Collapsed for brevity) */}
+                {/* TAB 0: ECOPART PROFILE */}
                 {tabValue === 0 && (
                     <>
-                        {/* ... Reuse your existing Profile & Password sections here ... */}
                         <Paper variant="outlined" sx={{ p: 3, mb: 4 }}>
                             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                                 <Typography variant="h6">Profile</Typography>
@@ -387,8 +400,6 @@ export default function ProfilePage() {
                             </Box>
                         </Paper>
 
-                        {/* Keep Password and Delete sections... */}
-                        {/* ... */}
                         <Typography variant="h5" gutterBottom sx={{ mt: 4 }}>
                             Security
                         </Typography>
@@ -516,11 +527,10 @@ export default function ProfilePage() {
                                             </Box>
                                         </Box>
 
-                                        {/* UNLINK BUTTON: Now clickable */}
+                                        {/* UNLINK BUTTON */}
                                         <IconButton
                                             size="small"
                                             color="primary"
-                                            // Pass the ID to the handler
                                             onClick={() => handleUnlinkClick(account.ecotaxa_account_id)}
                                         >
                                             <LogoutIcon />
@@ -538,12 +548,12 @@ export default function ProfilePage() {
                             </Stack>
                         )}
 
-                        {/* FORM VIEW (Refactored to use Child Component) */}
+                        {/* FORM VIEW */}
                         {showLinkForm && user && (
                             <Paper variant="outlined" sx={{ p: 4, mt: 2 }}>
                                 <EcoTaxaLoginForm
                                     userId={user.user_id}
-                                    onSuccess={handleLoginSuccess} // Callback to refresh list and hide form after successful login
+                                    onSuccess={handleLoginSuccess}
                                     onCancel={() => setShowLinkForm(false)}
                                     showCancelButton={linkedAccounts.length > 0}
                                 />
@@ -564,7 +574,7 @@ export default function ProfilePage() {
                     </DialogActions>
                 </Dialog>
 
-                {/* NEW UNLINK CONFIRMATION DIALOG */}
+                {/* UNLINK CONFIRMATION DIALOG */}
                 <Dialog open={openUnlinkDialog} onClose={() => setOpenUnlinkDialog(false)}>
                     <DialogTitle>Disconnect EcoTaxa Account?</DialogTitle>
                     <DialogContent>

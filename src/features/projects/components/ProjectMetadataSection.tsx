@@ -3,35 +3,46 @@ import {
     Box,
     Typography,
     TextField,
+    Divider,
+    Stack,
     FormControlLabel,
     Switch,
     Autocomplete,
-    Chip,
-    Divider,
-    Stack
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
-// We import ONLY the type we need for this section
 import { NewProjectFormValues } from "../types/newProject.types";
 
-/**
- * Props for the ProjectMetadataSection.
- * It strictly expects the 'metadata' slice of the form state.
- */
 interface ProjectMetadataSectionProps {
-    values: NewProjectFormValues['metadata'];
-    // onChange accepts a Partial object. Meaning it can receive { title: "new" } 
-    // or { acronym: "new", description: "new" } at the same time.
-    onChange: (data: Partial<NewProjectFormValues['metadata']>) => void;
+    values: NewProjectFormValues["metadata"];
+    onChange: (data: Partial<NewProjectFormValues["metadata"]>) => void;
+    errors?: {
+        title?: string;
+        acronym?: string;
+        ship?: string;
+        cruise?: string;
+        description?: string;
+    };
 }
 
+const SHIP_OPTIONS = [
+    "pourquoi_pas",
+    "tara",
+    "boat1",
+    "boat2",
+    "thalassa",
+    "atalante",
+];
+
 /**
- * DUMB COMPONENT (Presenter)
- * Handles the visual rendering of the project metadata fields.
- * It maintains NO internal state. It relies entirely on the parent.
+ * Presentational component for project metadata.
+ * This component stays reusable because it only receives values + callbacks + errors.
  */
-export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({ values, onChange }) => {
+export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
+    values,
+    onChange,
+    errors,
+}) => {
     return (
         <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom>
@@ -40,116 +51,107 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({ 
             <Divider sx={{ mb: 3 }} />
 
             <Grid container spacing={4}>
-                {/* LEFT COLUMN */}
                 <Grid size={{ xs: 12, md: 6 }}>
-                    <Stack spacing={3}>
-                        <TextField
-                            fullWidth
-                            required
-                            label="Project title"
-                            value={values.title}
-                            // We pass an object with ONLY the field that changed
-                            onChange={(e) => onChange({ title: e.target.value })}
-                            size="small"
-                        />
-
-                        <TextField
-                            fullWidth
-                            required
-                            label="Project acronym"
-                            value={values.acronym}
-                            onChange={(e) => onChange({ acronym: e.target.value })}
-                            size="small"
-                        />
-
-                        <TextField
-                            fullWidth
-                            required
-                            multiline
-                            rows={4}
-                            label="Project description"
-                            value={values.description}
-                            onChange={(e) => onChange({ description: e.target.value })}
-                            size="small"
-                        />
-                    </Stack>
+                    <TextField
+                        fullWidth
+                        required
+                        label="Project title"
+                        value={values.title}
+                        onChange={(e) => onChange({ title: e.target.value })}
+                        size="small"
+                        error={Boolean(errors?.title)}
+                        helperText={errors?.title}
+                    />
                 </Grid>
 
-                {/* RIGHT COLUMN */}
                 <Grid size={{ xs: 12, md: 6 }}>
-                    <Stack spacing={3}>
-                        {/* Autocomplete is used to manage an array of strings (Chips).
-                            'multiple' allows multiple selections.
-                            'freeSolo' allows typing arbitrary text not in the options list.
-                        */}
-                        <Autocomplete
-                            multiple
-                            freeSolo
-                            options={[]} // No predefined options, user types freely
-                            value={values.ship} // Binds to the array of strings
-                            onChange={(_, newValue) => onChange({ ship: newValue })}
-                            renderTags={(value: readonly string[], getTagProps) =>
-                                value.map((option: string, index: number) => (
-                                    <Chip 
-                                        variant="filled" 
-                                        label={option} 
-                                        {...getTagProps({ index })} 
-                                        size="small" 
-                                        sx={{ backgroundColor: '#e0e0e0' }} // Matches mockup gray chip
-                                    />
-                                ))
-                            }
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    required
-                                    label="Ship"
-                                    placeholder="Add a ship and press Enter"
-                                    size="small"
-                                />
-                            )}
-                        />
+                    <Autocomplete
+                        multiple
+                        freeSolo
+                        options={SHIP_OPTIONS}
+                        value={values.ship}
+                        onChange={(_, newValue) => onChange({ ship: newValue })}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                fullWidth
+                                required
+                                size="small"
+                                label="Ship"
+                                error={Boolean(errors?.ship)}
+                                helperText={errors?.ship}
+                            />
+                        )}
+                    />
+                </Grid>
 
-                        <TextField
-                            fullWidth
-                            required
-                            label="Cruise"
-                            value={values.cruise}
-                            onChange={(e) => onChange({ cruise: e.target.value })}
-                            size="small"
-                        />
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                        fullWidth
+                        required
+                        label="Project acronym"
+                        value={values.acronym}
+                        onChange={(e) => onChange({ acronym: e.target.value })}
+                        size="small"
+                        error={Boolean(errors?.acronym)}
+                        helperText={errors?.acronym}
+                    />
+                </Grid>
 
-                        {/* TOGGLE SWITCHES */}
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                        fullWidth
+                        required
+                        label="Cruise"
+                        value={values.cruise}
+                        onChange={(e) => onChange({ cruise: e.target.value })}
+                        size="small"
+                        error={Boolean(errors?.cruise)}
+                        helperText={errors?.cruise}
+                    />
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <TextField
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        required
+                        label="Project description"
+                        value={values.description}
+                        onChange={(e) => onChange({ description: e.target.value })}
+                        size="small"
+                        error={Boolean(errors?.description)}
+                        helperText={errors?.description}
+                    />
+                </Grid>
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <Box>
                             <FormControlLabel
                                 control={
                                     <Switch
                                         checked={values.filteredBeforeImport}
                                         onChange={(e) => onChange({ filteredBeforeImport: e.target.checked })}
-                                        color="primary"
                                     />
                                 }
                                 label="Data filtered before import into EcoPart"
                             />
-                            
+
                             <FormControlLabel
                                 control={
                                     <Switch
                                         checked={values.timeDurationCheck}
                                         onChange={(e) => onChange({ timeDurationCheck: e.target.checked })}
-                                        color="primary"
                                     />
                                 }
-                                label={
-                                    <Box>
-                                        <Typography variant="body1">Time duration check</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Disable if the project is longer than 1 year.
-                                        </Typography>
-                                    </Box>
-                                }
-                                sx={{ alignItems: 'flex-start' }} // Aligns switch with the top of the multiline label
+                                label="Time duration check"
+
                             />
+                            <Typography variant="caption" color="text.secondary">
+                                <br />Disable if the project is longer than 1 year.
+                            </Typography>
                         </Box>
                     </Stack>
                 </Grid>

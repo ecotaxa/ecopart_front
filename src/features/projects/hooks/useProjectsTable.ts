@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 import { searchProjects, Project, SearchFilter } from "../api/projects.api";
 
@@ -8,13 +8,16 @@ export const useProjectsTable = () => {
     const [loading, setLoading] = useState(false);
     const [totalRows, setTotalRows] = useState(0);
 
+    // Explicit error state to display backend failures in the UI
+    const [error, setError] = useState<string | null>(null);
+
     const [searchText, setSearchText] = useState("");
     const [debouncedSearchText, setDebouncedSearchText] = useState("");
-    
+
     // We add a state to track WHICH column the user wants to search in.
     // Default is "project_title" matching the DB column.
     const [searchAttribute, setSearchAttribute] = useState<string>("project_title");
-    
+
     const [selectedFilter, setSelectedFilter] = useState<string>("All");
 
     const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
@@ -38,22 +41,27 @@ export const useProjectsTable = () => {
     // --- 3. PAGINATION RESET LOGIC ---
     useEffect(() => {
         setPaginationModel((prev) => ({ ...prev, page: 0 }));
-    // FIX: Also reset pagination if the search attribute changes
+        // Also reset pagination if the search attribute changes
     }, [debouncedSearchText, selectedFilter, searchAttribute]);
 
     // --- 4. FETCH LOGIC ---
-    const fetchProjects = async () => {
+    // Wrapped in useCallback to ensure the function reference remains stable
+    // across renders unless its dependencies change. This resolves the ESLint warning.
+    const fetchProjects = useCallback(async () => {
         setLoading(true);
+        // Clear previous error before a new request
+        setError(null);
+
         try {
             const activeFilters: SearchFilter[] = [];
 
-            // FIX: Dynamic attribute search
+            // Dynamic attribute search
             if (debouncedSearchText) {
                 activeFilters.push({
                     // Instead of hardcoding "project_title", we use the state from the dropdown!
-                    field: searchAttribute, 
-                    operator: "LIKE",       
-                    value: `%${debouncedSearchText}%` 
+                    field: searchAttribute,
+                    operator: "LIKE",
+                    value: `%${debouncedSearchText}%`
                 });
             }
 
@@ -85,25 +93,44 @@ export const useProjectsTable = () => {
                 setProjects([]);
                 setTotalRows(0);
             }
-        } catch (error) {
-            console.error("Failed to fetch projects", error);
+        } catch (err: unknown) {
+            console.error("Failed to fetch projects", err);
+
+            // Extract the error message from the API response if possible
+            // Our custom http client usually throws the backend error directly, 
+            // or an Error object. We try to catch both.
+            let errorMessage = "Unknown error while fetching projects.";
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === "string") {
+                errorMessage = err;
+            } else if (typeof err === "object" && err !== null) {
+                const errorObj = err as Record<string, unknown>;
+                if (Array.isArray(errorObj.errors)) {
+                    // If backend sends { errors: ["Cannot find privileges"] }
+                    errorMessage = errorObj.errors.join(", ");
+                }
+            }
+
+            // Keep the table empty but also expose the backend error
+            setError(errorMessage);
             setProjects([]);
             setTotalRows(0);
         } finally {
             setLoading(false);
         }
-    };
+    }, [debouncedSearchText, searchAttribute, selectedFilter, paginationModel.page, paginationModel.pageSize]);
 
     useEffect(() => {
         fetchProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paginationModel.page, paginationModel.pageSize, debouncedSearchText, selectedFilter, searchAttribute]);
+    }, [fetchProjects]);
 
     return {
         projects, loading, totalRows,
+        error, // Export the error state
         searchText, setSearchText,
         // Exporting the attribute states to the UI
-        searchAttribute, setSearchAttribute, 
+        searchAttribute, setSearchAttribute,
         selectedFilter, setSelectedFilter,
         paginationModel, setPaginationModel,
         rowSelectionModel, setRowSelectionModel,

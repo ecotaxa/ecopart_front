@@ -79,7 +79,7 @@ export async function getEcoTaxaAccounts(userId: number): Promise<EcoTaxaAccount
     );
 
     // 3. Return the array (or an empty array if undefined/null)
-    return res.ecotaxa_accounts || []; 
+    return res.ecotaxa_accounts || [];
 }
 
 /**

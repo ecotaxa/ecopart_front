@@ -32,7 +32,7 @@ export async function fillAuthForm(
 
 /**
  * Click submit button of auth form.
- * FIX: Default label is now case-sensitive 'LOG IN' to avoid matching the header button.
+ * Default label is now case-sensitive 'LOG IN' to avoid matching the header button.
  * We use 'getByTestId' for precision, targeting the specific form button.
  */
 export async function submitAuthForm(user: UserEvent) {

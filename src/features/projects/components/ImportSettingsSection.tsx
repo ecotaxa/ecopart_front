@@ -40,6 +40,7 @@ export const ImportSettingsSection: React.FC<ImportSettingsSectionProps> = ({
 
             <Grid container spacing={4}>
                 {/* LEFT COLUMN: Settings */}
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Stack spacing={3}>
                         <TextField
                             fullWidth
@@ -48,7 +49,7 @@ export const ImportSettingsSection: React.FC<ImportSettingsSectionProps> = ({
                             // Here we bind it directly to the state.
                             value={values.overrideDepthOffset}
                             onChange={(e) => {
-                                // FIX: We use parseFloat() on s string input because TextField always returns a string, even if type="number".
+                                // We use parseFloat() on string input because TextField always returns a string, even if type="number".
                                 const parsedValue = parseFloat(e.target.value);
 
                                 onChange({
@@ -83,6 +84,7 @@ export const ImportSettingsSection: React.FC<ImportSettingsSectionProps> = ({
                 <Grid size={{ xs: 12, md: 6 }}>
                     {/* Intentionally left blank as per mockup design */}
                 </Grid>
+            </Grid>
         </Box>
     );
 };
