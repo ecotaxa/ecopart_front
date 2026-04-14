@@ -130,10 +130,11 @@ function normalizeProjectSearchResponse(
         raw.page ??
         1;
 
+    // We default to 10 if no limit is provided by the backend to keep pagination mathematically sound.
     const limit =
         raw.search_info?.limit ??
         raw.limit ??
-        projects.length;
+        (projects.length > 0 ? projects.length : 10);
 
     return {
         search_info: {
@@ -200,12 +201,12 @@ export interface PublicProjectRequestCreationModel {
     managers: MinimalUserModel[];
     contact: MinimalUserModel;
 
-    // EcoTaxa Link (conditionally included when linking to EcoTaxa)
-    ecotaxa_project_id?: number | null;
-    ecotaxa_project_name?: string | null;
-    ecotaxa_instance_id?: number | null;
-    new_ecotaxa_project?: boolean;
-    ecotaxa_account_id?: number | null;
+    // EcoTaxa Link
+    ecotaxa_project_id: number | null;
+    ecotaxa_project_name: string | null;
+    ecotaxa_instance_id: number | null;
+    new_ecotaxa_project: boolean;
+    ecotaxa_account_id: number | null;
 }
 
 /**
