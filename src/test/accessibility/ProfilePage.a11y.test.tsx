@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -28,7 +28,9 @@ describe('ProfilePage - Ecopart Tab (Accessibility)', () => {
 
         // 1. Start at Tabs
         const ecoPartTab = screen.getByRole('tab', { name: /ECOPART ACCOUNT/i });
-        ecoPartTab.focus();
+        act(() => {
+            ecoPartTab.focus();
+        });
         expect(ecoPartTab).toHaveFocus();
 
         // 2. Tab -> First Name
@@ -133,7 +135,9 @@ describe('ProfilePage - EcoTaxa Tab (Accessibility)', () => {
 
         // 1. Set initial focus on the EcoTaxa tab button
         const ecoTaxaTab = screen.getByRole('tab', { name: /ECOTAXA ACCOUNTS/i });
-        ecoTaxaTab.focus();
+        act(() => {
+            ecoTaxaTab.focus();
+        });
         expect(ecoTaxaTab).toHaveFocus();
 
         // 2. Tab -> Logout/Unlink IconButton
@@ -166,10 +170,15 @@ describe('ProfilePage - EcoTaxa Tab (Accessibility)', () => {
 
         // Wait for the form to render
         await screen.findByText('Log in to EcoTaxa');
+        await waitFor(() => {
+            expect(screen.getByRole('combobox', { name: /Instance/i })).toBeEnabled();
+        });
 
         // 1. Set initial focus on the EcoTaxa tab button
         const ecoTaxaTab = screen.getByRole('tab', { name: /ECOTAXA ACCOUNTS/i });
-        ecoTaxaTab.focus();
+        act(() => {
+            ecoTaxaTab.focus();
+        });
         expect(ecoTaxaTab).toHaveFocus();
 
         // 2. Tab -> Instance Dropdown (MUI Select)

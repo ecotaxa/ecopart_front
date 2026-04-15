@@ -51,7 +51,13 @@ export default defineConfig(({ mode }) => {
                         // Return null, so the proxy activates and sends it to the Backend (localhost:4000)
                         return null;
                     }
-                }
+                },
+
+                // Add the file_system route so Vite routes it to Node.js
+                "/file_system": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
             },
         },
 

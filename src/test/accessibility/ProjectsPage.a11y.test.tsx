@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
@@ -21,14 +21,16 @@ describe('ProjectsPage (Accessibility)', () => {
         );
     });
 
-    // TC-G6: Keyboard Navigation
-    it('TC-G6: should allow navigating the main controls using Tab order', async () => {
+    // TC-G7: Keyboard Navigation
+    it('TC-G7: should allow navigating the main controls using Tab order', async () => {
         const user = userEvent.setup({ delay: null });
         renderWithRouter(<ProjectsPage />);
 
         // A robust way is to focus the "Search" input directly, then test the SUBSEQUENT tab order.
         const searchInput = screen.getByPlaceholderText('Search...');
-        searchInput.focus();
+        act(() => {
+            searchInput.focus();
+        });
         expect(searchInput).toHaveFocus();
 
         // 1. Tab -> Attribute Select (Combobox)

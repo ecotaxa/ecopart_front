@@ -3,9 +3,10 @@ import { AlertColor } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 import { NewProjectFormValues } from "../types/newProject.types";
-import { PublicProjectRequestCreationModel, createProject } from "../api/projects.api";
+import { PublicProjectRequestCreationModel, createProject, getImportFolderMetadata } from "../api/projects.api";
 import { fetchActiveUsers, UserSearchResponse } from "@/features/auth/api/users.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+
 
 /**
  * Field-level errors used to display inline validation messages directly under inputs.
@@ -203,10 +204,13 @@ export const useNewProjectForm = () => {
         people: {
             dataOwnerName: "",
             dataOwnerEmail: "",
+            dataOwnerId: null as number | null,
             chiefScientistName: "",
             chiefScientistEmail: "",
+            chiefScientistId: null as number | null,
             operatorName: "",
             operatorEmail: "",
+            operatorId: null as number | null,
         },
         importSettings: {
             overrideDepthOffset: 0,
@@ -368,35 +372,57 @@ export const useNewProjectForm = () => {
     // --------------------------------------------------
     const handleLoadMetadata = async () => {
         if (!values.rootFolderPath) {
-            showSnackbar("Please enter a root folder path first.", "warning");
+            showSnackbar("Please select or enter a root folder path first.", "warning");
             setErrors((prev) => ({ ...prev, rootFolderPath: "Root folder path is required." }));
             return;
         }
 
-        const pathParts = values.rootFolderPath.split("/");
-        const folderName = pathParts[pathParts.length - 1];
-        const nameParts = folderName.split("_");
+        try {
+            // FIX: We pass the raw string to the backend.
+            const rawPath = values.rootFolderPath.trim();
+            
+            const apiMetadata = await getImportFolderMetadata(rawPath);
 
-        if (nameParts.length >= 3) {
-            const parsedInstrumentRaw = nameParts[0].toUpperCase();
-            const parsedInstrument = parsedInstrumentRaw.includes("UVP5") ? "UVP5HD" : parsedInstrumentRaw;
-            const parsedSerial = nameParts[1];
-            const parsedCruise = nameParts.slice(2).join("_");
+            // --- AUTO-FILL LOGIC ---
 
-            updateField("instrument", {
-                model: parsedInstrument,
-                serialNumber: parsedSerial,
-            });
+            if (apiMetadata.instrument_model || apiMetadata.serial_number) {
+                updateField("instrument", {
+                    model: apiMetadata.instrument_model || "",
+                    serialNumber: apiMetadata.serial_number || "",
+                });
+            }
+
+            // Extract the title safely handling both / and \
+            const pathParts = rawPath.split(/[/\\]/);
+            const folderName = pathParts[pathParts.length - 1];
 
             updateField("metadata", {
-                title: folderName,
-                acronym: parsedCruise,
-                cruise: parsedCruise,
+                title: folderName || apiMetadata.cruise || "",
+                acronym: apiMetadata.project_acronym || "",
+                cruise: apiMetadata.cruise || "",
+                description: apiMetadata.project_description || "",
+                ship: apiMetadata.ship ? [apiMetadata.ship] : [], 
             });
 
-            showSnackbar("Metadata successfully loaded!", "success");
-        } else {
-            showSnackbar("The folder format does not match {instrument}_{serial}_{cruise}.", "error");
+            updateField("people", {
+                dataOwnerName: apiMetadata.data_owner?.name || "",
+                dataOwnerEmail: apiMetadata.data_owner?.email || "",
+                dataOwnerId: apiMetadata.data_owner?.ecopart_user_id || null,
+
+                operatorName: apiMetadata.operator?.name || "",
+                operatorEmail: apiMetadata.operator?.email || "",
+                operatorId: apiMetadata.operator?.ecopart_user_id || null,
+
+                chiefScientistName: apiMetadata.chief_scientist?.name || "",
+                chiefScientistEmail: apiMetadata.chief_scientist?.email || "",
+                chiefScientistId: apiMetadata.chief_scientist?.ecopart_user_id || null,
+            });
+
+            showSnackbar("Metadata successfully loaded and applied!", "success");
+
+        } catch (error) {
+            console.error("Metadata load failed", error);
+            showSnackbar("Failed to load metadata. Check if the folder contains valid config/meta directories.", "error");
         }
     };
 

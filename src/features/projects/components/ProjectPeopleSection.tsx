@@ -1,6 +1,10 @@
 import React from "react";
-import { Box, Divider, TextField, Typography } from "@mui/material";
+import { Box, Divider, TextField, Typography, InputAdornment, Tooltip } from "@mui/material";
 import Grid from "@mui/material/Grid";
+// Imported icons matching your request (Verified Shield vs Unverified Person)
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import PersonOffIcon from '@mui/icons-material/PersonOff';
+
 import { NewProjectFormValues } from "../types/newProject.types";
 
 interface ProjectPeopleSectionProps {
@@ -16,6 +20,30 @@ interface ProjectPeopleSectionProps {
     };
 }
 
+interface VerificationIconProps {
+    userId?: number | null;
+    emailValue: string;
+}
+
+const VerificationIcon: React.FC<VerificationIconProps> = ({ userId, emailValue }) => {
+    // If the email field is empty, don't show any icon
+    if (!emailValue.trim()) return null;
+
+    if (userId) {
+        return (
+            <Tooltip title={`Ecopart User Confirmed (ID: ${userId})`}>
+                <VerifiedUserIcon sx={{ color: "action.active" }} />
+            </Tooltip>
+        );
+    }
+
+    return (
+        <Tooltip title="User email not found in Ecopart database. They will need to register.">
+            <PersonOffIcon sx={{ color: "action.disabled" }} />
+        </Tooltip>
+    );
+};
+
 export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
     values,
     onChange,
@@ -29,6 +57,7 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
             <Divider sx={{ mb: 3 }} />
 
             <Grid container spacing={4}>
+                {/* --- DATA OWNER --- */}
                 <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                         fullWidth
@@ -52,9 +81,17 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.dataOwnerEmail)}
                         helperText={errors?.dataOwnerEmail}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} />
+                                </InputAdornment>
+                            ),
+                        }}
                     />
                 </Grid>
 
+                {/* --- CHIEF SCIENTIST --- */}
                 <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                         fullWidth
@@ -78,9 +115,17 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.chiefScientistEmail)}
                         helperText={errors?.chiefScientistEmail}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} />
+                                </InputAdornment>
+                            ),
+                        }}
                     />
                 </Grid>
 
+                {/* --- OPERATOR --- */}
                 <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                         fullWidth
@@ -104,6 +149,13 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.operatorEmail)}
                         helperText={errors?.operatorEmail}
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} />
+                                </InputAdornment>
+                            ),
+                        }}
                     />
                 </Grid>
             </Grid>

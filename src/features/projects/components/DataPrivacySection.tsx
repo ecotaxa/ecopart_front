@@ -84,7 +84,7 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     type="number"
                     label="Delay until public"
                     value={values.visibleMonths}
-                    onChange={(e) => onChange({ visibleMonths: handleNumberChange(e.target.value) })}
+                    onChange={(e) => onChange({ visibleMonths: parsePositiveInt(e.target.value) })}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(visibleMonthsError)}
@@ -99,7 +99,7 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     type="number"
                     label="Delay until open"
                     value={values.publicMonths}
-                    onChange={(e) => onChange({ publicMonths: handleNumberChange(e.target.value) })}
+                    onChange={(e) => onChange({ publicMonths: parsePositiveInt(e.target.value) })}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(publicMonthsError)}

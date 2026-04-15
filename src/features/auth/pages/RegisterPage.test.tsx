@@ -36,15 +36,17 @@ describe('RegisterPage (Functional)', () => {
 
     // TC-B2: Password Validation (Mismatch)
     it('TC-B2: should show error and disable submit if passwords do not match', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<RegisterPage />);
 
-        // 1. Test Weak Password
-        // We type a password that is too short or simple
-        await fillRegisterForm(user, {
-            password: 'abc',
-            confirmPassword: 'abc'
-        });
+        const passwordInput = screen.getByLabelText(/^Password/i, { selector: 'input' });
+        const confirmInput = screen.getByLabelText(/Confirm password/i, { selector: 'input' });
+
+        // 1. Test weak password feedback
+        await user.clear(passwordInput);
+        await user.type(passwordInput, 'abc');
+        await user.clear(confirmInput);
+        await user.type(confirmInput, 'abc');
 
         // Trigger validation
         await user.click(document.body);
@@ -54,16 +56,11 @@ describe('RegisterPage (Functional)', () => {
         // Pass the correct testId for the register button
         expectSubmitDisabled('register-submit');
 
-        /** 2. Test Mismatch Passwords
-        * We use the helper but override specific fields to create a mismatch
-        * We explicitly clear the previous inputs to start fresh for this step
-        * (fillRegisterForm appends text by default, so we overwrite or rely on internal clear if helper supports it.
-        * Our helper uses user.type which appends, so it's safer to use fillRegisterForm which clears first inside.)
-        **/
-        await fillRegisterForm(user, {
-            password: 'Valid123!',
-            confirmPassword: 'Mismatch123!'
-        });
+        // 2. Test mismatch feedback
+        await user.clear(passwordInput);
+        await user.type(passwordInput, 'Valid123!');
+        await user.clear(confirmInput);
+        await user.type(confirmInput, 'Mismatch123!');
 
         // Trigger validation (blur)
         await user.click(document.body);

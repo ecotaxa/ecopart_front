@@ -16,6 +16,9 @@ async function fillValidProjectForm(user: UserEvent) {
 
     // 2. Instrument
     // MUI Selects (combobox) need to be clicked, then the option selected
+    await waitFor(() => {
+        expect(screen.getByLabelText(/Instrument \*/i)).toBeEnabled();
+    });
     await user.click(screen.getByLabelText(/Instrument \*/i));
     await user.click(await screen.findByRole('option', { name: 'UVP5HD' }));
     await user.type(screen.getByLabelText(/Instrument serial number/i), 'sn123');
@@ -216,4 +219,34 @@ describe('NewProjectPage (Functional)', () => {
         // Verify Jane is selected in the combobox
         expect(await within(privilegesSection as HTMLElement).findByText(/Jane Smith/i)).toBeInTheDocument();
     }, 20000);
+
+    // TC-H6: Load Metadata Failure Resilience
+    it('TC-H6: should preserve entered values and show error when metadata loading fails', async () => {
+        const user = userEvent.setup({ delay: null });
+
+        server.use(
+            http.get('*/file_system/import_folder_metadata*', () => {
+                return HttpResponse.json({ message: 'Invalid folder path' }, { status: 500 });
+            })
+        );
+
+        renderWithRouter(<NewProjectPage />);
+
+        await screen.findByRole('heading', { name: /^New project$/i });
+
+        const rootPathInput = screen.getByLabelText(/Root folder path/i);
+        const acronymInput = screen.getByLabelText(/Project acronym/i);
+
+        await user.type(rootPathInput, '/invalid/folder/path');
+        await user.type(acronymInput, 'MANUAL');
+
+        await user.click(screen.getByRole('button', { name: /Load metadata/i }));
+
+        const alert = await screen.findByRole('alert');
+        expect(within(alert).getByText(/Failed to load metadata/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Project acronym/i)).toHaveValue('MANUAL');
+        expect(screen.getByLabelText(/Root folder path/i)).toHaveValue('/invalid/folder/path');
+    }, 15000);
+
+    
 });

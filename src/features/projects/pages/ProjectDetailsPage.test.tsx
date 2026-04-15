@@ -77,10 +77,9 @@ describe('ProjectDetailsPage (Functional)', () => {
         const metadataTab = screen.getByRole('tab', { name: /METADATA/i });
         expect(metadataTab).toHaveAttribute('aria-selected', 'true');
 
-        // Verify Metadata content is visible (finding a string unique to that component)
-        const elements = await screen.findAllByText(/Project acronym/i);
-        expect(elements.length).toBeGreaterThan(0);
-    });
+        // Verify Metadata content is visible
+        expect(await screen.findByLabelText(/Project acronym/i)).toBeInTheDocument();
+    }, 15000);
 
     // TC-I3: Tab Switching
     it('TC-I3: should switch content when different tabs are clicked', async () => {
@@ -137,6 +136,34 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         // Note: In a real test we might spy on the useNavigate hook, 
         // but checking the rendered route mock is the React Testing Library way.
+    });
+
+    // TC-I5: API Error Handling
+    it('TC-I5: should show an error state when project details loading fails', async () => {
+        server.use(
+            http.post('*/users/searches*', () => {
+                return HttpResponse.json({
+                    search_info: { total: 0, page: 1, limit: 100 },
+                    users: []
+                });
+            }),
+            http.post('*/projects/searches', () => {
+                return HttpResponse.json({ message: 'Project details unavailable' }, { status: 500 });
+            })
+        );
+
+        renderWithRouter(
+            <Routes>
+                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+            </Routes>,
+            { route: '/projects/101' }
+        );
+
+        // Page chrome should still render and app should not crash
+        expect(await screen.findByText('Project Details [101]')).toBeInTheDocument();
+
+        // Metadata tab should surface the load error
+        expect(await screen.findByText(/Failed to load project details\./i)).toBeInTheDocument();
     });
 
 });

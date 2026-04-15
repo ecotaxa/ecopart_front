@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RegisterPage from '@/features/auth/pages/RegisterPage';
 import { renderWithRouter } from '@/test/utils';
@@ -19,7 +19,9 @@ describe('RegisterPage (Accessibility)', () => {
         const firstName = screen.getByLabelText(/First name/i);
 
         // 1. Start Focus on First Name
-        firstName.focus();
+        act(() => {
+            firstName.focus();
+        });
         expect(firstName).toHaveFocus();
 
         // 2. Tab -> Last Name

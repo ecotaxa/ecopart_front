@@ -162,4 +162,45 @@ describe('ProjectsPage (Functional)', () => {
         expect(await screen.findByText('Project Details Mock')).toBeInTheDocument();
     }, 15000);
 
+    // TC-G6: Projects Pagination & Query Sync
+    it('TC-G6: should request next page and render new rows when pagination changes', async () => {
+        const user = userEvent.setup();
+        const requestedPages: string[] = [];
+
+        server.use(
+            http.post('*/projects/searches*', ({ request }) => {
+                const url = new URL(request.url);
+                const page = url.searchParams.get('page') ?? '1';
+                requestedPages.push(page);
+
+                if (page === '2') {
+                    return HttpResponse.json({
+                        search_info: { total: 15, page: 2, limit: 10 },
+                        projects: [{
+                            ...MOCK_PROJECT_2,
+                            project_id: 303,
+                            project_title: 'Page Two Project'
+                        }]
+                    });
+                }
+
+                return HttpResponse.json({
+                    search_info: { total: 15, page: 1, limit: 10 },
+                    projects: [MOCK_PROJECT_1]
+                });
+            })
+        );
+
+        renderWithRouter(<ProjectsPage />, { route: '/projects' });
+
+        expect(await screen.findByText('Ocean Deep Exploration')).toBeInTheDocument();
+
+        const nextPageButton = screen.getByRole('button', { name: /Go to next page/i });
+        await user.click(nextPageButton);
+
+        expect(await screen.findByText('Page Two Project')).toBeInTheDocument();
+        expect(requestedPages).toContain('1');
+        expect(requestedPages).toContain('2');
+    }, 15000);
+
 });

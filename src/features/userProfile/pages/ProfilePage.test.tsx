@@ -354,6 +354,10 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         const formContainer = formHeading.closest('.MuiStack-root');
         if (!formContainer) throw new Error("Form container not found");
 
+        await waitFor(() => {
+            expect(within(formContainer as HTMLElement).getByRole('combobox', { name: /Instance/i })).toBeEnabled();
+        });
+
         // Act: Fill inputs using `within` the specific container
         const emailInput = within(formContainer as HTMLElement).getByLabelText(/Email address/i);
         await user.type(emailInput, 'test@test.com');
@@ -410,6 +414,10 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         const formContainer = formHeading.closest('.MuiStack-root');
         if (!formContainer) throw new Error("Form container not found");
 
+        await waitFor(() => {
+            expect(within(formContainer as HTMLElement).getByRole('combobox', { name: /Instance/i })).toBeEnabled();
+        });
+
         // Fill the form using scoping
         const emailInput = within(formContainer as HTMLElement).getByLabelText(/Email address/i);
         await user.type(emailInput, 'test@test.com');
@@ -428,6 +436,57 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         expect(await screen.findByText(/new_linked_user/i)).toBeInTheDocument();
         // Form should be gone
         expect(screen.queryByText('Log in to EcoTaxa')).not.toBeInTheDocument();
+    });
+
+    // TC-F5: Unlink Account (API Error)
+    it('TC-F5: should keep the account visible if unlink fails', async () => {
+        const user = userEvent.setup();
+
+        type MockAccountType = {
+            ecotaxa_account_id: number;
+            ecotaxa_account_instance_id: number;
+            ecotaxa_user_login: string;
+            ecotaxa_account_instance_name: string;
+            ecotaxa_expiration_date: string;
+        };
+
+        const mockAccounts: MockAccountType[] = [{
+            ecotaxa_account_id: 123,
+            ecotaxa_account_instance_id: 1,
+            ecotaxa_user_login: 'stays_linked_user',
+            ecotaxa_account_instance_name: 'FR',
+            ecotaxa_expiration_date: '2026-12-31'
+        }];
+
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => {
+                return HttpResponse.json({ ecotaxa_accounts: mockAccounts });
+            }),
+            http.delete('*/users/:userId/ecotaxa_account/:connectionId', () => {
+                return HttpResponse.error();
+            })
+        );
+
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        expect(await screen.findByText(/stays_linked_user/i)).toBeInTheDocument();
+
+        const unlinkButtons = screen.getAllByRole('button');
+        const logoutButton = unlinkButtons.find(btn => btn.querySelector('svg[data-testid="LogoutIcon"]'));
+        if (!logoutButton) throw new Error("Logout icon button not found");
+
+        await user.click(logoutButton);
+
+        const dialog = await screen.findByRole('dialog', { name: /Disconnect EcoTaxa Account/i });
+        const confirmButton = within(dialog).getByRole('button', { name: /Disconnect/i });
+        await user.click(confirmButton);
+
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+
+        // The account should remain because unlink failed.
+        expect(screen.getByText(/stays_linked_user/i)).toBeInTheDocument();
     });
 
     // TC-F6: Unlink Account (Success)
@@ -493,6 +552,63 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         }, { timeout: 3000 }); // Optional: give it a slightly longer timeout just in case
 
         expect(screen.queryByText(/doomed_user/i)).not.toBeInTheDocument();
+    });
+
+    // TC-F7: EcoTaxa Form Cancel Behavior
+    it('TC-F7: should cancel form, avoid link API call, and reset form state when reopened', async () => {
+        const user = userEvent.setup();
+
+        let linkCalls = 0;
+        const mockAccounts = [{
+            ecotaxa_account_id: 321,
+            ecotaxa_account_instance_id: 1,
+            ecotaxa_user_login: 'existing_user',
+            ecotaxa_account_instance_name: 'FR',
+            ecotaxa_expiration_date: '2026-12-31'
+        }];
+
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => {
+                return HttpResponse.json({ ecotaxa_accounts: mockAccounts });
+            }),
+            http.get('*/ecotaxa_instances', () => {
+                return HttpResponse.json([
+                    {
+                        ecotaxa_instance_id: 1,
+                        ecotaxa_instance_name: 'FR',
+                        ecotaxa_instance_description: 'France instance',
+                        ecotaxa_instance_url: 'https://ecotaxa.obs-vlfr.fr/'
+                    }
+                ]);
+            }),
+            http.post('*/users/:id/ecotaxa_account', () => {
+                linkCalls += 1;
+                return HttpResponse.json({ message: 'linked' }, { status: 201 });
+            })
+        );
+
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        expect(await screen.findByText(/existing_user/i)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /Connect to another account/i }));
+        expect(await screen.findByText(/Log in to EcoTaxa/i)).toBeInTheDocument();
+
+        const emailInput = screen.getByLabelText(/Email address/i);
+        const passwordInput = screen.getByLabelText(/^Password/i, { selector: 'input' });
+        await user.type(emailInput, 'cancel@test.com');
+        await user.type(passwordInput, 'Password123!');
+
+        await user.click(screen.getByRole('button', { name: /Cancel and go back to list/i }));
+
+        expect(await screen.findByText(/Accounts on EcoTaxa instances/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Log in to EcoTaxa/i)).not.toBeInTheDocument();
+        expect(linkCalls).toBe(0);
+
+        await user.click(screen.getByRole('button', { name: /Connect to another account/i }));
+        expect(await screen.findByText(/Log in to EcoTaxa/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Email address/i)).toHaveValue('');
+        expect(screen.getByLabelText(/^Password/i, { selector: 'input' })).toHaveValue('');
     });
 
 });
