@@ -189,7 +189,12 @@ export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
                     InputProps={{
                         endAdornment: (
                             <InputAdornment position="end">
-                                <IconButton onClick={() => setModalOpen(true)} edge="end" title="Browse Server Folders">
+                                <IconButton
+                                    onClick={() => setModalOpen(true)}
+                                    edge="end"
+                                    title="Browse Server Folders"
+                                    aria-label="Browse server folders"
+                                >
                                     <FolderOpenIcon color="primary" />
                                 </IconButton>
                             </InputAdornment>

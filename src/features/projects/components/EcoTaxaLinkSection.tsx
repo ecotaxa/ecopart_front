@@ -50,18 +50,20 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
     const [instances, setInstances] = useState<EcoTaxaInstance[]>([]); // Store the rich DB instances
     const [loadingData, setLoadingData] = useState(false);
 
-    // Filter accounts to show only those matching the selected instance
-    const availableAccounts = accounts.filter(
-        (account) => values.instance === "" || account.ecotaxa_account_instance_id.toString() === values.instance
-    );
-
     // Keep select values aligned with available options to avoid MUI out-of-range warnings.
+    // Calculate safeInstanceValue first so it can be used to filter availableAccounts.
     const availableInstanceIds = new Set(
         accounts.map((account) => account.ecotaxa_account_instance_id.toString())
     );
     const safeInstanceValue = values.instance && availableInstanceIds.has(values.instance)
         ? values.instance
         : "";
+
+    // Filter accounts to show only those matching the selected instance (use safeInstanceValue to keep state consistent)
+    const availableAccounts = accounts.filter(
+        (account) => safeInstanceValue === "" || account.ecotaxa_account_instance_id.toString() === safeInstanceValue
+    );
+
     const safeAccountValue = values.account && availableAccounts.some(
         (account) => account.ecotaxa_account_id.toString() === values.account
     )

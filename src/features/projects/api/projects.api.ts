@@ -315,7 +315,7 @@ export interface ImportFolderMetadataResponse {
  * Endpoint: GET /file_system/import_folders
  */
 export async function getImportFolders(folderPath?: string): Promise<string[]> {
-    // We send the path EXACTLY as it is, no sanitization!
+    // We trim the path and URL-encode it for safe transmission
     const url = folderPath
         ? `/file_system/import_folders?folder_path=${encodeURIComponent(folderPath.trim())}`
         : "/file_system/import_folders";
@@ -329,7 +329,7 @@ export async function getImportFolders(folderPath?: string): Promise<string[]> {
  * Endpoint: GET /file_system/import_folder_metadata?folder_path=...
  */
 export async function getImportFolderMetadata(folderPath: string): Promise<ImportFolderMetadataResponse> {
-    // We send the path EXACTLY as it is, no sanitization!
+    // We trim the path and URL-encode it for safe transmission
     const params = new URLSearchParams({ folder_path: folderPath.trim() });
 
     return http<ImportFolderMetadataResponse>(`/file_system/import_folder_metadata?${params.toString()}`, {

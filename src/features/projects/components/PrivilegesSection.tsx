@@ -152,7 +152,7 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
                                         select
                                         fullWidth
                                         size="small"
-                                        label={row.userId === "" ? "Select user" : ""}
+                                        label={safeSelectedUserId === "" ? "Select user" : ""}
                                         slotProps={{ inputLabel: { shrink: false } }}
                                         value={safeSelectedUserId}
                                         onChange={(e) => handleUpdateRow(index, "userId", e.target.value)}

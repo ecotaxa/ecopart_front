@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Box, Typography, TextField, Stack, InputAdornment, Divider } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -25,6 +25,22 @@ const parsePositiveInt = (value: string): number => {
     return parsed;
 };
 
+/**
+ * Handle number field blur: validate and clamp to positive int.
+ * During onChange, we allow any string (including empty) for natural typing experience.
+ * On blur, we validate and update the parent with a clamped value.
+ */
+const createNumberFieldBlurHandler = (
+    field: keyof NewProjectFormValues["privacy"],
+    onChange: (data: Partial<NewProjectFormValues["privacy"]>) => void
+) => {
+    return (e: React.FocusEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        const validatedValue = value === "" ? 1 : parsePositiveInt(value);
+        onChange({ [field]: validatedValue });
+    };
+};
+
 export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
     values,
     onChange,
@@ -32,6 +48,13 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
     visibleMonthsError,
     publicMonthsError,
 }) => {
+    // Keep string display values to allow empty state during typing
+    // Initialize from parent values; users can edit freely without cascading renders
+    const [displayValues, setDisplayValues] = useState({
+        privateMonths: values.privateMonths.toString(),
+        visibleMonths: values.visibleMonths.toString(),
+        publicMonths: values.publicMonths.toString(),
+    });
     const renderTimelineStep = (label: string, isBlue: boolean) => (
         <Stack direction="row" alignItems="center" spacing={1}>
             {isBlue ? <CheckCircleIcon color="primary" aria-hidden="true" /> : <CancelIcon sx={{ color: "#9e9e9e" }} aria-hidden="true" />}
@@ -68,8 +91,9 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     required
                     type="number"
                     label="Delay until visible"
-                    value={values.privateMonths}
-                    onChange={(e) => onChange({ privateMonths: parsePositiveInt(e.target.value) })}
+                    value={displayValues.privateMonths}
+                    onChange={(e) => setDisplayValues({ ...displayValues, privateMonths: e.target.value })}
+                    onBlur={createNumberFieldBlurHandler("privateMonths", onChange)}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(privateMonthsError)}
@@ -83,8 +107,9 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     required
                     type="number"
                     label="Delay until public"
-                    value={values.visibleMonths}
-                    onChange={(e) => onChange({ visibleMonths: parsePositiveInt(e.target.value) })}
+                    value={displayValues.visibleMonths}
+                    onChange={(e) => setDisplayValues({ ...displayValues, visibleMonths: e.target.value })}
+                    onBlur={createNumberFieldBlurHandler("visibleMonths", onChange)}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(visibleMonthsError)}
@@ -98,8 +123,9 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     required
                     type="number"
                     label="Delay until open"
-                    value={values.publicMonths}
-                    onChange={(e) => onChange({ publicMonths: parsePositiveInt(e.target.value) })}
+                    value={displayValues.publicMonths}
+                    onChange={(e) => setDisplayValues({ ...displayValues, publicMonths: e.target.value })}
+                    onBlur={createNumberFieldBlurHandler("publicMonths", onChange)}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(publicMonthsError)}
