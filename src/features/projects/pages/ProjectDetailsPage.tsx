@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import {
     Box,
     Container,
@@ -27,6 +27,7 @@ import BackupIcon from "@mui/icons-material/Backup";
 export default function ProjectDetailsPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Parse the route param once.
     // If parsing fails, we keep null so TypeScript and runtime are both explicit.
@@ -34,8 +35,9 @@ export default function ProjectDetailsPage() {
     const projectId = parsedProjectId !== null && !Number.isNaN(parsedProjectId) ? parsedProjectId : null;
 
     // State to manage the active tab (0 = Stats, 1 = Metadata, etc.)
-    // Based on mockup, Metadata is selected by default, so we set it to 1
-    const [currentTab, setCurrentTab] = useState(1);
+    // Default to Metadata, but allow navigation state to open a specific tab.
+    const initialTab = typeof location.state?.activeTab === "number" ? location.state.activeTab : 1;
+    const [currentTab, setCurrentTab] = useState(initialTab);
 
     if (projectId === null) {
         return (

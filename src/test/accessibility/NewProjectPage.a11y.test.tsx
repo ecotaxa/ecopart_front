@@ -20,8 +20,8 @@ describe('NewProjectPage (Accessibility)', () => {
         );
     });
 
-    // TC-H7: Keyboard Navigation
-    it('TC-H7: should allow navigating the main form inputs using Tab order', async () => {
+    // TC-H8: Keyboard Navigation
+    it('TC-H8: should allow navigating the main form inputs using Tab order', async () => {
         const user = userEvent.setup({ delay: null });
         renderWithRouter(<NewProjectPage />);
 
@@ -62,8 +62,8 @@ describe('NewProjectPage (Accessibility)', () => {
         expect(screen.getByRole('switch', { name: /Time duration check/i })).toHaveFocus();
     }, 15000);
 
-    // TC-H8: Root Folder Modal Keyboard Accessibility
-    it('TC-H8: should support keyboard flow in root folder modal and apply selected folder', async () => {
+    // TC-H9: Root Folder Modal Keyboard Accessibility
+    it('TC-H9: should support keyboard flow in root folder modal and apply selected folder', async () => {
         const user = userEvent.setup({ delay: null });
 
         server.use(

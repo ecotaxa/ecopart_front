@@ -266,6 +266,56 @@ export const useNewProjectForm = () => {
         setSnackbar({ open: true, message, severity });
     };
 
+    const appendMetadataUsersToPrivileges = (metadata: {
+        data_owner?: { ecopart_user_id?: number | null };
+        operator?: { ecopart_user_id?: number | null };
+        chief_scientist?: { ecopart_user_id?: number | null };
+    }) => {
+        const metadataIds = [
+            metadata.data_owner?.ecopart_user_id,
+            metadata.operator?.ecopart_user_id,
+            metadata.chief_scientist?.ecopart_user_id,
+        ].filter((id): id is number => typeof id === "number" && id > 0);
+
+        if (metadataIds.length === 0) {
+            return;
+        }
+
+        const uniqueMetadataIds = Array.from(new Set(metadataIds.map((id) => id.toString())));
+        const existingEcoPartUserIds = new Set(availableUsers.map((user) => user.user_id.toString()));
+
+        // If we already have the active EcoPart users list, only keep IDs that truly exist.
+        // If the list is temporarily empty (still loading), keep metadata IDs to avoid losing members.
+        const candidates =
+            existingEcoPartUserIds.size > 0
+                ? uniqueMetadataIds.filter((id) => existingEcoPartUserIds.has(id))
+                : uniqueMetadataIds;
+
+        if (candidates.length === 0) {
+            return;
+        }
+
+        setValues((prev) => {
+            const existingPrivilegeIds = new Set(prev.privileges.map((row) => row.userId));
+            const rowsToAdd = candidates
+                .filter((id) => !existingPrivilegeIds.has(id))
+                .map((id) => ({
+                    userId: id,
+                    role: "Member" as const,
+                    contact: false,
+                }));
+
+            if (rowsToAdd.length === 0) {
+                return prev;
+            }
+
+            return {
+                ...prev,
+                privileges: [...prev.privileges, ...rowsToAdd],
+            };
+        });
+    };
+
     // Function to close the notification (used by the UI)
     const closeSnackbar = () => {
         setSnackbar((prev) => ({ ...prev, open: false }));
@@ -380,7 +430,7 @@ export const useNewProjectForm = () => {
         try {
             // FIX: We pass the raw string to the backend.
             const rawPath = values.rootFolderPath.trim();
-            
+
             const apiMetadata = await getImportFolderMetadata(rawPath);
 
             // --- AUTO-FILL LOGIC ---
@@ -401,7 +451,7 @@ export const useNewProjectForm = () => {
                 acronym: apiMetadata.project_acronym || "",
                 cruise: apiMetadata.cruise || "",
                 description: apiMetadata.project_description || "",
-                ship: apiMetadata.ship ? [apiMetadata.ship] : [], 
+                ship: apiMetadata.ship ? [apiMetadata.ship] : [],
             });
 
             updateField("people", {
@@ -417,6 +467,8 @@ export const useNewProjectForm = () => {
                 chiefScientistEmail: apiMetadata.chief_scientist?.email || "",
                 chiefScientistId: apiMetadata.chief_scientist?.ecopart_user_id || null,
             });
+
+            appendMetadataUsersToPrivileges(apiMetadata);
 
             showSnackbar("Metadata successfully loaded and applied!", "success");
 
@@ -596,12 +648,12 @@ export const useNewProjectForm = () => {
             // DEBUG: Log exactly what we are sending
             console.log("[NewProject] Payload being sent:", JSON.stringify(payload, null, 2));
 
-            await createProject(payload as PublicProjectRequestCreationModel);
+            const createdProject = await createProject(payload as PublicProjectRequestCreationModel);
 
             showSnackbar("Project successfully created! Redirecting...", "success");
 
             setTimeout(() => {
-                navigate("/projects");
+                navigate(`/projects/${createdProject.project_id}`, { state: { activeTab: 3 } });
             }, 1500);
         } catch (error: unknown) {
             console.error("API Error during project creation:", error);

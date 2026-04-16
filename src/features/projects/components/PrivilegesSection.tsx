@@ -2,8 +2,8 @@ import React, { useMemo } from "react";
 import {
     Box,
     Typography,
+    Autocomplete,
     TextField,
-    MenuItem,
     IconButton,
     Button,
     Radio,
@@ -141,39 +141,48 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
                 {values.map((row, index) => (
                     <Grid container spacing={2} alignItems="center" key={index}>
                         {(() => {
-                            const selectedExists = activeUsers.some(
+                            const selectedUser = activeUsers.find(
                                 (user) => user.user_id.toString() === row.userId
-                            );
-                            const safeSelectedUserId = selectedExists ? row.userId : "";
+                            ) ?? null;
 
                             return (
                                 <Grid size={{ xs: 12, sm: 4 }}>
-                                    <TextField
-                                        select
+                                    <Autocomplete
                                         fullWidth
                                         size="small"
-                                        label={safeSelectedUserId === "" ? "Select user" : ""}
-                                        slotProps={{ inputLabel: { shrink: false } }}
-                                        value={safeSelectedUserId}
-                                        onChange={(e) => handleUpdateRow(index, "userId", e.target.value)}
-                                    >
-                                        {activeUsers.map((user) => {
-                                            const userIdStr = user.user_id.toString();
-                                            // Check if this user is selected somewhere else to disable the option
+                                        options={activeUsers}
+                                        value={selectedUser}
+                                        isOptionEqualToValue={(option, value) => option.user_id === value.user_id}
+                                        getOptionDisabled={(option) =>
+                                            isUserAlreadySelected(option.user_id.toString(), index)
+                                        }
+                                        getOptionLabel={(option) => {
+                                            const fullName = `${option.first_name} ${option.last_name}`.trim();
+                                            return option.email ? `${fullName} (${option.email})` : fullName;
+                                        }}
+                                        onChange={(_, newValue) =>
+                                            handleUpdateRow(index, "userId", newValue ? newValue.user_id.toString() : "")
+                                        }
+                                        renderInput={(params) => (
+                                            <TextField
+                                                {...params}
+                                                label="Select user"
+                                            />
+                                        )}
+                                        renderOption={(props, option) => {
+                                            const userIdStr = option.user_id.toString();
                                             const isDisabled = isUserAlreadySelected(userIdStr, index);
+                                            const fullName = `${option.first_name} ${option.last_name}`.trim();
+                                            const { key, ...optionProps } = props;
 
                                             return (
-                                                <MenuItem
-                                                    key={user.user_id}
-                                                    value={userIdStr}
-                                                    disabled={isDisabled}
-                                                >
-                                                    {user.first_name} {user.last_name}
+                                                <Box component="li" key={key} {...optionProps}>
+                                                    {option.email ? `${fullName} (${option.email})` : fullName}
                                                     {isDisabled && " (Already added)"}
-                                                </MenuItem>
+                                                </Box>
                                             );
-                                        })}
-                                    </TextField>
+                                        }}
+                                    />
                                 </Grid>
                             );
                         })()}

@@ -7,6 +7,7 @@ export interface EcoTaxaAccountLink {
     ecotaxa_account_id: number;
     ecotaxa_account_ecotaxa_id: number;
     ecotaxa_user_name: string;
+    ecotaxa_user_email?: string;
     ecotaxa_user_login?: string
     ecotaxa_expiration_date: string;
     ecotaxa_account_instance_id: number;
@@ -141,7 +142,7 @@ export async function linkEcoTaxaAccount(
  */
 export async function getEcoTaxaInstances(): Promise<EcoTaxaInstance[]> {
     const response = await http<EcoTaxaInstance[] | { ecotaxa_instances: EcoTaxaInstance[] }>("/ecotaxa_instances");
-    
+
     // Handle both direct array and wrapped object responses
     if (Array.isArray(response)) {
         return response.filter((inst) => inst && inst.ecotaxa_instance_id);

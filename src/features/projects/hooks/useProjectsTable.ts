@@ -92,7 +92,8 @@ export const useProjectsTable = () => {
             const response = await searchProjects({
                 page: paginationModel.page + 1,
                 limit: paginationModel.pageSize,
-                filters: activeFilters
+                filters: activeFilters,
+                sort_by: "desc(project_id)"
             });
 
             if (response && response.projects) {
