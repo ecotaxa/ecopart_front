@@ -124,7 +124,7 @@ describe('ProjectSecurityTab (Functional)', () => {
 
         const delayInput = await screen.findByDisplayValue('6');
         await user.clear(delayInput);
-        await user.type(delayInput, '9');
+        await user.type(delayInput, '19');
 
         const saveButton = screen.getByRole('button', { name: /^SAVE$/i });
         await user.click(saveButton);

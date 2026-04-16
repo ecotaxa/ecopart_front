@@ -32,12 +32,34 @@ const parsePositiveInt = (value: string): number => {
  */
 const createNumberFieldBlurHandler = (
     field: keyof NewProjectFormValues["privacy"],
-    onChange: (data: Partial<NewProjectFormValues["privacy"]>) => void
+    onChange: (data: Partial<NewProjectFormValues["privacy"]>) => void,
+    setDraftValues: React.Dispatch<
+        React.SetStateAction<Partial<Record<keyof NewProjectFormValues["privacy"], string>>>
+    >
 ) => {
     return (e: React.FocusEvent<HTMLInputElement>) => {
         const value = e.target.value;
         const validatedValue = value === "" ? 1 : parsePositiveInt(value);
         onChange({ [field]: validatedValue });
+        setDraftValues((prev) => ({ ...prev, [field]: validatedValue.toString() }));
+    };
+};
+
+const createNumberFieldChangeHandler = (
+    field: keyof NewProjectFormValues["privacy"],
+    onChange: (data: Partial<NewProjectFormValues["privacy"]>) => void,
+    setDraftValues: React.Dispatch<
+        React.SetStateAction<Partial<Record<keyof NewProjectFormValues["privacy"], string>>>
+    >
+) => {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setDraftValues((prev) => ({ ...prev, [field]: value }));
+
+        // Keep parent state in sync for valid non-empty typing to survive remounts.
+        if (value !== "") {
+            onChange({ [field]: parsePositiveInt(value) });
+        }
     };
 };
 
@@ -48,13 +70,16 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
     visibleMonthsError,
     publicMonthsError,
 }) => {
-    // Keep string display values to allow empty state during typing
-    // Initialize from parent values; users can edit freely without cascading renders
-    const [displayValues, setDisplayValues] = useState({
-        privateMonths: values.privateMonths.toString(),
-        visibleMonths: values.visibleMonths.toString(),
-        publicMonths: values.publicMonths.toString(),
-    });
+    // Keep per-field drafts so users can temporarily clear/type invalid text,
+    // while preserving their visible edits even if a save request fails.
+    const [draftValues, setDraftValues] = useState<
+        Partial<Record<keyof NewProjectFormValues["privacy"], string>>
+    >({});
+
+    const getDisplayValue = (
+        field: keyof NewProjectFormValues["privacy"],
+        fallback: number
+    ) => draftValues[field] ?? fallback.toString();
     const renderTimelineStep = (label: string, isBlue: boolean) => (
         <Stack direction="row" alignItems="center" spacing={1}>
             {isBlue ? <CheckCircleIcon color="primary" aria-hidden="true" /> : <CancelIcon sx={{ color: "#9e9e9e" }} aria-hidden="true" />}
@@ -91,9 +116,9 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     required
                     type="number"
                     label="Delay until visible"
-                    value={displayValues.privateMonths}
-                    onChange={(e) => setDisplayValues({ ...displayValues, privateMonths: e.target.value })}
-                    onBlur={createNumberFieldBlurHandler("privateMonths", onChange)}
+                    value={getDisplayValue("privateMonths", values.privateMonths)}
+                    onChange={createNumberFieldChangeHandler("privateMonths", onChange, setDraftValues)}
+                    onBlur={createNumberFieldBlurHandler("privateMonths", onChange, setDraftValues)}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(privateMonthsError)}
@@ -107,9 +132,9 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     required
                     type="number"
                     label="Delay until public"
-                    value={displayValues.visibleMonths}
-                    onChange={(e) => setDisplayValues({ ...displayValues, visibleMonths: e.target.value })}
-                    onBlur={createNumberFieldBlurHandler("visibleMonths", onChange)}
+                    value={getDisplayValue("visibleMonths", values.visibleMonths)}
+                    onChange={createNumberFieldChangeHandler("visibleMonths", onChange, setDraftValues)}
+                    onBlur={createNumberFieldBlurHandler("visibleMonths", onChange, setDraftValues)}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(visibleMonthsError)}
@@ -123,9 +148,9 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     required
                     type="number"
                     label="Delay until open"
-                    value={displayValues.publicMonths}
-                    onChange={(e) => setDisplayValues({ ...displayValues, publicMonths: e.target.value })}
-                    onBlur={createNumberFieldBlurHandler("publicMonths", onChange)}
+                    value={getDisplayValue("publicMonths", values.publicMonths)}
+                    onChange={createNumberFieldChangeHandler("publicMonths", onChange, setDraftValues)}
+                    onBlur={createNumberFieldBlurHandler("publicMonths", onChange, setDraftValues)}
                     size="small"
                     inputProps={{ min: 1 }}
                     error={Boolean(publicMonthsError)}
