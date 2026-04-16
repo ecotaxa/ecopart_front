@@ -50,10 +50,25 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
     const [instances, setInstances] = useState<EcoTaxaInstance[]>([]); // Store the rich DB instances
     const [loadingData, setLoadingData] = useState(false);
 
-    // Filter accounts to show only those matching the selected instance
-    const availableAccounts = accounts.filter(
-        (account) => values.instance === "" || account.ecotaxa_account_instance_id.toString() === values.instance
+    // Keep select values aligned with available options to avoid MUI out-of-range warnings.
+    // Calculate safeInstanceValue first so it can be used to filter availableAccounts.
+    const availableInstanceIds = new Set(
+        accounts.map((account) => account.ecotaxa_account_instance_id.toString())
     );
+    const safeInstanceValue = values.instance && availableInstanceIds.has(values.instance)
+        ? values.instance
+        : "";
+
+    // Filter accounts to show only those matching the selected instance (use safeInstanceValue to keep state consistent)
+    const availableAccounts = accounts.filter(
+        (account) => safeInstanceValue === "" || account.ecotaxa_account_instance_id.toString() === safeInstanceValue
+    );
+
+    const safeAccountValue = values.account && availableAccounts.some(
+        (account) => account.ecotaxa_account_id.toString() === values.account
+    )
+        ? values.account
+        : "";
 
     // --- 2. FETCH DATA (ACCOUNTS & INSTANCES) ---
     useEffect(() => {
@@ -114,7 +129,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     required
                     fullWidth
                     label="EcoTaxa instance"
-                    value={values.instance}
+                    value={safeInstanceValue}
                     onChange={(e) => {
                         onChange({
                             instance: e.target.value,
@@ -130,6 +145,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                         // Explicitly define 'selected' as unknown and cast to string to satisfy TypeScript ReactNode requirements
                         renderValue: (selected: unknown) => {
                             const selectedString = selected as string;
+                            if (!selectedString) return "";
                             const instanceData = instances.find(inst => inst.ecotaxa_instance_id.toString() === selectedString);
 
                             if (!instanceData) return selectedString; // Returns a string, which is a valid ReactNode
@@ -179,10 +195,10 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     fullWidth
                     required
                     label="Your EcoTaxa account"
-                    value={values.account}
+                    value={safeAccountValue}
                     onChange={(e) => onChange({ account: e.target.value, project: "" })}
                     size="small"
-                    disabled={!values.instance || loadingData}
+                    disabled={!safeInstanceValue || loadingData}
                     error={Boolean(errors?.account)}
                     helperText={errors?.account}
                     InputProps={{

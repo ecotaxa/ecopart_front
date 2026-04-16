@@ -293,3 +293,46 @@ export async function updateProject(
         body: JSON.stringify(payload),
     });
 }
+
+
+// ============================================================================
+// FILE SYSTEM API CALLS
+// ============================================================================
+
+export interface ImportFolderMetadataResponse {
+    project_acronym: string;
+    project_description: string;
+    cruise: string;
+    ship: string;
+    serial_number: string;
+    instrument_model: string;
+    data_owner?: { name: string; email: string; ecopart_user_id?: number | null };
+    operator?: { name: string; email: string; ecopart_user_id?: number | null };
+    chief_scientist?: { name: string; email: string; ecopart_user_id?: number | null };
+}
+
+/**
+ * Endpoint: GET /file_system/import_folders
+ */
+export async function getImportFolders(folderPath?: string): Promise<string[]> {
+    // We trim the path and URL-encode it for safe transmission
+    const url = folderPath
+        ? `/file_system/import_folders?folder_path=${encodeURIComponent(folderPath.trim())}`
+        : "/file_system/import_folders";
+
+    return http<string[]>(url, {
+        method: "GET",
+    });
+}
+
+/**
+ * Endpoint: GET /file_system/import_folder_metadata?folder_path=...
+ */
+export async function getImportFolderMetadata(folderPath: string): Promise<ImportFolderMetadataResponse> {
+    // We trim the path and URL-encode it for safe transmission
+    const params = new URLSearchParams({ folder_path: folderPath.trim() });
+
+    return http<ImportFolderMetadataResponse>(`/file_system/import_folder_metadata?${params.toString()}`, {
+        method: "GET",
+    });
+}

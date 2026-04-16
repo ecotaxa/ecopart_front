@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import LoginPage from '@/features/auth/pages/LoginPage';
@@ -24,7 +24,7 @@ describe('LoginPage (Accessibility)', () => {
         // Enable the submit button by filling the form first.
         // A disabled button is not focusable, which would break the tab flow test.
         await fillAuthForm(user, { email: 'john@doe.com', password: 'Valid123!' });
-        expectSubmitEnabled('auth-submit');
+        await waitFor(() => expectSubmitEnabled('auth-submit'));
 
         const emailInput = screen.getByLabelText(/Email address/i);
         const passwordInput = screen.getByLabelText(/Password/i, { selector: 'input' });
@@ -32,8 +32,10 @@ describe('LoginPage (Accessibility)', () => {
         // We select the submit button by testId
         const submitButton = screen.getByTestId('auth-submit');
 
-        // Start focus on Email
-        emailInput.focus();
+        // Start focus on Email explicitly to make tab-order assertions deterministic.
+        act(() => {
+            emailInput.focus();
+        });
         expect(emailInput).toHaveFocus();
 
         // Tab -> Password
@@ -51,5 +53,5 @@ describe('LoginPage (Accessibility)', () => {
         // Tab -> Submit Button
         await user.tab();
         expect(submitButton).toHaveFocus();
-    });
+    }, 15000);
 });

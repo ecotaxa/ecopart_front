@@ -19,10 +19,13 @@ export interface NewProjectFormValues {
     people: {
         dataOwnerName: string;
         dataOwnerEmail: string;
+        dataOwnerId?: number | null; 
         chiefScientistName: string;
         chiefScientistEmail: string;
+        chiefScientistId?: number | null; 
         operatorName: string;
         operatorEmail: string;
+        operatorId?: number | null; 
     };
 
     importSettings: {

@@ -140,34 +140,43 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
             <Stack spacing={2}>
                 {values.map((row, index) => (
                     <Grid container spacing={2} alignItems="center" key={index}>
-                        <Grid size={{ xs: 12, sm: 4 }}>
-                            <TextField
-                                select
-                                fullWidth
-                                size="small"
-                                label={row.userId === "" ? "Select user" : ""}
-                                slotProps={{ inputLabel: { shrink: false } }}
-                                value={row.userId}
-                                onChange={(e) => handleUpdateRow(index, "userId", e.target.value)}
-                            >
-                                {activeUsers.map((user) => {
-                                    const userIdStr = user.user_id.toString();
-                                    // Check if this user is selected somewhere else to disable the option
-                                    const isDisabled = isUserAlreadySelected(userIdStr, index);
+                        {(() => {
+                            const selectedExists = activeUsers.some(
+                                (user) => user.user_id.toString() === row.userId
+                            );
+                            const safeSelectedUserId = selectedExists ? row.userId : "";
 
-                                    return (
-                                        <MenuItem
-                                            key={user.user_id}
-                                            value={userIdStr}
-                                            disabled={isDisabled}
-                                        >
-                                            {user.first_name} {user.last_name}
-                                            {isDisabled && " (Already added)"}
-                                        </MenuItem>
-                                    );
-                                })}
-                            </TextField>
-                        </Grid>
+                            return (
+                                <Grid size={{ xs: 12, sm: 4 }}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        size="small"
+                                        label={safeSelectedUserId === "" ? "Select user" : ""}
+                                        slotProps={{ inputLabel: { shrink: false } }}
+                                        value={safeSelectedUserId}
+                                        onChange={(e) => handleUpdateRow(index, "userId", e.target.value)}
+                                    >
+                                        {activeUsers.map((user) => {
+                                            const userIdStr = user.user_id.toString();
+                                            // Check if this user is selected somewhere else to disable the option
+                                            const isDisabled = isUserAlreadySelected(userIdStr, index);
+
+                                            return (
+                                                <MenuItem
+                                                    key={user.user_id}
+                                                    value={userIdStr}
+                                                    disabled={isDisabled}
+                                                >
+                                                    {user.first_name} {user.last_name}
+                                                    {isDisabled && " (Already added)"}
+                                                </MenuItem>
+                                            );
+                                        })}
+                                    </TextField>
+                                </Grid>
+                            );
+                        })()}
 
                         <Grid size={{ xs: 12, sm: 4 }}>
                             <ToggleButtonGroup

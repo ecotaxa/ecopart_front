@@ -20,6 +20,14 @@ describe('useNewProjectForm Hook (Unit)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         server.resetHandlers();
+        server.use(
+            http.post('*/users/searches*', () => {
+                return HttpResponse.json({
+                    search_info: { total: 0, page: 1, limit: 100 },
+                    users: []
+                });
+            })
+        );
     });
 
     // TC-L1: Initial State
@@ -70,6 +78,37 @@ describe('useNewProjectForm Hook (Unit)', () => {
         expect(result.current.snackbar.severity).toBe('success');
     });
 
+    it('TC-L3.0: should normalize relative server paths before loading metadata', async () => {
+        const { result } = renderHook(() => useNewProjectForm());
+
+        server.use(
+            http.get('*/file_system/import_folder_metadata*', ({ request }) => {
+                const url = new URL(request.url);
+
+                expect(url.searchParams.get('folder_path')).toBe('remote/ftp_plankton/Ecotaxa_Data_to_import/uvp6_sn000241lp_20240404_h');
+
+                return HttpResponse.json({
+                    project_acronym: 'UVP6',
+                    project_description: '',
+                    cruise: '',
+                    ship: '',
+                    serial_number: 'sn000241lp',
+                    instrument_model: 'UVP6',
+                });
+            })
+        );
+
+        act(() => {
+            result.current.updateField('rootFolderPath', 'remote/ftp_plankton/Ecotaxa_Data_to_import/uvp6_sn000241lp_20240404_h');
+        });
+
+        await act(async () => {
+            await result.current.handleLoadMetadata();
+        });
+
+        expect(result.current.snackbar.severity).toBe('success');
+    });
+
     it('TC-L3.1: should show error if folder path format is invalid', async () => {
         const { result } = renderHook(() => useNewProjectForm());
 
@@ -83,6 +122,26 @@ describe('useNewProjectForm Hook (Unit)', () => {
 
         expect(result.current.snackbar.severity).toBe('error');
         expect(result.current.values.instrument.model).toBe('');
+    });
+
+    it('TC-L3.2: should preserve existing values when metadata loading fails', async () => {
+        const { result } = renderHook(() => useNewProjectForm());
+
+        act(() => {
+            result.current.updateField('instrument', { model: 'IFCB', serialNumber: 'sn777' });
+            result.current.updateField('metadata', { title: 'Existing Title', acronym: 'EXI' });
+            result.current.updateField('rootFolderPath', '/invalid_format');
+        });
+
+        await act(async () => {
+            await result.current.handleLoadMetadata();
+        });
+
+        expect(result.current.snackbar.severity).toBe('error');
+        expect(result.current.values.instrument.model).toBe('IFCB');
+        expect(result.current.values.instrument.serialNumber).toBe('sn777');
+        expect(result.current.values.metadata.title).toBe('Existing Title');
+        expect(result.current.values.metadata.acronym).toBe('EXI');
     });
 
     // TC-L4: Validation Logic (Triggering internal errors)
@@ -133,7 +192,14 @@ describe('useNewProjectForm Hook (Unit)', () => {
             result.current.updateField('rootFolderPath', 'valid');
             result.current.updateField('instrument', { model: 'A', serialNumber: 'B' });
             result.current.updateField('metadata', { title: 'T', acronym: 'A', cruise: 'C', description: 'D', ship: ['S'] });
-            result.current.updateField('people', { dataOwnerName: 'N', dataOwnerEmail: 'E', chiefScientistName: 'N', chiefScientistEmail: 'E', operatorName: 'N', operatorEmail: 'E' });
+            result.current.updateField('people', {
+                dataOwnerName: 'N',
+                dataOwnerEmail: 'owner@test.com',
+                chiefScientistName: 'N',
+                chiefScientistEmail: 'chief@test.com',
+                operatorName: 'N',
+                operatorEmail: 'operator@test.com'
+            });
             // Provide valid privileges
             result.current.updateField('privileges', [
                 { userId: "1", role: "Manager", contact: true }

@@ -17,8 +17,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         vi.clearAllMocks();
     });
 
-    // TC-H1: Standard Success
-    it('TC-H1: should return parsed JSON on a successful request (200 OK)', async () => {
+    // TC-M1: Standard Success
+    it('TC-M1: should return parsed JSON on a successful request (200 OK)', async () => {
         server.use(
             mswHttp.get(TEST_URL, () => {
                 return HttpResponse.json({ message: 'success data' }, { status: 200 });
@@ -29,8 +29,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         expect(response.message).toBe('success data');
     });
 
-    // TC-H2: Standard API Error
-    it('TC-H2: should throw an error on standard API failures (e.g. 400 Bad Request)', async () => {
+    // TC-M2: Standard API Error
+    it('TC-M2: should throw an error on standard API failures (e.g. 400 Bad Request)', async () => {
         server.use(
             mswHttp.get(TEST_URL, () => {
                 return HttpResponse.json({ message: 'Invalid data' }, { status: 400 });
@@ -41,8 +41,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         await expect(http(TEST_URL)).rejects.toThrow();
     });
 
-    // TC-H3: The Core Engine - Refresh Token Loop
-    it('TC-H3: should intercept 401, refresh the token, and retry the original request successfully', async () => {
+    // TC-M3: The Core Engine - Refresh Token Loop
+    it('TC-M3: should intercept 401, refresh the token, and retry the original request successfully', async () => {
         let attemptCount = 0;
 
         server.use(
@@ -74,8 +74,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         expect(attemptCount).toBe(2); // It tried exactly twice
     });
 
-    // TC-H4: The Core Engine - Refresh Token Failure
-    it('TC-H4: should throw "Session expired" if the refresh token also fails (e.g. 401 on refresh)', async () => {
+    // TC-M4: The Core Engine - Refresh Token Failure
+    it('TC-M4: should throw "Session expired" if the refresh token also fails (e.g. 401 on refresh)', async () => {
         server.use(
             // 1. Target endpoint fails
             mswHttp.get(TEST_URL, () => {
@@ -95,5 +95,62 @@ describe('HTTP Utility (API Fetcher)', () => {
         // you can verify it here. (Uncomment if applicable to your code)
         // const authState = useAuthStore.getState();
         // expect(authState.isAuthenticated).toBe(false);
+    });
+
+    // TC-M5: Concurrent 401 Deduplication
+    it('TC-M5: should perform only one refresh for concurrent 401 responses', async () => {
+        let requestCount = 0;
+        let refreshCount = 0;
+
+        server.use(
+            mswHttp.get(TEST_URL, () => {
+                requestCount += 1;
+
+                // First wave: both parallel calls receive 401
+                if (requestCount <= 2) {
+                    return new HttpResponse(null, { status: 401 });
+                }
+
+                // Retry wave after refresh succeeds
+                return HttpResponse.json({ message: 'ok' }, { status: 200 });
+            }),
+            mswHttp.post(REFRESH_URL, () => {
+                refreshCount += 1;
+                return HttpResponse.json({ token: 'new-token', refresh_token: 'new-refresh' }, { status: 200 });
+            })
+        );
+
+        const [first, second] = await Promise.all([
+            http<{ message: string }>(TEST_URL),
+            http<{ message: string }>(TEST_URL),
+        ]);
+
+        expect(first.message).toBe('ok');
+        expect(second.message).toBe('ok');
+        expect(refreshCount).toBe(1);
+        expect(requestCount).toBe(4);
+    });
+
+    // TC-M6: Retry Failure After Refresh
+    it('TC-M6: should surface retry error when request still fails after successful refresh', async () => {
+        let attemptCount = 0;
+
+        server.use(
+            mswHttp.get(TEST_URL, () => {
+                attemptCount += 1;
+
+                if (attemptCount === 1) {
+                    return new HttpResponse(null, { status: 401 });
+                }
+
+                return HttpResponse.json({ message: 'Retry failed on backend' }, { status: 500 });
+            }),
+            mswHttp.post(REFRESH_URL, () => {
+                return HttpResponse.json({ token: 'refreshed', refresh_token: 'refreshed-rt' }, { status: 200 });
+            })
+        );
+
+        await expect(http(TEST_URL)).rejects.toThrow(/Retry failed on backend/i);
+        expect(attemptCount).toBe(2);
     });
 });

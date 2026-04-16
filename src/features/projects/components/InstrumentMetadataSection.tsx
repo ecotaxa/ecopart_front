@@ -54,6 +54,11 @@ export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps>
         fetchInstruments();
     }, []);
 
+    const modelExists = instrumentModels.some(
+        (model) => model.instrument_model_name === values.model
+    );
+    const safeModelValue = modelExists ? values.model : "";
+
     return (
         <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom>
@@ -69,7 +74,7 @@ export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps>
                         fullWidth
                         required
                         label="Instrument"
-                        value={values.model}
+                        value={safeModelValue}
                         onChange={(e) => onChange({ model: e.target.value })}
                         size="small"
                         error={Boolean(errors?.model)}

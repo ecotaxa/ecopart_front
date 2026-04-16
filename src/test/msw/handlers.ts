@@ -58,6 +58,32 @@ export const handlers = [
         return HttpResponse.json({ message: "Success" }, { status: 201 });
     }),
 
+    // --- MOCK ORGANISATIONS REFERENCE DATA ---
+    http.get('*/users/organisations*', () => {
+        return HttpResponse.json({
+            organisations: [
+                { organisation_id: 1, organisation_name: 'Sorbonne Universite' },
+                { organisation_id: 2, organisation_name: 'CNRS' },
+            ],
+        });
+    }),
+
+    // --- MOCK ACTIVE USERS SEARCH ---
+    // Used by privileges selectors in project forms and detail tabs.
+    http.post('*/users/searches*', () => {
+        return HttpResponse.json({
+            search_info: { total: 1, page: 1, limit: 100 },
+            users: [
+                {
+                    user_id: 1,
+                    first_name: 'John',
+                    last_name: 'Doe',
+                    email: 'john@doe.com',
+                },
+            ],
+        });
+    }),
+
     // --- MOCK RESET PASSWORD REQUEST ---
     http.post('*/auth/password/reset', async () => {
         // We simulate a slight delay for realism
@@ -121,6 +147,67 @@ export const handlers = [
                 ecotaxa_instance_url: 'https://ecotaxa.sst.nao.ac.uk'
             }
         ]);
+    }),
+
+    // --- MOCK INSTRUMENT MODELS ---
+    // Used by NewProject and related forms to populate the instrument select.
+    http.get('*/instrument_models*', () => {
+        return HttpResponse.json({
+            instrument_models: [
+                {
+                    instrument_model_id: 1,
+                    instrument_model_name: 'UVP5HD',
+                },
+                {
+                    instrument_model_id: 2,
+                    instrument_model_name: 'IFCB',
+                },
+            ],
+        });
+    }),
+
+    // --- MOCK SHIPS REFERENCE DATA ---
+    // Used by NewProject ship autocomplete.
+    http.get('*/projects/ships*', () => {
+        return HttpResponse.json({
+            ships: [
+                { ship_id: 1, ship_name: 'tara' },
+                { ship_id: 2, ship_name: 'thalassa' },
+            ],
+        });
+    }),
+
+    // --- MOCK IMPORT FOLDER METADATA ---
+    // Supports tests that expect metadata extraction from folder naming conventions.
+    http.get('*/file_system/import_folder_metadata*', ({ request }) => {
+        const url = new URL(request.url);
+        const folderPath = (url.searchParams.get('folder_path') || '').trim();
+        const folderName = folderPath.split(/[/\\]/).filter(Boolean).pop() || '';
+
+        // Expected pattern: <instrument>_<serial>_<acronym>
+        const parts = folderName.split('_');
+        if (parts.length < 3) {
+            return HttpResponse.json({ message: 'Invalid folder naming format' }, { status: 400 });
+        }
+
+        const rawInstrument = parts[0];
+        const serial = parts[1];
+        const acronym = parts.slice(2).join('_');
+
+        if (!rawInstrument || !serial || !acronym) {
+            return HttpResponse.json({ message: 'Invalid folder naming format' }, { status: 400 });
+        }
+
+        const normalizedInstrument = rawInstrument.toUpperCase() === 'UVP5' ? 'UVP5HD' : rawInstrument;
+
+        return HttpResponse.json({
+            project_acronym: acronym,
+            project_description: '',
+            cruise: '',
+            ship: '',
+            serial_number: serial,
+            instrument_model: normalizedInstrument,
+        });
     }),
 
     // --- MOCK GET LINKED ECOTAXA ACCOUNTS ---

@@ -110,4 +110,27 @@ describe('ProjectSecurityTab (Functional)', () => {
         expect(await screen.findByText('Security settings updated successfully!')).toBeInTheDocument();
     });
 
+    // TC-K4: Save Error Handling
+    it('TC-K4: should show an error and keep edits visible when save fails', async () => {
+        const user = userEvent.setup();
+
+        server.use(
+            http.patch('*/projects/101', () => {
+                return HttpResponse.json({ message: 'Security save failed' }, { status: 500 });
+            })
+        );
+
+        renderWithRouter(<ProjectSecurityTab projectId={101} />);
+
+        const delayInput = await screen.findByDisplayValue('6');
+        await user.clear(delayInput);
+        await user.type(delayInput, '19');
+
+        const saveButton = screen.getByRole('button', { name: /^SAVE$/i });
+        await user.click(saveButton);
+
+        expect(await screen.findByText(/Security save failed/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Delay until visible/i)).toHaveValue(19);
+    });
+
 });
