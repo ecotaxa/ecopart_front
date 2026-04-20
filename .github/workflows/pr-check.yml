@@ -46,8 +46,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm run test -- --run --reporter=verbose
+      - name: Run tests with coverage
+        run: npm run test -- --run --coverage --reporter=verbose
+
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
 
   build:
     name: Build

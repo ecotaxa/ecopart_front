@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertColor } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
@@ -249,6 +249,8 @@ export const useNewProjectForm = () => {
     const [errors, setErrors] = useState<NewProjectFormErrors>({});
 
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
+    const [availableUsersLoaded, setAvailableUsersLoaded] = useState(false);
+    const [pendingMetadataPrivilegeIds, setPendingMetadataPrivilegeIds] = useState<number[] | null>(null);
     const isRemoteProject = values.instrument.model.toLowerCase().includes("remote");
 
     // Current authenticated user used for privilege auto-fill
@@ -266,30 +268,19 @@ export const useNewProjectForm = () => {
         setSnackbar({ open: true, message, severity });
     };
 
-    const appendMetadataUsersToPrivileges = (metadata: {
-        data_owner?: { ecopart_user_id?: number | null };
-        operator?: { ecopart_user_id?: number | null };
-        chief_scientist?: { ecopart_user_id?: number | null };
-    }) => {
-        const metadataIds = [
-            metadata.data_owner?.ecopart_user_id,
-            metadata.operator?.ecopart_user_id,
-            metadata.chief_scientist?.ecopart_user_id,
-        ].filter((id): id is number => typeof id === "number" && id > 0);
-
-        if (metadataIds.length === 0) {
+    const appendMetadataUsersToPrivileges = useCallback((metadataUserIds: number[]) => {
+        if (metadataUserIds.length === 0) {
             return;
         }
 
-        const uniqueMetadataIds = Array.from(new Set(metadataIds.map((id) => id.toString())));
+        const uniqueMetadataIds = Array.from(new Set(metadataUserIds.map((id) => id.toString())));
         const existingEcoPartUserIds = new Set(availableUsers.map((user) => user.user_id.toString()));
 
-        // If we already have the active EcoPart users list, only keep IDs that truly exist.
-        // If the list is temporarily empty (still loading), keep metadata IDs to avoid losing members.
-        const candidates =
-            existingEcoPartUserIds.size > 0
-                ? uniqueMetadataIds.filter((id) => existingEcoPartUserIds.has(id))
-                : uniqueMetadataIds;
+        if (existingEcoPartUserIds.size === 0) {
+            return;
+        }
+
+        const candidates = uniqueMetadataIds.filter((id) => existingEcoPartUserIds.has(id));
 
         if (candidates.length === 0) {
             return;
@@ -314,6 +305,31 @@ export const useNewProjectForm = () => {
                 privileges: [...prev.privileges, ...rowsToAdd],
             };
         });
+    }, [availableUsers]);
+
+    const queueOrAppendMetadataUsersToPrivileges = (metadataUserIds: number[]) => {
+        if (metadataUserIds.length === 0) {
+            return;
+        }
+
+        if (!availableUsersLoaded) {
+            setPendingMetadataPrivilegeIds(metadataUserIds);
+            return;
+        }
+
+        appendMetadataUsersToPrivileges(metadataUserIds);
+    };
+
+    const extractMetadataUserIds = (metadata: {
+        data_owner?: { ecopart_user_id?: number | null };
+        operator?: { ecopart_user_id?: number | null };
+        chief_scientist?: { ecopart_user_id?: number | null };
+    }) => {
+        return [
+            metadata.data_owner?.ecopart_user_id,
+            metadata.operator?.ecopart_user_id,
+            metadata.chief_scientist?.ecopart_user_id,
+        ].filter((id): id is number => typeof id === "number" && id > 0);
     };
 
     // Function to close the notification (used by the UI)
@@ -334,11 +350,22 @@ export const useNewProjectForm = () => {
             } catch (error) {
                 console.error("Failed to fetch users", error);
                 showSnackbar("Failed to load users from the server.", "error");
+            } finally {
+                setAvailableUsersLoaded(true);
             }
         };
 
         loadUsers();
     }, []);
+
+    useEffect(() => {
+        if (!availableUsersLoaded || pendingMetadataPrivilegeIds === null) {
+            return;
+        }
+
+        appendMetadataUsersToPrivileges(pendingMetadataPrivilegeIds);
+        setPendingMetadataPrivilegeIds(null);
+    }, [availableUsersLoaded, pendingMetadataPrivilegeIds, appendMetadataUsersToPrivileges]);
 
     // --------------------------------------------------
     // 3. DYNAMIC FIELD UPDATER
@@ -468,7 +495,7 @@ export const useNewProjectForm = () => {
                 chiefScientistId: apiMetadata.chief_scientist?.ecopart_user_id || null,
             });
 
-            appendMetadataUsersToPrivileges(apiMetadata);
+            queueOrAppendMetadataUsersToPrivileges(extractMetadataUserIds(apiMetadata));
 
             showSnackbar("Metadata successfully loaded and applied!", "success");
 

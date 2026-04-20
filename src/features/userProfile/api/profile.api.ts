@@ -8,7 +8,7 @@ export interface EcoTaxaAccountLink {
     ecotaxa_account_ecotaxa_id: number;
     ecotaxa_user_name: string;
     ecotaxa_user_email?: string;
-    ecotaxa_user_login?: string
+    ecotaxa_user_login?: string;
     ecotaxa_expiration_date: string;
     ecotaxa_account_instance_id: number;
     ecotaxa_account_instance_name: string;

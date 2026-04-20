@@ -323,5 +323,57 @@ describe('NewProjectPage (Functional)', () => {
         expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
     }, 20000);
 
+    it('TC-H8: should wait for active users before appending metadata privileges', async () => {
+        const user = userEvent.setup({ delay: null });
+        let resolveUsers: (() => void) | null = null;
+
+        const usersLoaded = new Promise<void>((resolve) => {
+            resolveUsers = resolve;
+        });
+
+        server.use(
+            http.post('*/users/searches*', async () => {
+                await usersLoaded;
+                return HttpResponse.json({
+                    users: [
+                        { user_id: 1, first_name: 'John', last_name: 'Doe', email: 'john@doe.com' },
+                        { user_id: 2, first_name: 'Jane', last_name: 'Smith', email: 'jane@smith.com' },
+                        { user_id: 3, first_name: 'Alex', last_name: 'Ray', email: 'alex@ray.com' },
+                    ]
+                });
+            }),
+            http.get('*/file_system/import_folder_metadata*', () => {
+                return HttpResponse.json({
+                    project_acronym: 'TST',
+                    project_description: 'description',
+                    cruise: 'test_cruise',
+                    ship: 'tara',
+                    serial_number: 'sn001',
+                    instrument_model: 'UVP5HD',
+                    data_owner: { name: 'Jane Smith', email: 'jane@smith.com', ecopart_user_id: 2 },
+                    operator: { name: 'Alex Ray', email: 'alex@ray.com', ecopart_user_id: 3 },
+                    chief_scientist: { name: 'Ghost User', email: 'ghost@none.com', ecopart_user_id: 999 },
+                });
+            })
+        );
+
+        renderWithRouter(<NewProjectPage />);
+        await screen.findByRole('heading', { name: /^New project$/i });
+
+        await user.type(screen.getByLabelText(/Root folder path/i), '/data/UVP5_sn001_TST');
+        await user.click(screen.getByRole('button', { name: /Load metadata/i }));
+
+        const privilegesSection = screen.getByText('Privileges').closest('.MuiBox-root')!;
+
+        expect(within(privilegesSection as HTMLElement).queryByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).not.toBeInTheDocument();
+        expect(within(privilegesSection as HTMLElement).queryByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).not.toBeInTheDocument();
+
+        resolveUsers?.();
+
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).toBeInTheDocument();
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).toBeInTheDocument();
+        expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
+    }, 20000);
+
 
 });

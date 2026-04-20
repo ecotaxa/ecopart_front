@@ -113,6 +113,22 @@ describe('ProjectDetailsPage (Functional)', () => {
         expect(await screen.findByText(/Stats Tab \(Coming Soon\)/i)).toBeInTheDocument();
     });
 
+    // TC-I6: Initial Render From Navigation State
+    it('TC-I6: should open the Import tab when activeTab is provided in navigation state', async () => {
+        mockProjectFetch(101);
+
+        renderWithRouter(
+            <Routes>
+                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+            </Routes>,
+            { route: '/projects/101', state: { activeTab: 3 } }
+        );
+
+        expect(await screen.findByText('Project Details [101]')).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByText(/Import Tab \(Coming Soon\)/i)).toBeInTheDocument();
+    });
+
     // TC-I4: Explore Navigation
     it('TC-I4: should navigate to explore page with the correct project ID', async () => {
         const user = userEvent.setup();
