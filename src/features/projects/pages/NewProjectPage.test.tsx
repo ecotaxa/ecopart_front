@@ -325,10 +325,10 @@ describe('NewProjectPage (Functional)', () => {
 
     it('TC-H8: should wait for active users before appending metadata privileges', async () => {
         const user = userEvent.setup({ delay: null });
-        let resolveUsers: (() => void) | null = null;
+        let releaseUsers!: () => void;
 
         const usersLoaded = new Promise<void>((resolve) => {
-            resolveUsers = resolve;
+            releaseUsers = () => resolve();
         });
 
         server.use(
@@ -368,7 +368,7 @@ describe('NewProjectPage (Functional)', () => {
         expect(within(privilegesSection as HTMLElement).queryByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).not.toBeInTheDocument();
         expect(within(privilegesSection as HTMLElement).queryByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).not.toBeInTheDocument();
 
-        resolveUsers?.();
+        releaseUsers();
 
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).toBeInTheDocument();
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).toBeInTheDocument();

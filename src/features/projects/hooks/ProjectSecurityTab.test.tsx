@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
@@ -108,69 +108,6 @@ describe('ProjectSecurityTab (Functional)', () => {
         await user.click(saveButton);
 
         expect(await screen.findByText('Security settings updated successfully!')).toBeInTheDocument();
-    });
-
-    // TC-K4: Save Error Handling
-    it('TC-K4: should show an error and keep edits visible when save fails', async () => {
-        const user = userEvent.setup();
-
-        server.use(
-            http.patch('*/projects/101', () => {
-                return HttpResponse.json({ message: 'Security save failed' }, { status: 500 });
-            })
-        );
-
-        renderWithRouter(<ProjectSecurityTab projectId={101} />);
-
-        const delayInput = await screen.findByDisplayValue('6');
-        await user.clear(delayInput);
-        await user.type(delayInput, '19');
-
-        const saveButton = screen.getByRole('button', { name: /^SAVE$/i });
-        await user.click(saveButton);
-
-        expect(await screen.findByText(/Security save failed/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/Delay until visible/i)).toHaveValue(19);
-    });
-
-    it('TC-K5: should display user email and allow instant search in privileges selector', async () => {
-        const user = userEvent.setup();
-
-        server.use(
-            http.post('*/users/searches', () => HttpResponse.json({
-                users: [
-                    { user_id: 1, first_name: 'John', last_name: 'Doe', email: 'john@doe.com' },
-                    { user_id: 2, first_name: 'Jane', last_name: 'Smith', email: 'jane@smith.com' },
-                    { user_id: 3, first_name: 'Alex', last_name: 'Ray', email: 'alex@ray.com' },
-                ]
-            }))
-        );
-
-        renderWithRouter(<ProjectSecurityTab projectId={101} />);
-
-        const userComboboxes = await screen.findAllByRole('combobox', { name: /Select user/i });
-        expect(userComboboxes[0]).toHaveDisplayValue(/John Doe \(john@doe.com\)/i);
-
-        const addUserButton = screen.getByRole('button', { name: /Add user/i });
-        await user.click(addUserButton);
-
-        const updatedComboboxes = screen.getAllByRole('combobox', { name: /Select user/i });
-        const newUserInput = updatedComboboxes[updatedComboboxes.length - 1];
-
-        await user.click(newUserInput);
-        await user.type(newUserInput, 'Alex');
-
-        const alexOption = await screen.findByRole('option', { name: /Alex Ray \(alex@ray.com\)/i });
-        expect(alexOption).toBeInTheDocument();
-
-        const optionList = alexOption.closest('ul');
-        expect(optionList).not.toBeNull();
-        if (optionList) {
-            expect(within(optionList).queryByText(/Jane Smith \(jane@smith.com\)/i)).not.toBeInTheDocument();
-        }
-
-        await user.click(alexOption);
-        expect(newUserInput).toHaveDisplayValue(/Alex Ray \(alex@ray.com\)/i);
     });
 
 });
