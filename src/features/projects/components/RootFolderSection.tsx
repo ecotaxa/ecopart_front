@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { 
-    Box, Button, Divider, InputAdornment, TextField, IconButton, Stack 
+import {
+    Box, Button, Divider, InputAdornment, TextField, IconButton, Stack
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
@@ -47,10 +47,11 @@ export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
                     InputProps={{
                         endAdornment: (
                             <InputAdornment position="end">
-                                <IconButton 
-                                    onClick={() => setModalOpen(true)} 
-                                    edge="end" 
+                                <IconButton
+                                    onClick={() => setModalOpen(true)}
+                                    edge="end"
                                     title="Browse Server Folders"
+                                    aria-label="Browse server folders"
                                 >
                                     <FolderOpenIcon color="primary" />
                                 </IconButton>
@@ -60,10 +61,10 @@ export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
                     size="small"
                 />
 
-                <Button 
-                    variant="outlined" 
+                <Button
+                    variant="outlined"
                     onClick={onLoadMetadata}
-                    sx={{ whiteSpace: 'nowrap', height: '40px' }} 
+                    sx={{ whiteSpace: 'nowrap', height: '40px' }}
                 >
                     Load metadata
                 </Button>
