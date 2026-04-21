@@ -166,12 +166,15 @@ describe('ProjectsPage (Functional)', () => {
     it('TC-G6: should request next page and render new rows when pagination changes', async () => {
         const user = userEvent.setup();
         const requestedPages: string[] = [];
+        const requestedSortValues: string[] = [];
 
         server.use(
             http.post('*/projects/searches*', ({ request }) => {
                 const url = new URL(request.url);
                 const page = url.searchParams.get('page') ?? '1';
+                const sortBy = url.searchParams.get('sort_by') ?? '';
                 requestedPages.push(page);
+                requestedSortValues.push(sortBy);
 
                 if (page === '2') {
                     return HttpResponse.json({
@@ -201,6 +204,7 @@ describe('ProjectsPage (Functional)', () => {
         expect(await screen.findByText('Page Two Project')).toBeInTheDocument();
         expect(requestedPages).toContain('1');
         expect(requestedPages).toContain('2');
+        expect(requestedSortValues.every((value) => value === 'desc(project_id)')).toBe(true);
     }, 15000);
 
 });

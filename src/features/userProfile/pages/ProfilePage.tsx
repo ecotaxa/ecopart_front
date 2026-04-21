@@ -194,6 +194,10 @@ export default function ProfilePage() {
         return diffDays > 0 ? diffDays : 0;
     };
 
+    const getEcoTaxaAccountLabel = (account: EcoTaxaAccountLink) => {
+        return account.ecotaxa_user_email || account.ecotaxa_user_login || account.ecotaxa_user_name;
+    };
+
     // --- HANDLERS ---
 
     // ... (Keep handleProfileSave, handleProfileCancel, handleChangePassword, handleDeleteClick, handleConfirmDelete AS IS) ...
@@ -236,7 +240,7 @@ export default function ProfilePage() {
 
     const handleDeleteClick = () => { setOpenDeleteDialog(true); };
 
-    const handleConfirmDelete = async () => { 
+    const handleConfirmDelete = async () => {
         if (!user) return;
         setDeleteError(null);
         try {
@@ -519,7 +523,10 @@ export default function ProfilePage() {
                                             <CheckCircleOutlineIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
                                             <Box>
                                                 <Typography variant="subtitle1" fontWeight="bold">
-                                                    {account.ecotaxa_user_login || account.ecotaxa_user_name} ({account.ecotaxa_account_instance_name})
+                                                    {getEcoTaxaAccountLabel(account)}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Instance: {account.ecotaxa_account_instance_name}
                                                 </Typography>
                                                 <Typography variant="body2" color="text.secondary">
                                                     {getDaysLeft(account.ecotaxa_expiration_date)} days left

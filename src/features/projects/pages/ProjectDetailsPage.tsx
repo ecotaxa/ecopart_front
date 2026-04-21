@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import {
     Box,
     Container,
@@ -27,6 +27,15 @@ import BackupIcon from "@mui/icons-material/Backup";
 export default function ProjectDetailsPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    const clampTabIndex = (value: unknown, fallback: number) => {
+        if (typeof value !== "number" || !Number.isInteger(value)) {
+            return fallback;
+        }
+
+        return Math.min(Math.max(value, 0), 7);
+    };
 
     // Parse the route param once.
     // If parsing fails, we keep null so TypeScript and runtime are both explicit.
@@ -34,8 +43,9 @@ export default function ProjectDetailsPage() {
     const projectId = parsedProjectId !== null && !Number.isNaN(parsedProjectId) ? parsedProjectId : null;
 
     // State to manage the active tab (0 = Stats, 1 = Metadata, etc.)
-    // Based on mockup, Metadata is selected by default, so we set it to 1
-    const [currentTab, setCurrentTab] = useState(1);
+    // Default to Metadata, but allow navigation state to open a specific tab.
+    const initialTab = clampTabIndex(location.state?.activeTab, 1);
+    const [currentTab, setCurrentTab] = useState(initialTab);
 
     if (projectId === null) {
         return (
@@ -52,6 +62,14 @@ export default function ProjectDetailsPage() {
     const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
         setCurrentTab(newValue);
     };
+
+    const renderComingSoonTab = (label: string) => (
+        <Box sx={{ p: 4, textAlign: "center" }}>
+            <Typography variant="h6" color="text.secondary">
+                {label} Tab (Coming Soon)
+            </Typography>
+        </Box>
+    );
 
     return (
         <MainLayout>
@@ -113,24 +131,16 @@ export default function ProjectDetailsPage() {
                 {/* We removed the <Paper> wrapper here because ProjectMetadataTab handles its own <Paper> and constraints */}
                 <Box sx={{ minHeight: 400, borderRadius: 2 }}>
 
-                    {currentTab === 0 && (
-                        <Box sx={{ p: 4, textAlign: "center" }}>
-                            <Typography variant="h6" color="text.secondary">
-                                Stats Tab (Coming Soon)
-                            </Typography>
-                        </Box>
-                    )}
+                    {currentTab === 0 && renderComingSoonTab("Stats")}
 
                     {currentTab === 1 && <ProjectMetadataTab projectId={projectId} />}
 
-                    {currentTab === 2 && (
-                        <Box sx={{ p: 4, textAlign: "center" }}>
-                            <Typography variant="h6" color="text.secondary">
-                                Data Tab (Coming Soon)
-                            </Typography>
-                        </Box>
-                    )}
+                    {currentTab === 2 && renderComingSoonTab("Data")}
+                    {currentTab === 3 && renderComingSoonTab("Import")}
+                    {currentTab === 4 && renderComingSoonTab("Update")}
                     {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
+                    {currentTab === 6 && renderComingSoonTab("Tasks")}
+                    {currentTab === 7 && renderComingSoonTab("Backup")}
                 </Box>
             </Container>
         </MainLayout>

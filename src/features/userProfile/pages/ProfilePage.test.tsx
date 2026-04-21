@@ -303,6 +303,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         // 3. Assert: Check if the list UI is rendered
         expect(await screen.findByText(/Accounts on EcoTaxa instances/i)).toBeInTheDocument();
         expect(await screen.findByText(/mock_ecotaxa_user/i)).toBeInTheDocument();
+        expect(screen.getByText(/Instance: FR/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Connect to another account/i })).toBeInTheDocument();
     });
 

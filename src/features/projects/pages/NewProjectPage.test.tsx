@@ -5,6 +5,7 @@ import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
 import NewProjectPage from './NewProjectPage';
+import ProjectDetailsPage from './ProjectDetailsPage';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
@@ -87,7 +88,7 @@ describe('NewProjectPage (Functional)', () => {
         // The user list comes from an async API call (GET /users).
         // Therefore, we must use 'await findByText' instead of 'getByText'.
         // Also, MUI Selects display their current value text directly in the DOM.
-        expect(await within(privilegesSection as HTMLElement).findByText(/John Doe/i)).toBeInTheDocument();
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/John Doe/i)).toBeInTheDocument();
 
         // Check that the Manager toggle is pressed
         const managerToggle = within(privilegesSection as HTMLElement).getByRole('button', { name: /Manager/i });
@@ -111,20 +112,48 @@ describe('NewProjectPage (Functional)', () => {
 
     // TC-H3: Successful Project Creation
     // Increased timeout to 35 seconds (35000) for this heavy form-filling test
-    it('TC-H3: should submit successfully and redirect to projects list', async () => {
+    it('TC-H3: should submit successfully and redirect to the project import tab', async () => {
         // Disable delay in userEvent to type faster during tests
         const user = userEvent.setup({ delay: null });
 
+        const createdProjectId = 999;
+
         server.use(
             http.post('*/projects', () => {
-                return HttpResponse.json({ project_id: 999 }, { status: 201 });
+                return HttpResponse.json({ project_id: createdProjectId }, { status: 201 });
+            }),
+            http.post('*/projects/searches', async ({ request }) => {
+                const body = await request.json();
+                const filters = Array.isArray(body) ? body : [];
+                const projectIdFilter = filters.find((filter: { field?: string; value?: unknown }) => filter.field === 'project_id');
+
+                if (projectIdFilter?.value === createdProjectId) {
+                    return HttpResponse.json({
+                        search_info: { total: 1, page: 1, limit: 1 },
+                        projects: [{
+                            project_id: createdProjectId,
+                            project_title: 'Test Project Title',
+                            project_acronym: 'TPT',
+                            instrument_model: 'UVP5HD',
+                            root_folder_path: '/data/my_new_project',
+                            privacy_duration: 2,
+                            visible_duration: 24,
+                            public_duration: 36,
+                            managers: [],
+                            members: [],
+                            contact: null
+                        }]
+                    });
+                }
+
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 1 }, projects: [] });
             })
         );
 
         renderWithRouter(
             <Routes>
                 <Route path="/new-project" element={<NewProjectPage />} />
-                <Route path="/projects" element={<h1>Projects List Mock</h1>} />
+                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/new-project' }
         );
@@ -143,8 +172,10 @@ describe('NewProjectPage (Functional)', () => {
 
         // Verify Redirection
         await waitFor(() => {
-            expect(screen.getByText('Projects List Mock')).toBeInTheDocument();
+            expect(screen.getByText('Project Details [999]')).toBeInTheDocument();
         }, { timeout: 2000 });
+
+        expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
     }, 55000);
 
     // TC-H4: Error Handling (API Failure)
@@ -181,8 +212,8 @@ describe('NewProjectPage (Functional)', () => {
             http.post('*/users/searches*', () => {
                 return HttpResponse.json({
                     users: [
-                        { user_id: 1, first_name: 'John', last_name: 'Doe' },
-                        { user_id: 2, first_name: 'Jane', last_name: 'Smith' } // Second user needed for the dropdown
+                        { user_id: 1, first_name: 'John', last_name: 'Doe', email: 'john@doe.com' },
+                        { user_id: 2, first_name: 'Jane', last_name: 'Smith', email: 'jane@smith.com' } // Second user needed for the dropdown
                     ]
                 });
             }),
@@ -201,24 +232,26 @@ describe('NewProjectPage (Functional)', () => {
         const privilegesSection = screen.getByText('Privileges').closest('.MuiBox-root')!;
 
         // Wait for the first auto-filled user to be present
-        expect(await within(privilegesSection as HTMLElement).findByText(/John Doe/i)).toBeInTheDocument();
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/John Doe/i)).toBeInTheDocument();
 
         // Click "Add user"
         const addUserButton = within(privilegesSection as HTMLElement).getByRole('button', { name: /Add user/i });
         await user.click(addUserButton);
 
-        // Now there should be TWO user dropdowns (one filled, one empty saying 'Select user')
-        // In MUI, an empty Select often has an invisible input or a specific role. 
-        // We look for the label 'Select user'
-        const newUserSelect = within(privilegesSection as HTMLElement).getByLabelText('Select user');
+        // Select the second row's autocomplete and search instantly by typing.
+        const userComboboxes = within(privilegesSection as HTMLElement).getAllByRole('combobox', { name: /Select user/i });
+        const newUserSelect = userComboboxes[1];
         await user.click(newUserSelect);
+        await user.type(newUserSelect, 'Jane');
+
         // Select 'Jane Smith'
         const janeOption = await screen.findByRole('option', { name: /Jane Smith/i });
         await user.click(janeOption);
 
         // Verify Jane is selected in the combobox
-        expect(await within(privilegesSection as HTMLElement).findByText(/Jane Smith/i)).toBeInTheDocument();
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith/i)).toBeInTheDocument();
     }, 20000);
+
 
     // TC-H6: Load Metadata Failure Resilience
     it('TC-H6: should preserve entered values and show error when metadata loading fails', async () => {
@@ -248,5 +281,99 @@ describe('NewProjectPage (Functional)', () => {
         expect(screen.getByLabelText(/Root folder path/i)).toHaveValue('/invalid/folder/path');
     }, 15000);
 
-    
+    it('TC-H7: should append existing metadata people to privileges as members on Load metadata', async () => {
+        const user = userEvent.setup({ delay: null });
+
+        server.use(
+            http.post('*/users/searches*', () => {
+                return HttpResponse.json({
+                    users: [
+                        { user_id: 1, first_name: 'John', last_name: 'Doe', email: 'john@doe.com' },
+                        { user_id: 2, first_name: 'Jane', last_name: 'Smith', email: 'jane@smith.com' },
+                        { user_id: 3, first_name: 'Alex', last_name: 'Ray', email: 'alex@ray.com' },
+                    ]
+                });
+            }),
+            http.get('*/file_system/import_folder_metadata*', () => {
+                return HttpResponse.json({
+                    project_acronym: 'TST',
+                    project_description: 'description',
+                    cruise: 'test_cruise',
+                    ship: 'tara',
+                    serial_number: 'sn001',
+                    instrument_model: 'UVP5HD',
+                    data_owner: { name: 'Jane Smith', email: 'jane@smith.com', ecopart_user_id: 2 },
+                    operator: { name: 'Alex Ray', email: 'alex@ray.com', ecopart_user_id: 3 },
+                    chief_scientist: { name: 'Ghost User', email: 'ghost@none.com', ecopart_user_id: 999 },
+                });
+            })
+        );
+
+        renderWithRouter(<NewProjectPage />);
+        await screen.findByRole('heading', { name: /^New project$/i });
+
+        await user.type(screen.getByLabelText(/Root folder path/i), '/data/UVP5_sn001_TST');
+        await user.click(screen.getByRole('button', { name: /Load metadata/i }));
+
+        const privilegesSection = screen.getByText('Privileges').closest('.MuiBox-root')!;
+
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/John Doe \(john@doe.com\)/i)).toBeInTheDocument();
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).toBeInTheDocument();
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).toBeInTheDocument();
+        expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
+    }, 20000);
+
+    it('TC-H8: should wait for active users before appending metadata privileges', async () => {
+        const user = userEvent.setup({ delay: null });
+        let releaseUsers!: () => void;
+
+        const usersLoaded = new Promise<void>((resolve) => {
+            releaseUsers = () => resolve();
+        });
+
+        server.use(
+            http.post('*/users/searches*', async () => {
+                await usersLoaded;
+                return HttpResponse.json({
+                    users: [
+                        { user_id: 1, first_name: 'John', last_name: 'Doe', email: 'john@doe.com' },
+                        { user_id: 2, first_name: 'Jane', last_name: 'Smith', email: 'jane@smith.com' },
+                        { user_id: 3, first_name: 'Alex', last_name: 'Ray', email: 'alex@ray.com' },
+                    ]
+                });
+            }),
+            http.get('*/file_system/import_folder_metadata*', () => {
+                return HttpResponse.json({
+                    project_acronym: 'TST',
+                    project_description: 'description',
+                    cruise: 'test_cruise',
+                    ship: 'tara',
+                    serial_number: 'sn001',
+                    instrument_model: 'UVP5HD',
+                    data_owner: { name: 'Jane Smith', email: 'jane@smith.com', ecopart_user_id: 2 },
+                    operator: { name: 'Alex Ray', email: 'alex@ray.com', ecopart_user_id: 3 },
+                    chief_scientist: { name: 'Ghost User', email: 'ghost@none.com', ecopart_user_id: 999 },
+                });
+            })
+        );
+
+        renderWithRouter(<NewProjectPage />);
+        await screen.findByRole('heading', { name: /^New project$/i });
+
+        await user.type(screen.getByLabelText(/Root folder path/i), '/data/UVP5_sn001_TST');
+        await user.click(screen.getByRole('button', { name: /Load metadata/i }));
+
+        const privilegesSection = screen.getByText('Privileges').closest('.MuiBox-root')!;
+
+        expect(within(privilegesSection as HTMLElement).queryByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).not.toBeInTheDocument();
+        expect(within(privilegesSection as HTMLElement).queryByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).not.toBeInTheDocument();
+
+        releaseUsers();
+
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).toBeInTheDocument();
+        expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).toBeInTheDocument();
+        expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
+    }, 20000);
+
+
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertColor } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
@@ -249,6 +249,8 @@ export const useNewProjectForm = () => {
     const [errors, setErrors] = useState<NewProjectFormErrors>({});
 
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
+    const [availableUsersLoaded, setAvailableUsersLoaded] = useState(false);
+    const [pendingMetadataPrivilegeIds, setPendingMetadataPrivilegeIds] = useState<number[] | null>(null);
     const isRemoteProject = values.instrument.model.toLowerCase().includes("remote");
 
     // Current authenticated user used for privilege auto-fill
@@ -264,6 +266,70 @@ export const useNewProjectForm = () => {
     // Helper function to easily trigger a notification
     const showSnackbar = (message: string, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });
+    };
+
+    const appendMetadataUsersToPrivileges = useCallback((metadataUserIds: number[]) => {
+        if (metadataUserIds.length === 0) {
+            return;
+        }
+
+        const uniqueMetadataIds = Array.from(new Set(metadataUserIds.map((id) => id.toString())));
+        const existingEcoPartUserIds = new Set(availableUsers.map((user) => user.user_id.toString()));
+
+        if (existingEcoPartUserIds.size === 0) {
+            return;
+        }
+
+        const candidates = uniqueMetadataIds.filter((id) => existingEcoPartUserIds.has(id));
+
+        if (candidates.length === 0) {
+            return;
+        }
+
+        setValues((prev) => {
+            const existingPrivilegeIds = new Set(prev.privileges.map((row) => row.userId));
+            const rowsToAdd = candidates
+                .filter((id) => !existingPrivilegeIds.has(id))
+                .map((id) => ({
+                    userId: id,
+                    role: "Member" as const,
+                    contact: false,
+                }));
+
+            if (rowsToAdd.length === 0) {
+                return prev;
+            }
+
+            return {
+                ...prev,
+                privileges: [...prev.privileges, ...rowsToAdd],
+            };
+        });
+    }, [availableUsers]);
+
+    const queueOrAppendMetadataUsersToPrivileges = (metadataUserIds: number[]) => {
+        if (metadataUserIds.length === 0) {
+            return;
+        }
+
+        if (!availableUsersLoaded) {
+            setPendingMetadataPrivilegeIds(metadataUserIds);
+            return;
+        }
+
+        appendMetadataUsersToPrivileges(metadataUserIds);
+    };
+
+    const extractMetadataUserIds = (metadata: {
+        data_owner?: { ecopart_user_id?: number | null };
+        operator?: { ecopart_user_id?: number | null };
+        chief_scientist?: { ecopart_user_id?: number | null };
+    }) => {
+        return [
+            metadata.data_owner?.ecopart_user_id,
+            metadata.operator?.ecopart_user_id,
+            metadata.chief_scientist?.ecopart_user_id,
+        ].filter((id): id is number => typeof id === "number" && id > 0);
     };
 
     // Function to close the notification (used by the UI)
@@ -284,11 +350,22 @@ export const useNewProjectForm = () => {
             } catch (error) {
                 console.error("Failed to fetch users", error);
                 showSnackbar("Failed to load users from the server.", "error");
+            } finally {
+                setAvailableUsersLoaded(true);
             }
         };
 
         loadUsers();
     }, []);
+
+    useEffect(() => {
+        if (!availableUsersLoaded || pendingMetadataPrivilegeIds === null) {
+            return;
+        }
+
+        appendMetadataUsersToPrivileges(pendingMetadataPrivilegeIds);
+        setPendingMetadataPrivilegeIds(null);
+    }, [availableUsersLoaded, pendingMetadataPrivilegeIds, appendMetadataUsersToPrivileges]);
 
     // --------------------------------------------------
     // 3. DYNAMIC FIELD UPDATER
@@ -380,7 +457,7 @@ export const useNewProjectForm = () => {
         try {
             // FIX: We pass the raw string to the backend.
             const rawPath = values.rootFolderPath.trim();
-            
+
             const apiMetadata = await getImportFolderMetadata(rawPath);
 
             // --- AUTO-FILL LOGIC ---
@@ -401,7 +478,7 @@ export const useNewProjectForm = () => {
                 acronym: apiMetadata.project_acronym || "",
                 cruise: apiMetadata.cruise || "",
                 description: apiMetadata.project_description || "",
-                ship: apiMetadata.ship ? [apiMetadata.ship] : [], 
+                ship: apiMetadata.ship ? [apiMetadata.ship] : [],
             });
 
             updateField("people", {
@@ -417,6 +494,8 @@ export const useNewProjectForm = () => {
                 chiefScientistEmail: apiMetadata.chief_scientist?.email || "",
                 chiefScientistId: apiMetadata.chief_scientist?.ecopart_user_id || null,
             });
+
+            queueOrAppendMetadataUsersToPrivileges(extractMetadataUserIds(apiMetadata));
 
             showSnackbar("Metadata successfully loaded and applied!", "success");
 
@@ -596,12 +675,12 @@ export const useNewProjectForm = () => {
             // DEBUG: Log exactly what we are sending
             console.log("[NewProject] Payload being sent:", JSON.stringify(payload, null, 2));
 
-            await createProject(payload as PublicProjectRequestCreationModel);
+            const createdProject = await createProject(payload as PublicProjectRequestCreationModel);
 
             showSnackbar("Project successfully created! Redirecting...", "success");
 
             setTimeout(() => {
-                navigate("/projects");
+                navigate(`/projects/${createdProject.project_id}`, { state: { activeTab: 3 } });
             }, 1500);
         } catch (error: unknown) {
             console.error("API Error during project creation:", error);

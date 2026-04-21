@@ -73,6 +73,7 @@ export interface ProjectSearchFilters {
     page: number;
     limit: number;
     filters: SearchFilter[];
+    sort_by?: string;
 }
 
 /**
@@ -156,6 +157,10 @@ export async function searchProjects(
         page: String(params.page),
         limit: String(params.limit),
     });
+
+    if (params.sort_by) {
+        query.set("sort_by", params.sort_by);
+    }
 
     // In Express, req.query corresponds to URL parameters (?page=1&limit=10)
     // And req.body corresponds to the JSON array of filters.
