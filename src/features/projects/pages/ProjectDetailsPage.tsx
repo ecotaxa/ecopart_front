@@ -14,6 +14,8 @@ import MainLayout from "@/app/layouts/MainLayout";
 import { ProjectMetadataTab } from "../components/ProjectMetadataTab";
 import { ProjectSecurityTab } from "../components/ProjectSecurityTab";
 
+import { ProjectBackupTab } from "../components/ProjectBackupTab";
+
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
 import TextSnippetIcon from "@mui/icons-material/TextSnippet";
@@ -140,7 +142,7 @@ export default function ProjectDetailsPage() {
                     {currentTab === 4 && renderComingSoonTab("Update")}
                     {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
                     {currentTab === 6 && renderComingSoonTab("Tasks")}
-                    {currentTab === 7 && renderComingSoonTab("Backup")}
+                    {currentTab === 7 && <ProjectBackupTab projectId={projectId} />}
                 </Box>
             </Container>
         </MainLayout>
