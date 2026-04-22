@@ -341,3 +341,45 @@ export async function getImportFolderMetadata(folderPath: string): Promise<Impor
         method: "GET",
     });
 }
+// ============================================================================
+// BACKUP & EXPORT API CALLS
+// ============================================================================
+
+export interface ExportBackupPayload {
+    ftp_export: boolean;
+}
+
+export interface RunBackupPayload {
+    // We strictly follow the Swagger: only skip_already_imported is allowed here
+    skip_already_imported: boolean;
+}
+
+/**
+ * Triggers an export of the backuped raw project.
+ * Endpoint: POST /projects/:project_id/backup/export
+ * MENTOR NOTE: The route has been corrected to match the Express backend router EXACTLY.
+ */
+export async function exportProjectBackup(
+    projectId: number,
+    payload: ExportBackupPayload
+): Promise<{ message: string }> {
+    // FIX: Changed from `/projects/${projectId}/export` to `/projects/${projectId}/backup/export`
+    return http<{ message: string }>(`/projects/${projectId}/backup/export`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+}
+
+/**
+ * Triggers a backup of the raw project from a remote folder.
+ * Endpoint: POST /projects/:project_id/backup
+ */
+export async function runProjectBackup(
+    projectId: number,
+    payload: RunBackupPayload
+): Promise<{ message: string }> {
+    return http<{ message: string }>(`/projects/${projectId}/backup`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+}
