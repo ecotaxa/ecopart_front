@@ -143,8 +143,7 @@ export default function ProjectDetailsPage() {
                     {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
                     {currentTab === 6 && renderComingSoonTab("Tasks")}
                     {currentTab === 7 && <ProjectBackupTab projectId={projectId} />}
-                    {currentTab === 6 && renderComingSoonTab("Tasks")}
-                    {currentTab === 7 && renderComingSoonTab("Backup")}
+
                 </Box>
             </Container>
         </MainLayout>

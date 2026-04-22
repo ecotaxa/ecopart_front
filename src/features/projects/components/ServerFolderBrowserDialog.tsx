@@ -153,9 +153,9 @@ export const ServerFolderBrowserDialog: React.FC<ServerFolderBrowserDialogProps>
         <Dialog
             open={open}
             onClose={onClose}
-            aria-labelledby="server-folder-browser-dialog-title"
+            aria-labelledby="server-folder-dialog-title"
         >
-            <DialogTitle id="server-folder-browser-dialog-title">
+            <DialogTitle id="server-folder-dialog-title">
                 Select Server Import Folder
             </DialogTitle>
 
