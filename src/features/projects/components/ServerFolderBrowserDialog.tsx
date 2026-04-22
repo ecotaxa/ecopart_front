@@ -150,14 +150,16 @@ export const ServerFolderBrowserDialog: React.FC<ServerFolderBrowserDialogProps>
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth scroll="paper" PaperProps={{ sx: { minHeight: '60vh' } }}>
-            <DialogTitle sx={{ pb: 1 }}>Select Server Folder</DialogTitle>
-            <Box sx={{ px: 3, pb: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                    Selection: <strong>{selectedPath || "None"}</strong>
-                </Typography>
-            </Box>
-            <DialogContent dividers>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            aria-labelledby="server-folder-browser-dialog-title"
+        >
+            <DialogTitle id="server-folder-browser-dialog-title">
+                Select Server Import Folder
+            </DialogTitle>
+
+            <DialogContent>
                 {apiError && <Alert severity="error" sx={{ mb: 2 }}>{apiError}</Alert>}
                 {loadingRoots ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
