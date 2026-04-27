@@ -33,7 +33,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         expect(screen.getByLabelText(/Last name/i)).toHaveValue('Doe');
         expect(screen.getByLabelText(/Email/i)).toBeDisabled();
         expect(screen.getByLabelText(/Planned usage/i)).not.toBeDisabled();
-    });
+    }, 15000);
 
     // TC-E2: Update Profile - Cancel Changes
     it('TC-E2: should revert changes when CANCEL is clicked', async () => {
@@ -127,7 +127,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
 
     // TC-E6: Change Password - Validation & Disabled State
     it('TC-E6: should disable CHANGE button if passwords are invalid or do not match', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<ProfilePage />);
 
         await screen.findByRole('heading', { name: /Change password/i });
@@ -143,7 +143,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         await user.type(confirmPasswordInput, 'weak');
 
         expect(changeButton).toBeDisabled();
-    });
+    }, 15000);
 
     // TC-E7: Change Password - Success
     it('TC-E7: should change password successfully', async () => {

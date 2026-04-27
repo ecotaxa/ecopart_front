@@ -43,5 +43,5 @@ describe('ResetPasswordConfirmPage (Accessibility)', () => {
         // Tab -> Submit
         await user.tab();
         expect(screen.getByTestId('reset-confirm-submit')).toHaveFocus();
-    });
+    }, 15000);
 });

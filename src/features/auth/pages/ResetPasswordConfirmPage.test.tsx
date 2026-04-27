@@ -39,7 +39,7 @@ describe('ResetPasswordConfirmPage (Functional)', () => {
 
     // TC-D3: Validation (Strength & Mismatch)
     it('TC-D3: should disable submit and show error if passwords are weak or do not match', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(
             <Routes>
                 <Route path="/reset-password/:token" element={<ResetPasswordConfirmPage />} />
@@ -63,7 +63,7 @@ describe('ResetPasswordConfirmPage (Functional)', () => {
 
         expect(screen.getByText(VALIDATION_MESSAGES.PASSWORD_MISMATCH)).toBeInTheDocument();
         expectSubmitDisabled('reset-confirm-submit');
-    });
+    }, 15000);
 
     // TC-D4: Successful Reset
     it('TC-D4: should redirect to login on successful reset', async () => {

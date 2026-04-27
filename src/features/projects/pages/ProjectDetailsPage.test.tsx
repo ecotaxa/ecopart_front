@@ -126,7 +126,7 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         expect(await screen.findByText('Project Details [101]')).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
-        expect(screen.getByText(/Import Tab \(Coming Soon\)/i)).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /^Import$/i })).toBeInTheDocument();
     });
 
     // TC-I4: Explore Navigation

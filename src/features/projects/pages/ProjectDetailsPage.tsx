@@ -15,6 +15,7 @@ import { ProjectMetadataTab } from "../components/ProjectMetadataTab";
 import { ProjectSecurityTab } from "../components/ProjectSecurityTab";
 
 import { ProjectBackupTab } from "../components/ProjectBackupTab";
+import { ProjectImportTab } from "../components/ProjectImportTab";
 
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -138,7 +139,7 @@ export default function ProjectDetailsPage() {
                     {currentTab === 1 && <ProjectMetadataTab projectId={projectId} />}
 
                     {currentTab === 2 && renderComingSoonTab("Data")}
-                    {currentTab === 3 && renderComingSoonTab("Import")}
+                    {currentTab === 3 && <ProjectImportTab projectId={projectId} />}
                     {currentTab === 4 && renderComingSoonTab("Update")}
                     {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
                     {currentTab === 6 && renderComingSoonTab("Tasks")}
