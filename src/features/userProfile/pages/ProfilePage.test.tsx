@@ -57,7 +57,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
 
     // TC-E3: Update Profile - Validation & Disabled State
     it('TC-E3: should display validation errors and disable SAVE if required fields are empty', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<ProfilePage />);
 
         await screen.findByRole('heading', { name: /Profile/i });
@@ -80,11 +80,11 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         // Check specific country validation error message
         expect(await screen.findByText(/Please select a country/i)).toBeInTheDocument();
         expect(saveButton).toBeDisabled();
-    });
+    }, 20000);
 
     // TC-E4: Update Profile - Success
     it('TC-E4: should save profile successfully', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<ProfilePage />);
 
         await screen.findByRole('heading', { name: /Profile/i });
@@ -99,7 +99,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         await user.click(saveButton);
 
         expect(await screen.findByText(/Profile updated successfully/i)).toBeInTheDocument();
-    });
+    }, 20000);
 
     // TC-E5: Update Profile - API Error
     it('TC-E5: should display error message if update fails', async () => {

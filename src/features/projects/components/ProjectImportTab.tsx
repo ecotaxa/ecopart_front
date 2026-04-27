@@ -208,12 +208,12 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                             <Typography variant="h6">New CTD samples</Typography>
                             <Typography variant="body2" color="text.secondary">Additional description if required</Typography>
                         </Box>
-                        <Button variant="outlined" color="inherit" sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}>
+                        <Button variant="outlined" color="inherit" disabled sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}>
                             IMPORT ALL
                         </Button>
                     </Box>
                     <Box sx={{ width: '100%', mb: 1 }}>
-                        {renderSelectionBar(ctdSelectionCount, () => { }, false)}
+                        {renderSelectionBar(ctdSelectionCount, () => undefined, true)}
                         <DataGrid
                             rows={ctdSamples}
                             columns={ctdSamplesColumns}
@@ -256,7 +256,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                             <DataGrid
                                 rows={ecoTaxaSamples}
                                 columns={ecoTaxaSamplesColumns}
-                                getRowId={(row) => row.sample_name}
+                                getRowId={(row) => row.sample_id}
                                 checkboxSelection
                                 disableRowSelectionOnClick
                                 loading={loadingEcoTaxa}
@@ -298,12 +298,12 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                             <Grid size={{ xs: 12, md: 8 }}>
                                 <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2 }}>UVP frames selection</Typography>
                                 <Grid container spacing={2}>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="First ok" value="407" size="small" /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Last ok" value="999999999999" size="small" /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Last used" value="4108" size="small" /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Other filtered images" value="0 / 0%" size="small" /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed images" value="74 / 3%" size="small" helperText="Between first and last image in number/percent" /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed empty slice" value="0" size="small" /></Grid>
+                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="First ok" value="407" size="small" InputProps={{ readOnly: true }} /></Grid>
+                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Last ok" value="999999999999" size="small" InputProps={{ readOnly: true }} /></Grid>
+                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Last used" value="4108" size="small" InputProps={{ readOnly: true }} /></Grid>
+                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Other filtered images" value="0 / 0%" size="small" InputProps={{ readOnly: true }} /></Grid>
+                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed images" value="74 / 3%" size="small" helperText="Between first and last image in number/percent" InputProps={{ readOnly: true }} /></Grid>
+                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed empty slice" value="0" size="small" InputProps={{ readOnly: true }} /></Grid>
                                 </Grid>
                             </Grid>
                         </Grid>

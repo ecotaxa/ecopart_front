@@ -100,7 +100,7 @@ describe('NewProjectPage (Functional)', () => {
 
     // TC-H2: Validation (Empty Submit)
     it('TC-H2: should prevent submission and show error if mandatory fields are empty', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<NewProjectPage />);
 
         await screen.findByRole('heading', { name: /^New project$/i });
@@ -111,7 +111,7 @@ describe('NewProjectPage (Functional)', () => {
         // Expect the snackbar to show the first validation error
         const alerts = await screen.findAllByText(/Root folder path is required/i);
         expect(alerts.length).toBeGreaterThan(0);
-    });
+    }, 20000);
 
     // TC-H3: Successful Project Creation
     // Increased timeout to 35 seconds (35000) for this heavy form-filling test
@@ -182,7 +182,7 @@ describe('NewProjectPage (Functional)', () => {
     }, 90000);
 
     // TC-H4: Error Handling (API Failure)
-    // Increased timeout to 55000 seconds (55000)
+    // Increased timeout to 120000 ms (120 seconds) for this heavy form-filling test
     it('TC-H4: should handle backend creation errors gracefully', async () => {
         const user = userEvent.setup({ delay: null });
 

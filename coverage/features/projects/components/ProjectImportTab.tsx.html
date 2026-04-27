@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">40% </span>
+                <span class="strong">38.7% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>12/30</span>
+                <span class='fraction'>12/31</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">40% </span>
+                <span class="strong">38.7% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>12/30</span>
+                <span class='fraction'>12/31</span>
             </div>
         
             
@@ -608,7 +608,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -933,12 +933,12 @@ export const ProjectImportTab: React.FC&lt;ProjectImportTabProps&gt; = ({ projec
                             &lt;Typography variant="h6"&gt;New CTD samples&lt;/Typography&gt;
                             &lt;Typography variant="body2" color="text.secondary"&gt;Additional description if required&lt;/Typography&gt;
                         &lt;/Box&gt;
-                        &lt;Button variant="outlined" color="inherit" sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}&gt;
+                        &lt;Button variant="outlined" color="inherit" disabled sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}&gt;
                             IMPORT ALL
                         &lt;/Button&gt;
                     &lt;/Box&gt;
                     &lt;Box sx={{ width: '100%', mb: 1 }}&gt;
-                        {renderSelectionBar(ctdSelectionCount, <span class="fstat-no" title="function not covered" >() =&gt; {</span> }, false)}
+                        {renderSelectionBar(ctdSelectionCount, <span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >u</span>ndefined, t</span>rue)}
                         &lt;DataGrid
                             rows={ctdSamples}
                             columns={ctdSamplesColumns}
@@ -981,7 +981,7 @@ export const ProjectImportTab: React.FC&lt;ProjectImportTabProps&gt; = ({ projec
                             &lt;DataGrid
                                 rows={ecoTaxaSamples}
                                 columns={ecoTaxaSamplesColumns}
-                                getRowId={<span class="fstat-no" title="function not covered" >(r</span>ow) =&gt; <span class="cstat-no" title="statement not covered" >row.sample_name}</span>
+                                getRowId={<span class="fstat-no" title="function not covered" >(r</span>ow) =&gt; <span class="cstat-no" title="statement not covered" >row.sample_id}</span>
                                 checkboxSelection
                                 disableRowSelectionOnClick
                                 loading={loadingEcoTaxa}
@@ -1023,12 +1023,12 @@ export const ProjectImportTab: React.FC&lt;ProjectImportTabProps&gt; = ({ projec
                             &lt;Grid size={{ xs: 12, md: 8 }}&gt;
                                 &lt;Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2 }}&gt;UVP frames selection&lt;/Typography&gt;
                                 &lt;Grid container spacing={2}&gt;
-                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="First ok" value="407" size="small" /&gt;&lt;/Grid&gt;
-                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Last ok" value="999999999999" size="small" /&gt;&lt;/Grid&gt;
-                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Last used" value="4108" size="small" /&gt;&lt;/Grid&gt;
-                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Other filtered images" value="0 / 0%" size="small" /&gt;&lt;/Grid&gt;
-                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Removed images" value="74 / 3%" size="small" helperText="Between first and last image in number/percent" /&gt;&lt;/Grid&gt;
-                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Removed empty slice" value="0" size="small" /&gt;&lt;/Grid&gt;
+                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="First ok" value="407" size="small" InputProps={{ readOnly: true }} /&gt;&lt;/Grid&gt;
+                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Last ok" value="999999999999" size="small" InputProps={{ readOnly: true }} /&gt;&lt;/Grid&gt;
+                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Last used" value="4108" size="small" InputProps={{ readOnly: true }} /&gt;&lt;/Grid&gt;
+                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Other filtered images" value="0 / 0%" size="small" InputProps={{ readOnly: true }} /&gt;&lt;/Grid&gt;
+                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Removed images" value="74 / 3%" size="small" helperText="Between first and last image in number/percent" InputProps={{ readOnly: true }} /&gt;&lt;/Grid&gt;
+                                    &lt;Grid size={{ xs: 6 }}&gt;&lt;TextField fullWidth label="Removed empty slice" value="0" size="small" InputProps={{ readOnly: true }} /&gt;&lt;/Grid&gt;
                                 &lt;/Grid&gt;
                             &lt;/Grid&gt;
                         &lt;/Grid&gt;
@@ -1060,7 +1060,7 @@ export const ProjectImportTab: React.FC&lt;ProjectImportTabProps&gt; = ({ projec
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-27T11:43:57.572Z
+                at 2026-04-27T14:42:01.892Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

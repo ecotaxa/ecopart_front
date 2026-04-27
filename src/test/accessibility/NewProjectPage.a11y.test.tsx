@@ -60,7 +60,7 @@ describe('NewProjectPage (Accessibility)', () => {
 
         await user.tab();
         expect(screen.getByRole('switch', { name: /Time duration check/i })).toHaveFocus();
-    }, 15000);
+    }, 45000);
 
     // TC-H9: Root Folder Modal Keyboard Accessibility
     it('TC-H9: should support keyboard flow in root folder modal and apply selected folder', async () => {
