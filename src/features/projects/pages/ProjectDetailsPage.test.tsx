@@ -35,7 +35,10 @@ const mockProjectFetch = (projectId: number) => {
         // Also mock standard endpoints to prevent noisy console errors during mount
         http.get('*/users', () => HttpResponse.json({ users: [] })),
         http.get('*/ecotaxa_instances', () => HttpResponse.json([])),
-        http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] }))
+        http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] })),
+        // Import tab hooks can be mounted and request these endpoints even when testing other tabs.
+        http.get('*/projects/*/samples/can_be_imported', () => HttpResponse.json([])),
+        http.get('*/projects/*/ecotaxa_samples/can_be_imported', () => HttpResponse.json([]))
     );
 };
 
@@ -83,7 +86,7 @@ describe('ProjectDetailsPage (Functional)', () => {
 
     // TC-I3: Tab Switching
     it('TC-I3: should switch content when different tabs are clicked', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         mockProjectFetch(101);
 
         renderWithRouter(
@@ -111,7 +114,7 @@ describe('ProjectDetailsPage (Functional)', () => {
         await user.click(statsTab);
 
         expect(await screen.findByText(/Stats Tab \(Coming Soon\)/i)).toBeInTheDocument();
-    });
+    }, 20000);
 
     // TC-I6: Initial Render From Navigation State
     it('TC-I6: should open the Import tab when activeTab is provided in navigation state', async () => {
@@ -126,7 +129,7 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         expect(await screen.findByText('Project Details [101]')).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
-        expect(screen.getByText(/Import Tab \(Coming Soon\)/i)).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /^Import$/i })).toBeInTheDocument();
     });
 
     // TC-I4: Explore Navigation

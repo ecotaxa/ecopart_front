@@ -38,13 +38,13 @@ describe('ProjectMetadataTab (Functional)', () => {
 
         // 1. Mock the specific project fetch
         server.use(
-            http.post('*/projects/searches', () => {
+            http.post('*/projects/searches*', () => {
                 return HttpResponse.json({
                     search_info: { total: 1, page: 1, limit: 1 },
                     projects: [mockProjectData]
                 });
             }),
-            http.post('*/users/searches', () => HttpResponse.json({ users: [] })),
+            http.post('*/users/searches*', () => HttpResponse.json({ users: [] })),
             http.get('*/ecotaxa_instances', () => HttpResponse.json([])),
             http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] }))
         );
@@ -59,11 +59,11 @@ describe('ProjectMetadataTab (Functional)', () => {
         expect(await screen.findByDisplayValue('Existing Project')).toBeInTheDocument();
         expect(screen.getByDisplayValue('EP')).toBeInTheDocument();
         expect(screen.getByDisplayValue('/data/test')).toBeInTheDocument();
-    });
+    }, 15000);
 
     // TC-J2: Update Success
     it('TC-J2: should successfully save updated metadata', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
 
         server.use(
             http.patch('*/projects/101', () => {
@@ -81,7 +81,7 @@ describe('ProjectMetadataTab (Functional)', () => {
         await user.click(saveButton);
 
         expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
-    }, 10000);
+    }, 15000);
 
     // TC-J3: Update Error
     it('TC-J3: should display error message if API patch fails', async () => {

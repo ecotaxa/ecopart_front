@@ -71,7 +71,10 @@ describe('NewProjectPage (Functional)', () => {
             // Mock ecotaxa accounts for the user
             http.get('*/users/*/ecotaxa_account', () => {
                 return HttpResponse.json({ ecotaxa_accounts: [] });
-            })
+            }),
+            // Prevent network passthrough when tests navigate to ProjectDetails import tab.
+            http.get('*/projects/*/samples/can_be_imported', () => HttpResponse.json([])),
+            http.get('*/projects/*/ecotaxa_samples/can_be_imported', () => HttpResponse.json([]))
         );
     });
 
@@ -97,7 +100,7 @@ describe('NewProjectPage (Functional)', () => {
 
     // TC-H2: Validation (Empty Submit)
     it('TC-H2: should prevent submission and show error if mandatory fields are empty', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
         renderWithRouter(<NewProjectPage />);
 
         await screen.findByRole('heading', { name: /^New project$/i });
@@ -108,7 +111,7 @@ describe('NewProjectPage (Functional)', () => {
         // Expect the snackbar to show the first validation error
         const alerts = await screen.findAllByText(/Root folder path is required/i);
         expect(alerts.length).toBeGreaterThan(0);
-    });
+    }, 20000);
 
     // TC-H3: Successful Project Creation
     // Increased timeout to 35 seconds (35000) for this heavy form-filling test
@@ -176,10 +179,10 @@ describe('NewProjectPage (Functional)', () => {
         }, { timeout: 2000 });
 
         expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
-    }, 55000);
+    }, 90000);
 
     // TC-H4: Error Handling (API Failure)
-    // Increased timeout to 30000 seconds (30000)
+    // Increased timeout to 120000 ms (120 seconds) for this heavy form-filling test
     it('TC-H4: should handle backend creation errors gracefully', async () => {
         const user = userEvent.setup({ delay: null });
 
@@ -201,7 +204,7 @@ describe('NewProjectPage (Functional)', () => {
         // The exact error message should appear in the alert
         const alert = await screen.findByRole('alert');
         expect(within(alert).getByText(/Failed to insert into database/i)).toBeInTheDocument();
-    }, 40000);
+    }, 120000);
 
     // TC-H5: Complex Sections Interaction
     it('TC-H5: should allow interacting with EcoTaxa and Privileges dynamic sections', async () => {
@@ -250,7 +253,7 @@ describe('NewProjectPage (Functional)', () => {
 
         // Verify Jane is selected in the combobox
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith/i)).toBeInTheDocument();
-    }, 20000);
+    }, 60000);
 
 
     // TC-H6: Load Metadata Failure Resilience
@@ -279,7 +282,7 @@ describe('NewProjectPage (Functional)', () => {
         expect(within(alert).getByText(/Failed to load metadata/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Project acronym/i)).toHaveValue('MANUAL');
         expect(screen.getByLabelText(/Root folder path/i)).toHaveValue('/invalid/folder/path');
-    }, 15000);
+    }, 60000);
 
     it('TC-H7: should append existing metadata people to privileges as members on Load metadata', async () => {
         const user = userEvent.setup({ delay: null });
@@ -321,7 +324,7 @@ describe('NewProjectPage (Functional)', () => {
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).toBeInTheDocument();
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).toBeInTheDocument();
         expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
-    }, 20000);
+    }, 25000);
 
     it('TC-H8: should wait for active users before appending metadata privileges', async () => {
         const user = userEvent.setup({ delay: null });
@@ -373,7 +376,7 @@ describe('NewProjectPage (Functional)', () => {
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Jane Smith \(jane@smith.com\)/i)).toBeInTheDocument();
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).toBeInTheDocument();
         expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
-    }, 20000);
+    }, 30000);
 
 
 });

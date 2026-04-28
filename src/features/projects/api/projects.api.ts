@@ -383,3 +383,79 @@ export async function runProjectBackup(
         body: JSON.stringify(payload),
     });
 }
+
+
+// ============================================================================
+// IMPORT SAMPLES API CALLS
+// ============================================================================
+
+export interface ImportableRawSample {
+    sample_name: string;
+    raw_file_name?: string;
+    station_id?: string;
+    first_image?: number;
+    last_image?: number;
+    comment?: string;
+    qc_lvl1?: boolean;
+    qc_lvl1_comment?: string;
+}
+
+export interface ImportableEcoTaxaSample {
+    sample_id: number;
+    sample_name: string;
+    tsv_file_name: string;
+    local_folder_tsv_path: string;
+    images: number;
+}
+
+export interface ImportSamplesPayload {
+    samples: string[]; // Array of sample_names
+    backup_project?: boolean;
+    backup_project_skip_already_imported?: boolean;
+}
+
+export interface ImportEcoTaxaSamplesPayload {
+    samples: string[]; // Array of sample_names
+    backup_project?: boolean;
+    backup_project_skip_already_imported?: boolean;
+    // Add ecotaxa_user if your backend requires it for linking
+    ecotaxa_user?: string; 
+}
+
+/**
+ * Endpoint: GET /projects/:project_id/samples/can_be_imported
+ */
+export async function getImportableRawSamples(projectId: number): Promise<ImportableRawSample[]> {
+    return http<ImportableRawSample[]>(`/projects/${projectId}/samples/can_be_imported`, {
+        method: "GET",
+    });
+}
+
+/**
+ * Endpoint: POST /projects/:project_id/samples/import
+ */
+export async function importRawSamples(projectId: number, payload: ImportSamplesPayload): Promise<{ success: boolean; task_import_samples: number }> {
+    return http<{ success: boolean; task_import_samples: number }>(`/projects/${projectId}/samples/import`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+}
+
+/**
+ * Endpoint: GET /projects/:project_id/ecotaxa_samples/can_be_imported
+ */
+export async function getImportableEcoTaxaSamples(projectId: number): Promise<ImportableEcoTaxaSample[]> {
+    return http<ImportableEcoTaxaSample[]>(`/projects/${projectId}/ecotaxa_samples/can_be_imported`, {
+        method: "GET",
+    });
+}
+
+/**
+ * Endpoint: POST /projects/:project_id/ecotaxa_samples/import
+ */
+export async function importEcoTaxaSamples(projectId: number, payload: ImportEcoTaxaSamplesPayload): Promise<{ success: boolean }> {
+    return http<{ success: boolean }>(`/projects/${projectId}/ecotaxa_samples/import`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+}
