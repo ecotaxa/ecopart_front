@@ -237,7 +237,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                             <DataGrid
                                 rows={ecoTaxaSamples}
                                 columns={ecoTaxaSamplesColumns}
-                                getRowId={(row) => row.sample_name}
+                                getRowId={(row) => row.sample_id}
                                 checkboxSelection
                                 disableRowSelectionOnClick
                                 loading={loadingEcoTaxa}

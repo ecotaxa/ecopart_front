@@ -112,6 +112,26 @@ export const useProjectImportTab = (projectId: number) => {
         return Array.from(selectionModel.ids).map(String);
     };
 
+    /**
+     * Maps EcoTaxa sample_id (numeric) to sample_name (string).
+     * EcoTaxa samples have sample_id as row ID, but the API expects sample_name.
+     */
+    const getSelectedEcoTaxaSampleNames = (
+        selectionModel: GridRowSelectionModel,
+    ): string[] => {
+        if (selectionModel.type === "exclude") {
+            const excluded = new Set(Array.from(selectionModel.ids).map(Number));
+            return ecoTaxaSamples
+                .filter((sample) => !excluded.has(sample.sample_id))
+                .map((sample) => sample.sample_name);
+        }
+
+        const selectedIds = new Set(Array.from(selectionModel.ids).map(Number));
+        return ecoTaxaSamples
+            .filter((sample) => selectedIds.has(sample.sample_id))
+            .map((sample) => sample.sample_name);
+    };
+
     const handlePreImportRawSamples = (importAll: boolean = false) => {
         const count = importAll
             ? rawSamples.length
@@ -153,10 +173,9 @@ export const useProjectImportTab = (projectId: number) => {
     };
 
     const handleImportEcoTaxaSamples = async (importAll: boolean = false) => {
-        const allEcoTaxaSampleNames = ecoTaxaSamples.map((s) => s.sample_name);
         const samplesToImport = importAll
-            ? allEcoTaxaSampleNames
-            : getSelectedSampleNames(selectedEcoTaxaSamples, allEcoTaxaSampleNames);
+            ? ecoTaxaSamples.map((s) => s.sample_name)
+            : getSelectedEcoTaxaSampleNames(selectedEcoTaxaSamples);
 
         if (samplesToImport.length === 0) return showSnackbar("No samples to import.", "warning");
 

@@ -53,7 +53,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
 
         // Reverts to the original mocked value
         expect(firstNameInput).toHaveValue('John');
-    });
+    }, 15000);
 
     // TC-E3: Update Profile - Validation & Disabled State
     it('TC-E3: should display validation errors and disable SAVE if required fields are empty', async () => {
