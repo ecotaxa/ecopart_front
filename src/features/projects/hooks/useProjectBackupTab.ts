@@ -1,23 +1,19 @@
 import { useState, useEffect } from "react";
 import { AlertColor } from "@mui/material";
-import { exportProjectBackup, runProjectBackup, getProjectById } from "../api/projects.api";
+import { exportProjectBackup, runProjectBackup, getProjectById, getLastBackupDate } from "../api/projects.api";
 
 export const useProjectBackupTab = (projectId: number) => {
     // --- 1. LOCAL STATE ---
-    
-    // State to hold the pre-configured project details fetched from the server
     const [backupFolderPath, setBackupFolderPath] = useState<string>("Loading path...");
+    const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
     const [isLoadingMetadata, setIsLoadingMetadata] = useState<boolean>(true);
 
-    // State for the Export section
     const [exportToFtp, setExportToFtp] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
 
-    // State for the Backup section
     const [skipAlreadyImported, setSkipAlreadyImported] = useState(true);
     const [isBackingUp, setIsBackingUp] = useState(false);
 
-    // Shared Notification State
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
         open: false,
         message: "",
@@ -25,30 +21,40 @@ export const useProjectBackupTab = (projectId: number) => {
     });
 
     // --- 2. LIFECYCLE (Hydration) ---
-    // Fetch project details on mount so we can display the read-only root folder path
     useEffect(() => {
-        let isMounted = true; 
+        let isMounted = true;
 
-        const fetchProjectDetails = async () => {
+        const loadProjectData = async () => {
             setIsLoadingMetadata(true);
+
+            // Fetch 1: Project Details (Path)
             try {
                 const projectData = await getProjectById(projectId);
                 if (isMounted) {
                     setBackupFolderPath(projectData.root_folder_path || "No path configured");
                 }
             } catch (error) {
-                console.error("Failed to fetch project details:", error);
+                console.error("Failed to load project path:", error);
+                if (isMounted) setBackupFolderPath("Error loading path");
+            }
+
+            // Fetch 2: Last Backup Date
+            try {
+                const backupData = await getLastBackupDate(projectId);
                 if (isMounted) {
-                    setBackupFolderPath("Error loading path");
+                    setLastBackupDate(backupData?.last_backup_date || null);
                 }
-            } finally {
-                if (isMounted) {
-                    setIsLoadingMetadata(false);
-                }
+            } catch (error) {
+                console.error("Failed to load last backup date:", error);
+                if (isMounted) setLastBackupDate(null);
+            }
+
+            if (isMounted) {
+                setIsLoadingMetadata(false);
             }
         };
 
-        fetchProjectDetails();
+        loadProjectData();
 
         return () => {
             isMounted = false;
@@ -56,7 +62,6 @@ export const useProjectBackupTab = (projectId: number) => {
     }, [projectId]);
 
     // --- 3. HELPERS ---
-
     const showSnackbar = (message: string, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });
     };
@@ -77,14 +82,13 @@ export const useProjectBackupTab = (projectId: number) => {
     };
 
     // --- 4. ACTIONS ---
-
     const handleStartExport = async () => {
         setIsExporting(true);
         try {
-            await exportProjectBackup(projectId, {
+            const response = await exportProjectBackup(projectId, {
                 ftp_export: exportToFtp,
             });
-            showSnackbar("Export process started successfully.", "success");
+            showSnackbar(`Export task #${response.task_id} started successfully! You can check its progress in the TASKS tab.`, "success");
         } catch (error) {
             console.error("Export failed:", error);
             showSnackbar(extractErrorMessage(error, "Failed to start export."), "error");
@@ -96,12 +100,50 @@ export const useProjectBackupTab = (projectId: number) => {
     const handleStartBackup = async () => {
         setIsBackingUp(true);
         try {
-            await runProjectBackup(projectId, {
+            const response = await runProjectBackup(projectId, {
                 skip_already_imported: skipAlreadyImported,
             });
-            showSnackbar("Backup process started successfully.", "success");
+
+            showSnackbar(`Backup task #${response.task_id} started successfully! You can check its progress in the TASKS tab.`, "success");
+
+            // MENTOR FIX: Wait for backend to process the task and update the last_backup_date.
+            // Backup tasks can take a while, so we retry multiple times if needed.
+            let backupDateUpdated = false;
+
+            // Try up to 3 times with increasing delays
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                const delay = attempt === 1 ? 2000 : attempt === 2 ? 5000 : 10000;
+                await new Promise((resolve) => setTimeout(resolve, delay));
+
+                try {
+                    console.log(`[Backup] Attempt ${attempt}/3 to fetch last backup date...`);
+                    const backupData = await getLastBackupDate(projectId);
+                    console.log(`[Backup] Response received:`, backupData);
+
+                    if (backupData?.last_backup_date) {
+                        setLastBackupDate(backupData.last_backup_date);
+                        console.log("[Backup] ✓ Successfully updated last backup date:", backupData.last_backup_date);
+                        backupDateUpdated = true;
+                        break;
+                    } else {
+                        console.log(`[Backup] Attempt ${attempt}: Server returned null date, retrying...`);
+                    }
+                } catch (dateError) {
+                    console.warn(`[Backup] Attempt ${attempt} failed:`, dateError);
+                    // Continue to next attempt
+                }
+            }
+
+            // If we couldn't get the date from the server, use current timestamp as fallback
+            if (!backupDateUpdated) {
+                const currentDate = new Date().toISOString();
+                setLastBackupDate(currentDate);
+                console.log("[Backup] ⚠ Using fallback timestamp:", currentDate);
+                showSnackbar("Backup started. Date updated to current time (may differ if task is still processing).", "info");
+            }
+
         } catch (error) {
-            console.error("Backup failed:", error);
+            console.error("[Backup] Backup failed:", error);
             showSnackbar(extractErrorMessage(error, "Failed to start backup."), "error");
         } finally {
             setIsBackingUp(false);
@@ -109,23 +151,20 @@ export const useProjectBackupTab = (projectId: number) => {
     };
 
     return {
-        // Metadata State
         backupFolderPath,
+        lastBackupDate,
         isLoadingMetadata,
 
-        // Export state & actions
         exportToFtp,
         setExportToFtp,
         isExporting,
         handleStartExport,
 
-        // Backup state & actions
         skipAlreadyImported,
         setSkipAlreadyImported,
         isBackingUp,
         handleStartBackup,
 
-        // Notifications
         snackbar,
         closeSnackbar,
     };

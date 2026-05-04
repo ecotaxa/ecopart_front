@@ -4,7 +4,7 @@ import {
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
-// MENTOR FIX: Removed the import of 'normalizeServerFolderPath' because it 
+//   Removed the import of 'normalizeServerFolderPath' because it 
 // was deleted from the API file. We now pass the raw string exactly as typed.
 import { ServerFolderBrowserDialog } from "./ServerFolderBrowserDialog";
 
@@ -17,7 +17,7 @@ interface RootFolderSectionProps {
 
 /**
  * RootFolderSection
- * MENTOR NOTE: This component is now adhering to the Single Responsibility Principle.
+ *  NOTE: This component is now adhering to the Single Responsibility Principle.
  * It manages the visual layout of the input field and delegates the complex folder 
  * browsing logic to the <ServerFolderBrowserDialog /> component.
  */
@@ -39,7 +39,7 @@ export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
                     required
                     label="Root folder path"
                     value={value}
-                    // MENTOR FIX: Pass the raw e.target.value directly without normalizing it.
+                    //   Pass the raw e.target.value directly without normalizing it.
                     // The backend will receive exactly what the user typed or selected.
                     onChange={(e) => onChange(e.target.value)}
                     error={Boolean(error)}
@@ -79,7 +79,7 @@ export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
                 initialPath={value}
                 onClose={() => setModalOpen(false)}
                 onConfirm={(selectedPath) => {
-                    // MENTOR FIX: Pass the raw selectedPath directly.
+                    //   Pass the raw selectedPath directly.
                     onChange(selectedPath);
                     setModalOpen(false);
                 }}

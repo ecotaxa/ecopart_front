@@ -455,7 +455,7 @@ export const useNewProjectForm = () => {
         }
 
         try {
-            // FIX: We pass the raw string to the backend.
+            //  We pass the raw string to the backend.
             const rawPath = values.rootFolderPath.trim();
 
             const apiMetadata = await getImportFolderMetadata(rawPath);

@@ -26,6 +26,7 @@ import SyncIcon from "@mui/icons-material/Sync";
 import LockIcon from "@mui/icons-material/Lock";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import BackupIcon from "@mui/icons-material/Backup";
+import { ProjectDataTab } from "../components/ProjectDataTab";
 
 export default function ProjectDetailsPage() {
     const { id } = useParams<{ id: string }>();
@@ -138,7 +139,7 @@ export default function ProjectDetailsPage() {
 
                     {currentTab === 1 && <ProjectMetadataTab projectId={projectId} />}
 
-                    {currentTab === 2 && renderComingSoonTab("Data")}
+                    {currentTab === 2 && <ProjectDataTab projectId={projectId} />}
                     {currentTab === 3 && <ProjectImportTab projectId={projectId} />}
                     {currentTab === 4 && renderComingSoonTab("Update")}
                     {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
