@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; // FIX: Added useEffect
+import { useState, useEffect } from "react"; //  Added useEffect
 import {
     Box,
     Button,

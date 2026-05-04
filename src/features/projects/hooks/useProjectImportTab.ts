@@ -20,22 +20,19 @@ export const useProjectImportTab = (projectId: number) => {
     // Raw (UVP) Samples State
     const [rawSamples, setRawSamples] = useState<ImportableRawSample[]>([]);
     const [loadingRaw, setLoadingRaw] = useState(false);
-    const [selectedRawSamples, setSelectedRawSamples] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
+
+    const [selectedRawSamples, setSelectedRawSamples] = useState<GridRowSelectionModel>({
+        type: "include",
+        ids: new Set(),
+    });
 
     // EcoTaxa Samples State
     const [ecoTaxaSamples, setEcoTaxaSamples] = useState<ImportableEcoTaxaSample[]>([]);
     const [loadingEcoTaxa, setLoadingEcoTaxa] = useState(false);
-    const [selectedEcoTaxaSamples, setSelectedEcoTaxaSamples] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
-
-    // CTD Samples State (MOCKED for UI matching)
-    // MENTOR NOTE: Mock data added to perfectly match the mockup's populated state
-    const [ctdSamples] = useState([
-        { id: 1, sample_name: 'Cell', ctd_sample_id: 'Cell', file_extension: 'cnv', station_id: 'Cell' },
-        { id: 2, sample_name: 'Cell', ctd_sample_id: 'Cell', file_extension: 'ctd', station_id: 'Cell' },
-        { id: 3, sample_name: 'Cell', ctd_sample_id: 'Cell', file_extension: 'ctd', station_id: 'Cell' },
-    ]);
-    // Mocking the selection of the 3rd row to match mockup
-    const [selectedCtdSamples, setSelectedCtdSamples] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set([3]) });
+    const [selectedEcoTaxaSamples, setSelectedEcoTaxaSamples] = useState<GridRowSelectionModel>({
+        type: "include",
+        ids: new Set(),
+    });
 
     // Backup Options State 
     const [enableAutoBackup, setEnableAutoBackup] = useState(false);
@@ -43,9 +40,9 @@ export const useProjectImportTab = (projectId: number) => {
 
     const [isImporting, setIsImporting] = useState(false);
 
-    // --- QUALITY CONTROL MODAL STATE (The Missing Section) ---
+    // QC Modal State
     const [isQcModalOpen, setIsQcModalOpen] = useState(false);
-    const [importAllUvpFlag, setImportAllUvpFlag] = useState(false); // Remembers if the user clicked "Import All" or "Selection"
+    const [importAllUvpFlag, setImportAllUvpFlag] = useState(false);
 
     // Notifications
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
@@ -69,23 +66,22 @@ export const useProjectImportTab = (projectId: number) => {
                     if (isMounted) setRawSamples(rawData || []);
                 } catch (e) {
                     console.error("Failed to load raw samples", e);
+                } finally {
+                    if (isMounted) setLoadingRaw(false);
                 }
 
                 try {
                     const ecoTaxaData = await getImportableEcoTaxaSamples(projectId);
                     if (isMounted) setEcoTaxaSamples(ecoTaxaData || []);
                 } catch (e) {
-                    console.error("Failed to load ecotaxa samples", e);
+                    console.error("Failed to load ecotaxa samples (Backend Error expected)", e);
+                } finally {
+                    if (isMounted) setLoadingEcoTaxa(false);
                 }
 
             } catch (error) {
                 console.error("Failed to initialize import tab:", error);
                 if (isMounted) setRootFolderPath("Error loading data");
-            } finally {
-                if (isMounted) {
-                    setLoadingRaw(false);
-                    setLoadingEcoTaxa(false);
-                }
             }
         };
 
@@ -93,31 +89,48 @@ export const useProjectImportTab = (projectId: number) => {
         return () => { isMounted = false; };
     }, [projectId]);
 
-    // --- 3. ACTIONS & WORKFLOWS ---
+    // --- 3. ACTIONS ---
 
     const showSnackbar = (message: string, severity: AlertColor = "info") => setSnackbar({ open: true, message, severity });
     const closeSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
 
-    // STEP 1: Intercept the UVP Import click to open the Modal
+    const getSelectionCount = (selectionModel: GridRowSelectionModel, totalRows: number): number => {
+        return selectionModel.type === "exclude"
+            ? Math.max(totalRows - selectionModel.ids.size, 0)
+            : selectionModel.ids.size;
+    };
+
+    const getSelectedSampleNames = (
+        selectionModel: GridRowSelectionModel,
+        allSampleNames: string[],
+    ): string[] => {
+        if (selectionModel.type === "exclude") {
+            const excluded = new Set(Array.from(selectionModel.ids).map(String));
+            return allSampleNames.filter((name) => !excluded.has(name));
+        }
+
+        return Array.from(selectionModel.ids).map(String);
+    };
+
     const handlePreImportRawSamples = (importAll: boolean = false) => {
-        const selectedIds = Array.from(selectedRawSamples.ids) as string[];
-        const count = importAll ? rawSamples.length : selectedIds.length;
+        const count = importAll
+            ? rawSamples.length
+            : getSelectionCount(selectedRawSamples, rawSamples.length);
 
         if (count === 0) return showSnackbar("No samples to import.", "warning");
 
         setImportAllUvpFlag(importAll);
-        setIsQcModalOpen(true); // Open the QC Modal instead of fetching
+        setIsQcModalOpen(true);
     };
 
-    // STEP 2: The actual API call executed from inside the Modal
     const confirmAndExecuteRawImport = async () => {
-        setIsQcModalOpen(false); // Close modal
+        setIsQcModalOpen(false);
         setIsImporting(true);
 
-        const selectedIds = Array.from(selectedRawSamples.ids) as string[];
+        const allRawSampleNames = rawSamples.map((s) => s.sample_name);
         const samplesToImport = importAllUvpFlag
-            ? rawSamples.map(s => s.sample_name)
-            : selectedIds;
+            ? allRawSampleNames
+            : getSelectedSampleNames(selectedRawSamples, allRawSampleNames);
 
         try {
             await importRawSamples(projectId, {
@@ -126,7 +139,8 @@ export const useProjectImportTab = (projectId: number) => {
                 backup_project_skip_already_imported: skipAlreadyImported
             });
             showSnackbar("Raw samples imported successfully.", "success");
-            setSelectedRawSamples({ type: 'include', ids: new Set() });
+
+            setSelectedRawSamples({ type: "include", ids: new Set() });
 
             const rawData = await getImportableRawSamples(projectId);
             setRawSamples(rawData || []);
@@ -139,12 +153,10 @@ export const useProjectImportTab = (projectId: number) => {
     };
 
     const handleImportEcoTaxaSamples = async (importAll: boolean = false) => {
-        const selectedIds = new Set(Array.from(selectedEcoTaxaSamples.ids).map(String));
+        const allEcoTaxaSampleNames = ecoTaxaSamples.map((s) => s.sample_name);
         const samplesToImport = importAll
-            ? ecoTaxaSamples.map(s => s.sample_name)
-            : ecoTaxaSamples
-                .filter((sample) => selectedIds.has(String(sample.sample_id)))
-                .map((sample) => sample.sample_name);
+            ? allEcoTaxaSampleNames
+            : getSelectedSampleNames(selectedEcoTaxaSamples, allEcoTaxaSampleNames);
 
         if (samplesToImport.length === 0) return showSnackbar("No samples to import.", "warning");
 
@@ -156,7 +168,8 @@ export const useProjectImportTab = (projectId: number) => {
                 backup_project_skip_already_imported: skipAlreadyImported
             });
             showSnackbar("EcoTaxa samples import completed successfully.", "success");
-            setSelectedEcoTaxaSamples({ type: 'include', ids: new Set() });
+
+            setSelectedEcoTaxaSamples({ type: "include", ids: new Set() });
 
             const ecoData = await getImportableEcoTaxaSamples(projectId);
             setEcoTaxaSamples(ecoData || []);
@@ -170,24 +183,18 @@ export const useProjectImportTab = (projectId: number) => {
 
     return {
         rootFolderPath,
-
         rawSamples, loadingRaw, selectedRawSamples, setSelectedRawSamples,
-        rawSelectionCount: selectedRawSamples.ids.size,
-
-        ctdSamples, selectedCtdSamples, setSelectedCtdSamples,
-        ctdSelectionCount: selectedCtdSamples.ids.size,
+        rawSelectionCount: getSelectionCount(selectedRawSamples, rawSamples.length),
 
         ecoTaxaSamples, loadingEcoTaxa, selectedEcoTaxaSamples, setSelectedEcoTaxaSamples,
-        ecoTaxaSelectionCount: selectedEcoTaxaSamples.ids.size,
+        ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, ecoTaxaSamples.length),
 
         enableAutoBackup, setEnableAutoBackup,
         skipAlreadyImported, setSkipAlreadyImported,
         isImporting,
 
-        // QC Modal properties
         isQcModalOpen, setIsQcModalOpen, importAllUvpFlag,
 
-        // Actions
         handlePreImportRawSamples, confirmAndExecuteRawImport, handleImportEcoTaxaSamples,
         snackbar, closeSnackbar
     };

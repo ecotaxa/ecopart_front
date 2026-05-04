@@ -341,6 +341,8 @@ export async function getImportFolderMetadata(folderPath: string): Promise<Impor
         method: "GET",
     });
 }
+
+
 // ============================================================================
 // BACKUP & EXPORT API CALLS
 // ============================================================================
@@ -350,21 +352,48 @@ export interface ExportBackupPayload {
 }
 
 export interface RunBackupPayload {
-    // We strictly follow the Swagger: only skip_already_imported is allowed here
     skip_already_imported: boolean;
+}
+
+export interface LastBackupDateResponse {
+    last_backup_date: string | null;
+}
+
+/**
+ * Gets the last backup date for the project.
+ * Endpoint: GET /projects/:project_id/backup/last-date
+ * 
+ * NOTE: cache: 'no-store' forces a fresh fetch from the server, avoiding 304 Not Modified responses.
+ */
+export async function getLastBackupDate(
+    projectId: number
+): Promise<LastBackupDateResponse> {
+    return http<LastBackupDateResponse>(`/projects/${projectId}/backup/last-date`, {
+        method: "GET",
+        cache: "no-store",
+    });
+}
+
+// MENTOR FIX: Nouvelle interface pour capturer la réponse du Backend (Le système de Tâches)
+export interface TaskLaunchResponse {
+    task_id: number;
+    task_status: string;
+    task_type: string;
+    task_progress_msg?: string;
+}
+
+export interface LastBackupDateResponse {
+    last_backup_date: string | null;
 }
 
 /**
  * Triggers an export of the backuped raw project.
- * Endpoint: POST /projects/:project_id/backup/export
- * MENTOR NOTE: The route has been corrected to match the Express backend router EXACTLY.
  */
 export async function exportProjectBackup(
     projectId: number,
     payload: ExportBackupPayload
-): Promise<{ message: string }> {
-    // FIX: Changed from `/projects/${projectId}/export` to `/projects/${projectId}/backup/export`
-    return http<{ message: string }>(`/projects/${projectId}/backup/export`, {
+): Promise<TaskLaunchResponse> {
+    return http<TaskLaunchResponse>(`/projects/${projectId}/backup/export`, {
         method: "POST",
         body: JSON.stringify(payload),
     });
@@ -372,13 +401,12 @@ export async function exportProjectBackup(
 
 /**
  * Triggers a backup of the raw project from a remote folder.
- * Endpoint: POST /projects/:project_id/backup
  */
 export async function runProjectBackup(
     projectId: number,
     payload: RunBackupPayload
-): Promise<{ message: string }> {
-    return http<{ message: string }>(`/projects/${projectId}/backup`, {
+): Promise<TaskLaunchResponse> {
+    return http<TaskLaunchResponse>(`/projects/${projectId}/backup`, {
         method: "POST",
         body: JSON.stringify(payload),
     });
@@ -419,7 +447,7 @@ export interface ImportEcoTaxaSamplesPayload {
     backup_project?: boolean;
     backup_project_skip_already_imported?: boolean;
     // Add ecotaxa_user if your backend requires it for linking
-    ecotaxa_user?: string; 
+    ecotaxa_user?: string;
 }
 
 /**
@@ -457,5 +485,99 @@ export async function importEcoTaxaSamples(projectId: number, payload: ImportEco
     return http<{ success: boolean }>(`/projects/${projectId}/ecotaxa_samples/import`, {
         method: "POST",
         body: JSON.stringify(payload),
+    });
+}
+
+// ============================================================================
+// DATA TAB (SAMPLES) API CALLS
+// ============================================================================
+
+export interface SampleData {
+    sample_id: number;
+    sample_name: string;
+    sampling_date?: string;
+    filename?: string;
+    sample_type_label?: string;
+    comment?: string;
+    linked_ctd?: boolean;
+    visual_qc_status_label?: string;
+}
+
+export interface EcoTaxaSampleData {
+    sample_id: number;
+    sample_name: string;
+    ecotaxa_sample_id?: number | null;
+    ecotaxa_sample_nb_images?: number;
+    classification_progress?: number;
+}
+
+//   Align the response interface with the Swagger documentation.
+// The backend returns the array under the key "samples", not "items".
+export interface SampleSearchResponse {
+    search_info: { total: number; page: number; limit: number };
+    samples: SampleData[];
+}
+
+//  NOTE: Assuming the EcoTaxa search also returns the array under the key "samples".
+// If it still doesn't load, check the Swagger for EcoTaxa search and see if the key is "ecotaxa_samples" instead.
+export interface EcoTaxaSampleSearchResponse {
+    search_info: { total: number; page: number; limit: number };
+    samples: EcoTaxaSampleData[];
+}
+
+/**
+ * Search/List already imported UVP samples for a project.
+ * Endpoint: POST /projects/:project_id/samples/searches
+ */
+export async function searchProjectSamples(projectId: number, params: ProjectSearchFilters): Promise<SampleSearchResponse> {
+    const query = new URLSearchParams({
+        page: String(params.page),
+        limit: String(params.limit),
+    });
+
+    if (params.sort_by) query.set("sort_by", params.sort_by);
+
+    return http<SampleSearchResponse>(`/projects/${projectId}/samples/searches?${query.toString()}`, {
+        method: "POST",
+        body: JSON.stringify(params.filters ?? []),
+    });
+}
+
+/**
+ * Search/List already imported EcoTaxa samples for a project.
+ * Endpoint: POST /projects/:project_id/ecotaxa_samples/searches
+ */
+export async function searchProjectEcoTaxaSamples(projectId: number, params: ProjectSearchFilters): Promise<EcoTaxaSampleSearchResponse> {
+    const query = new URLSearchParams({
+        page: String(params.page),
+        limit: String(params.limit),
+    });
+
+    if (params.sort_by) query.set("sort_by", params.sort_by);
+
+    return http<EcoTaxaSampleSearchResponse>(`/projects/${projectId}/ecotaxa_samples/searches?${query.toString()}`, {
+        method: "POST",
+        body: JSON.stringify(params.filters ?? []),
+    });
+}
+
+/**
+ * Delete a single UVP sample.
+ * Endpoint: DELETE /projects/:project_id/samples/:sample_id
+ */
+export async function deleteProjectSample(projectId: number, sampleId: number): Promise<{ message: string }> {
+    return http<{ message: string }>(`/projects/${projectId}/samples/${sampleId}`, {
+        method: "DELETE",
+    });
+}
+
+/**
+ * Delete multiple EcoTaxa samples.
+ * Endpoint: DELETE /projects/:project_id/ecotaxa_samples
+ */
+export async function deleteProjectEcoTaxaSamples(projectId: number, sampleNames: string[]): Promise<{ message: string }> {
+    return http<{ message: string }>(`/projects/${projectId}/ecotaxa_samples`, {
+        method: "DELETE",
+        body: JSON.stringify({ samples: sampleNames }),
     });
 }

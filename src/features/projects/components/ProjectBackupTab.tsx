@@ -15,6 +15,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
     // Connect to our business logic Brain
     const {
         backupFolderPath,
+        lastBackupDate,
         isLoadingMetadata,
 
         exportToFtp,
@@ -30,6 +31,35 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
         snackbar,
         closeSnackbar,
     } = useProjectBackupTab(projectId);
+
+    // MENTOR FIX: Robust date formatter that handles "Invalid Date" objects.
+    const formatLastBackupDate = (dateString: string | null): React.ReactNode => {
+        // If it's explicitly null or empty, and we aren't loading, it hasn't been backed up.
+        if (!dateString) return "The project have never been backuped.";
+        
+        try {
+            const date = new Date(dateString);
+            
+            // CRITICAL CHECK: In JS, `new Date("garbage")` returns an object, but its time is NaN.
+            if (isNaN(date.getTime())) {
+                return "The project have never been backuped."; // Or "Invalid date format from server"
+            }
+            
+            const formattedDate = date.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            });
+            const formattedTime = date.toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            return `Last backup done on ${formattedDate} at ${formattedTime}`;
+        } catch {
+            return "The project have never been backuped.";
+        }
+    };
 
     return (
         <Box sx={{ mt: 2 }}>
@@ -71,7 +101,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                         color="primary"
                         onClick={handleStartExport}
                         disabled={isExporting || isLoadingMetadata}
-                        sx={{ width: 120 }}
+                        sx={{ width: 120, boxShadow: 'none' }}
                     >
                         {isExporting ? "STARTING..." : "START"}
                     </Button>
@@ -82,32 +112,41 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                     <Typography variant="subtitle1" fontWeight="bold">
                         Backup <Box component="span" fontWeight="normal">of the raw project</Box>
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                        Last backup done 3 weeks ago
+                    
+                    {/* MENTOR FIX: Show a loading indicator for the date if we are fetching metadata */}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, display: 'flex', alignItems: 'center', minHeight: 24 }}>
+                        {isLoadingMetadata ? (
+                            <CircularProgress size={16} sx={{ mr: 1, color: 'text.secondary' }} />
+                        ) : null}
+                        {isLoadingMetadata ? "Checking backup status..." : formatLastBackupDate(lastBackupDate)}
                     </Typography>
 
-                    {/* MENTOR NOTE: Read-only TextField to display the path stored in the DB.
+                    {/*  NOTE: Read-only TextField to display the path stored in the DB.
                         It is visually matching the mockup, but disabled to prevent the user
                         from thinking they can change it here. */}
-                    <TextField
-                        fullWidth
-                        label="Backup from root folder path"
-                        value={backupFolderPath}
-                        disabled // CRITICAL: This makes it read-only
-                        sx={{ mb: 3, maxWidth: 600 }}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    {isLoadingMetadata ? (
-                                        <CircularProgress size={20} color="inherit" />
-                                    ) : (
-                                        // Use a disabled-looking icon since it's not clickable
-                                        <FolderOpenIcon color="disabled" />
-                                    )}
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
+                    <Box sx={{ mb: 3, maxWidth: 600 }}>
+                         <Typography variant="caption" color="text.secondary" sx={{ ml: 1.5, position: 'relative', top: '10px', backgroundColor: 'white', px: 0.5, zIndex: 1 }}>
+                            Backup from root folder path
+                        </Typography>
+                        <TextField
+                            fullWidth
+                            value={backupFolderPath}
+                            disabled // CRITICAL: This makes it read-only
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        {isLoadingMetadata ? (
+                                            <CircularProgress size={20} color="inherit" />
+                                        ) : (
+                                            <FolderOpenIcon color="disabled" />
+                                        )}
+                                    </InputAdornment>
+                                ),
+                            }}
+                            size="small"
+                            sx={{ '& .Mui-disabled': { WebkitTextFillColor: 'rgba(0, 0, 0, 0.6) !important' } }}
+                        />
+                    </Box>
 
                     <FormControlLabel
                         control={
@@ -131,7 +170,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                         color="primary"
                         onClick={handleStartBackup}
                         disabled={isBackingUp || isLoadingMetadata}
-                        sx={{ width: 120 }}
+                        sx={{ width: 120, boxShadow: 'none' }}
                     >
                         {isBackingUp ? "STARTING..." : "START"}
                     </Button>

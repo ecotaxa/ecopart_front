@@ -16,7 +16,6 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { NewProjectFormValues } from "../types/newProject.types";
-// Import the centralized API functions and types from profile.api
 import {
     getEcoTaxaAccounts,
     getEcoTaxaInstances,
@@ -47,11 +46,9 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
     // --- 1. LOCAL STATES ---
     const { user } = useAuthStore();
     const [accounts, setAccounts] = useState<EcoTaxaAccountLink[]>([]);
-    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]); // Store the rich DB instances
+    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]); 
     const [loadingData, setLoadingData] = useState(false);
 
-    // Keep select values aligned with available options to avoid MUI out-of-range warnings.
-    // Calculate safeInstanceValue first so it can be used to filter availableAccounts.
     const availableInstanceIds = new Set(
         accounts.map((account) => account.ecotaxa_account_instance_id.toString())
     );
@@ -59,7 +56,6 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
         ? values.instance
         : "";
 
-    // Filter accounts to show only those matching the selected instance (use safeInstanceValue to keep state consistent)
     const availableAccounts = accounts.filter(
         (account) => safeInstanceValue === "" || account.ecotaxa_account_instance_id.toString() === safeInstanceValue
     );
@@ -77,23 +73,17 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
 
             setLoadingData(true);
             try {
-                // 1. Fetch user's linked accounts
                 const linkedAccounts = await getEcoTaxaAccounts(user.user_id);
                 setAccounts(linkedAccounts);
 
-                // 2. Fetch full instance details from DB using the centralized API function
-                // This ensures consistency across all components that need instance data
                 try {
                     const dbInstances = await getEcoTaxaInstances();
                     setInstances(dbInstances);
                 } catch (apiError) {
-                    // Log the error for debugging purposes
                     console.warn("Failed to fetch EcoTaxa instances from API.", apiError);
-                    // Leave instances empty - UI will handle gracefully with fallback display
                     setInstances([]);
                 }
 
-                // 3. Auto-select if none chosen
                 if (linkedAccounts.length > 0 && !values.instance) {
                     onChange({
                         instance: linkedAccounts[0].ecotaxa_account_instance_id.toString(),
@@ -108,7 +98,6 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
         };
 
         fetchData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.user_id, values.instance]);
 
     return (
@@ -137,18 +126,16 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                             project: "",
                         });
                     }}
-                    size="medium" // Increased size to comfortably fit the multi-line text
+                    size="medium"
                     error={Boolean(errors?.instance)}
                     helperText={errors?.instance}
-                    // SelectProps configures how the *selected* value is rendered in the closed input
                     SelectProps={{
-                        // Explicitly define 'selected' as unknown and cast to string to satisfy TypeScript ReactNode requirements
                         renderValue: (selected: unknown) => {
                             const selectedString = selected as string;
                             if (!selectedString) return "";
                             const instanceData = instances.find(inst => inst.ecotaxa_instance_id.toString() === selectedString);
 
-                            if (!instanceData) return selectedString; // Returns a string, which is a valid ReactNode
+                            if (!instanceData) return selectedString;
 
                             return (
                                 <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
@@ -159,16 +146,13 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                         }
                     }}
                 >
-                    {/* Only show instances where the user has at least one account linked */}
                     {Array.from(new Set(accounts.map((account) => account.ecotaxa_account_instance_id))).map((instanceId) => {
-                        // Find the rich data from the DB instances table
                         const instanceData = instances.find(inst => inst.ecotaxa_instance_id === instanceId);
                         const fallbackAccount = accounts.find((item) => item.ecotaxa_account_instance_id === instanceId);
 
                         return (
                             <MenuItem key={instanceId} value={instanceId.toString()} sx={{ py: 1.5 }}>
                                 {instanceData ? (
-                                    // FORMAT MATCHING THE MOCKUP
                                     <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
                                         <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description} <br />
                                         <Typography variant="body2" color="text.secondary">
@@ -176,7 +160,6 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                                         </Typography>
                                     </Box>
                                 ) : (
-                                    // Fallback if DB instance data isn't loaded
                                     <Box><strong>{fallbackAccount?.ecotaxa_account_instance_name}</strong></Box>
                                 )}
                             </MenuItem>
@@ -212,6 +195,8 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     ))}
                 </TextField>
 
+                {/* MENTOR FIX: Replaced the hardcoded 'select' dropdown with a free-text input 
+                    when not creating a new project. This allows the user to type any existing project ID. */}
                 {values.createNewProject ? (
                     <TextField
                         fullWidth
@@ -224,19 +209,16 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 ) : (
                     <Box>
                         <TextField
-                            select
                             fullWidth
-                            label="EcoTaxa project"
+                            label="EcoTaxa project ID"
+                            placeholder="Enter existing EcoTaxa project ID (e.g. 16188)"
                             value={values.project}
                             onChange={(e) => onChange({ project: e.target.value })}
                             size="small"
                             disabled={!values.account}
                             error={Boolean(errors?.project)}
                             helperText={errors?.project}
-                        >
-                            <MenuItem value="16187">existing_project_16187</MenuItem>
-                            <MenuItem value="16188">existing_project_16188</MenuItem>
-                        </TextField>
+                        />
                     </Box>
                 )}
 
