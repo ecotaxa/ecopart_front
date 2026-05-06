@@ -25,6 +25,13 @@ export default defineConfig(({ mode }) => {
                 "/users": {
                     target: backendUrl,
                     changeOrigin: true,
+                    bypass: (req) => {
+                        // Let the browser navigate to /users/*/welcome/* via React Router
+                        if (req.headers.accept?.includes('text/html') && req.url?.includes('/welcome/')) {
+                            return '/index.html';
+                        }
+                        return null;
+                    },
                 },
                 // Proxy for EcoTaxa instances endpoint
                 "/ecotaxa_instances": {

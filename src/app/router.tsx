@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { HomePage } from "@/features/home";
-import { LoginPage, RegisterPage, ResetPasswordPage, ResetPasswordConfirmPage } from "@/features/auth";
+import { LoginPage, RegisterPage, ResetPasswordPage, ResetPasswordConfirmPage, ValidateEmailPage } from "@/features/auth";
 import { DashboardPage } from "@/features/dashboard";
 import { NotFoundPage } from "@/features/errors";
 import { ProfilePage } from "@/features/userProfile";
@@ -34,6 +34,10 @@ export const router = createBrowserRouter([
         element: <RegisterPage />,
     },
     {
+        path: "/users/:user_id/welcome/:token",
+        element: <ValidateEmailPage />,
+    },
+    {
         path: "/settings",
         element: (
             <ProtectedRoute>
@@ -59,7 +63,7 @@ export const router = createBrowserRouter([
     },
 
     {
-        path: "/projects/:id", 
+        path: "/projects/:id",
         element: (
             <ProtectedRoute>
                 <ProjectDetailsPage />
