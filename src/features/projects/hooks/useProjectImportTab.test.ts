@@ -63,8 +63,8 @@ describe('useProjectImportTab', () => {
         mockedImportEcoTaxaSamples.mockResolvedValue({ success: true });
     });
 
-     // TC-M1: Initialization and data loading
-    it('imports selected raw samples and clears importing/selection on success', async () => {
+    // TC-N6: Hook-level raw import success and cleanup
+    it('TC-N6: imports selected raw samples and clears importing/selection on success', async () => {
         const { result } = renderHook(() => useProjectImportTab(77));
 
         await waitFor(() => {
@@ -99,8 +99,8 @@ describe('useProjectImportTab', () => {
         expect(result.current.isImporting).toBe(false);
     });
 
-    // TC-M2: Importing EcoTaxa samples with error handling
-    it('maps selected EcoTaxa sample_id to sample_name and clears importing on error', async () => {
+    // TC-N7: Hook-level EcoTaxa import error handling
+    it('TC-N7: maps selected EcoTaxa sample_id to sample_name and clears importing on error', async () => {
         mockedImportEcoTaxaSamples.mockRejectedValueOnce(new Error('import failed'));
 
         const { result } = renderHook(() => useProjectImportTab(77));
@@ -127,5 +127,24 @@ describe('useProjectImportTab', () => {
         expect(result.current.selectedEcoTaxaSamples.ids.size).toBe(1);
         expect(result.current.snackbar.open).toBe(true);
         expect(result.current.snackbar.severity).toBe('error');
+    });
+
+    // TC-N8: Hook-level empty raw import action guard
+    it('TC-N8: keeps selection unchanged when there are no raw samples to import', async () => {
+        mockedGetImportableRawSamples.mockResolvedValue([]);
+
+        const { result } = renderHook(() => useProjectImportTab(77));
+
+        await waitFor(() => {
+            expect(result.current.loadingRaw).toBe(false);
+        });
+
+        act(() => {
+            result.current.handlePreImportRawSamples(false);
+        });
+
+        expect(result.current.isQcModalOpen).toBe(false);
+        expect(result.current.snackbar.open).toBe(true);
+        expect(result.current.snackbar.severity).toBe('warning');
     });
 });
