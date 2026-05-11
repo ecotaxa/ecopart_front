@@ -147,4 +147,100 @@ describe('useProjectImportTab', () => {
         expect(result.current.snackbar.open).toBe(true);
         expect(result.current.snackbar.severity).toBe('warning');
     });
+
+    // TC-N9: Hook-level EcoTaxa import supports exclude selection mode
+    it('TC-N9: imports EcoTaxa samples using exclude selection mode', async () => {
+        const { result } = renderHook(() => useProjectImportTab(77));
+
+        await waitFor(() => {
+            expect(result.current.loadingEcoTaxa).toBe(false);
+        });
+
+        // Exclude sample_id=2 so only eco-1 should be imported
+        act(() => {
+            result.current.setSelectedEcoTaxaSamples({ type: 'exclude', ids: new Set([2]) });
+        });
+
+        await act(async () => {
+            await result.current.handleImportEcoTaxaSamples(false);
+        });
+
+        expect(mockedImportEcoTaxaSamples).toHaveBeenCalledWith(77, {
+            samples: ['eco-1'],
+            backup_project: false,
+            backup_project_skip_already_imported: true,
+        });
+        expect(result.current.selectedEcoTaxaSamples.ids.size).toBe(0);
+        expect(result.current.snackbar.open).toBe(true);
+        expect(result.current.snackbar.severity).toBe('success');
+    });
+
+    // TC-N10: Hook-level raw import all with backup options + snackbar close
+    it('TC-N10: imports all raw samples with backup options and closes snackbar', async () => {
+        const { result } = renderHook(() => useProjectImportTab(77));
+
+        await waitFor(() => {
+            expect(result.current.loadingRaw).toBe(false);
+        });
+
+        act(() => {
+            result.current.setEnableAutoBackup(true);
+            result.current.setSkipAlreadyImported(false);
+        });
+
+        act(() => {
+            result.current.handlePreImportRawSamples(true);
+        });
+
+        expect(result.current.isQcModalOpen).toBe(true);
+
+        await act(async () => {
+            await result.current.confirmAndExecuteRawImport();
+        });
+
+        expect(mockedImportRawSamples).toHaveBeenCalledWith(77, {
+            samples: ['raw-1', 'raw-2'],
+            backup_project: true,
+            backup_project_skip_already_imported: false,
+        });
+
+        expect(result.current.snackbar.open).toBe(true);
+        act(() => {
+            result.current.closeSnackbar();
+        });
+        expect(result.current.snackbar.open).toBe(false);
+    });
+
+    // TC-N11: Hook-level initialization fallback when project fetch fails
+    it('TC-N11: sets error root path when project loading fails', async () => {
+        mockedGetProjectById.mockRejectedValueOnce(new Error('init failed'));
+
+        const { result } = renderHook(() => useProjectImportTab(77));
+
+        await waitFor(() => {
+            expect(result.current.rootFolderPath).toBe('Error loading data');
+        });
+
+        expect(result.current.hasEcoTaxaProject).toBe(false);
+    });
+
+    // TC-N12: Hook-level EcoTaxa import-all guard when there is no sample
+    it('TC-N12: shows warning and skips API call when importing all EcoTaxa samples with empty list', async () => {
+        mockedGetImportableEcoTaxaSamples.mockResolvedValueOnce([]);
+
+        const { result } = renderHook(() => useProjectImportTab(77));
+
+        await waitFor(() => {
+            expect(result.current.loadingEcoTaxa).toBe(false);
+        });
+
+        await act(async () => {
+            await result.current.handleImportEcoTaxaSamples(true);
+        });
+
+        expect(mockedImportEcoTaxaSamples).not.toHaveBeenCalled();
+        expect(result.current.snackbar.open).toBe(true);
+        expect(result.current.snackbar.severity).toBe('warning');
+        expect(result.current.snackbar.message).toBe('No samples to import.');
+    });
 });

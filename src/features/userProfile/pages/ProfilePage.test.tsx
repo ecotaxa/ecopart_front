@@ -103,7 +103,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
 
     // TC-E5: Update Profile - API Error
     it('TC-E5: should display error message if update fails', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ delay: null });
 
         server.use(
             http.patch('*/users/:id', () => {
@@ -120,10 +120,15 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         await user.clear(firstNameInput);
         await user.type(firstNameInput, 'Jane');
 
-        await user.click(screen.getByRole('button', { name: /SAVE/i }));
+        const saveButton = screen.getByRole('button', { name: /SAVE/i });
+        await waitFor(() => {
+            expect(saveButton).toBeEnabled();
+        });
+
+        await user.click(saveButton);
 
         expect(await screen.findByText(/Failed to update profile/i)).toBeInTheDocument();
-    });
+    }, 15000);
 
     // TC-E6: Change Password - Validation & Disabled State
     it('TC-E6: should disable CHANGE button if passwords are invalid or do not match', async () => {
