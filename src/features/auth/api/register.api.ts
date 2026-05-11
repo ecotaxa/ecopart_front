@@ -46,3 +46,30 @@ export async function registerUser(payload: RegisterPayload) {
         return null;
     }
 }
+
+export async function validateEmail(user_id: string, token: string) {
+    const res = await fetch(`${API_BASE_URL}/users/${user_id}/welcome/${token}`, {
+        method: "GET",
+    });
+
+    if (!res.ok) {
+        let data: unknown = null;
+        try {
+            data = await res.json();
+        } catch {
+            data = null;
+        }
+
+        const message =
+            extractErrorMessage(data as ApiErrorResponse) ??
+            `Email validation failed (HTTP ${res.status})`;
+
+        throw new Error(message);
+    }
+
+    try {
+        return await res.json();
+    } catch {
+        return null;
+    }
+}
