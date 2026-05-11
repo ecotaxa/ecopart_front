@@ -103,8 +103,8 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             );
             expect(grid).toBeInTheDocument();
 
-            // Find and click select all checkbox
-            const selectAllCheckbox = (await screen.findAllByRole('checkbox'))[0];
+            // Find and click select all checkbox (use accessible name to avoid brittle index-based selection)
+            const selectAllCheckbox = await screen.findByRole('checkbox', { name: /select all/i });
             await user.click(selectAllCheckbox);
 
             // Verify all items are selected

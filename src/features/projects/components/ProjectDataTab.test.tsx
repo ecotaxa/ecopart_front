@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -15,6 +15,7 @@ import { deleteProjectSample } from '../api/projects.api';
 import { ProjectDataTab } from './ProjectDataTab';
 
 describe('III. DATA TAB (ProjectDataTab)', () => {
+    let confirmSpy: ReturnType<typeof vi.spyOn> | undefined;
     beforeEach(() => {
         vi.clearAllMocks();
 
@@ -45,8 +46,10 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             samples: [],
         });
 
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     });
+
+    afterEach(() => confirmSpy?.mockRestore());
 
     const waitForGridText = async (text: string, timeout = 10000) => {
         await waitFor(() => {

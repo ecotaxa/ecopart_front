@@ -46,7 +46,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
     // --- 1. LOCAL STATES ---
     const { user } = useAuthStore();
     const [accounts, setAccounts] = useState<EcoTaxaAccountLink[]>([]);
-    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]); 
+    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]);
     const [loadingData, setLoadingData] = useState(false);
 
     const availableInstanceIds = new Set(
@@ -98,7 +98,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
         };
 
         fetchData();
-    }, [user?.user_id, values.instance]);
+    }, [user?.user_id, values.instance, onChange]);
 
     return (
         <Box sx={{ mb: 4 }}>

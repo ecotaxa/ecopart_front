@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 
 vi.mock('../api/projects.api', () => ({
@@ -43,17 +43,23 @@ describe('hooks/useProjectDataTab', () => {
             });
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
         vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         const { result } = renderHook(() => useProjectDataTab(77));
 
         await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
 
-        result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1, 2]) });
+        act(() => {
+            result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1, 2]) });
+        });
 
         await waitFor(() => expect(result.current.uvpSelectionCount).toBe(2));
 
-        await result.current.handleDeleteUvpSamples();
+        await act(async () => {
+            await result.current.handleDeleteUvpSamples();
+        });
+
+        confirmSpy.mockRestore();
 
         expect(deleteProjectSample).toHaveBeenCalledTimes(2);
         expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
