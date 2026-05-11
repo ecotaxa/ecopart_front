@@ -154,12 +154,14 @@ export const ServerFolderBrowserDialog: React.FC<ServerFolderBrowserDialogProps>
             open={open}
             onClose={onClose}
             aria-labelledby="server-folder-dialog-title"
+            fullWidth
+            maxWidth="md"
         >
             <DialogTitle id="server-folder-dialog-title">
                 Select Server Import Folder
             </DialogTitle>
 
-            <DialogContent>
+            <DialogContent sx={{ minWidth: 520, minHeight: 320 }}>
                 {apiError && <Alert severity="error" sx={{ mb: 2 }}>{apiError}</Alert>}
                 {loadingRoots ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>

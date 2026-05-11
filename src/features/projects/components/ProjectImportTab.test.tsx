@@ -121,13 +121,13 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N3 - EcoTaxa Empty State Rendering', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for "0 samples found" message to appear
+            // Wait for the "no EcoTaxa project linked" message to appear and import button disabled
             expect(await waitFor(
-                () => screen.getByText(/0 samples found/i),
+                () => screen.getByText(/pas de projet ecotaxa lié/i),
                 { timeout: 10000 }
             )).toBeInTheDocument();
 
-            // Verify the import button is disabled when no EcoTaxa samples
+            // Verify the import button is disabled when no EcoTaxa project is linked
             const importAllEcoBtn = screen.getByRole('button', { name: /IMPORT ALL IN ECOTAXA/i });
             expect(importAllEcoBtn).toBeDisabled();
         });
@@ -164,9 +164,9 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N5 - Screen Reader Announcement for Empty States', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for empty state message in the EcoTaxa section
+            // Wait for the "no EcoTaxa project linked" message in the EcoTaxa section
             const emptyStateText = await waitFor(
-                () => screen.getByText('0 samples found.'),
+                () => screen.getByText(/pas de projet ecotaxa lié/i),
                 { timeout: 10000 }
             );
             expect(emptyStateText).toBeInTheDocument();
@@ -174,6 +174,20 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             // Only the UVP grid should remain visible when EcoTaxa is empty
             const grids = screen.queryAllByRole('grid');
             expect(grids).toHaveLength(1);
+        });
+    });
+
+    describe('EcoTaxa disabled UI', () => {
+        it('shows the "Pas de projet EcoTaxa lié" message and disables EcoTaxa buttons', async () => {
+            render(<ProjectImportTab projectId={77} />);
+
+            expect(await waitFor(() => screen.getByText(/pas de projet ecotaxa lié/i))).toBeInTheDocument();
+
+            const importAllEcoBtn = screen.getByRole('button', { name: /IMPORT ALL IN ECOTAXA/i });
+            expect(importAllEcoBtn).toBeDisabled();
+
+            const importSelectionBtn = screen.queryByRole('button', { name: /IMPORT SELECTION/i });
+            if (importSelectionBtn) expect(importSelectionBtn).toBeDisabled();
         });
     });
 });

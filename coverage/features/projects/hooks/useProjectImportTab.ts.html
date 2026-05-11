@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">78.64% </span>
+                <span class="strong">79.24% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>81/103</span>
+                <span class='fraction'>84/106</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">53.65% </span>
+                <span class="strong">53.48% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>22/41</span>
+                <span class='fraction'>23/43</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">80.89% </span>
+                <span class="strong">81.31% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>72/89</span>
+                <span class='fraction'>74/91</span>
             </div>
         
             
@@ -282,7 +282,13 @@
 <a name='L217'></a><a href='#L217'>217</a>
 <a name='L218'></a><a href='#L218'>218</a>
 <a name='L219'></a><a href='#L219'>219</a>
-<a name='L220'></a><a href='#L220'>220</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -320,6 +326,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">41x</span>
@@ -341,6 +350,7 @@
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-yes">10x</span>
@@ -501,6 +511,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useState, useEffect } from "react";
 import { AlertColor } from "@mui/material";
 import { GridRowSelectionModel } from "@mui/x-data-grid";
@@ -537,6 +549,9 @@ export const useProjectImportTab = (projectId: number) =&gt; {
         ids: new Set(),
     });
 &nbsp;
+    // Track whether the project has an EcoTaxa project linked
+    const [hasEcoTaxaProject, setHasEcoTaxaProject] = useState&lt;boolean&gt;(false);
+&nbsp;
     // Backup Options State 
     const [enableAutoBackup, setEnableAutoBackup] = useState(false);
     const [skipAlreadyImported, setSkipAlreadyImported] = useState(true);
@@ -563,6 +578,7 @@ export const useProjectImportTab = (projectId: number) =&gt; {
             try {
                 const projectData = await getProjectById(projectId);
                 <span class="missing-if-branch" title="else path not taken" >E</span>if (isMounted) setRootFolderPath(projectData.root_folder_path || <span class="branch-1 cbranch-no" title="branch not covered" >"No path defined")</span>;
+                <span class="missing-if-branch" title="else path not taken" >E</span>if (isMounted) setHasEcoTaxaProject(Boolean(projectData.ecotaxa_project_name));
 &nbsp;
                 try {
                     const rawData = await getImportableRawSamples(projectId);
@@ -711,6 +727,8 @@ export const useProjectImportTab = (projectId: number) =&gt; {
         ecoTaxaSamples, loadingEcoTaxa, selectedEcoTaxaSamples, setSelectedEcoTaxaSamples,
         ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, ecoTaxaSamples.length),
 &nbsp;
+        hasEcoTaxaProject,
+&nbsp;
         enableAutoBackup, setEnableAutoBackup,
         skipAlreadyImported, setSkipAlreadyImported,
         isImporting,
@@ -727,7 +745,7 @@ export const useProjectImportTab = (projectId: number) =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-11T07:50:18.098Z
+                at 2026-05-11T12:00:33.319Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
