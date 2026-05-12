@@ -28,8 +28,10 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
         isImporting,
         isQcModalOpen, setIsQcModalOpen, importAllUvpFlag,
         handlePreImportRawSamples, confirmAndExecuteRawImport, handleImportEcoTaxaSamples,
-        snackbar, closeSnackbar
+        snackbar, closeSnackbar, hasEcoTaxaProject
     } = useProjectImportTab(projectId);
+
+    const ecoProjectLinked = hasEcoTaxaProject;
 
     // --- DATAGRID COLUMNS DEFINITIONS ---
     const rawSamplesColumns: GridColDef<ImportableRawSample>[] = [
@@ -220,36 +222,43 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                         <Button
                             variant="outlined"
                             color="inherit"
-                            disabled={ecoTaxaSamples.length === 0 || isImporting}
+                            disabled={!ecoProjectLinked || ecoTaxaSamples.length === 0 || isImporting}
                             onClick={() => handleImportEcoTaxaSamples(true)}
-                            sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}
+                            sx={{ borderColor: '#e0e0e0', color: ecoProjectLinked ? 'text.secondary' : 'text.disabled' }}
                         >
                             IMPORT ALL IN ECOTAXA
                         </Button>
                     </Box>
 
-                    {/* MENTOR FIX: Updated empty state text to "0 samples found." */}
-                    {ecoTaxaSamples.length === 0 ? (
-                        renderEmptyState(loadingEcoTaxa ? "Loading samples..." : "0 samples found.")
-                    ) : (
-                        <Box sx={{ width: '100%', mb: 1 }}>
-                            {renderSelectionBar(ecoTaxaSelectionCount, () => handleImportEcoTaxaSamples(false), ecoTaxaSelectionCount === 0 || isImporting, true)}
-                            <DataGrid
-                                rows={ecoTaxaSamples}
-                                columns={ecoTaxaSamplesColumns}
-                                getRowId={(row) => row.sample_id}
-                                checkboxSelection
-                                disableRowSelectionOnClick
-                                loading={loadingEcoTaxa}
-                                rowSelectionModel={selectedEcoTaxaSamples}
-                                onRowSelectionModelChange={(newSelection) => setSelectedEcoTaxaSamples(newSelection)}
-                                initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                                pageSizeOptions={[5, 10, 25]}
-                                autoHeight
-                                sx={dataGridStyles}
-                            />
-                        </Box>
-                    )}
+                    {/* If there is no linked EcoTaxa project show an error message and disable import actions */}
+                    {
+                        !ecoProjectLinked ? (
+                            <Box sx={{ border: '1px dashed #f44336', borderRadius: 1, p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
+                                No linked EcoTaxa project
+                            </Box>
+                        ) : ecoTaxaSamples.length === 0 ? (
+                            // MENTOR FIX: Updated empty state text to "0 samples found."
+                            renderEmptyState(loadingEcoTaxa ? "Loading samples..." : "0 samples found.")
+                        ) : (
+                            <Box sx={{ width: '100%', mb: 1 }}>
+                                {renderSelectionBar(ecoTaxaSelectionCount, () => handleImportEcoTaxaSamples(false), !ecoProjectLinked || ecoTaxaSelectionCount === 0 || isImporting, true)}
+                                <DataGrid
+                                    rows={ecoTaxaSamples}
+                                    columns={ecoTaxaSamplesColumns}
+                                    getRowId={(row) => row.sample_id}
+                                    checkboxSelection
+                                    disableRowSelectionOnClick
+                                    loading={loadingEcoTaxa}
+                                    rowSelectionModel={selectedEcoTaxaSamples}
+                                    onRowSelectionModelChange={(newSelection) => setSelectedEcoTaxaSamples(newSelection)}
+                                    initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+                                    pageSizeOptions={[5, 10, 25]}
+                                    autoHeight
+                                    sx={dataGridStyles}
+                                />
+                            </Box>
+                        )
+                    }
                 </Box>
             </Paper>
 

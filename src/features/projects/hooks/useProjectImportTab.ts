@@ -34,6 +34,9 @@ export const useProjectImportTab = (projectId: number) => {
         ids: new Set(),
     });
 
+    // Track whether the project has an EcoTaxa project linked
+    const [hasEcoTaxaProject, setHasEcoTaxaProject] = useState<boolean>(false);
+
     // Backup Options State 
     const [enableAutoBackup, setEnableAutoBackup] = useState(false);
     const [skipAlreadyImported, setSkipAlreadyImported] = useState(true);
@@ -60,6 +63,7 @@ export const useProjectImportTab = (projectId: number) => {
             try {
                 const projectData = await getProjectById(projectId);
                 if (isMounted) setRootFolderPath(projectData.root_folder_path || "No path defined");
+                if (isMounted) setHasEcoTaxaProject(Boolean(projectData.ecotaxa_project_name));
 
                 try {
                     const rawData = await getImportableRawSamples(projectId);
@@ -81,7 +85,17 @@ export const useProjectImportTab = (projectId: number) => {
 
             } catch (error) {
                 console.error("Failed to initialize import tab:", error);
-                if (isMounted) setRootFolderPath("Error loading data");
+                if (isMounted) {
+                    setRootFolderPath("Error loading data");
+                    setHasEcoTaxaProject(false);
+                    setRawSamples([]);
+                    setEcoTaxaSamples([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoadingRaw(false);
+                    setLoadingEcoTaxa(false);
+                }
             }
         };
 
@@ -207,6 +221,8 @@ export const useProjectImportTab = (projectId: number) => {
 
         ecoTaxaSamples, loadingEcoTaxa, selectedEcoTaxaSamples, setSelectedEcoTaxaSamples,
         ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, ecoTaxaSamples.length),
+
+        hasEcoTaxaProject,
 
         enableAutoBackup, setEnableAutoBackup,
         skipAlreadyImported, setSkipAlreadyImported,
