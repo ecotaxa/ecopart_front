@@ -113,7 +113,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
                 { timeout: 5000 }
             )).toBeInTheDocument();
 
-            //Verify import button becomes enabled
+            // Verify import button becomes enabled
             const importBtn = screen.getByRole('button', { name: /IMPORT SELECTION/i });
             expect(importBtn).not.toBeDisabled();
         }, 15000);
@@ -121,9 +121,9 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N3 - EcoTaxa Empty State Rendering', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for the "no EcoTaxa project linked" message to appear
+            // Wait for the "no linked EcoTaxa project" message to appear
             expect(await waitFor(
-                () => screen.getByText(/pas de projet ecotaxa lié/i),
+                () => screen.getByText(/no linked ecotaxa project/i),
                 { timeout: 10000 }
             )).toBeInTheDocument();
 
@@ -164,9 +164,9 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N5 - Screen Reader Announcement for Empty States', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for no-linked EcoTaxa message in the EcoTaxa section
+            // Wait for the no-linked EcoTaxa message in the EcoTaxa section
             const emptyStateText = await waitFor(
-                () => screen.getByText(/pas de projet ecotaxa lié/i),
+                () => screen.getByText(/no linked ecotaxa project/i),
                 { timeout: 10000 }
             );
             expect(emptyStateText).toBeInTheDocument();

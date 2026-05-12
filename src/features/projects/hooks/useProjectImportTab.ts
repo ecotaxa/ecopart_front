@@ -85,7 +85,17 @@ export const useProjectImportTab = (projectId: number) => {
 
             } catch (error) {
                 console.error("Failed to initialize import tab:", error);
-                if (isMounted) setRootFolderPath("Error loading data");
+                if (isMounted) {
+                    setRootFolderPath("Error loading data");
+                    setHasEcoTaxaProject(false);
+                    setRawSamples([]);
+                    setEcoTaxaSamples([]);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoadingRaw(false);
+                    setLoadingEcoTaxa(false);
+                }
             }
         };
 

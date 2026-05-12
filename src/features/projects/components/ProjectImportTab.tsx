@@ -234,7 +234,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                     {
                         !ecoProjectLinked ? (
                             <Box sx={{ border: '1px dashed #f44336', borderRadius: 1, p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
-                                Pas de projet EcoTaxa lié
+                                No linked EcoTaxa project
                             </Box>
                         ) : ecoTaxaSamples.length === 0 ? (
                             // MENTOR FIX: Updated empty state text to "0 samples found."
