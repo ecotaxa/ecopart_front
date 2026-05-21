@@ -30,6 +30,15 @@ const mockProjectData = {
     ecotaxa_project_id: null,
 };
 
+const linkedMockProjectData = {
+    ...mockProjectData,
+    project_id: 102,
+    project_title: 'Linked Project',
+    ecotaxa_instance_id: 1,
+    ecotaxa_project_id: 20092,
+    ecotaxa_project_name: 'EcoTaxa linked project',
+};
+
 describe('ProjectMetadataTab (Functional)', () => {
 
     beforeEach(() => {
@@ -103,4 +112,52 @@ describe('ProjectMetadataTab (Functional)', () => {
 
         expect(await screen.findByText('Validation failed on backend')).toBeInTheDocument();
     }, 10000);
+
+    it('TC-J4: should show linked EcoTaxa summary and switch back to editable fields after unlink', async () => {
+        const user = userEvent.setup({ delay: null });
+        let capturedPatchBody: Record<string, unknown> | null = null;
+
+        server.use(
+            http.post('*/projects/searches*', () => {
+                return HttpResponse.json({
+                    search_info: { total: 1, page: 1, limit: 1 },
+                    projects: [linkedMockProjectData]
+                });
+            }),
+            http.get('*/ecotaxa_instances', () => HttpResponse.json([
+                {
+                    ecotaxa_instance_id: 1,
+                    ecotaxa_instance_name: 'FR',
+                    ecotaxa_instance_description: 'France instance',
+                    ecotaxa_instance_url: 'https://ecotaxa.obs-vlfr.fr'
+                }
+            ])),
+            http.patch('*/projects/102', async ({ request }) => {
+                capturedPatchBody = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({}, { status: 200 });
+            })
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={102} />);
+
+        expect(await screen.findByDisplayValue('EcoTaxa linked project - 20092 - FR')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /unlink ecotaxa project/i }));
+
+        expect(await screen.findByText(/You will still need to click on the save button to validates the changes/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/EcoTaxa instance/i)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
+
+        expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
+        if (!capturedPatchBody) {
+            throw new Error('PATCH body was not captured');
+        }
+        const patchBody = capturedPatchBody as any;
+        expect(patchBody.ecotaxa_project_id).toBeNull();
+        expect(capturedPatchBody).not.toHaveProperty('ecotaxa_instance_id');
+        expect(capturedPatchBody).not.toHaveProperty('ecotaxa_account_id');
+        expect(capturedPatchBody).not.toHaveProperty('ecotaxa_project_name');
+        expect(capturedPatchBody).not.toHaveProperty('new_ecotaxa_project');
+    }, 15000);
 });

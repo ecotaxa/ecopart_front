@@ -18,7 +18,7 @@ import {
     DataGrid,
     GridColDef,
     GridRenderCellParams,
-    GridRowParams, 
+    GridRowParams,
 } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
@@ -112,7 +112,7 @@ export default function ProjectsPage() {
     };
 
     const handleRowClick = (params: GridRowParams<Project>) => {
-        navigate(`/projects/${params.row.project_id}`);
+        navigate(`/projects/${params.row.project_id}/metadata`);
     };
 
     // ---------------------------------------------------------------------------
@@ -267,9 +267,9 @@ export default function ProjectsPage() {
 
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
                         <TextField
-                            placeholder="Search..."
                             size="small"
                             sx={{ flexGrow: 1 }}
+                            placeholder={searchAttribute === "project_id" ? "Search by ID (exact)" : "Search..."}
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                             InputProps={{
@@ -290,6 +290,7 @@ export default function ProjectsPage() {
                             sx={{ width: 170 }}
                         >
                             {/* Extended attributes based on backend allowed filters */}
+                            <MenuItem value="project_id">ID</MenuItem>
                             <MenuItem value="project_title">Title</MenuItem>
                             <MenuItem value="project_acronym">Acronym</MenuItem>
                             <MenuItem value="cruise">Cruise</MenuItem>
@@ -300,9 +301,9 @@ export default function ProjectsPage() {
                         </TextField>
 
                         <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick} sx={{ whiteSpace: 'nowrap' }}>
-                            {selectedFilter === "All" ? "All My Projects" : 
-                             selectedFilter === "Manager" ? "My Managed Projects" : 
-                             `Filter: ${selectedFilter}`}
+                            {selectedFilter === "All" ? "All My Projects" :
+                                selectedFilter === "Manager" ? "My Managed Projects" :
+                                    `Filter: ${selectedFilter}`}
                         </Button>
 
                         <Menu anchorEl={filterAnchorEl} open={openFilter} onClose={() => handleFilterClose()}>
@@ -371,7 +372,7 @@ export default function ProjectsPage() {
                             loading={loading}
                             pageSizeOptions={[5, 10, 25]}
                             disableRowSelectionOnClick
-                            onRowClick={handleRowClick} 
+                            onRowClick={handleRowClick}
                             sx={{
                                 border: 0,
                                 '& .MuiDataGrid-row': {

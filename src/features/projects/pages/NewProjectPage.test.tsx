@@ -74,7 +74,8 @@ describe('NewProjectPage (Functional)', () => {
             }),
             // Prevent network passthrough when tests navigate to ProjectDetails import tab.
             http.get('*/projects/*/samples/can_be_imported', () => HttpResponse.json([])),
-            http.get('*/projects/*/ecotaxa_samples/can_be_imported', () => HttpResponse.json([]))
+            http.get('*/projects/*/ecotaxa_samples/can_be_imported', () => HttpResponse.json([])),
+            http.get('*/projects/*/ctd_samples/can_be_imported', () => HttpResponse.json([]))
         );
     });
 
@@ -156,7 +157,7 @@ describe('NewProjectPage (Functional)', () => {
         renderWithRouter(
             <Routes>
                 <Route path="/new-project" element={<NewProjectPage />} />
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/new-project' }
         );
@@ -173,10 +174,10 @@ describe('NewProjectPage (Functional)', () => {
         // Verify Success Toast
         expect(await screen.findByText(/Project successfully created/i)).toBeInTheDocument();
 
-        // Verify Redirection
+        // Verify Redirection using a tab that only exists on the details page
         await waitFor(() => {
-            expect(screen.getByText('Project Details [999]')).toBeInTheDocument();
-        }, { timeout: 2000 });
+            expect(screen.getByRole('tab', { name: /IMPORT/i })).toBeInTheDocument();
+        }, { timeout: 4000 });
 
         expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
     }, 90000);
@@ -377,6 +378,83 @@ describe('NewProjectPage (Functional)', () => {
         expect(await within(privilegesSection as HTMLElement).findByDisplayValue(/Alex Ray \(alex@ray.com\)/i)).toBeInTheDocument();
         expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
     }, 30000);
+
+    // TC-H8: Loading State During Submission
+    it('TC-H8: should show loader and disable CREATE button during project submission', async () => {
+        const user = userEvent.setup({ delay: null });
+
+        let resolveProjectCreation!: () => void;
+        const projectCreationInProgress = new Promise<void>((resolve) => {
+            resolveProjectCreation = () => resolve();
+        });
+
+        const createdProjectId = 999;
+
+        server.use(
+            http.post('*/projects', async () => {
+                // Simulate a slow API call
+                await projectCreationInProgress;
+                return HttpResponse.json({ project_id: createdProjectId }, { status: 201 });
+            }),
+            http.post('*/projects/searches', async ({ request }) => {
+                const body = await request.json();
+                const filters = Array.isArray(body) ? body : [];
+                const projectIdFilter = filters.find((filter: { field?: string; value?: unknown }) => filter.field === 'project_id');
+
+                if (projectIdFilter?.value === createdProjectId) {
+                    return HttpResponse.json({
+                        search_info: { total: 1, page: 1, limit: 1 },
+                        projects: [{
+                            project_id: createdProjectId,
+                            project_title: 'Test Project Title',
+                            project_acronym: 'TPT',
+                            instrument_model: 'UVP5HD',
+                            root_folder_path: '/data/my_new_project',
+                            privacy_duration: 2,
+                            visible_duration: 24,
+                            public_duration: 36,
+                            managers: [],
+                            members: [],
+                            contact: null
+                        }]
+                    });
+                }
+
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 1 }, projects: [] });
+            })
+        );
+
+        renderWithRouter(
+            <Routes>
+                <Route path="/new-project" element={<NewProjectPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
+            </Routes>,
+            { route: '/new-project' }
+        );
+
+        await screen.findByRole('heading', { name: /^New project$/i });
+
+        // Fill all mandatory fields
+        await fillValidProjectForm(user);
+
+        // Click Submit
+        const createButton = screen.getByRole('button', { name: /^CREATE$/i });
+        await user.click(createButton);
+
+        // Wait a bit for the async submission to start
+        await waitFor(() => {
+            expect(createButton).toBeDisabled();
+        });
+
+        // Verify the loader is displayed
+        expect(screen.getByRole('progressbar')).toBeInTheDocument();
+
+        // Resolve the project creation to complete the submission
+        resolveProjectCreation();
+
+        // Verify Success Toast and Redirection
+        expect(await screen.findByText(/Project successfully created/i)).toBeInTheDocument();
+    }, 90000);
 
 
 });

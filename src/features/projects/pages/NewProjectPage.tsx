@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Box, Container, Typography, Button, Paper, Snackbar, Alert } from "@mui/material";
+import { Box, Container, Typography, Button, Paper, Snackbar, Alert, CircularProgress } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
 import MainLayout from "@/app/layouts/MainLayout";
@@ -27,6 +27,7 @@ export default function NewProjectPage() {
         isRemoteProject,
         snackbar,
         closeSnackbar,
+        isSubmitting,
     } = useNewProjectForm();
 
     const currentUser = useAuthStore((state) => state.user);
@@ -143,15 +144,19 @@ export default function NewProjectPage() {
                         isRemoteProject={isRemoteProject}
                     />
 
-                    <Box sx={{ mt: 6, display: "flex", justifyContent: "flex-start" }}>
+                    <Box sx={{ mt: 6, display: "flex", justifyContent: "flex-start", alignItems: "center", gap: 2 }}>
                         <Button
                             variant="contained"
                             color="primary"
                             size="large"
                             onClick={handleSubmit}
+                            disabled={isSubmitting}
                         >
                             CREATE
                         </Button>
+                        {isSubmitting && (
+                            <CircularProgress size={24} />
+                        )}
                     </Box>
                 </Paper>
             </Container>

@@ -40,7 +40,16 @@ export async function http<T>(
         let errorMessage = `HTTP Error: ${response.status}`;
         try {
             const errorData = await response.json();
-            errorMessage = errorData.message || errorMessage;
+            if (typeof errorData?.message === "string" && errorData.message.trim()) {
+                errorMessage = errorData.message;
+            } else if (Array.isArray(errorData?.errors) && errorData.errors.length > 0) {
+                const firstError = errorData.errors[0];
+                if (typeof firstError === "string" && firstError.trim()) {
+                    errorMessage = firstError;
+                } else if (typeof firstError?.msg === "string" && firstError.msg.trim()) {
+                    errorMessage = firstError.msg;
+                }
+            }
         } catch {
             // Body was not valid JSON, keep generic message
         }
@@ -79,7 +88,16 @@ export async function http<T>(
         let errorMessage = `HTTP Error: ${retryResponse.status}`;
         try {
             const errorData = await retryResponse.json();
-            errorMessage = errorData.message || errorMessage;
+            if (typeof errorData?.message === "string" && errorData.message.trim()) {
+                errorMessage = errorData.message;
+            } else if (Array.isArray(errorData?.errors) && errorData.errors.length > 0) {
+                const firstError = errorData.errors[0];
+                if (typeof firstError === "string" && firstError.trim()) {
+                    errorMessage = firstError;
+                } else if (typeof firstError?.msg === "string" && firstError.msg.trim()) {
+                    errorMessage = firstError.msg;
+                }
+            }
         } catch {
             // Body was not valid JSON, keep generic message
         }

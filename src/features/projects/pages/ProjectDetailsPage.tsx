@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import {
     Box,
@@ -16,6 +16,7 @@ import { ProjectSecurityTab } from "../components/ProjectSecurityTab";
 
 import { ProjectBackupTab } from "../components/ProjectBackupTab";
 import { ProjectImportTab } from "../components/ProjectImportTab";
+import { getProjectById } from "../api/projects.api";
 
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -29,16 +30,27 @@ import BackupIcon from "@mui/icons-material/Backup";
 import { ProjectDataTab } from "../components/ProjectDataTab";
 
 export default function ProjectDetailsPage() {
-    const { id } = useParams<{ id: string }>();
+    const { id, tabName } = useParams<{ id: string; tabName?: string }>();
     const navigate = useNavigate();
     const location = useLocation();
+
+    const tabDefinitions = useMemo(() => ([
+        { slug: "stats", label: "STATS" },
+        { slug: "metadata", label: "METADATA" },
+        { slug: "data", label: "DATA" },
+        { slug: "import", label: "IMPORT" },
+        { slug: "update", label: "UPDATE" },
+        { slug: "security", label: "SECURITY" },
+        { slug: "tasks", label: "TASKS" },
+        { slug: "backup", label: "BACKUP" },
+    ]), []);
 
     const clampTabIndex = (value: unknown, fallback: number) => {
         if (typeof value !== "number" || !Number.isInteger(value)) {
             return fallback;
         }
 
-        return Math.min(Math.max(value, 0), 7);
+        return Math.min(Math.max(value, 0), tabDefinitions.length - 1);
     };
 
     // Parse the route param once.
@@ -46,10 +58,35 @@ export default function ProjectDetailsPage() {
     const parsedProjectId = id ? Number.parseInt(id, 10) : null;
     const projectId = parsedProjectId !== null && !Number.isNaN(parsedProjectId) ? parsedProjectId : null;
 
-    // State to manage the active tab (0 = Stats, 1 = Metadata, etc.)
-    // Default to Metadata, but allow navigation state to open a specific tab.
-    const initialTab = clampTabIndex(location.state?.activeTab, 1);
-    const [currentTab, setCurrentTab] = useState(initialTab);
+    const [projectTitle, setProjectTitle] = useState("Project Details");
+
+    const defaultTabIndex = clampTabIndex(location.state?.activeTab, 1);
+    const tabIndexFromSlug = tabName
+        ? tabDefinitions.findIndex((tab) => tab.slug === tabName)
+        : defaultTabIndex;
+    const currentTab = tabIndexFromSlug >= 0 ? tabIndexFromSlug : defaultTabIndex;
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadProjectTitle = async () => {
+            try {
+                const project = await getProjectById(projectId!);
+                if (isMounted && project.project_title.trim() !== "") {
+                    setProjectTitle(project.project_title);
+                }
+            } catch {
+                if (isMounted) {
+                    setProjectTitle("Project Details");
+                }
+            }
+        };
+
+        loadProjectTitle();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [projectId]);
 
     if (projectId === null) {
         return (
@@ -64,7 +101,8 @@ export default function ProjectDetailsPage() {
     }
 
     const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-        setCurrentTab(newValue);
+        const nextSlug = tabDefinitions[newValue]?.slug ?? "metadata";
+        navigate(`/projects/${projectId}/${nextSlug}`);
     };
 
     const renderComingSoonTab = (label: string) => (
@@ -99,7 +137,7 @@ export default function ProjectDetailsPage() {
                             Project
                         </Typography>
                         <Typography variant="h5" color="text.secondary">
-                            Project Details [{projectId}]
+                            {projectTitle}
                         </Typography>
                     </Box>
 
@@ -120,14 +158,14 @@ export default function ProjectDetailsPage() {
                         variant="scrollable"
                         scrollButtons="auto"
                     >
-                        <Tab icon={<BarChartIcon />} iconPosition="start" label="STATS" />
-                        <Tab icon={<TextSnippetIcon />} iconPosition="start" label="METADATA" />
-                        <Tab icon={<CloudIcon />} iconPosition="start" label="DATA" />
-                        <Tab icon={<DownloadIcon />} iconPosition="start" label="IMPORT" />
-                        <Tab icon={<SyncIcon />} iconPosition="start" label="UPDATE" />
-                        <Tab icon={<LockIcon />} iconPosition="start" label="SECURITY" />
-                        <Tab icon={<AssignmentIcon />} iconPosition="start" label="TASKS" />
-                        <Tab icon={<BackupIcon />} iconPosition="start" label="BACKUP" />
+                        <Tab value={0} icon={<BarChartIcon />} iconPosition="start" label="STATS" />
+                        <Tab value={1} icon={<TextSnippetIcon />} iconPosition="start" label="METADATA" />
+                        <Tab value={2} icon={<CloudIcon />} iconPosition="start" label="DATA" />
+                        <Tab value={3} icon={<DownloadIcon />} iconPosition="start" label="IMPORT" />
+                        <Tab value={4} icon={<SyncIcon />} iconPosition="start" label="UPDATE" />
+                        <Tab value={5} icon={<LockIcon />} iconPosition="start" label="SECURITY" />
+                        <Tab value={6} icon={<AssignmentIcon />} iconPosition="start" label="TASKS" />
+                        <Tab value={7} icon={<BackupIcon />} iconPosition="start" label="BACKUP" />
                     </Tabs>
                 </Box>
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
     Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, IconButton, LinearProgress
 } from "@mui/material";
@@ -7,21 +7,13 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { DataGrid, GridColDef, GridRenderCellParams, GridRowSelectionModel } from "@mui/x-data-grid";
+import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import { useProjectDataTab } from "../hooks/useProjectDataTab";
-import { EcoTaxaSampleData, SampleData } from "../api/projects.api";
+import { EcoTaxaSampleData, SampleData, CtdSampleData } from "../api/projects.api";
 
 interface ProjectDataTabProps {
     projectId: number;
-}
-
-interface CtdSample {
-    id: number;
-    sample_name: string;
-    ctd_sample_id: string;
-    import_date: string;
-    station_id: string;
 }
 
 // Helper function to format YYYYMMDDHHMMSS strings into readable dates
@@ -29,7 +21,7 @@ const formatCompactDate = (dateString?: string) => {
     if (!dateString) return 'Cell';
     // If it's already an ISO string (contains 'T')
     if (dateString.includes('T')) return dateString.split('T')[0];
-    
+
     // If it's a compact string like 20200806221349
     if (dateString.length >= 8) {
         const year = dateString.substring(0, 4);
@@ -48,42 +40,36 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         ecoTaxaSamples, loadingEcoTaxa, totalEcoTaxaRows, ecoTaxaPaginationModel, setEcoTaxaPaginationModel,
         selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount,
 
+        ctdSamples, loadingCtd, totalCtdRows, ctdPaginationModel, setCtdPaginationModel,
+        selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount,
+
         isActionRunning,
-        handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleMatchEcotaxa,
+        handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples, handleMatchEcotaxa,
         snackbar, closeSnackbar
     } = useProjectDataTab(projectId);
-
-    // Mock data for CTD table
-    const [ctdSamples] = useState<CtdSample[]>([
-        { id: 1, sample_name: 'Cell', ctd_sample_id: 'Cell', import_date: 'December 2 2022', station_id: 'Cell' },
-        { id: 2, sample_name: 'Cell', ctd_sample_id: 'Cell', import_date: 'January 2 2022', station_id: 'Cell' },
-        { id: 3, sample_name: 'Cell', ctd_sample_id: 'Cell', import_date: 'September 4 2022', station_id: 'Cell' },
-    ]);
-    const [selectedCtdSamples, setSelectedCtdSamples] = useState<GridRowSelectionModel>({
-        type: "include",
-        ids: new Set([3]),
-    });
 
     // --- DATAGRID COLUMNS DEFINITIONS ---
 
     const uvpSamplesColumns: GridColDef<SampleData>[] = [
         { field: "sample_name", headerName: "Sample ID Name", flex: 1.5, minWidth: 150 },
-        { 
-            field: "sampling_date", 
-            headerName: "Date", 
-            flex: 1, 
-            minWidth: 120, 
+        {
+            field: "sampling_date",
+            headerName: "Date",
+            flex: 1,
+            minWidth: 120,
             // MENTOR FIX: Apply date formatting for better readability
-            valueGetter: (_value, row) => formatCompactDate(row.sampling_date) 
+            valueGetter: (_value, row) => formatCompactDate(row.sampling_date)
         },
         { field: "filename", headerName: "Raw file name", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.filename || 'Cell' },
         { field: "sample_type_label", headerName: "Type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.sample_type_label || 'Cell' },
         { field: "comment", headerName: "Comment", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.comment || 'Cell' },
         {
             field: "linked_ctd", headerName: "Linked CTD", flex: 1, minWidth: 100, renderCell: (params) => (
-                <Typography variant="body2" color={params.row.sample_id % 2 === 0 ? "error" : "textPrimary"}>
-                    {params.row.sample_id % 2 === 0 ? "NO" : "YES"}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <Typography variant="body2" color={params.row.sample_id % 2 === 0 ? "error" : "textPrimary"}>
+                        {params.row.sample_id % 2 === 0 ? "NO" : "YES"}
+                    </Typography>
+                </Box>
             )
         },
         {
@@ -117,11 +103,11 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         }
     ];
 
-    const ctdSamplesColumns: GridColDef<CtdSample>[] = [
-        { field: "sample_name", headerName: "Sample name", flex: 1.5, minWidth: 150 },
-        { field: "ctd_sample_id", headerName: "CTD sample ID", flex: 1.5, minWidth: 150 },
-        { field: "import_date", headerName: "Import date", flex: 1.5, minWidth: 150 },
-        { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 100 },
+    const ctdSamplesColumns: GridColDef<CtdSampleData>[] = [
+        { field: "sample_name", headerName: "Sample name", flex: 1.8, minWidth: 180 },
+        { field: "ctd_sample_id", headerName: "CTD sample ID", flex: 1.4, minWidth: 150, valueGetter: (_value, row) => row.ctd_sample_id ?? row.sample_name },
+        { field: "import_date", headerName: "Import date", flex: 1.2, minWidth: 140, valueGetter: (_value, row) => row.import_date ?? "Cell" },
+        { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.station_id ?? "Cell" },
     ];
 
     const ecoTaxaSamplesColumns: GridColDef<EcoTaxaSampleData>[] = [
@@ -211,7 +197,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                         <DataGrid<SampleData>
                             rows={uvpSamples}
                             columns={uvpSamplesColumns}
-                            getRowId={(row) => row.sample_id} 
+                            getRowId={(row) => row.sample_id}
                             checkboxSelection
                             disableRowSelectionOnClick
                             loading={loadingUvp}
@@ -231,7 +217,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
 
             <Divider sx={{ my: 4 }} />
 
-            {/* CTD SAMPLES SECTION (MOCKED) */}
+            {/* CTD SAMPLES SECTION */}
             <Box sx={{ mb: 6 }}>
                 <Box sx={{ mb: 2 }}>
                     <Typography variant="h6">Links with CTD samples</Typography>
@@ -239,25 +225,34 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fafafa', p: 1.5, borderTop: '1px solid #e0e0e0' }}>
-                    <Typography variant="body2" fontWeight="bold">{selectedCtdSamples.ids.size} items selected</Typography>
-                    <Button variant="text" color="inherit" disabled startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.disabled' }}>
+                    <Typography variant="body2" fontWeight="bold">{ctdSelectionCount} items selected</Typography>
+                    <Button variant="text" color="inherit" disabled={selectedCtdSamples.ids.size === 0 || isActionRunning} startIcon={<CloseIcon />} onClick={handleDeleteCtdSamples} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         DELETE
                     </Button>
                 </Box>
-                <Box sx={{ width: '100%', mb: 1 }}>
-                    <DataGrid<CtdSample>
-                        rows={ctdSamples}
-                        columns={ctdSamplesColumns}
-                        getRowId={(row) => row.id}
-                        checkboxSelection
-                        rowSelectionModel={selectedCtdSamples}
-                        onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
-                        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                        pageSizeOptions={[5, 10, 25]}
-                        autoHeight
-                        sx={dataGridStyles}
-                    />
-                </Box>
+                {ctdSamples.length === 0 ? (
+                    renderEmptyState(loadingCtd ? "Loading CTD samples..." : "No results found.")
+                ) : (
+                    <Box sx={{ width: '100%', mb: 1 }}>
+                        <DataGrid<CtdSampleData>
+                            rows={ctdSamples}
+                            columns={ctdSamplesColumns}
+                            getRowId={(row) => row.sample_name}
+                            checkboxSelection
+                            disableRowSelectionOnClick
+                            loading={loadingCtd}
+                            rowSelectionModel={selectedCtdSamples}
+                            onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
+                            paginationMode="server"
+                            rowCount={totalCtdRows}
+                            paginationModel={ctdPaginationModel}
+                            onPaginationModelChange={setCtdPaginationModel}
+                            pageSizeOptions={[5, 10, 25]}
+                            autoHeight
+                            sx={dataGridStyles}
+                        />
+                    </Box>
+                )}
             </Box>
 
             <Divider sx={{ my: 4 }} />

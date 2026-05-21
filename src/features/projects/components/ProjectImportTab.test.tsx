@@ -8,14 +8,17 @@ vi.mock('../api/projects.api', () => ({
     getProjectById: vi.fn(),
     getImportableRawSamples: vi.fn(),
     getImportableEcoTaxaSamples: vi.fn(),
+    getImportableCtdSamples: vi.fn(),
     importRawSamples: vi.fn(),
     importEcoTaxaSamples: vi.fn(),
+    importProjectCtdSamples: vi.fn(),
 }));
 
 import {
     getProjectById,
     getImportableRawSamples,
     getImportableEcoTaxaSamples,
+    getImportableCtdSamples,
     importRawSamples,
 } from '../api/projects.api';
 
@@ -25,6 +28,7 @@ import { ProjectImportTab } from './ProjectImportTab';
 const mockedGetProjectById = vi.mocked(getProjectById);
 const mockedGetImportableRawSamples = vi.mocked(getImportableRawSamples);
 const mockedGetImportableEcoTaxaSamples = vi.mocked(getImportableEcoTaxaSamples);
+const mockedGetImportableCtdSamples = vi.mocked(getImportableCtdSamples);
 const mockedImportRawSamples = vi.mocked(importRawSamples);
 
 describe('I. IMPORT TAB (ProjectImportTab)', () => {
@@ -47,6 +51,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         ]);
 
         mockedGetImportableEcoTaxaSamples.mockResolvedValue([]);
+        mockedGetImportableCtdSamples.mockResolvedValue([]);
         mockedImportRawSamples.mockResolvedValue({ success: true, task_import_samples: 42 });
     });
 
@@ -121,9 +126,9 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N3 - EcoTaxa Empty State Rendering', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for the "no linked EcoTaxa project" message to appear
+            // Wait for the French warning message to appear
             expect(await waitFor(
-                () => screen.getByText(/no linked ecotaxa project/i),
+                () => screen.getByText(/pas de projet ecotaxa lié/i),
                 { timeout: 10000 }
             )).toBeInTheDocument();
 
@@ -164,9 +169,9 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N5 - Screen Reader Announcement for Empty States', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for the no-linked EcoTaxa message in the EcoTaxa section
+            // Wait for the French warning message in the EcoTaxa section
             const emptyStateText = await waitFor(
-                () => screen.getByText(/no linked ecotaxa project/i),
+                () => screen.getByText(/pas de projet ecotaxa lié/i),
                 { timeout: 10000 }
             );
             expect(emptyStateText).toBeInTheDocument();

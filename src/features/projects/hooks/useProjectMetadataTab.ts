@@ -15,11 +15,18 @@ interface ApiErrorShape {
     errors?: string[];
 }
 
+interface EcoTaxaLinkedProject {
+    projectId: number;
+    projectName: string;
+    instanceId: number | null;
+}
+
 // We extend the update model locally to allow for the EcoTaxa creation flags 
 // that the backend validation explicitly asks for, but which might be missing from the base type.
 interface ExtendedProjectUpdateModel extends PublicProjectUpdateModel {
     new_ecotaxa_project?: boolean;
     ecotaxa_account_id?: number | null;
+    ecotaxa_project_name?: string | null;
 }
 
 export const useProjectMetadataTab = (projectId: number) => {
@@ -29,6 +36,8 @@ export const useProjectMetadataTab = (projectId: number) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
+    const [linkedEcoTaxaProject, setLinkedEcoTaxaProject] = useState<EcoTaxaLinkedProject | null>(null);
+    const [ecoTaxaUnlinkWarning, setEcoTaxaUnlinkWarning] = useState(false);
 
     // We initialize with empty values, they will be populated by the API
     const [values, setValues] = useState<NewProjectFormValues>({
@@ -125,7 +134,8 @@ export const useProjectMetadataTab = (projectId: number) => {
                         // Note: Backend might not return the account ID, we leave it empty or map it if available
                         account: "",
                         project: projectData.ecotaxa_project_id?.toString() || "",
-                        createNewProject: false,
+                        // Default to creating a new EcoTaxa project when none is linked
+                        createNewProject: projectData.ecotaxa_project_id ? false : true,
                     },
                     privacy: {
                         privateMonths: projectData.privacy_duration ?? 2,
@@ -146,6 +156,18 @@ export const useProjectMetadataTab = (projectId: number) => {
                         })),
                     ],
                 }));
+
+                if (projectData.ecotaxa_project_id) {
+                    setLinkedEcoTaxaProject({
+                        projectId: projectData.ecotaxa_project_id,
+                        projectName: projectData.ecotaxa_project_name || `EcoTaxa project ${projectData.ecotaxa_project_id}`,
+                        instanceId: projectData.ecotaxa_instance_id ?? null,
+                    });
+                } else {
+                    setLinkedEcoTaxaProject(null);
+                }
+
+                setEcoTaxaUnlinkWarning(false);
             } catch (error) {
                 console.error("Failed to load project details", error);
                 showSnackbar("Failed to load project details.", "error");
@@ -178,6 +200,18 @@ export const useProjectMetadataTab = (projectId: number) => {
                 ...prev,
                 [section]: data as NewProjectFormValues[T],
             };
+        });
+    };
+
+    const handleUnlinkEcoTaxaProject = () => {
+        setLinkedEcoTaxaProject(null);
+        setEcoTaxaUnlinkWarning(true);
+
+        updateField("ecoTaxa", {
+            instance: "",
+            account: "",
+            project: "",
+            createNewProject: false,
         });
     };
 
@@ -260,26 +294,25 @@ export const useProjectMetadataTab = (projectId: number) => {
             };
 
             // --- ECOTAXA HANDLING ---
-            // The backend is extremely strict: if we send an instance ID, we MUST also send
-            // an account ID AND either a project ID or a 'createNewProject' flag.
-            // If the user hasn't filled out the entire EcoTaxa section (e.g., they just left the auto-selected instance),
-            // we omit ALL EcoTaxa fields from the payload to prevent the 500 error.
+            // Save sends the full metadata payload above.
+            // Unlink is represented by clearing only the EcoTaxa project reference.
             const ecoTaxaInstanceId = toNullableInt(values.ecoTaxa.instance);
             const ecoTaxaAccountId = toNullableInt(values.ecoTaxa.account);
             const ecoTaxaProjectId = toNullableInt(values.ecoTaxa.project);
-            const isCreatingNew = values.ecoTaxa.createNewProject;
+            const hasEcoTaxaValues = ecoTaxaInstanceId !== null || ecoTaxaAccountId !== null || ecoTaxaProjectId !== null;
 
-            const hasCompleteEcotaxaData = ecoTaxaInstanceId !== null && ecoTaxaAccountId !== null && (ecoTaxaProjectId !== null || isCreatingNew);
-
-            if (hasCompleteEcotaxaData) {
+            if (ecoTaxaUnlinkWarning && linkedEcoTaxaProject === null && !hasEcoTaxaValues) {
+                payload.ecotaxa_project_id = null;
+            } else if (linkedEcoTaxaProject || hasEcoTaxaValues) {
                 payload.ecotaxa_instance_id = ecoTaxaInstanceId;
                 payload.ecotaxa_account_id = ecoTaxaAccountId;
-                
-                if (isCreatingNew) {
-                    payload.new_ecotaxa_project = true;
-                } else {
+
+                if (ecoTaxaProjectId !== null) {
                     payload.ecotaxa_project_id = ecoTaxaProjectId;
+                    payload.ecotaxa_project_name = linkedEcoTaxaProject?.projectName || values.ecoTaxa.project.trim() || null;
                 }
+
+                payload.new_ecotaxa_project = linkedEcoTaxaProject ? false : values.ecoTaxa.createNewProject;
             }
 
             // Add privileges if they are managed here
@@ -302,6 +335,21 @@ export const useProjectMetadataTab = (projectId: number) => {
             // is safely constructed without 'any' using our Extended interface.
             await updateProject(projectId, payload as PublicProjectUpdateModel);
 
+            if (linkedEcoTaxaProject && ecoTaxaProjectId !== null) {
+                setLinkedEcoTaxaProject({
+                    projectId: ecoTaxaProjectId,
+                    projectName: payload.ecotaxa_project_name || linkedEcoTaxaProject.projectName,
+                    instanceId: ecoTaxaInstanceId,
+                });
+            } else if (ecoTaxaUnlinkWarning && !hasEcoTaxaValues) {
+                setLinkedEcoTaxaProject(null);
+                // After a successful unlink+save, prepare the form to allow creating a new EcoTaxa project
+                // and show the toggle checked when the user returns to the UI.
+                updateField("ecoTaxa", { createNewProject: true });
+            }
+
+            setEcoTaxaUnlinkWarning(false);
+
             showSnackbar("Project updated successfully!", "success");
         } catch (error: unknown) {
             console.error("Failed to update project", error);
@@ -322,6 +370,9 @@ export const useProjectMetadataTab = (projectId: number) => {
         availableUsers,
         isRemoteProject,
         updateField,
+        linkedEcoTaxaProject,
+        ecoTaxaUnlinkWarning,
+        handleUnlinkEcoTaxaProject,
         handleSave,
         handleCancel,
         snackbar,

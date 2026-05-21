@@ -36,9 +36,11 @@ const mockProjectFetch = (projectId: number) => {
         http.get('*/users', () => HttpResponse.json({ users: [] })),
         http.get('*/ecotaxa_instances', () => HttpResponse.json([])),
         http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] })),
+        http.get('*/projects/*/backup/last-date', () => HttpResponse.json({ last_backup_date: null })),
         // Import tab hooks can be mounted and request these endpoints even when testing other tabs.
         http.get('*/projects/*/samples/can_be_imported', () => HttpResponse.json([])),
-        http.get('*/projects/*/ecotaxa_samples/can_be_imported', () => HttpResponse.json([]))
+        http.get('*/projects/*/ecotaxa_samples/can_be_imported', () => HttpResponse.json([])),
+        http.get('*/projects/*/ctd_samples/can_be_imported', () => HttpResponse.json([]))
     );
 };
 
@@ -53,7 +55,7 @@ describe('ProjectDetailsPage (Functional)', () => {
     it('TC-I1: should display an error if the URL ID is invalid', () => {
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/projects/invalid-string' }
         );
@@ -68,13 +70,13 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/projects/101' }
         );
 
         // Verify Header
-        expect(await screen.findByText('Project Details [101]')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Test Project' })).toBeInTheDocument();
 
         // Verify Default Tab is Metadata
         const metadataTab = screen.getByRole('tab', { name: /METADATA/i });
@@ -91,13 +93,13 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/projects/101' }
         );
 
         // Wait for initial load
-        await screen.findByText('Project Details [101]');
+        await screen.findByRole('heading', { name: 'Test Project' });
 
         // Click SECURITY tab
         const securityTab = screen.getByRole('tab', { name: /SECURITY/i });
@@ -116,18 +118,34 @@ describe('ProjectDetailsPage (Functional)', () => {
         expect(await screen.findByText(/Stats Tab \(Coming Soon\)/i)).toBeInTheDocument();
     }, 20000);
 
+    // TC-I3b: Deep-linked tab URL
+    it('TC-I3b: should open the Backup tab when the URL includes the tab name', async () => {
+        mockProjectFetch(101);
+
+        renderWithRouter(
+            <Routes>
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
+            </Routes>,
+            { route: '/projects/101/backup' }
+        );
+
+        expect(await screen.findByRole('heading', { name: 'Test Project' })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /BACKUP/i })).toHaveAttribute('aria-selected', 'true');
+        expect(await screen.findByRole('heading', { name: /^Backup$/i })).toBeInTheDocument();
+    }, 20000);
+
     // TC-I6: Initial Render From Navigation State
     it('TC-I6: should open the Import tab when activeTab is provided in navigation state', async () => {
         mockProjectFetch(101);
 
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/projects/101', state: { activeTab: 3 } }
         );
 
-        expect(await screen.findByText('Project Details [101]')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Test Project' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
         expect(await screen.findByRole('heading', { name: /^Import$/i })).toBeInTheDocument();
     });
@@ -139,13 +157,13 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
                 <Route path="/explore" element={<h1>Explore Page Mock</h1>} />
             </Routes>,
             { route: '/projects/101' }
         );
 
-        await screen.findByText('Project Details [101]');
+        await screen.findByRole('heading', { name: 'Test Project' });
 
         const exploreButton = screen.getByRole('button', { name: /EXPLORE/i });
         await user.click(exploreButton);
@@ -173,13 +191,13 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/projects/101' }
         );
 
         // Page chrome should still render and app should not crash
-        expect(await screen.findByText('Project Details [101]')).toBeInTheDocument();
+        expect(await screen.findByText('Project Details')).toBeInTheDocument();
 
         // Metadata tab should surface the load error
         expect(await screen.findByText(/Failed to load project details\./i)).toBeInTheDocument();

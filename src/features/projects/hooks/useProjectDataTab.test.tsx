@@ -4,10 +4,13 @@ import { vi, describe, it, beforeEach, expect } from 'vitest';
 vi.mock('../api/projects.api', () => ({
     searchProjectSamples: vi.fn(),
     searchProjectEcoTaxaSamples: vi.fn(),
+    searchProjectCtdSamples: vi.fn(),
     deleteProjectSample: vi.fn(),
+    deleteProjectEcoTaxaSamples: vi.fn(),
+    deleteProjectCtdSamples: vi.fn(),
 }));
 
-import { searchProjectSamples, searchProjectEcoTaxaSamples, deleteProjectSample } from '../api/projects.api';
+import { searchProjectSamples, searchProjectEcoTaxaSamples, searchProjectCtdSamples, deleteProjectSample } from '../api/projects.api';
 import { useProjectDataTab } from './useProjectDataTab';
 
 describe('hooks/useProjectDataTab', () => {
@@ -19,6 +22,7 @@ describe('hooks/useProjectDataTab', () => {
             search_info: { total: 10, page: 1, limit: 10 }
         });
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
 
         const { result } = renderHook(() => useProjectDataTab(77));
 
@@ -42,6 +46,7 @@ describe('hooks/useProjectDataTab', () => {
                 search_info: { total: 0, page: 1, limit: 10 },
             });
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
         vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 

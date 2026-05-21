@@ -150,7 +150,7 @@ describe('ProjectsPage (Functional)', () => {
         renderWithRouter(
             <Routes>
                 <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/projects/:id" element={<h1>Project Details Mock</h1>} />
+                <Route path="/projects/:id/:tabName?" element={<h1>Project Details Mock</h1>} />
             </Routes>,
             { route: '/projects' }
         );
