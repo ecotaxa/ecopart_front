@@ -150,8 +150,11 @@ describe('ProjectMetadataTab (Functional)', () => {
         await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
 
         expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
-        expect(capturedPatchBody).not.toBeNull();
-        expect(capturedPatchBody?.ecotaxa_project_id).toBeNull();
+        if (!capturedPatchBody) {
+            throw new Error('PATCH body was not captured');
+        }
+        const patchBody = capturedPatchBody as any;
+        expect(patchBody.ecotaxa_project_id).toBeNull();
         expect(capturedPatchBody).not.toHaveProperty('ecotaxa_instance_id');
         expect(capturedPatchBody).not.toHaveProperty('ecotaxa_account_id');
         expect(capturedPatchBody).not.toHaveProperty('ecotaxa_project_name');
