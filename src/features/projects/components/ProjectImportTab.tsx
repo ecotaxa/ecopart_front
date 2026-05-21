@@ -12,7 +12,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import { useProjectImportTab } from "../hooks/useProjectImportTab";
-import { ImportableRawSample } from "../api/projects.api";
+import { ImportableRawSample, ImportableCtdSample } from "../api/projects.api";
 
 interface ProjectImportTabProps {
     projectId: number;
@@ -23,15 +23,17 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
         rootFolderPath,
         rawSamples, loadingRaw, selectedRawSamples, setSelectedRawSamples, rawSelectionCount,
         ecoTaxaSamples, loadingEcoTaxa, selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount,
+        ctdSamples, loadingCtd, selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount,
         enableAutoBackup, setEnableAutoBackup,
         skipAlreadyImported, setSkipAlreadyImported,
         isImporting,
         isQcModalOpen, setIsQcModalOpen, importAllUvpFlag,
-        handlePreImportRawSamples, confirmAndExecuteRawImport, handleImportEcoTaxaSamples,
+        handlePreImportRawSamples, confirmAndExecuteRawImport, handleImportEcoTaxaSamples, handleImportCtdSamples,
         snackbar, closeSnackbar, hasEcoTaxaProject
     } = useProjectImportTab(projectId);
 
     const ecoProjectLinked = hasEcoTaxaProject;
+    const ecoTaxaActionsDisabled = !ecoProjectLinked;
 
     // --- DATAGRID COLUMNS DEFINITIONS ---
     const rawSamplesColumns: GridColDef<ImportableRawSample>[] = [
@@ -55,15 +57,87 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
         { field: "sample_name", headerName: "Name", flex: 1.5, minWidth: 150 },
         { field: "raw_file_name", headerName: "Raw file name", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.raw_file_name ?? "Cell" },
         { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.station_id ?? "Cell" },
-        { field: "first_image", headerName: "First image", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.first_image ?? "Cell" },
-        { field: "last_image", headerName: "Last image", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.last_image ?? "Cell" },
+        { field: "first_image", headerName: "First image frame", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.first_image ?? "Cell" },
+        { field: "last_image", headerName: "Last image frame", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.last_image ?? "Cell" },
+        {
+            field: "images_count",
+            headerName: "Images",
+            flex: 0.8,
+            minWidth: 100,
+            renderCell: (params: GridRenderCellParams<ImportableRawSample>) => {
+                const first = params.row.first_image;
+                const last = params.row.last_image;
+
+                // Both values present and numeric -> compute count
+                if (typeof first === 'number' && typeof last === 'number') {
+                    const count = Math.max(0, last - first + 1);
+                    if (count === 0) {
+                        return (
+                            <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Tooltip title="No images">
+                                    <ErrorIcon color="error" fontSize="small" />
+                                </Tooltip>
+                            </Box>
+                        );
+                    }
+
+                    return (
+                        <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Typography sx={{ textAlign: 'center', width: '100%' }}>{count}</Typography>
+                        </Box>
+                    );
+                }
+
+                // If either is missing treat as no images
+                return (
+                    <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Tooltip title="No images">
+                            <ErrorIcon color="error" fontSize="small" />
+                        </Tooltip>
+                    </Box>
+                );
+            },
+        },
         { field: "comment", headerName: "Comment", flex: 2, minWidth: 150, valueGetter: (_value, row) => row.comment ?? "Cell" },
     ];
 
     const ecoTaxaSamplesColumns: GridColDef[] = [
         { field: "sample_name", headerName: "Sample name", flex: 2, minWidth: 200 },
         { field: "tsv_file_name", headerName: "TSV file name", flex: 2, minWidth: 200 },
-        { field: "images", headerName: "Images", flex: 1, minWidth: 100 },
+        {
+            field: "images",
+            headerName: "Images",
+            flex: 1,
+            minWidth: 100,
+            renderCell: (params: GridRenderCellParams) => {
+                const images = params.row.images;
+
+                // If no images or zero, show error icon
+                if (images === undefined || images === null || images === 0) {
+                    return (
+                        <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Tooltip title="No images">
+                                <ErrorIcon color="error" fontSize="small" />
+                            </Tooltip>
+                        </Box>
+                    );
+                }
+
+                // Otherwise show the number
+                return (
+                    <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography sx={{ textAlign: 'center', width: '100%' }}>{images}</Typography>
+                    </Box>
+                );
+            },
+        },
+    ];
+
+    const ctdSamplesColumns: GridColDef[] = [
+        { field: "sample_name", headerName: "Sample name", flex: 2, minWidth: 180 },
+        { field: "ctd_sample_id", headerName: "CTD sample ID", flex: 1.5, minWidth: 160, valueGetter: (_value, row) => row.ctd_sample_id ?? row.sample_name },
+        { field: "file_extension", headerName: "File extension", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.file_extension ?? "ctd" },
+        { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.station_id ?? "Cell" },
     ];
 
     // --- PIXEL PERFECT STYLING ---
@@ -190,7 +264,50 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
 
                 <Divider sx={{ my: 4 }} />
 
-                {/* 3. BACKUP OPTIONS */}
+                {/* 4. NEW CTD SAMPLES */}
+                <Box sx={{ mb: 4 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Box>
+                            <Typography variant="h6">New CTD samples</Typography>
+                            <Typography variant="body2" color="text.secondary">Additional description if required</Typography>
+                        </Box>
+                        <Button
+                            variant="outlined"
+                            color="inherit"
+                            disabled={ctdSamples.length === 0 || isImporting}
+                            onClick={() => handleImportCtdSamples(true)}
+                            sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}
+                        >
+                            IMPORT ALL
+                        </Button>
+                    </Box>
+
+                    {ctdSamples.length === 0 ? (
+                        renderEmptyState(loadingCtd ? "Loading CTD samples..." : "0 samples found.")
+                    ) : (
+                        <Box sx={{ width: '100%', mb: 1 }}>
+                            {renderSelectionBar(ctdSelectionCount, () => handleImportCtdSamples(false), ctdSelectionCount === 0 || isImporting)}
+                            <DataGrid<ImportableCtdSample>
+                                rows={ctdSamples}
+                                columns={ctdSamplesColumns}
+                                getRowId={(row) => row.sample_name}
+                                checkboxSelection
+                                disableRowSelectionOnClick
+                                loading={loadingCtd}
+                                rowSelectionModel={selectedCtdSamples}
+                                onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
+                                initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+                                pageSizeOptions={[5, 10, 25]}
+                                autoHeight
+                                sx={dataGridStyles}
+                            />
+                        </Box>
+                    )}
+                </Box>
+
+                <Divider sx={{ my: 4 }} />
+
+                {/* 5. BACKUP OPTIONS */}
                 <Box sx={{ mb: 4 }}>
                     <FormControlLabel
                         control={<Switch checked={enableAutoBackup} onChange={(e) => setEnableAutoBackup(e.target.checked)} disabled={isImporting} />}
@@ -212,9 +329,9 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
 
                 <Divider sx={{ my: 4 }} />
 
-                {/* 4. NEW ECOTAXA SAMPLES */}
+                {/* 6. NEW ECOTAXA SAMPLES */}
                 <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, opacity: ecoTaxaActionsDisabled ? 0.65 : 1 }}>
                         <Box>
                             <Typography variant="h6">New EcoTaxa samples</Typography>
                             <Typography variant="body2" color="text.secondary">Import metadata and images data directly in EcoTaxa</Typography>
@@ -234,7 +351,9 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                     {
                         !ecoProjectLinked ? (
                             <Box sx={{ border: '1px dashed #f44336', borderRadius: 1, p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
-                                No linked EcoTaxa project
+                                <Typography variant="body2" color="error" fontWeight="bold">
+                                    Pas de projet EcoTaxa lié
+                                </Typography>
                             </Box>
                         ) : ecoTaxaSamples.length === 0 ? (
                             // MENTOR FIX: Updated empty state text to "0 samples found."
@@ -287,7 +406,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                     <Grid size={{ xs: 6 }}><TextField fullWidth label="Last ok" value="999999999999" size="small" InputProps={{ readOnly: true }} /></Grid>
                                     <Grid size={{ xs: 6 }}><TextField fullWidth label="Last used" value="4108" size="small" InputProps={{ readOnly: true }} /></Grid>
                                     <Grid size={{ xs: 6 }}><TextField fullWidth label="Other filtered images" value="0 / 0%" size="small" InputProps={{ readOnly: true }} /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed images" value="74 / 3%" size="small" helperText="Between first and last image in number/percent" InputProps={{ readOnly: true }} /></Grid>
+                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed images" value="74 / 3%" size="small" helperText="Between first and last image frame in number/percent" InputProps={{ readOnly: true }} /></Grid>
                                     <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed empty slice" value="0" size="small" InputProps={{ readOnly: true }} /></Grid>
                                 </Grid>
                             </Grid>

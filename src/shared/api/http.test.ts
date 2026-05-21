@@ -41,6 +41,16 @@ describe('HTTP Utility (API Fetcher)', () => {
         await expect(http(TEST_URL)).rejects.toThrow();
     });
 
+    it('TC-M2.1: should extract the first backend error from an errors array', async () => {
+        server.use(
+            mswHttp.get(TEST_URL, () => {
+                return HttpResponse.json({ errors: ['EcoTaxa project is already linked to an EcoPart project'] }, { status: 500 });
+            })
+        );
+
+        await expect(http(TEST_URL)).rejects.toThrow(/already linked/i);
+    });
+
     // TC-M3: The Core Engine - Refresh Token Loop
     it('TC-M3: should intercept 401, refresh the token, and retry the original request successfully', async () => {
         let attemptCount = 0;

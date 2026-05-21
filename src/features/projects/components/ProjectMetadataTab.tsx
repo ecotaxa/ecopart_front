@@ -28,8 +28,11 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
     const {
         values,
         loading,
-        saving, 
+        saving,
         updateField,
+        linkedEcoTaxaProject,
+        ecoTaxaUnlinkWarning,
+        handleUnlinkEcoTaxaProject,
         handleSave,
         handleCancel,
         isRemoteProject,
@@ -53,7 +56,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
     return (
         <Container maxWidth="md" disableGutters>
             <Paper sx={{ p: { xs: 3, md: 5 }, borderRadius: 2, boxShadow: "none" }}>
-                
+
                 <RootFolderSection
                     value={values.rootFolderPath}
                     onChange={(val) => updateField('rootFolderPath', val)}
@@ -75,7 +78,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                     onChange={(data) => updateField('people', data)}
                 />
 
-                
+
                 <Grid container spacing={4}>
                     <Grid size={{ xs: 12, md: 6 }}>
                         <ImportSettingsSection
@@ -89,6 +92,11 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                             values={values.ecoTaxa}
                             onChange={(data) => updateField('ecoTaxa', data)}
                             projectTitle={values.metadata.title}
+                            linkedProject={linkedEcoTaxaProject}
+                            unlinkWarning={ecoTaxaUnlinkWarning ? "You will still need to click on the save button to validates the changes. All samples in this project will be marked as \"not imported\" in EcoTaxa. Their EcoTaxa import history (status, date, sample ID) will be cleared. You will need to re-import them if you link a new EcoTaxa project." : null}
+                            onUnlink={handleUnlinkEcoTaxaProject}
+                            showCreateNewProjectToggle={!linkedEcoTaxaProject}
+                            autoSelectLinkedAccount={false}
                         />
                     </Grid>
                 </Grid>
@@ -105,7 +113,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                         variant="contained"
                         color="primary"
                         onClick={handleSave}
-                        disabled={saving} 
+                        disabled={saving}
                         sx={{ minWidth: 120, fontWeight: 'bold' }}
                     >
                         {saving ? "SAVING..." : "SAVE"}
@@ -114,7 +122,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                         variant="outlined"
                         color="primary"
                         onClick={handleCancel}
-                        disabled={saving} 
+                        disabled={saving}
                         sx={{ minWidth: 120, fontWeight: 'bold' }}
                     >
                         CANCEL

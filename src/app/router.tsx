@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { ProtectedRoute } from "@/app/ProtectedRoute";
+import { PublicOnlyRoute } from "@/app/PublicOnlyRoute";
 import { HomePage } from "@/features/home";
 import { LoginPage, RegisterPage, ResetPasswordPage, ResetPasswordConfirmPage, ValidateEmailPage } from "@/features/auth";
 import { DashboardPage } from "@/features/dashboard";
@@ -12,7 +13,14 @@ import ProjectDetailsPage from "@/features/projects/pages/ProjectDetailsPage";
 
 export const router = createBrowserRouter([
     { path: "/", element: <HomePage /> },
-    { path: "/login", element: <LoginPage /> },
+    {
+        path: "/login",
+        element: (
+            <PublicOnlyRoute>
+                <LoginPage />
+            </PublicOnlyRoute>
+        ),
+    },
     {
         path: "/dashboard",
         element: (
@@ -31,7 +39,11 @@ export const router = createBrowserRouter([
     },
     {
         path: "/register",
-        element: <RegisterPage />,
+        element: (
+            <PublicOnlyRoute>
+                <RegisterPage />
+            </PublicOnlyRoute>
+        ),
     },
     {
         path: "/users/:user_id/welcome/:token",
@@ -64,6 +76,14 @@ export const router = createBrowserRouter([
 
     {
         path: "/projects/:id",
+        element: (
+            <ProtectedRoute>
+                <ProjectDetailsPage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/projects/:id/:tabName",
         element: (
             <ProtectedRoute>
                 <ProjectDetailsPage />

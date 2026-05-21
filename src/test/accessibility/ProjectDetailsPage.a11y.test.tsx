@@ -29,13 +29,13 @@ describe('ProjectDetailsPage (Accessibility)', () => {
 
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id" element={<ProjectDetailsPage />} />
+                <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
             </Routes>,
             { route: '/projects/101' }
         );
 
         // Wait for page to load
-        await screen.findByText('Project Details [101]');
+        await screen.findByText('Project Details');
 
         // 1. Focus the Explore button just before the tabs
         const exploreBtn = screen.getByRole('button', { name: /EXPLORE/i });

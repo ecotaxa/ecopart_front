@@ -581,3 +581,130 @@ export async function deleteProjectEcoTaxaSamples(projectId: number, sampleNames
         body: JSON.stringify({ samples: sampleNames }),
     });
 }
+
+// ============================================================================
+// CTD SAMPLES API CALLS
+// ============================================================================
+
+export interface CtdSampleData {
+    sample_name: string;
+    ctd_sample_id?: string;
+    import_date?: string;
+    station_id?: string;
+}
+
+export interface ImportableCtdSample {
+    sample_name: string;
+    ctd_sample_id?: string;
+    file_extension?: string;
+    station_id?: string;
+}
+
+export interface CtdSampleSearchResponse {
+    search_info: { total: number; page: number; limit: number };
+    samples: CtdSampleData[];
+}
+
+type RawCtdSampleSearchResponse = {
+    search_info?: { total?: number; page?: number; limit?: number };
+    samples?: CtdSampleData[];
+    items?: CtdSampleData[];
+    results?: CtdSampleData[];
+    rows?: CtdSampleData[];
+    data?: CtdSampleData[];
+    total?: number;
+    page?: number;
+    limit?: number;
+};
+
+type RawCtdImportableResponse = {
+    samples?: ImportableCtdSample[] | string[];
+    items?: ImportableCtdSample[] | string[];
+    results?: ImportableCtdSample[] | string[];
+    rows?: ImportableCtdSample[] | string[];
+    data?: ImportableCtdSample[] | string[];
+};
+
+function normalizeCtdSampleSearchResponse(raw: RawCtdSampleSearchResponse): CtdSampleSearchResponse {
+    const samples = raw.samples ?? raw.items ?? raw.results ?? raw.rows ?? raw.data ?? [];
+
+    return {
+        search_info: {
+            total: raw.search_info?.total ?? raw.total ?? samples.length,
+            page: raw.search_info?.page ?? raw.page ?? 1,
+            limit: raw.search_info?.limit ?? raw.limit ?? (samples.length > 0 ? samples.length : 10),
+        },
+        samples,
+    };
+}
+
+function normalizeImportableCtdSamples(raw: RawCtdImportableResponse): ImportableCtdSample[] {
+    const rawSamples = raw.samples ?? raw.items ?? raw.results ?? raw.rows ?? raw.data ?? [];
+
+    if (rawSamples.length === 0) {
+        return [];
+    }
+
+    if (typeof rawSamples[0] === "string") {
+        return (rawSamples as string[]).map((sampleName) => ({ sample_name: sampleName }));
+    }
+
+    return rawSamples as ImportableCtdSample[];
+}
+
+/**
+ * List imported CTD samples for a project.
+ * Endpoint: GET /projects/:project_id/ctd_samples
+ */
+export async function searchProjectCtdSamples(projectId: number, params: ProjectSearchFilters): Promise<CtdSampleSearchResponse> {
+    const query = new URLSearchParams({
+        page: String(params.page),
+        limit: String(params.limit),
+    });
+
+    if (params.sort_by) query.set("sort_by", params.sort_by);
+
+    const rawResponse = await http<RawCtdSampleSearchResponse>(`/projects/${projectId}/ctd_samples?${query.toString()}`, {
+        method: "GET",
+    });
+
+    return normalizeCtdSampleSearchResponse(rawResponse);
+}
+
+/**
+ * List CTD sample names that can be imported for a project.
+ * Endpoint: GET /projects/:project_id/ctd_samples/can_be_imported
+ */
+export async function getImportableCtdSamples(projectId: number): Promise<ImportableCtdSample[]> {
+    const rawResponse = await http<RawCtdImportableResponse>(`/projects/${projectId}/ctd_samples/can_be_imported`, {
+        method: "GET",
+    });
+
+    return normalizeImportableCtdSamples(rawResponse);
+}
+
+export interface ImportCtdSamplesPayload {
+    samples: string[];
+}
+
+/**
+ * Import CTD samples for a project.
+ * Endpoint: POST /projects/:project_id/ctd_samples/import
+ */
+export async function importProjectCtdSamples(projectId: number, payload: ImportCtdSamplesPayload): Promise<{ success: boolean; task_id?: number }> {
+    return http<{ success: boolean; task_id?: number }>(`/projects/${projectId}/ctd_samples/import`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+}
+
+/**
+ * Delete imported CTD samples from a project.
+ * Endpoint: DELETE /projects/:project_id/ctd_samples
+ */
+export async function deleteProjectCtdSamples(projectId: number, sampleNames: string[]): Promise<{ message: string }> {
+    return http<{ message: string }>(`/projects/${projectId}/ctd_samples`, {
+        method: "DELETE",
+        body: JSON.stringify({ samples: sampleNames }),
+    });
+}

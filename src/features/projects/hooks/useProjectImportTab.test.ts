@@ -5,14 +5,17 @@ vi.mock('../api/projects.api', () => ({
     getProjectById: vi.fn(),
     getImportableRawSamples: vi.fn(),
     getImportableEcoTaxaSamples: vi.fn(),
+    getImportableCtdSamples: vi.fn(),
     importRawSamples: vi.fn(),
     importEcoTaxaSamples: vi.fn(),
+    importProjectCtdSamples: vi.fn(),
 }));
 
 import {
     getProjectById,
     getImportableRawSamples,
     getImportableEcoTaxaSamples,
+    getImportableCtdSamples,
     importRawSamples,
     importEcoTaxaSamples,
 } from '../api/projects.api';
@@ -21,6 +24,7 @@ import { useProjectImportTab } from './useProjectImportTab';
 const mockedGetProjectById = vi.mocked(getProjectById);
 const mockedGetImportableRawSamples = vi.mocked(getImportableRawSamples);
 const mockedGetImportableEcoTaxaSamples = vi.mocked(getImportableEcoTaxaSamples);
+const mockedGetImportableCtdSamples = vi.mocked(getImportableCtdSamples);
 const mockedImportRawSamples = vi.mocked(importRawSamples);
 const mockedImportEcoTaxaSamples = vi.mocked(importEcoTaxaSamples);
 
@@ -33,7 +37,7 @@ describe('useProjectImportTab', () => {
             project_title: 'Project',
             project_acronym: 'PRJ',
             instrument_model: 'UVP5HD',
-            ecotaxa_project_name: null,
+            ecotaxa_project_name: 'EcoTaxa Project',
             root_folder_path: '/data/project_77',
         });
 
@@ -58,6 +62,8 @@ describe('useProjectImportTab', () => {
                 images: 8,
             },
         ]);
+
+        mockedGetImportableCtdSamples.mockResolvedValue([]);
 
         mockedImportRawSamples.mockResolvedValue({ success: true, task_import_samples: 42 });
         mockedImportEcoTaxaSamples.mockResolvedValue({ success: true });

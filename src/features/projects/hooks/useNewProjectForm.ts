@@ -144,6 +144,10 @@ const mapBackendErrorToFieldErrors = (message: string): Partial<NewProjectFormEr
         return { ecoTaxaProject: message };
     }
 
+    if (lowered.includes("already linked")) {
+        return { ecoTaxaProject: message };
+    }
+
     if (lowered.includes("privacy") || lowered.includes("delay")) {
         return {
             privateMonths: message,
@@ -220,7 +224,7 @@ export const useNewProjectForm = () => {
             instance: "",
             account: "",
             project: "",
-            createNewProject: false,
+            createNewProject: true,
         },
         privileges: [],
 
@@ -262,6 +266,9 @@ export const useNewProjectForm = () => {
         message: "",
         severity: "info",
     });
+
+    // State to track project creation progress
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Helper function to easily trigger a notification
     const showSnackbar = (message: string, severity: AlertColor = "info") => {
@@ -601,8 +608,10 @@ export const useNewProjectForm = () => {
     // 6. SUBMIT HANDLER
     // --------------------------------------------------
     const handleSubmit = async () => {
+        setIsSubmitting(true);
         try {
             if (!validateForm()) {
+                setIsSubmitting(false);
                 return;
             }
 
@@ -680,7 +689,7 @@ export const useNewProjectForm = () => {
             showSnackbar("Project successfully created! Redirecting...", "success");
 
             setTimeout(() => {
-                navigate(`/projects/${createdProject.project_id}`, { state: { activeTab: 3 } });
+                navigate(`/projects/${createdProject.project_id}/import`);
             }, 1500);
         } catch (error: unknown) {
             console.error("API Error during project creation:", error);
@@ -694,6 +703,8 @@ export const useNewProjectForm = () => {
             }));
 
             showSnackbar(errorMessage, "error");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -708,5 +719,6 @@ export const useNewProjectForm = () => {
         isRemoteProject,
         snackbar,
         closeSnackbar,
+        isSubmitting,
     };
 };

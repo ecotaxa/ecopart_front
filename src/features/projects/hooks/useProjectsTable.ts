@@ -54,11 +54,23 @@ export const useProjectsTable = () => {
 
             // 1. DYNAMIC ATTRIBUTE SEARCH
             if (debouncedSearchText) {
-                activeFilters.push({
-                    field: searchAttribute,
-                    operator: "LIKE",
-                    value: `%${debouncedSearchText}%`
-                });
+                if (searchAttribute === "project_id") {
+                    // Exact match for numeric project ID
+                    const parsed = Number.parseInt(debouncedSearchText, 10);
+                    if (!Number.isNaN(parsed)) {
+                        activeFilters.push({
+                            field: "project_id",
+                            operator: "=",
+                            value: parsed,
+                        });
+                    }
+                } else {
+                    activeFilters.push({
+                        field: searchAttribute,
+                        operator: "LIKE",
+                        value: `%${debouncedSearchText}%`
+                    });
+                }
             }
 
             // 2. SECURITY & SCOPING FILTERS

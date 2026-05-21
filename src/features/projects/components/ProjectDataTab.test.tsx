@@ -6,11 +6,13 @@ import userEvent from '@testing-library/user-event';
 vi.mock('../api/projects.api', () => ({
     searchProjectSamples: vi.fn(),
     searchProjectEcoTaxaSamples: vi.fn(),
+    searchProjectCtdSamples: vi.fn(),
     deleteProjectSample: vi.fn(),
     deleteProjectEcoTaxaSamples: vi.fn(),
+    deleteProjectCtdSamples: vi.fn(),
 }));
 
-import { searchProjectSamples, searchProjectEcoTaxaSamples } from '../api/projects.api';
+import { searchProjectSamples, searchProjectEcoTaxaSamples, searchProjectCtdSamples } from '../api/projects.api';
 import { deleteProjectSample } from '../api/projects.api';
 import { ProjectDataTab } from './ProjectDataTab';
 
@@ -42,6 +44,11 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
         });
 
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({
+            search_info: { total: 0, page: 1, limit: 10 },
+            samples: [],
+        });
+
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({
             search_info: { total: 0, page: 1, limit: 10 },
             samples: [],
         });

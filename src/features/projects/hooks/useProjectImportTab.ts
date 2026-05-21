@@ -6,10 +6,13 @@ import {
     getProjectById,
     getImportableRawSamples,
     getImportableEcoTaxaSamples,
+    getImportableCtdSamples,
     ImportableRawSample,
     ImportableEcoTaxaSample,
+    ImportableCtdSample,
     importRawSamples,
-    importEcoTaxaSamples
+    importEcoTaxaSamples,
+    importProjectCtdSamples,
 } from "../api/projects.api";
 
 export const useProjectImportTab = (projectId: number) => {
@@ -30,6 +33,14 @@ export const useProjectImportTab = (projectId: number) => {
     const [ecoTaxaSamples, setEcoTaxaSamples] = useState<ImportableEcoTaxaSample[]>([]);
     const [loadingEcoTaxa, setLoadingEcoTaxa] = useState(false);
     const [selectedEcoTaxaSamples, setSelectedEcoTaxaSamples] = useState<GridRowSelectionModel>({
+        type: "include",
+        ids: new Set(),
+    });
+
+    // CTD Samples State
+    const [ctdSamples, setCtdSamples] = useState<ImportableCtdSample[]>([]);
+    const [loadingCtd, setLoadingCtd] = useState(false);
+    const [selectedCtdSamples, setSelectedCtdSamples] = useState<GridRowSelectionModel>({
         type: "include",
         ids: new Set(),
     });
@@ -59,6 +70,7 @@ export const useProjectImportTab = (projectId: number) => {
         const fetchData = async () => {
             setLoadingRaw(true);
             setLoadingEcoTaxa(true);
+            setLoadingCtd(true);
 
             try {
                 const projectData = await getProjectById(projectId);
@@ -83,6 +95,15 @@ export const useProjectImportTab = (projectId: number) => {
                     if (isMounted) setLoadingEcoTaxa(false);
                 }
 
+                try {
+                    const ctdData = await getImportableCtdSamples(projectId);
+                    if (isMounted) setCtdSamples(ctdData || []);
+                } catch (e) {
+                    console.error("Failed to load CTD samples", e);
+                } finally {
+                    if (isMounted) setLoadingCtd(false);
+                }
+
             } catch (error) {
                 console.error("Failed to initialize import tab:", error);
                 if (isMounted) {
@@ -90,11 +111,13 @@ export const useProjectImportTab = (projectId: number) => {
                     setHasEcoTaxaProject(false);
                     setRawSamples([]);
                     setEcoTaxaSamples([]);
+                    setCtdSamples([]);
                 }
             } finally {
                 if (isMounted) {
                     setLoadingRaw(false);
                     setLoadingEcoTaxa(false);
+                    setLoadingCtd(false);
                 }
             }
         };
@@ -146,6 +169,19 @@ export const useProjectImportTab = (projectId: number) => {
             .map((sample) => sample.sample_name);
     };
 
+    const getSelectedCtdSampleNames = (
+        selectionModel: GridRowSelectionModel,
+    ): string[] => {
+        if (selectionModel.type === "exclude") {
+            const excluded = new Set(Array.from(selectionModel.ids).map(String));
+            return ctdSamples
+                .filter((sample) => !excluded.has(sample.sample_name))
+                .map((sample) => sample.sample_name);
+        }
+
+        return Array.from(selectionModel.ids).map(String);
+    };
+
     const handlePreImportRawSamples = (importAll: boolean = false) => {
         const count = importAll
             ? rawSamples.length
@@ -187,6 +223,8 @@ export const useProjectImportTab = (projectId: number) => {
     };
 
     const handleImportEcoTaxaSamples = async (importAll: boolean = false) => {
+        if (!hasEcoTaxaProject) return showSnackbar("No EcoTaxa project linked.", "error");
+
         const samplesToImport = importAll
             ? ecoTaxaSamples.map((s) => s.sample_name)
             : getSelectedEcoTaxaSampleNames(selectedEcoTaxaSamples);
@@ -214,6 +252,30 @@ export const useProjectImportTab = (projectId: number) => {
         }
     };
 
+    const handleImportCtdSamples = async (importAll: boolean = false) => {
+        const samplesToImport = importAll
+            ? ctdSamples.map((sample) => sample.sample_name)
+            : getSelectedCtdSampleNames(selectedCtdSamples);
+
+        if (samplesToImport.length === 0) return showSnackbar("No CTD samples to import.", "warning");
+
+        setIsImporting(true);
+        try {
+            await importProjectCtdSamples(projectId, { samples: samplesToImport });
+            showSnackbar("CTD samples import completed successfully.", "success");
+
+            setSelectedCtdSamples({ type: "include", ids: new Set() });
+
+            const ctdData = await getImportableCtdSamples(projectId);
+            setCtdSamples(ctdData || []);
+        } catch (error) {
+            console.error(error);
+            showSnackbar("Failed to import CTD samples.", "error");
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
     return {
         rootFolderPath,
         rawSamples, loadingRaw, selectedRawSamples, setSelectedRawSamples,
@@ -221,6 +283,9 @@ export const useProjectImportTab = (projectId: number) => {
 
         ecoTaxaSamples, loadingEcoTaxa, selectedEcoTaxaSamples, setSelectedEcoTaxaSamples,
         ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, ecoTaxaSamples.length),
+
+        ctdSamples, loadingCtd, selectedCtdSamples, setSelectedCtdSamples,
+        ctdSelectionCount: getSelectionCount(selectedCtdSamples, ctdSamples.length),
 
         hasEcoTaxaProject,
 
@@ -230,7 +295,7 @@ export const useProjectImportTab = (projectId: number) => {
 
         isQcModalOpen, setIsQcModalOpen, importAllUvpFlag,
 
-        handlePreImportRawSamples, confirmAndExecuteRawImport, handleImportEcoTaxaSamples,
+        handlePreImportRawSamples, confirmAndExecuteRawImport, handleImportEcoTaxaSamples, handleImportCtdSamples,
         snackbar, closeSnackbar
     };
 };
