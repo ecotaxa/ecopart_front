@@ -250,6 +250,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 getRowId={(row) => row.sample_name}
                                 checkboxSelection
                                 disableRowSelectionOnClick
+                                isRowSelectable={(params) => params.row.qc_lvl1 !== false}
                                 loading={loadingRaw}
                                 rowSelectionModel={selectedRawSamples}
                                 onRowSelectionModelChange={(newSelection) => setSelectedRawSamples(newSelection)}
