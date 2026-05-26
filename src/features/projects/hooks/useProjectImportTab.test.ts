@@ -37,6 +37,7 @@ describe('useProjectImportTab', () => {
             project_title: 'Project',
             project_acronym: 'PRJ',
             instrument_model: 'UVP5HD',
+            ecotaxa_project_id: 20092,
             ecotaxa_project_name: 'EcoTaxa Project',
             root_folder_path: '/data/project_77',
         });
@@ -120,6 +121,10 @@ describe('useProjectImportTab', () => {
             result.current.setSelectedEcoTaxaSamples({ type: 'include', ids: new Set([2]) });
         });
 
+        await waitFor(() => {
+            expect(result.current.selectedEcoTaxaSamples.ids.size).toBe(1);
+        });
+
         await act(async () => {
             await result.current.handleImportEcoTaxaSamples(false);
         });
@@ -165,6 +170,10 @@ describe('useProjectImportTab', () => {
         // Exclude sample_id=2 so only eco-1 should be imported
         act(() => {
             result.current.setSelectedEcoTaxaSamples({ type: 'exclude', ids: new Set([2]) });
+        });
+
+        await waitFor(() => {
+            expect(result.current.selectedEcoTaxaSamples.type).toBe('exclude');
         });
 
         await act(async () => {

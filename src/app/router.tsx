@@ -82,6 +82,14 @@ export const router = createBrowserRouter([
             </ProtectedRoute>
         ),
     },
+    {
+        path: "/projects/:id/:tabName",
+        element: (
+            <ProtectedRoute>
+                <ProjectDetailsPage />
+            </ProtectedRoute>
+        ),
+    },
 
     // {
     //     path: "/admin",

@@ -153,7 +153,15 @@ describe('ProjectMetadataTab (Functional)', () => {
         if (!capturedPatchBody) {
             throw new Error('PATCH body was not captured');
         }
-        const patchBody = capturedPatchBody as any;
+        type PatchBody = {
+            ecotaxa_project_id?: number | null;
+            ecotaxa_instance_id?: number | null;
+            ecotaxa_account_id?: number | null;
+            ecotaxa_project_name?: string | null;
+            new_ecotaxa_project?: boolean;
+        };
+
+        const patchBody = capturedPatchBody as PatchBody;
         expect(patchBody.ecotaxa_project_id).toBeNull();
         expect(capturedPatchBody).not.toHaveProperty('ecotaxa_instance_id');
         expect(capturedPatchBody).not.toHaveProperty('ecotaxa_account_id');

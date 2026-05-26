@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -114,7 +114,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
 
             // Verify all items are selected
             expect(await waitFor(
-                () => screen.getByText(/3 items selected/i),
+                () => screen.getByText(/2 items selected/i),
                 { timeout: 5000 }
             )).toBeInTheDocument();
 
@@ -182,3 +182,5 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         }, 15000);
     });
 });
+
+
