@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from "react";
 import {
-    Box,
     Alert,
-    Typography,
-    TextField,
-    Divider,
-    Stack,
-    FormControlLabel,
-    Switch,
-    MenuItem,
+    Box,
     Button,
     CircularProgress,
+    Divider,
+    FormControlLabel,
     FormHelperText,
     IconButton,
+    MenuItem,
+    Stack,
+    Switch,
+    TextField,
     Tooltip,
+    Typography,
 } from "@mui/material";
-
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useNavigate } from "react-router-dom";
 
@@ -24,7 +23,7 @@ import {
     getEcoTaxaAccounts,
     getEcoTaxaInstances,
     EcoTaxaAccountLink,
-    EcoTaxaInstance
+    EcoTaxaInstance,
 } from "@/features/userProfile/api/profile.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
@@ -60,19 +59,14 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
     errors,
 }) => {
     const navigate = useNavigate();
-
-    // --- 1. LOCAL STATES ---
     const { user } = useAuthStore();
+
     const [accounts, setAccounts] = useState<EcoTaxaAccountLink[]>([]);
     const [instances, setInstances] = useState<EcoTaxaInstance[]>([]);
     const [loadingData, setLoadingData] = useState(false);
 
-    const availableInstanceIds = new Set(
-        accounts.map((account) => account.ecotaxa_account_instance_id.toString())
-    );
-    const safeInstanceValue = values.instance && availableInstanceIds.has(values.instance)
-        ? values.instance
-        : "";
+    const availableInstanceIds = new Set(accounts.map((account) => account.ecotaxa_account_instance_id.toString()));
+    const safeInstanceValue = values.instance && availableInstanceIds.has(values.instance) ? values.instance : "";
 
     const availableAccounts = accounts.filter(
         (account) => safeInstanceValue === "" || account.ecotaxa_account_instance_id.toString() === safeInstanceValue
@@ -84,7 +78,6 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
         ? values.account
         : "";
 
-    // --- 2. FETCH DATA (ACCOUNTS & INSTANCES) ---
     useEffect(() => {
         const fetchData = async () => {
             if (!user?.user_id) return;
@@ -152,34 +145,38 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     renderValue: (selected: unknown) => {
                         const selectedString = selected as string;
                         if (!selectedString) return "";
-                        const instanceData = instances.find(inst => inst.ecotaxa_instance_id.toString() === selectedString);
 
+                        const instanceData = instances.find((inst) => inst.ecotaxa_instance_id.toString() === selectedString);
                         if (!instanceData) return selectedString;
 
                         return (
                             <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
-                                <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description} <br />
+                                <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description}
+                                <br />
                                 ({instanceData.ecotaxa_instance_url})
                             </Box>
                         );
-                    }
+                    },
                 }}
             >
                 {Array.from(new Set(accounts.map((account) => account.ecotaxa_account_instance_id))).map((instanceId) => {
-                    const instanceData = instances.find(inst => inst.ecotaxa_instance_id === instanceId);
+                    const instanceData = instances.find((inst) => inst.ecotaxa_instance_id === instanceId);
                     const fallbackAccount = accounts.find((item) => item.ecotaxa_account_instance_id === instanceId);
 
                     return (
                         <MenuItem key={instanceId} value={instanceId.toString()} sx={{ py: 1.5 }}>
                             {instanceData ? (
                                 <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
-                                    <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description} <br />
+                                    <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description}
+                                    <br />
                                     <Typography variant="body2" color="text.secondary">
                                         ({instanceData.ecotaxa_instance_url})
                                     </Typography>
                                 </Box>
                             ) : (
-                                <Box><strong>{fallbackAccount?.ecotaxa_account_instance_name}</strong></Box>
+                                <Box>
+                                    <strong>{fallbackAccount?.ecotaxa_account_instance_name}</strong>
+                                </Box>
                             )}
                         </MenuItem>
                     );
@@ -268,7 +265,13 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 <Typography variant="h6" gutterBottom>
                     Link to EcoTaxa
                 </Typography>
-                <Button variant="text" size="small" onClick={() => { navigate("/settings", { state: { activeTab: 1 } }); }}>
+                <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => {
+                        navigate("/settings", { state: { activeTab: 1 } });
+                    }}
+                >
                     ADD AN ECOTAXA ACCOUNT →
                 </Button>
             </Box>
@@ -299,24 +302,17 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                             }}
                         />
 
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            onClick={onUnlink}
-                            sx={{ alignSelf: "stretch" }}
-                        >
-                            UNLINK ECOTAXA PROJECT
-                        </Button>
+                        {onUnlink && (
+                            <Button variant="outlined" color="error" onClick={onUnlink} sx={{ alignSelf: "stretch" }}>
+                                UNLINK ECOTAXA PROJECT
+                            </Button>
+                        )}
                     </>
                 ) : (
                     renderEditFields()
                 )}
 
-                {unlinkWarning && (
-                    <Alert severity="warning">
-                        {unlinkWarning}
-                    </Alert>
-                )}
+                {unlinkWarning && <Alert severity="warning">{unlinkWarning}</Alert>}
             </Stack>
         </Box>
     );

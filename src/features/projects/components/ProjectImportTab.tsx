@@ -39,8 +39,8 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
     const rawSamplesColumns: GridColDef<ImportableRawSample>[] = [
         {
             field: "qc_lvl1",
-            headerName: "",
-            width: 50,
+            headerName: "QC",
+            width: 60,
             renderCell: (params: GridRenderCellParams<ImportableRawSample>) => {
                 if (params.row.qc_lvl1 === undefined) return null;
                 return params.row.qc_lvl1 ? (
@@ -251,6 +251,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 checkboxSelection
                                 disableRowSelectionExcludeModel
                                 disableRowSelectionOnClick
+                                isRowSelectable={(params) => params.row.qc_lvl1 !== false}
                                 loading={loadingRaw}
                                 rowSelectionModel={selectedRawSamples}
                                 onRowSelectionModelChange={(newSelection) => setSelectedRawSamples(newSelection)}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import {
     Box,
@@ -120,14 +120,14 @@ export default function ProjectDetailsPage() {
         <MainLayout>
             {/* The main container is "lg" to allow future data tables to be wide */}
             <Container
-                maxWidth={false} // Désactive les paliers par défaut
+                maxWidth={false} // DÃ©sactive les paliers par dÃ©faut
                 sx={{
                     maxWidth: {
                         xs: '100%',
                         md: '900px',
                         lg: '1100px' // Ta valeur entre md et lg
                     },
-                    mx: 'auto', // Centre le container car maxWidth={false} enlève le centrage
+                    mx: 'auto', // Centre le container car maxWidth={false} enlÃ¨ve le centrage
                     mt: 4,
                     mb: 8
                 }}
