@@ -75,15 +75,7 @@ export const router = createBrowserRouter([
     },
 
     {
-        path: "/projects/:id",
-        element: (
-            <ProtectedRoute>
-                <ProjectDetailsPage />
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: "/projects/:id/:tabName",
+        path: "/projects/:id/:tabName?",
         element: (
             <ProtectedRoute>
                 <ProjectDetailsPage />

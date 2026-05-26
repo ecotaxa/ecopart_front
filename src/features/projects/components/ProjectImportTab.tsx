@@ -249,6 +249,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 columns={rawSamplesColumns}
                                 getRowId={(row) => row.sample_name}
                                 checkboxSelection
+                                disableRowSelectionExcludeModel
                                 disableRowSelectionOnClick
                                 loading={loadingRaw}
                                 rowSelectionModel={selectedRawSamples}
@@ -292,6 +293,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 columns={ctdSamplesColumns}
                                 getRowId={(row) => row.sample_name}
                                 checkboxSelection
+                                disableRowSelectionExcludeModel
                                 disableRowSelectionOnClick
                                 loading={loadingCtd}
                                 rowSelectionModel={selectedCtdSamples}
@@ -352,7 +354,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                         !ecoProjectLinked ? (
                             <Box sx={{ border: '1px dashed #f44336', borderRadius: 1, p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
                                 <Typography variant="body2" color="error" fontWeight="bold">
-                                    Pas de projet EcoTaxa lié
+                                    No EcoTaxa project linked
                                 </Typography>
                             </Box>
                         ) : ecoTaxaSamples.length === 0 ? (
@@ -366,6 +368,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                     columns={ecoTaxaSamplesColumns}
                                     getRowId={(row) => row.sample_id}
                                     checkboxSelection
+                                    disableRowSelectionExcludeModel
                                     disableRowSelectionOnClick
                                     loading={loadingEcoTaxa}
                                     rowSelectionModel={selectedEcoTaxaSamples}

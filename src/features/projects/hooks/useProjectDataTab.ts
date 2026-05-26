@@ -19,6 +19,47 @@ export const useProjectDataTab = (projectId: number) => {
 
     // Helper to create an empty Set for MUI DataGrid Pro/Premium
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
+    const getSelectionCount = (selectionModel: GridRowSelectionModel, totalRows: number): number => {
+        return selectionModel.type === "exclude"
+            ? Math.max(totalRows - selectionModel.ids.size, 0)
+            : selectionModel.ids.size;
+    };
+
+    const getSelectedUvpSampleIds = (selectionModel: GridRowSelectionModel): number[] => {
+        if (selectionModel.type === "exclude") {
+            const excludedIds = new Set(Array.from(selectionModel.ids).map(Number));
+            return uvpSamples
+                .filter((sample) => !excludedIds.has(sample.sample_id))
+                .map((sample) => sample.sample_id);
+        }
+
+        return Array.from(selectionModel.ids).map(Number);
+    };
+
+    const getSelectedEcoTaxaSampleNames = (selectionModel: GridRowSelectionModel): string[] => {
+        if (selectionModel.type === "exclude") {
+            const excludedIds = new Set(Array.from(selectionModel.ids).map(Number));
+            return ecoTaxaSamples
+                .filter((sample) => !excludedIds.has(sample.sample_id))
+                .map((sample) => sample.sample_name);
+        }
+
+        const selectedIds = new Set(Array.from(selectionModel.ids).map(Number));
+        return ecoTaxaSamples
+            .filter((sample) => selectedIds.has(sample.sample_id))
+            .map((sample) => sample.sample_name);
+    };
+
+    const getSelectedCtdSampleNames = (selectionModel: GridRowSelectionModel): string[] => {
+        if (selectionModel.type === "exclude") {
+            const excludedNames = new Set(Array.from(selectionModel.ids).map(String));
+            return ctdSamples
+                .filter((sample) => !excludedNames.has(sample.sample_name))
+                .map((sample) => sample.sample_name);
+        }
+
+        return Array.from(selectionModel.ids).map(String);
+    };
 
     // UVP Samples State
     const [uvpSamples, setUvpSamples] = useState<SampleData[]>([]);
@@ -115,7 +156,7 @@ export const useProjectDataTab = (projectId: number) => {
     const closeSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
 
     const handleDeleteUvpSamples = async () => {
-        const selectedIds = Array.from(selectedUvpSamples.ids) as number[];
+        const selectedIds = getSelectedUvpSampleIds(selectedUvpSamples);
         if (selectedIds.length === 0) return;
 
         if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} UVP samples?`)) return;
@@ -136,7 +177,7 @@ export const useProjectDataTab = (projectId: number) => {
     };
 
     const handleDeleteEcoTaxaSamples = async () => {
-        const selectedNames = Array.from(selectedEcoTaxaSamples.ids) as string[];
+        const selectedNames = getSelectedEcoTaxaSampleNames(selectedEcoTaxaSamples);
         if (selectedNames.length === 0) return;
 
         if (!window.confirm(`Are you sure you want to unlink ${selectedNames.length} EcoTaxa samples?`)) return;
@@ -156,7 +197,8 @@ export const useProjectDataTab = (projectId: number) => {
     };
 
     const handleDeleteCtdSamples = async () => {
-        const selectedNames = Array.from(selectedCtdSamples.ids) as string[];
+        const selectedNames = getSelectedCtdSampleNames(selectedCtdSamples);
+
         if (selectedNames.length === 0) return;
 
         if (!window.confirm(`Are you sure you want to delete ${selectedNames.length} CTD samples?`)) return;
@@ -181,13 +223,13 @@ export const useProjectDataTab = (projectId: number) => {
 
     return {
         uvpSamples, loadingUvp, totalUvpRows, uvpPaginationModel, setUvpPaginationModel,
-        selectedUvpSamples, setSelectedUvpSamples, uvpSelectionCount: selectedUvpSamples.ids.size,
+        selectedUvpSamples, setSelectedUvpSamples, uvpSelectionCount: getSelectionCount(selectedUvpSamples, totalUvpRows),
 
         ecoTaxaSamples, loadingEcoTaxa, totalEcoTaxaRows, ecoTaxaPaginationModel, setEcoTaxaPaginationModel,
-        selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount: selectedEcoTaxaSamples.ids.size,
+        selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, totalEcoTaxaRows),
 
         ctdSamples, loadingCtd, totalCtdRows, ctdPaginationModel, setCtdPaginationModel,
-        selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount: selectedCtdSamples.ids.size,
+        selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount: getSelectionCount(selectedCtdSamples, totalCtdRows),
 
         isActionRunning,
         handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples, handleMatchEcotaxa,

@@ -367,6 +367,7 @@ export default function ProjectsPage() {
                             paginationModel={paginationModel}
                             onPaginationModelChange={setPaginationModel}
                             checkboxSelection
+                            disableRowSelectionExcludeModel
                             rowSelectionModel={rowSelectionModel}
                             onRowSelectionModelChange={setRowSelectionModel}
                             loading={loading}

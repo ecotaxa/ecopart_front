@@ -69,8 +69,11 @@ export default function ProjectDetailsPage() {
         let isMounted = true;
 
         const loadProjectTitle = async () => {
+            // Guard: don't fetch if projectId is null (invalid URL)
+            if (!projectId) return;
+
             try {
-                const project = await getProjectById(projectId!);
+                const project = await getProjectById(projectId);
                 if (isMounted && project.project_title.trim() !== "") {
                     setProjectTitle(project.project_title);
                 }

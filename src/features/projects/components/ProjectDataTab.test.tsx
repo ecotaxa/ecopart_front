@@ -233,5 +233,24 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             deleteBtnInitial.focus();
             expect(deleteBtnInitial).toHaveFocus();
         });
+
+        it('TC-P6 - Select all activates UVP actions', async () => {
+            const user = userEvent.setup();
+            render(<ProjectDataTab projectId={77} />);
+
+            await waitForGridText('UVP-1');
+
+            const selectAllCheckbox = screen.getAllByRole('checkbox')[0];
+            await user.click(selectAllCheckbox);
+
+            await waitFor(() => {
+                const selectionLabels = screen.getAllByText(/items selected/i);
+                expect(selectionLabels.some((label) => label.textContent?.includes('2'))).toBe(true);
+            }, { timeout: 5000 });
+
+            const deleteButtons = await screen.findAllByRole('button', { name: /DELETE/i });
+            const enabledDeleteBtn = deleteButtons.find(btn => !btn.hasAttribute('disabled'));
+            expect(enabledDeleteBtn).toBeDefined();
+        }, 15000);
     });
 });

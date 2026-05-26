@@ -314,7 +314,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
 
                 {unlinkWarning && (
                     <Alert severity="warning">
-                        You will still need to click on the save button to validates the changes. All samples in this project will be marked as "not imported" in EcoTaxa. Their EcoTaxa import history (status, date, sample ID) will be cleared. You will need to re-import them if you link a new EcoTaxa project.
+                        {unlinkWarning}
                     </Alert>
                 )}
             </Stack>
