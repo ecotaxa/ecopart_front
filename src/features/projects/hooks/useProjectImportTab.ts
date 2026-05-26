@@ -75,7 +75,9 @@ export const useProjectImportTab = (projectId: number) => {
             try {
                 const projectData = await getProjectById(projectId);
                 if (isMounted) setRootFolderPath(projectData.root_folder_path || "No path defined");
-                if (isMounted) setHasEcoTaxaProject(Boolean(projectData.ecotaxa_project_name));
+                // Use ecotaxa_project_id to determine link status, not ecotaxa_project_name
+                // (name can be null even if project is linked)
+                if (isMounted) setHasEcoTaxaProject(projectData.ecotaxa_project_id != null);
 
                 try {
                     const rawData = await getImportableRawSamples(projectId);

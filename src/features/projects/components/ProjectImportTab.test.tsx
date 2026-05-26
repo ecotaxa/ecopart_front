@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -126,9 +126,9 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N3 - EcoTaxa Empty State Rendering', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for the French warning message to appear
+            // Wait for the warning message to appear
             expect(await waitFor(
-                () => screen.getByText(/pas de projet ecotaxa lié/i),
+                () => screen.getByText(/no ecotaxa project linked/i),
                 { timeout: 10000 }
             )).toBeInTheDocument();
 
@@ -169,9 +169,9 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         it('TC-N5 - Screen Reader Announcement for Empty States', async () => {
             render(<ProjectImportTab projectId={77} />);
 
-            // Wait for the French warning message in the EcoTaxa section
+            // Wait for the warning message in the EcoTaxa section
             const emptyStateText = await waitFor(
-                () => screen.getByText(/pas de projet ecotaxa lié/i),
+                () => screen.getByText(/no ecotaxa project linked/i),
                 { timeout: 10000 }
             );
             expect(emptyStateText).toBeInTheDocument();
@@ -182,3 +182,4 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         }, 15000);
     });
 });
+

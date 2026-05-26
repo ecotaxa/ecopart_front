@@ -71,4 +71,26 @@ describe('hooks/useProjectDataTab', () => {
         expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
         await waitFor(() => expect(result.current.uvpSelectionCount).toBe(0));
     });
+
+    it('TC-P8: counts exclude selection as selected rows for UVP samples', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({
+            samples: [
+                { sample_id: 1, sample_name: 'a' },
+                { sample_id: 2, sample_name: 'b' },
+            ],
+            search_info: { total: 2, page: 1, limit: 10 },
+        });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+
+        const { result } = renderHook(() => useProjectDataTab(77));
+
+        await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
+
+        act(() => {
+            result.current.setSelectedUvpSamples({ type: 'exclude', ids: new Set() });
+        });
+
+        await waitFor(() => expect(result.current.uvpSelectionCount).toBe(2));
+    });
 });

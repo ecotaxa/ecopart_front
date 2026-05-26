@@ -75,7 +75,7 @@ export const router = createBrowserRouter([
     },
 
     {
-        path: "/projects/:id",
+        path: "/projects/:id/:tabName?",
         element: (
             <ProtectedRoute>
                 <ProjectDetailsPage />

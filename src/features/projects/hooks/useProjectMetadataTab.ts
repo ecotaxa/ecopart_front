@@ -309,7 +309,9 @@ export const useProjectMetadataTab = (projectId: number) => {
 
                 if (ecoTaxaProjectId !== null) {
                     payload.ecotaxa_project_id = ecoTaxaProjectId;
-                    payload.ecotaxa_project_name = linkedEcoTaxaProject?.projectName || values.ecoTaxa.project.trim() || null;
+                    // Only set name if we actually have it from the linked project
+                    // Don't fall back to values.ecoTaxa.project which is an ID, not a name
+                    payload.ecotaxa_project_name = linkedEcoTaxaProject?.projectName || null;
                 }
 
                 payload.new_ecotaxa_project = linkedEcoTaxaProject ? false : values.ecoTaxa.createNewProject;

@@ -199,6 +199,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             columns={uvpSamplesColumns}
                             getRowId={(row) => row.sample_id}
                             checkboxSelection
+                            disableRowSelectionExcludeModel
                             disableRowSelectionOnClick
                             loading={loadingUvp}
                             rowSelectionModel={selectedUvpSamples}
@@ -226,7 +227,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fafafa', p: 1.5, borderTop: '1px solid #e0e0e0' }}>
                     <Typography variant="body2" fontWeight="bold">{ctdSelectionCount} items selected</Typography>
-                    <Button variant="text" color="inherit" disabled={selectedCtdSamples.ids.size === 0 || isActionRunning} startIcon={<CloseIcon />} onClick={handleDeleteCtdSamples} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                    <Button variant="text" color="inherit" disabled={ctdSelectionCount === 0 || isActionRunning} startIcon={<CloseIcon />} onClick={handleDeleteCtdSamples} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         DELETE
                     </Button>
                 </Box>
@@ -239,6 +240,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             columns={ctdSamplesColumns}
                             getRowId={(row) => row.sample_name}
                             checkboxSelection
+                            disableRowSelectionExcludeModel
                             disableRowSelectionOnClick
                             loading={loadingCtd}
                             rowSelectionModel={selectedCtdSamples}
@@ -285,6 +287,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             columns={ecoTaxaSamplesColumns}
                             getRowId={(row) => row.sample_name} // Backend expects sample_name array for deletion
                             checkboxSelection
+                            disableRowSelectionExcludeModel
                             disableRowSelectionOnClick
                             loading={loadingEcoTaxa}
                             rowSelectionModel={selectedEcoTaxaSamples}
