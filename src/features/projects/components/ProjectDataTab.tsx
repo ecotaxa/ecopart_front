@@ -208,7 +208,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rowCount={totalUvpRows}
                             paginationModel={uvpPaginationModel}
                             onPaginationModelChange={setUvpPaginationModel}
-                            pageSizeOptions={[5, 10, 25]}
+                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalUvpRows, 1), label: "All" }]}
                             autoHeight
                             sx={dataGridStyles}
                         />
@@ -249,7 +249,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rowCount={totalCtdRows}
                             paginationModel={ctdPaginationModel}
                             onPaginationModelChange={setCtdPaginationModel}
-                            pageSizeOptions={[5, 10, 25]}
+                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalCtdRows, 1), label: "All" }]}
                             autoHeight
                             sx={dataGridStyles}
                         />
@@ -296,7 +296,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rowCount={totalEcoTaxaRows}
                             paginationModel={ecoTaxaPaginationModel}
                             onPaginationModelChange={setEcoTaxaPaginationModel}
-                            pageSizeOptions={[5, 10, 25]}
+                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalEcoTaxaRows, 1), label: "All" }]}
                             autoHeight
                             sx={dataGridStyles}
                         />
