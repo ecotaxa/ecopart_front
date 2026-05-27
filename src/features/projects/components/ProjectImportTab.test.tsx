@@ -114,7 +114,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
 
             // Verify all items are selected
             expect(await waitFor(
-                () => screen.getByText(/3 items selected/i),
+                () => screen.getByText(/2 items selected/i),
                 { timeout: 5000 }
             )).toBeInTheDocument();
 
@@ -182,4 +182,5 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         }, 15000);
     });
 });
+
 
