@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">79.86% </span>
+                <span class="strong">77.98% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>119/149</span>
+                <span class='fraction'>124/159</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">56.45% </span>
+                <span class="strong">54.54% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>35/62</span>
+                <span class='fraction'>36/66</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">79.38% </span>
+                <span class="strong">77.53% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>104/131</span>
+                <span class='fraction'>107/138</span>
             </div>
         
             
@@ -365,7 +365,26 @@
 <a name='L300'></a><a href='#L300'>300</a>
 <a name='L301'></a><a href='#L301'>301</a>
 <a name='L302'></a><a href='#L302'>302</a>
-<a name='L303'></a><a href='#L303'>303</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -577,7 +596,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -607,7 +634,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -631,6 +662,13 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -874,14 +912,22 @@ export const useProjectImportTab = (projectId: number) =&gt; {
             : getSelectedSampleNames(selectedRawSamples, allRawSampleNames);
 &nbsp;
         try {
-            await importRawSamples(projectId, {
+            const response = await importRawSamples(projectId, {
                 samples: samplesToImport,
                 backup_project: enableAutoBackup,
                 backup_project_skip_already_imported: skipAlreadyImported
             });
-            showSnackbar("Raw samples imported successfully.", "success");
+&nbsp;
+            if (response?.task_import_samples) {
+                showSnackbar(`Import task queued (${response.task_import_samples} samples). Check TASKS tab.`, "success");
+            } else <span class="missing-if-branch" title="else path not taken" >E</span>{
+<span class="cstat-no" title="statement not covered" >                showSnackbar("Raw samples import completed. Check TASKS tab.", "success");</span>
+            }
 &nbsp;
             setSelectedRawSamples({ type: "include", ids: new Set() });
+&nbsp;
+            // Ask tasks list to refresh (some imports create tasks asynchronously)
+            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
 &nbsp;
             const rawData = await getImportableRawSamples(projectId);
             setRawSamples(rawData || <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>;
@@ -909,9 +955,13 @@ export const useProjectImportTab = (projectId: number) =&gt; {
                 backup_project: enableAutoBackup,
                 backup_project_skip_already_imported: skipAlreadyImported
             });
+&nbsp;
             showSnackbar("EcoTaxa samples import completed successfully.", "success");
 &nbsp;
             setSelectedEcoTaxaSamples({ type: "include", ids: new Set() });
+&nbsp;
+            // Ask tasks list to refresh in case backend created an async task
+            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
 &nbsp;
             const ecoData = await getImportableEcoTaxaSamples(projectId);
             setEcoTaxaSamples(ecoData || <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>;
@@ -932,10 +982,17 @@ export const useProjectImportTab = (projectId: number) =&gt; {
 &nbsp;
 <span class="cstat-no" title="statement not covered" >        setIsImporting(true);</span>
 <span class="cstat-no" title="statement not covered" >        try {</span>
-<span class="cstat-no" title="statement not covered" >            await importProjectCtdSamples(projectId, { samples: samplesToImport });</span>
-<span class="cstat-no" title="statement not covered" >            showSnackbar("CTD samples import completed successfully.", "success");</span>
+            const response = <span class="cstat-no" title="statement not covered" >await importProjectCtdSamples(projectId, { samples: samplesToImport });</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >            if (response?.task_id) {</span>
+<span class="cstat-no" title="statement not covered" >                showSnackbar(`CTD import task #${response.task_id} started. Check TASKS tab.`, "success");</span>
+            } else {
+<span class="cstat-no" title="statement not covered" >                showSnackbar("CTD samples import completed. Check TASKS tab.", "success");</span>
+            }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >            setSelectedCtdSamples({ type: "include", ids: new Set() });</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >            try { <span class="cstat-no" title="statement not covered" >window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); }</span> catch { /* ignore */ }</span>
 &nbsp;
             const ctdData = <span class="cstat-no" title="statement not covered" >await getImportableCtdSamples(projectId);</span>
 <span class="cstat-no" title="statement not covered" >            setCtdSamples(ctdData || []);</span>
@@ -976,7 +1033,7 @@ export const useProjectImportTab = (projectId: number) =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-26T09:55:31.648Z
+                at 2026-05-28T12:30:42.267Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -28,6 +28,7 @@ export default function NewProjectPage() {
         snackbar,
         closeSnackbar,
         isSubmitting,
+        isRedirecting,
     } = useNewProjectForm();
 
     const currentUser = useAuthStore((state) => state.user);
@@ -150,11 +151,11 @@ export default function NewProjectPage() {
                             color="primary"
                             size="large"
                             onClick={handleSubmit}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isRedirecting}
                         >
                             CREATE
                         </Button>
-                        {isSubmitting && (
+                        {(isSubmitting || isRedirecting) && (
                             <CircularProgress size={24} />
                         )}
                     </Box>

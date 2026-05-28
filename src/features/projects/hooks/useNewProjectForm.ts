@@ -269,6 +269,7 @@ export const useNewProjectForm = () => {
 
     // State to track project creation progress
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
     // Helper function to easily trigger a notification
     const showSnackbar = (message: string, severity: AlertColor = "info") => {
@@ -686,6 +687,7 @@ export const useNewProjectForm = () => {
 
             const createdProject = await createProject(payload as PublicProjectRequestCreationModel);
 
+            setIsRedirecting(true);
             showSnackbar("Project successfully created! Redirecting...", "success");
 
             setTimeout(() => {
@@ -720,5 +722,6 @@ export const useNewProjectForm = () => {
         snackbar,
         closeSnackbar,
         isSubmitting,
+        isRedirecting,
     };
 };

@@ -60,6 +60,19 @@ export default defineConfig(({ mode }) => {
                     }
                 },
 
+                // Proxy for backend task APIs (search, delete, status updates)
+                "/tasks": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                    bypass: (req) => {
+                        // If the browser tries to open /tasks directly, keep the SPA behavior.
+                        if (req.headers.accept?.includes('text/html')) {
+                            return '/index.html';
+                        }
+                        return null;
+                    }
+                },
+
                 // Add the file_system route so Vite routes it to Node.js
                 "/file_system": {
                     target: backendUrl,

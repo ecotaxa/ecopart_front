@@ -205,14 +205,22 @@ export const useProjectImportTab = (projectId: number) => {
             : getSelectedSampleNames(selectedRawSamples, allRawSampleNames);
 
         try {
-            await importRawSamples(projectId, {
+            const response = await importRawSamples(projectId, {
                 samples: samplesToImport,
                 backup_project: enableAutoBackup,
                 backup_project_skip_already_imported: skipAlreadyImported
             });
-            showSnackbar("Raw samples imported successfully.", "success");
+
+            if (response?.task_import_samples) {
+                showSnackbar(`Import task queued (${response.task_import_samples} samples). Check TASKS tab.`, "success");
+            } else {
+                showSnackbar("Raw samples import completed. Check TASKS tab.", "success");
+            }
 
             setSelectedRawSamples({ type: "include", ids: new Set() });
+
+            // Ask tasks list to refresh (some imports create tasks asynchronously)
+            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
 
             const rawData = await getImportableRawSamples(projectId);
             setRawSamples(rawData || []);
@@ -240,9 +248,13 @@ export const useProjectImportTab = (projectId: number) => {
                 backup_project: enableAutoBackup,
                 backup_project_skip_already_imported: skipAlreadyImported
             });
+
             showSnackbar("EcoTaxa samples import completed successfully.", "success");
 
             setSelectedEcoTaxaSamples({ type: "include", ids: new Set() });
+
+            // Ask tasks list to refresh in case backend created an async task
+            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
 
             const ecoData = await getImportableEcoTaxaSamples(projectId);
             setEcoTaxaSamples(ecoData || []);
@@ -263,10 +275,17 @@ export const useProjectImportTab = (projectId: number) => {
 
         setIsImporting(true);
         try {
-            await importProjectCtdSamples(projectId, { samples: samplesToImport });
-            showSnackbar("CTD samples import completed successfully.", "success");
+            const response = await importProjectCtdSamples(projectId, { samples: samplesToImport });
+
+            if (response?.task_id) {
+                showSnackbar(`CTD import task #${response.task_id} started. Check TASKS tab.`, "success");
+            } else {
+                showSnackbar("CTD samples import completed. Check TASKS tab.", "success");
+            }
 
             setSelectedCtdSamples({ type: "include", ids: new Set() });
+
+            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
 
             const ctdData = await getImportableCtdSamples(projectId);
             setCtdSamples(ctdData || []);
