@@ -11,14 +11,12 @@ import {
     deleteProjectCtdSamples,
     SampleData,
     EcoTaxaSampleData,
-    CtdSampleData
+    CtdSampleData,
 } from "../api/projects.api";
 
 export const useProjectDataTab = (projectId: number) => {
-    // --- 1. LOCAL STATE ---
-
-    // Helper to create an empty Set for MUI DataGrid Pro/Premium
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
+
     const getSelectionCount = (selectionModel: GridRowSelectionModel, totalRows: number): number => {
         return selectionModel.type === "exclude"
             ? Math.max(totalRows - selectionModel.ids.size, 0)
@@ -37,60 +35,57 @@ export const useProjectDataTab = (projectId: number) => {
     };
 
     const getSelectedEcoTaxaSampleNames = (selectionModel: GridRowSelectionModel): string[] => {
+        const selectedEcoTaxaNames = new Set(Array.from(selectionModel.ids).map(String));
+
         if (selectionModel.type === "exclude") {
-            const excludedIds = new Set(Array.from(selectionModel.ids).map(Number));
             return ecoTaxaSamples
-                .filter((sample) => !excludedIds.has(sample.sample_id))
+                .filter((sample) => !selectedEcoTaxaNames.has(sample.sample_name))
                 .map((sample) => sample.sample_name);
         }
 
-        const selectedIds = new Set(Array.from(selectionModel.ids).map(Number));
         return ecoTaxaSamples
-            .filter((sample) => selectedIds.has(sample.sample_id))
+            .filter((sample) => selectedEcoTaxaNames.has(sample.sample_name))
             .map((sample) => sample.sample_name);
     };
 
     const getSelectedCtdSampleNames = (selectionModel: GridRowSelectionModel): string[] => {
+        const selectedCtdNames = new Set(Array.from(selectionModel.ids).map(String));
+
         if (selectionModel.type === "exclude") {
-            const excludedNames = new Set(Array.from(selectionModel.ids).map(String));
             return ctdSamples
-                .filter((sample) => !excludedNames.has(sample.sample_name))
+                .filter((sample) => !selectedCtdNames.has(sample.sample_name))
                 .map((sample) => sample.sample_name);
         }
 
-        return Array.from(selectionModel.ids).map(String);
+        return ctdSamples
+            .filter((sample) => selectedCtdNames.has(sample.sample_name))
+            .map((sample) => sample.sample_name);
     };
 
-    // UVP Samples State
     const [uvpSamples, setUvpSamples] = useState<SampleData[]>([]);
     const [totalUvpRows, setTotalUvpRows] = useState(0);
     const [loadingUvp, setLoadingUvp] = useState(false);
     const [selectedUvpSamples, setSelectedUvpSamples] = useState<GridRowSelectionModel>(createEmptySelectionModel());
     const [uvpPaginationModel, setUvpPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 10 });
 
-    // EcoTaxa Samples State
     const [ecoTaxaSamples, setEcoTaxaSamples] = useState<EcoTaxaSampleData[]>([]);
     const [totalEcoTaxaRows, setTotalEcoTaxaRows] = useState(0);
     const [loadingEcoTaxa, setLoadingEcoTaxa] = useState(false);
     const [selectedEcoTaxaSamples, setSelectedEcoTaxaSamples] = useState<GridRowSelectionModel>(createEmptySelectionModel());
     const [ecoTaxaPaginationModel, setEcoTaxaPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 10 });
 
-    // CTD Samples State
     const [ctdSamples, setCtdSamples] = useState<CtdSampleData[]>([]);
     const [totalCtdRows, setTotalCtdRows] = useState(0);
     const [loadingCtd, setLoadingCtd] = useState(false);
     const [selectedCtdSamples, setSelectedCtdSamples] = useState<GridRowSelectionModel>(createEmptySelectionModel());
     const [ctdPaginationModel, setCtdPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 10 });
 
-    // Global Actions State
     const [isActionRunning, setIsActionRunning] = useState(false);
-
-    // Notifications
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
-        open: false, message: "", severity: "info",
+        open: false,
+        message: "",
+        severity: "info",
     });
-
-    // --- 2. DATA FETCHING ---
 
     const fetchUvpSamples = useCallback(async () => {
         setLoadingUvp(true);
@@ -98,13 +93,14 @@ export const useProjectDataTab = (projectId: number) => {
             const response = await searchProjectSamples(projectId, {
                 page: uvpPaginationModel.page + 1,
                 limit: uvpPaginationModel.pageSize,
-                filters: []
+                filters: [],
             });
-            // MENTOR FIX: Read from response.samples instead of response.items
             setUvpSamples(response.samples || []);
             setTotalUvpRows(response.search_info?.total || 0);
         } catch (error) {
             console.error("Failed to load UVP samples", error);
+            setUvpSamples([]);
+            setTotalUvpRows(0);
         } finally {
             setLoadingUvp(false);
         }
@@ -116,13 +112,14 @@ export const useProjectDataTab = (projectId: number) => {
             const response = await searchProjectEcoTaxaSamples(projectId, {
                 page: ecoTaxaPaginationModel.page + 1,
                 limit: ecoTaxaPaginationModel.pageSize,
-                filters: []
+                filters: [],
             });
-            // MENTOR FIX: Read from response.samples instead of response.items
             setEcoTaxaSamples(response.samples || []);
             setTotalEcoTaxaRows(response.search_info?.total || 0);
         } catch (error) {
             console.error("Failed to load EcoTaxa samples", error);
+            setEcoTaxaSamples([]);
+            setTotalEcoTaxaRows(0);
         } finally {
             setLoadingEcoTaxa(false);
         }
@@ -134,26 +131,38 @@ export const useProjectDataTab = (projectId: number) => {
             const response = await searchProjectCtdSamples(projectId, {
                 page: ctdPaginationModel.page + 1,
                 limit: ctdPaginationModel.pageSize,
-                filters: []
+                filters: [],
             });
             setCtdSamples(response.samples || []);
             setTotalCtdRows(response.search_info?.total || 0);
         } catch (error) {
             console.error("Failed to load CTD samples", error);
+            setCtdSamples([]);
+            setTotalCtdRows(0);
         } finally {
             setLoadingCtd(false);
         }
     }, [projectId, ctdPaginationModel.page, ctdPaginationModel.pageSize]);
 
-    // Re-fetch when pagination changes
-    useEffect(() => { fetchUvpSamples(); }, [fetchUvpSamples]);
-    useEffect(() => { fetchEcoTaxaSamples(); }, [fetchEcoTaxaSamples]);
-    useEffect(() => { fetchCtdSamples(); }, [fetchCtdSamples]);
+    useEffect(() => {
+        fetchUvpSamples();
+    }, [fetchUvpSamples]);
 
-    // --- 3. ACTIONS ---
+    useEffect(() => {
+        fetchEcoTaxaSamples();
+    }, [fetchEcoTaxaSamples]);
 
-    const showSnackbar = (message: string, severity: AlertColor = "info") => setSnackbar({ open: true, message, severity });
-    const closeSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
+    useEffect(() => {
+        fetchCtdSamples();
+    }, [fetchCtdSamples]);
+
+    const showSnackbar = (message: string, severity: AlertColor = "info") => {
+        setSnackbar({ open: true, message, severity });
+    };
+
+    const closeSnackbar = () => {
+        setSnackbar((prev) => ({ ...prev, open: false }));
+    };
 
     const handleDeleteUvpSamples = async () => {
         const selectedIds = getSelectedUvpSampleIds(selectedUvpSamples);
@@ -163,8 +172,7 @@ export const useProjectDataTab = (projectId: number) => {
 
         setIsActionRunning(true);
         try {
-            await Promise.all(selectedIds.map(id => deleteProjectSample(projectId, id)));
-
+            await Promise.all(selectedIds.map((id) => deleteProjectSample(projectId, id)));
             showSnackbar("UVP samples deleted successfully.", "success");
             setSelectedUvpSamples(createEmptySelectionModel());
             fetchUvpSamples();
@@ -198,7 +206,6 @@ export const useProjectDataTab = (projectId: number) => {
 
     const handleDeleteCtdSamples = async () => {
         const selectedNames = getSelectedCtdSampleNames(selectedCtdSamples);
-
         if (selectedNames.length === 0) return;
 
         if (!window.confirm(`Are you sure you want to delete ${selectedNames.length} CTD samples?`)) return;
@@ -222,17 +229,36 @@ export const useProjectDataTab = (projectId: number) => {
     };
 
     return {
-        uvpSamples, loadingUvp, totalUvpRows, uvpPaginationModel, setUvpPaginationModel,
-        selectedUvpSamples, setSelectedUvpSamples, uvpSelectionCount: getSelectionCount(selectedUvpSamples, totalUvpRows),
-
-        ecoTaxaSamples, loadingEcoTaxa, totalEcoTaxaRows, ecoTaxaPaginationModel, setEcoTaxaPaginationModel,
-        selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, totalEcoTaxaRows),
-
-        ctdSamples, loadingCtd, totalCtdRows, ctdPaginationModel, setCtdPaginationModel,
-        selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount: getSelectionCount(selectedCtdSamples, totalCtdRows),
-
+        uvpSamples,
+        loadingUvp,
+        totalUvpRows,
+        uvpPaginationModel,
+        setUvpPaginationModel,
+        selectedUvpSamples,
+        setSelectedUvpSamples,
+        ecoTaxaSamples,
+        loadingEcoTaxa,
+        totalEcoTaxaRows,
+        ecoTaxaPaginationModel,
+        setEcoTaxaPaginationModel,
+        selectedEcoTaxaSamples,
+        setSelectedEcoTaxaSamples,
+        ctdSamples,
+        loadingCtd,
+        totalCtdRows,
+        ctdPaginationModel,
+        setCtdPaginationModel,
+        selectedCtdSamples,
+        setSelectedCtdSamples,
+        uvpSelectionCount: getSelectionCount(selectedUvpSamples, totalUvpRows),
+        ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, totalEcoTaxaRows),
+        ctdSelectionCount: getSelectionCount(selectedCtdSamples, totalCtdRows),
         isActionRunning,
-        handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples, handleMatchEcotaxa,
-        snackbar, closeSnackbar
+        handleDeleteUvpSamples,
+        handleDeleteEcoTaxaSamples,
+        handleDeleteCtdSamples,
+        handleMatchEcotaxa,
+        snackbar,
+        closeSnackbar,
     };
 };

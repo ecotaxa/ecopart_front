@@ -16,6 +16,7 @@ import { ProjectSecurityTab } from "../components/ProjectSecurityTab";
 
 import { ProjectBackupTab } from "../components/ProjectBackupTab";
 import { ProjectImportTab } from "../components/ProjectImportTab";
+import { ProjectTasksTab } from "../components/ProjectTasksTab";
 import { getProjectById } from "../api/projects.api";
 
 // Icons based on your mockup
@@ -70,7 +71,7 @@ export default function ProjectDetailsPage() {
 
         const loadProjectTitle = async () => {
             // Guard: don't fetch if projectId is null (invalid URL)
-            if (!projectId) return;
+            if (projectId === null) return;
 
             try {
                 const project = await getProjectById(projectId);
@@ -120,14 +121,14 @@ export default function ProjectDetailsPage() {
         <MainLayout>
             {/* The main container is "lg" to allow future data tables to be wide */}
             <Container
-                maxWidth={false} // DÃ©sactive les paliers par dÃ©faut
+                maxWidth={false} // Disable default width breakpoints
                 sx={{
                     maxWidth: {
                         xs: '100%',
                         md: '900px',
-                        lg: '1100px' // Ta valeur entre md et lg
+                        lg: '1100px' // Your value between md and lg
                     },
-                    mx: 'auto', // Centre le container car maxWidth={false} enlÃ¨ve le centrage
+                    mx: 'auto', // Center the container when maxWidth is false
                     mt: 4,
                     mb: 8
                 }}
@@ -184,7 +185,7 @@ export default function ProjectDetailsPage() {
                     {currentTab === 3 && <ProjectImportTab projectId={projectId} />}
                     {currentTab === 4 && renderComingSoonTab("Update")}
                     {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
-                    {currentTab === 6 && renderComingSoonTab("Tasks")}
+                    {currentTab === 6 && <ProjectTasksTab projectId={projectId} />}
                     {currentTab === 7 && <ProjectBackupTab projectId={projectId} />}
                 </Box>
             </Container>

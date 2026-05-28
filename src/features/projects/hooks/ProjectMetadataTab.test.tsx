@@ -144,7 +144,7 @@ describe('ProjectMetadataTab (Functional)', () => {
 
         await user.click(screen.getByRole('button', { name: /unlink ecotaxa project/i }));
 
-        expect(await screen.findByText(/You will still need to click on the save button to validates the changes/i)).toBeInTheDocument();
+        expect(await screen.findByText(/You will still need to click the save button to validate the changes/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/EcoTaxa instance/i)).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /^SAVE$/i }));

@@ -37,7 +37,7 @@ describe('useProjectImportTab', () => {
             project_title: 'Project',
             project_acronym: 'PRJ',
             instrument_model: 'UVP5HD',
-            ecotaxa_project_id: 20092,
+            ecotaxa_project_id: 123,
             ecotaxa_project_name: 'EcoTaxa Project',
             root_folder_path: '/data/project_77',
         });

@@ -93,7 +93,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                             onChange={(data) => updateField('ecoTaxa', data)}
                             projectTitle={values.metadata.title}
                             linkedProject={linkedEcoTaxaProject}
-                            unlinkWarning={ecoTaxaUnlinkWarning ? "You will still need to click on the save button to validates the changes. All samples in this project will be marked as \"not imported\" in EcoTaxa. Their EcoTaxa import history (status, date, sample ID) will be cleared. You will need to re-import them if you link a new EcoTaxa project." : null}
+                            unlinkWarning={ecoTaxaUnlinkWarning ? "You will still need to click the save button to validate the changes. All samples in this project will be marked as not imported in EcoTaxa and their import history will be cleared." : null}
                             onUnlink={handleUnlinkEcoTaxaProject}
                             showCreateNewProjectToggle={!linkedEcoTaxaProject}
                             autoSelectLinkedAccount={false}

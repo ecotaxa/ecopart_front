@@ -708,3 +708,70 @@ export async function deleteProjectCtdSamples(projectId: number, sampleNames: st
         body: JSON.stringify({ samples: sampleNames }),
     });
 }
+
+// ============================================================================
+// TASKS API CALLS (Strict alignment with Backend TaskResponseModel)
+// ============================================================================
+
+export interface Task {
+    task_id: number;
+    task_type_id: number;
+    task_type: string;
+    task_status_id: number;
+    task_status: string;
+    task_owner_id: number;
+    task_owner: string;
+    task_project_id?: number | null;
+    task_creation_date: string;
+    task_start_date?: string | null;
+    task_end_date?: string | null;
+    task_log_file_path?: string;
+    task_progress_pct: number;
+    task_progress_msg?: string;
+    task_result?: string | null;
+    task_error?: string | null;
+    task_step?: string | null;
+}
+
+export interface TaskSearchResponse {
+    search_info: {
+        total: number;
+        limit: number;
+        page: number;
+        pages?: number;
+    };
+    tasks: Task[];
+}
+
+/**
+ * Performs a search for project specific tasks.
+ * Uses the dedicated POST /tasks/searches route with body filters.
+ */
+export async function searchProjectTasks(
+    projectId: number,
+    params: ProjectSearchFilters
+): Promise<TaskSearchResponse> {
+    const query = new URLSearchParams({
+        page: String(params.page),
+        limit: String(params.limit),
+    });
+
+    if (params.sort_by) {
+        query.set("sort_by", params.sort_by);
+    }
+
+    // Force strict structure matching the backend filters rules
+    return http<TaskSearchResponse>(`/tasks/searches?${query.toString()}`, {
+        method: "POST",
+        body: JSON.stringify(params.filters ?? []),
+    });
+}
+
+/**
+ * Route: DELETE /tasks/:task_id/
+ */
+export async function deleteProjectTask(taskId: number): Promise<{ message: string }> {
+    return http<{ message: string }>(`/tasks/${taskId}/`, {
+        method: "DELETE",
+    });
+}
