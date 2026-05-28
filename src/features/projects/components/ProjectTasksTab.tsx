@@ -234,6 +234,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         columns={columns}
                         getRowId={(row) => row.task_id}
                         checkboxSelection
+                        disableRowSelectionExcludeModel
                         disableRowSelectionOnClick
                         loading={loading}
                         rowSelectionModel={selectedTasks}

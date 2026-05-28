@@ -692,7 +692,6 @@ export const useNewProjectForm = () => {
 
             setTimeout(() => {
                 navigate(`/projects/${createdProject.project_id}/import`);
-                setIsRedirecting(false);
             }, 1500);
         } catch (error: unknown) {
             console.error("API Error during project creation:", error);

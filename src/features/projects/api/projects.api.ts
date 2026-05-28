@@ -720,7 +720,13 @@ export interface Task {
     task_status_id: number;
     task_status: string;
     task_owner_id: number;
-    task_owner: string;
+    task_owner: string | {
+        user_id?: number;
+        user_name?: string;
+        first_name?: string;
+        last_name?: string;
+        email?: string;
+    } | null;
     task_project_id?: number | null;
     task_creation_date: string;
     task_start_date?: string | null;
@@ -748,8 +754,7 @@ export interface TaskSearchResponse {
  * Uses the dedicated POST /tasks/searches route with body filters.
  */
 export async function searchProjectTasks(
-    projectId: number,
-    params: ProjectSearchFilters
+    params: ProjectSearchFilters & { projectId?: number }
 ): Promise<TaskSearchResponse> {
     const query = new URLSearchParams({
         page: String(params.page),
@@ -760,10 +765,14 @@ export async function searchProjectTasks(
         query.set("sort_by", params.sort_by);
     }
 
+    const filters = params.projectId === undefined
+        ? (params.filters ?? [])
+        : [{ field: "task_project_id", operator: "=", value: params.projectId }, ...(params.filters ?? [])];
+
     // Force strict structure matching the backend filters rules
     return http<TaskSearchResponse>(`/tasks/searches?${query.toString()}`, {
         method: "POST",
-        body: JSON.stringify(params.filters ?? []),
+        body: JSON.stringify(filters),
     });
 }
 

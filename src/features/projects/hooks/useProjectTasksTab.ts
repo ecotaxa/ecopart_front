@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 import { AlertColor } from "@mui/material";
+import { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 
-import { searchProjectTasks, Task, deleteProjectTask, SearchFilter } from "../api/projects.api";
+import { deleteProjectTask, SearchFilter, searchProjectTasks, Task } from "../api/projects.api";
 
 export const useProjectTasksTab = (projectId: number) => {
-    // --- 1. LOCAL STATE MANAGEMENT ---
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
+
     const getSelectionCount = (selectionModel: GridRowSelectionModel, totalCount: number): number => {
         return selectionModel.type === "exclude"
             ? Math.max(totalCount - selectionModel.ids.size, 0)
@@ -15,10 +15,8 @@ export const useProjectTasksTab = (projectId: number) => {
 
     const getSelectedTaskIds = (selectionModel: GridRowSelectionModel): number[] => {
         if (selectionModel.type === "exclude") {
-            const excludedIds = new Set(Array.from(selectionModel.ids).map(Number));
-            return tasks
-                .filter((task) => !excludedIds.has(task.task_id))
-                .map((task) => task.task_id);
+            console.warn("[Tasks Hook] Exclude selection model is disabled for this grid.");
+            return [];
         }
 
         return Array.from(selectionModel.ids).map(Number);
@@ -28,12 +26,10 @@ export const useProjectTasksTab = (projectId: number) => {
     const [totalRows, setTotalRows] = useState<number>(0);
     const [loading, setLoading] = useState<boolean>(false);
 
-    // Search & Filter controls
     const [searchText, setSearchText] = useState<string>("");
     const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
     const [searchAttribute, setSearchAttribute] = useState<string>("task_type");
 
-    // Table pagination state
     const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
         page: 0,
         pageSize: 10,
@@ -42,15 +38,15 @@ export const useProjectTasksTab = (projectId: number) => {
     const [isActionRunning, setIsActionRunning] = useState<boolean>(false);
 
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
-        open: false, message: "", severity: "info",
+        open: false,
+        message: "",
+        severity: "info",
     });
 
     const buildTasksFilters = (useProjectScope: boolean): SearchFilter[] => {
         const activeFilters: SearchFilter[] = [];
 
-        if (useProjectScope) {
-            activeFilters.push({ field: "task_project_id", operator: "=", value: projectId });
-        } else {
+        if (!useProjectScope) {
             activeFilters.push({ field: "for_managing", operator: "=", value: true });
         }
 
@@ -65,20 +61,18 @@ export const useProjectTasksTab = (projectId: number) => {
         return activeFilters;
     };
 
-    // --- 2. DEBOUNCE EFFECT LOGIC ---
     useEffect(() => {
         const timerId = setTimeout(() => {
             setDebouncedSearchText(searchText);
         }, 500);
+
         return () => clearTimeout(timerId);
     }, [searchText]);
 
-    // Reset pagination window when search changes
     useEffect(() => {
         setPaginationModel((prev) => ({ ...prev, page: 0 }));
     }, [debouncedSearchText, searchAttribute]);
 
-    // --- 3. ASYNCHRONOUS DATA FETCHING ---
     const fetchTasks = useCallback(async () => {
         setLoading(true);
         try {
@@ -88,13 +82,14 @@ export const useProjectTasksTab = (projectId: number) => {
                 sort_by: "desc(task_id)",
             };
 
-            const response = await searchProjectTasks(projectId, {
+            const response = await searchProjectTasks({
+                projectId,
                 ...searchOptions,
                 filters: buildTasksFilters(true),
             });
 
             if (response.tasks.length === 0 && paginationModel.page === 0 && !debouncedSearchText) {
-                const fallbackResponse = await searchProjectTasks(projectId, {
+                const fallbackResponse = await searchProjectTasks({
                     ...searchOptions,
                     filters: buildTasksFilters(false),
                 });
@@ -119,14 +114,12 @@ export const useProjectTasksTab = (projectId: number) => {
         fetchTasks();
     }, [fetchTasks]);
 
-    // Listen for external refresh events (e.g., imports that create background tasks)
     useEffect(() => {
         const handler = () => fetchTasks();
         window.addEventListener("ecopart:tasks:refresh", handler);
         return () => window.removeEventListener("ecopart:tasks:refresh", handler);
     }, [fetchTasks]);
 
-    // --- 4. CALLBACK ACTIONS ---
     const showSnackbar = (message: string, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });
     };
@@ -143,9 +136,10 @@ export const useProjectTasksTab = (projectId: number) => {
 
         setIsActionRunning(true);
         try {
-            // Delete sequentially to respect repository design
-            await Promise.all(selectedIds.map(id => deleteProjectTask(id)));
-            
+            for (const taskId of selectedIds) {
+                await deleteProjectTask(taskId);
+            }
+
             showSnackbar("Selected tasks removed successfully.", "success");
             setSelectedTasks(createEmptySelectionModel());
             fetchTasks();
@@ -158,14 +152,21 @@ export const useProjectTasksTab = (projectId: number) => {
     };
 
     return {
-        tasks, loading, totalRows,
-        paginationModel, setPaginationModel,
-        selectedTasks, setSelectedTasks,
+        tasks,
+        loading,
+        totalRows,
+        paginationModel,
+        setPaginationModel,
+        selectedTasks,
+        setSelectedTasks,
         selectionCount: getSelectionCount(selectedTasks, totalRows),
-        searchText, setSearchText,
-        searchAttribute, setSearchAttribute,
+        searchText,
+        setSearchText,
+        searchAttribute,
+        setSearchAttribute,
         isActionRunning,
         handleDeleteTasks,
-        snackbar, closeSnackbar
+        snackbar,
+        closeSnackbar,
     };
 };
