@@ -245,7 +245,7 @@ export const EcoTaxaLoginForm = ({
                 fullWidth
                 size="large"
                 onClick={handleLinkEcoTaxa}
-                disabled={!canLinkEcoTaxa || etLinking || loadingInstances}
+                disabled={!canLinkEcoTaxa || etLinking}
             >
                 {etLinking ? "Connecting..." : "LOG IN"}
             </Button>
