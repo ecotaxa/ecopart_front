@@ -371,7 +371,7 @@ export default function ProjectsPage() {
                             rowSelectionModel={rowSelectionModel}
                             onRowSelectionModelChange={setRowSelectionModel}
                             loading={loading}
-                            pageSizeOptions={[5, 10, 25]}
+                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalRows, 1), label: "All" }]}
                             disableRowSelectionOnClick
                             onRowClick={handleRowClick}
                             sx={{

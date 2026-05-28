@@ -256,7 +256,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 rowSelectionModel={selectedRawSamples}
                                 onRowSelectionModelChange={(newSelection) => setSelectedRawSamples(newSelection)}
                                 initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                                pageSizeOptions={[5, 10, 25]}
+                                pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(rawSamples.length, 1), label: "All" }]}
                                 autoHeight
                                 sx={dataGridStyles}
                             />
@@ -300,7 +300,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 rowSelectionModel={selectedCtdSamples}
                                 onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
                                 initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                                pageSizeOptions={[5, 10, 25]}
+                                pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(ctdSamples.length, 1), label: "All" }]}
                                 autoHeight
                                 sx={dataGridStyles}
                             />
@@ -375,7 +375,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                     rowSelectionModel={selectedEcoTaxaSamples}
                                     onRowSelectionModelChange={(newSelection) => setSelectedEcoTaxaSamples(newSelection)}
                                     initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                                    pageSizeOptions={[5, 10, 25]}
+                                    pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(ecoTaxaSamples.length, 1), label: "All" }]}
                                     autoHeight
                                     sx={dataGridStyles}
                                 />
