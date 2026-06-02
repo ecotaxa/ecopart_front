@@ -106,7 +106,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
     const ctdSamplesColumns: GridColDef<CtdSampleData>[] = [
         { field: "sample_name", headerName: "Sample name", flex: 1.8, minWidth: 180 },
         { field: "ctd_sample_id", headerName: "CTD sample ID", flex: 1.4, minWidth: 150, valueGetter: (_value, row) => row.ctd_sample_id ?? row.sample_name },
-        { field: "import_date", headerName: "Import date", flex: 1.2, minWidth: 140, valueGetter: (_value, row) => row.import_date ?? "Cell" },
+        { field: "ctd_import_date", headerName: "Import date", flex: 1.2, minWidth: 140, valueGetter: (_value, row) => formatCompactDate(row.ctd_import_date) },
         { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.station_id ?? "Cell" },
     ];
 

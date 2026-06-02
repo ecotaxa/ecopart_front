@@ -137,7 +137,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
         { field: "sample_name", headerName: "Sample name", flex: 2, minWidth: 180 },
         { field: "ctd_sample_id", headerName: "CTD sample ID", flex: 1.5, minWidth: 160, valueGetter: (_value, row) => row.ctd_sample_id ?? row.sample_name },
         { field: "file_extension", headerName: "File extension", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.file_extension ?? "ctd" },
-        { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.station_id ?? "Cell" },
+        { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.station_id ?? "N/A" },
     ];
 
     // --- PIXEL PERFECT STYLING ---

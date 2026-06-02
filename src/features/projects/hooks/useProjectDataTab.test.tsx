@@ -10,7 +10,7 @@ vi.mock('../api/projects.api', () => ({
     deleteProjectCtdSamples: vi.fn(),
 }));
 
-import { searchProjectSamples, searchProjectEcoTaxaSamples, searchProjectCtdSamples, deleteProjectSample } from '../api/projects.api';
+import { searchProjectSamples, searchProjectEcoTaxaSamples, searchProjectCtdSamples, deleteProjectSample, deleteProjectCtdSamples } from '../api/projects.api';
 import { useProjectDataTab } from './useProjectDataTab';
 
 describe('hooks/useProjectDataTab', () => {
@@ -50,26 +50,28 @@ describe('hooks/useProjectDataTab', () => {
         vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-        const { result } = renderHook(() => useProjectDataTab(77));
+        try {
+            const { result } = renderHook(() => useProjectDataTab(77));
 
-        await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
+            await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
 
-        act(() => {
-            result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1, 2]) });
-        });
+            act(() => {
+                result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1, 2]) });
+            });
 
-        await waitFor(() => expect(result.current.uvpSelectionCount).toBe(2));
+            await waitFor(() => expect(result.current.uvpSelectionCount).toBe(2));
 
-        await act(async () => {
-            await result.current.handleDeleteUvpSamples();
-        });
+            await act(async () => {
+                await result.current.handleDeleteUvpSamples();
+            });
 
-        confirmSpy.mockRestore();
-
-        expect(deleteProjectSample).toHaveBeenCalledTimes(2);
-        expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
-        expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
-        await waitFor(() => expect(result.current.uvpSelectionCount).toBe(0));
+            expect(deleteProjectSample).toHaveBeenCalledTimes(2);
+            expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
+            expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
+            await waitFor(() => expect(result.current.uvpSelectionCount).toBe(0));
+        } finally {
+            confirmSpy.mockRestore();
+        }
     });
 
     it('TC-P8: counts exclude selection as selected rows for UVP samples', async () => {
@@ -92,5 +94,40 @@ describe('hooks/useProjectDataTab', () => {
         });
 
         await waitFor(() => expect(result.current.uvpSelectionCount).toBe(2));
+    });
+
+    it('TC-P9: deletes selected CTD samples and refreshes data', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples)
+            .mockResolvedValueOnce({
+                samples: [{ sample_name: 'ctd-1', ctd_sample_id: 'ctd-1' }],
+                search_info: { total: 1, page: 1, limit: 10 },
+            })
+            .mockResolvedValueOnce({
+                samples: [],
+                search_info: { total: 0, page: 1, limit: 10 },
+            });
+        vi.mocked(deleteProjectCtdSamples).mockResolvedValue({ message: 'Deleted' });
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+        try {
+            const { result } = renderHook(() => useProjectDataTab(77));
+
+            await waitFor(() => expect(result.current.ctdSamples.length).toBe(1));
+
+            act(() => {
+                result.current.setSelectedCtdSamples({ type: 'include', ids: new Set(['ctd-1']) });
+            });
+
+            await act(async () => {
+                await result.current.handleDeleteCtdSamples();
+            });
+
+            expect(deleteProjectCtdSamples).toHaveBeenCalledWith(77, ['ctd-1']);
+            await waitFor(() => expect(result.current.ctdSelectionCount).toBe(0));
+        } finally {
+            confirmSpy.mockRestore();
+        }
     });
 });

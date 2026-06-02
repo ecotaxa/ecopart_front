@@ -589,7 +589,7 @@ export async function deleteProjectEcoTaxaSamples(projectId: number, sampleNames
 export interface CtdSampleData {
     sample_name: string;
     ctd_sample_id?: string;
-    import_date?: string;
+    ctd_import_date?: string;
     station_id?: string;
 }
 
@@ -617,12 +617,12 @@ type RawCtdSampleSearchResponse = {
     limit?: number;
 };
 
-type RawCtdImportableResponse = {
-    samples?: ImportableCtdSample[] | string[];
-    items?: ImportableCtdSample[] | string[];
-    results?: ImportableCtdSample[] | string[];
-    rows?: ImportableCtdSample[] | string[];
-    data?: ImportableCtdSample[] | string[];
+type RawCtdImportableResponse = string[] | ImportableCtdSample[] | {
+    samples?: string[] | ImportableCtdSample[];
+    items?: string[] | ImportableCtdSample[];
+    results?: string[] | ImportableCtdSample[];
+    rows?: string[] | ImportableCtdSample[];
+    data?: string[] | ImportableCtdSample[];
 };
 
 function normalizeCtdSampleSearchResponse(raw: RawCtdSampleSearchResponse): CtdSampleSearchResponse {
@@ -639,14 +639,19 @@ function normalizeCtdSampleSearchResponse(raw: RawCtdSampleSearchResponse): CtdS
 }
 
 function normalizeImportableCtdSamples(raw: RawCtdImportableResponse): ImportableCtdSample[] {
-    const rawSamples = raw.samples ?? raw.items ?? raw.results ?? raw.rows ?? raw.data ?? [];
+    let rawSamples: (string | ImportableCtdSample)[] = [];
+    if (Array.isArray(raw)) {
+        rawSamples = raw;
+    } else {
+        rawSamples = raw?.samples ?? raw?.items ?? raw?.results ?? raw?.rows ?? raw?.data ?? [];
+    }
 
     if (rawSamples.length === 0) {
         return [];
     }
 
     if (typeof rawSamples[0] === "string") {
-        return (rawSamples as string[]).map((sampleName) => ({ sample_name: sampleName }));
+        return (rawSamples as string[]).map((sampleName) => ({ sample_name: sampleName, file_extension: "ctd" }));
     }
 
     return rawSamples as ImportableCtdSample[];
@@ -691,8 +696,8 @@ export interface ImportCtdSamplesPayload {
  * Import CTD samples for a project.
  * Endpoint: POST /projects/:project_id/ctd_samples/import
  */
-export async function importProjectCtdSamples(projectId: number, payload: ImportCtdSamplesPayload): Promise<{ success: boolean; task_id?: number }> {
-    return http<{ success: boolean; task_id?: number }>(`/projects/${projectId}/ctd_samples/import`, {
+export async function importProjectCtdSamples(projectId: number, payload: ImportCtdSamplesPayload): Promise<TaskLaunchResponse> {
+    return http<TaskLaunchResponse>(`/projects/${projectId}/ctd_samples/import`, {
         method: "POST",
         body: JSON.stringify(payload),
     });
