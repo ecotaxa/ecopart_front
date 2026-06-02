@@ -18,6 +18,7 @@ import {
     getImportableCtdSamples,
     importRawSamples,
     importEcoTaxaSamples,
+    importProjectCtdSamples,
 } from '../api/projects.api';
 import { useProjectImportTab } from './useProjectImportTab';
 
@@ -27,6 +28,7 @@ const mockedGetImportableEcoTaxaSamples = vi.mocked(getImportableEcoTaxaSamples)
 const mockedGetImportableCtdSamples = vi.mocked(getImportableCtdSamples);
 const mockedImportRawSamples = vi.mocked(importRawSamples);
 const mockedImportEcoTaxaSamples = vi.mocked(importEcoTaxaSamples);
+const mockedImportProjectCtdSamples = vi.mocked(importProjectCtdSamples);
 
 describe('useProjectImportTab', () => {
     beforeEach(() => {
@@ -64,10 +66,14 @@ describe('useProjectImportTab', () => {
             },
         ]);
 
-        mockedGetImportableCtdSamples.mockResolvedValue([]);
+        mockedGetImportableCtdSamples.mockResolvedValue([
+            { sample_name: 'ctd-1', file_extension: 'ctd' },
+            { sample_name: 'ctd-2', file_extension: 'ctd' }
+        ]);
 
         mockedImportRawSamples.mockResolvedValue({ success: true, task_import_samples: 42 });
         mockedImportEcoTaxaSamples.mockResolvedValue({ success: true });
+        mockedImportProjectCtdSamples.mockResolvedValue({ task_id: 99, task_status: 'PENDING', task_type: 'IMPORT' });
     });
 
     // TC-N6: Hook-level raw import success and cleanup
@@ -257,5 +263,29 @@ describe('useProjectImportTab', () => {
         expect(result.current.snackbar.open).toBe(true);
         expect(result.current.snackbar.severity).toBe('warning');
         expect(result.current.snackbar.message).toBe('No samples to import.');
+    });
+
+    // TC-N13: Hook-level CTD import success
+    it('TC-N13: imports selected CTD samples and clears selection on success', async () => {
+        const { result } = renderHook(() => useProjectImportTab(77));
+
+        await waitFor(() => {
+            expect(result.current.loadingCtd).toBe(false);
+        });
+
+        act(() => {
+            result.current.setSelectedCtdSamples({ type: 'include', ids: new Set(['ctd-1']) });
+        });
+
+        await act(async () => {
+            await result.current.handleImportCtdSamples(false);
+        });
+
+        expect(mockedImportProjectCtdSamples).toHaveBeenCalledWith(77, {
+            samples: ['ctd-1'],
+        });
+        expect(result.current.selectedCtdSamples.ids.size).toBe(0);
+        expect(result.current.isImporting).toBe(false);
+        expect(result.current.snackbar.open).toBe(true);
     });
 });
