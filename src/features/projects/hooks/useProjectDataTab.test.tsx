@@ -50,26 +50,28 @@ describe('hooks/useProjectDataTab', () => {
         vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-        const { result } = renderHook(() => useProjectDataTab(77));
+        try {
+            const { result } = renderHook(() => useProjectDataTab(77));
 
-        await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
+            await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
 
-        act(() => {
-            result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1, 2]) });
-        });
+            act(() => {
+                result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1, 2]) });
+            });
 
-        await waitFor(() => expect(result.current.uvpSelectionCount).toBe(2));
+            await waitFor(() => expect(result.current.uvpSelectionCount).toBe(2));
 
-        await act(async () => {
-            await result.current.handleDeleteUvpSamples();
-        });
+            await act(async () => {
+                await result.current.handleDeleteUvpSamples();
+            });
 
-        confirmSpy.mockRestore();
-
-        expect(deleteProjectSample).toHaveBeenCalledTimes(2);
-        expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
-        expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
-        await waitFor(() => expect(result.current.uvpSelectionCount).toBe(0));
+            expect(deleteProjectSample).toHaveBeenCalledTimes(2);
+            expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
+            expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
+            await waitFor(() => expect(result.current.uvpSelectionCount).toBe(0));
+        } finally {
+            confirmSpy.mockRestore();
+        }
     });
 
     it('TC-P8: counts exclude selection as selected rows for UVP samples', async () => {
@@ -109,21 +111,23 @@ describe('hooks/useProjectDataTab', () => {
         vi.mocked(deleteProjectCtdSamples).mockResolvedValue({ message: 'Deleted' });
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-        const { result } = renderHook(() => useProjectDataTab(77));
+        try {
+            const { result } = renderHook(() => useProjectDataTab(77));
 
-        await waitFor(() => expect(result.current.ctdSamples.length).toBe(1));
+            await waitFor(() => expect(result.current.ctdSamples.length).toBe(1));
 
-        act(() => {
-            result.current.setSelectedCtdSamples({ type: 'include', ids: new Set(['ctd-1']) });
-        });
+            act(() => {
+                result.current.setSelectedCtdSamples({ type: 'include', ids: new Set(['ctd-1']) });
+            });
 
-        await act(async () => {
-            await result.current.handleDeleteCtdSamples();
-        });
+            await act(async () => {
+                await result.current.handleDeleteCtdSamples();
+            });
 
-        confirmSpy.mockRestore();
-
-        expect(deleteProjectCtdSamples).toHaveBeenCalledWith(77, ['ctd-1']);
-        await waitFor(() => expect(result.current.ctdSelectionCount).toBe(0));
+            expect(deleteProjectCtdSamples).toHaveBeenCalledWith(77, ['ctd-1']);
+            await waitFor(() => expect(result.current.ctdSelectionCount).toBe(0));
+        } finally {
+            confirmSpy.mockRestore();
+        }
     });
 });
