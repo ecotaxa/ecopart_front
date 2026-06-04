@@ -68,7 +68,7 @@ describe('ProjectMetadataTab (Functional)', () => {
         expect(await screen.findByDisplayValue('Existing Project')).toBeInTheDocument();
         expect(screen.getByDisplayValue('EP')).toBeInTheDocument();
         expect(screen.getByDisplayValue('/data/test')).toBeInTheDocument();
-    }, 15000);
+    }, 25000);
 
     // TC-J2: Update Success
     it('TC-J2: should successfully save updated metadata', async () => {

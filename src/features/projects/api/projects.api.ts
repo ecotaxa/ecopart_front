@@ -1,4 +1,4 @@
-import { http } from "@/shared/api/http";
+import { http, httpText } from "@/shared/api/http";
 
 /**
  * Minimal user representation returned inside project privileges.
@@ -462,8 +462,16 @@ export async function getImportableRawSamples(projectId: number): Promise<Import
 /**
  * Endpoint: POST /projects/:project_id/samples/import
  */
-export async function importRawSamples(projectId: number, payload: ImportSamplesPayload): Promise<{ success: boolean; task_import_samples: number }> {
-    return http<{ success: boolean; task_import_samples: number }>(`/projects/${projectId}/samples/import`, {
+export interface ImportRawSamplesResponse {
+    success?: boolean;
+    task_import_samples?: number | TaskLaunchResponse;
+    task_id?: number;
+    task_status?: string;
+    task_type?: string;
+}
+
+export async function importRawSamples(projectId: number, payload: ImportSamplesPayload): Promise<ImportRawSamplesResponse> {
+    return http<ImportRawSamplesResponse>(`/projects/${projectId}/samples/import`, {
         method: "POST",
         body: JSON.stringify(payload),
     });
@@ -739,6 +747,7 @@ export interface Task {
     task_log_file_path?: string;
     task_progress_pct: number;
     task_progress_msg?: string;
+    task_params?: Record<string, unknown>;
     task_result?: string | null;
     task_error?: string | null;
     task_step?: string | null;
@@ -787,5 +796,30 @@ export async function searchProjectTasks(
 export async function deleteProjectTask(taskId: number): Promise<{ message: string }> {
     return http<{ message: string }>(`/tasks/${taskId}/`, {
         method: "DELETE",
+    });
+}
+
+
+// ============================================================================
+// TASK DETAILS API EXTENSIONS
+// ============================================================================
+
+/**
+ * Fetches single task record from the server.
+ * Route: GET /tasks/:task_id/
+ */
+export async function getOneTask(taskId: number): Promise<Task> {
+    return http<Task>(`/tasks/${taskId}/`, {
+        method: "GET",
+    });
+}
+
+/**
+ * Fetches the plain text server log file content for a specific task.
+ * Route: GET /tasks/:task_id/log
+ */
+export async function getTaskLog(taskId: number): Promise<string> {
+    return httpText(`/tasks/${taskId}/log`, {
+        method: "GET",
     });
 }

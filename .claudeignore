@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.nuxt/
+.cache/
+logs/
+*.log
+*.min.js
+*.map
+*.lock
+tmp/
+vendor/

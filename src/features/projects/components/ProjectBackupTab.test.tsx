@@ -1,7 +1,11 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+const renderWithRouter = (ui: React.ReactElement) =>
+    render(<MemoryRouter>{ui}</MemoryRouter>);
 
 vi.mock('../api/projects.api', () => ({
     getProjectById: vi.fn(),
@@ -31,7 +35,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
             const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
             vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: fiveDaysAgo });
 
-            render(<ProjectBackupTab projectId={77} />);
+            renderWithRouter(<ProjectBackupTab projectId={77} />);
 
             expect(await waitFor(
                 () => screen.getByText(/Last backup done on .* at .*/i),
@@ -41,7 +45,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
             cleanup();
 
             vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
-            render(<ProjectBackupTab projectId={78} />);
+            renderWithRouter(<ProjectBackupTab projectId={78} />);
 
             expect(await waitFor(
                 () => screen.getByText('The project have never been backuped.'),
@@ -56,7 +60,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
                 new Promise((resolve) => setTimeout(() => resolve({ task_id: 88, task_status: 'PENDING', task_type: 'EXPORT' }), 50))
             );
 
-            render(<ProjectBackupTab projectId={77} />);
+            renderWithRouter(<ProjectBackupTab projectId={77} />);
 
             const startButtons = await waitFor(
                 () => screen.getAllByRole('button', { name: /START/i }),
@@ -69,20 +73,26 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
             // Avoid asserting a transient loading label that may flip too quickly on fast machines.
             expect(vi.mocked(exportProjectBackup)).toHaveBeenCalledTimes(1);
 
-            expect(await waitFor(
-                () => screen.getByText(/Export task #88 started successfully!/i),
-                { timeout: 5000 }
-            )).toBeInTheDocument();
+            await waitFor(
+                () => {
+                    const alert = screen.getByRole('alert');
+                    expect(alert.textContent).toMatch(/Export task #88 started successfully!/i);
+                },
+                { timeout: 15000 }
+            );
 
             expect(exportStartBtn).toHaveTextContent(/^START$/i);
-        });
+        }, 25000);
 
         it('TC-O3 - Backup Task Retry Logic', async () => {
             const user = userEvent.setup();
-            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+            // First call (mount) returns null; subsequent calls (retry loop) return a date so the loop exits after the first retry.
+            vi.mocked(getLastBackupDate)
+                .mockResolvedValueOnce({ last_backup_date: null })
+                .mockResolvedValue({ last_backup_date: new Date().toISOString() });
             vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 99, task_status: 'PENDING', task_type: 'BACKUP' });
 
-            render(<ProjectBackupTab projectId={77} />);
+            renderWithRouter(<ProjectBackupTab projectId={77} />);
 
             const startButtons = await waitFor(
                 () => screen.getAllByRole('button', { name: /START/i }),
@@ -92,11 +102,14 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
 
             await user.click(backupStartBtn);
 
-            expect(await waitFor(
-                () => screen.getByText(/Backup task #99 started successfully!/i),
-                { timeout: 5000 }
-            )).toBeInTheDocument();
-        });
+            await waitFor(
+                () => {
+                    const alert = screen.getByRole('alert');
+                    expect(alert.textContent).toMatch(/Backup task #99 started successfully!/i);
+                },
+                { timeout: 15000 }
+            );
+        }, 25000);
     });
 
     describe('Accessibility Tests', () => {

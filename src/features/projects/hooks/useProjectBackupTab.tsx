@@ -1,4 +1,6 @@
+import React from "react";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { AlertColor } from "@mui/material";
 import { exportProjectBackup, runProjectBackup, getProjectById, getLastBackupDate } from "../api/projects.api";
 
@@ -14,7 +16,7 @@ export const useProjectBackupTab = (projectId: number) => {
     const [skipAlreadyImported, setSkipAlreadyImported] = useState(true);
     const [isBackingUp, setIsBackingUp] = useState(false);
 
-    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: React.ReactNode; severity: AlertColor }>({
         open: false,
         message: "",
         severity: "info",
@@ -62,7 +64,7 @@ export const useProjectBackupTab = (projectId: number) => {
     }, [projectId]);
 
     // --- 3. HELPERS ---
-    const showSnackbar = (message: string, severity: AlertColor = "info") => {
+    const showSnackbar = (message: React.ReactNode, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });
     };
 
@@ -88,7 +90,10 @@ export const useProjectBackupTab = (projectId: number) => {
             const response = await exportProjectBackup(projectId, {
                 ftp_export: exportToFtp,
             });
-            showSnackbar(`Export task #${response.task_id} started successfully! You can check its progress in the TASKS tab.`, "success");
+            showSnackbar(
+                <>Export task <Link to={`/projects/${projectId}/tasks/${response.task_id}`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>#{response.task_id}</Link> started successfully! You can check its progress in the TASKS tab.</>,
+                "success"
+            );
         } catch (error) {
             console.error("Export failed:", error);
             showSnackbar(extractErrorMessage(error, "Failed to start export."), "error");
@@ -104,7 +109,10 @@ export const useProjectBackupTab = (projectId: number) => {
                 skip_already_imported: skipAlreadyImported,
             });
 
-            showSnackbar(`Backup task #${response.task_id} started successfully! You can check its progress in the TASKS tab.`, "success");
+            showSnackbar(
+                <>Backup task <Link to={`/projects/${projectId}/tasks/${response.task_id}`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>#{response.task_id}</Link> started successfully! You can check its progress in the TASKS tab.</>,
+                "success"
+            );
 
             // MENTOR FIX: Wait for backend to process the task and update the last_backup_date.
             // Backup tasks can take a while, so we retry multiple times if needed.

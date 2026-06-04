@@ -10,6 +10,7 @@ import { ProfilePage } from "@/features/userProfile";
 import ProjectsPage from "@/features/projects/pages/ProjectsPage";
 import NewProjectPage from "@/features/projects/pages/NewProjectPage";
 import ProjectDetailsPage from "@/features/projects/pages/ProjectDetailsPage";
+import TaskDetailsPage from "@/features/projects/pages/TaskDetailsPage";
 
 export const router = createBrowserRouter([
     { path: "/", element: <HomePage /> },
@@ -89,6 +90,14 @@ export const router = createBrowserRouter([
                 <ProjectDetailsPage />
             </ProtectedRoute>
         ),
+    },
+    {
+        path: "/projects/:id/tasks/:taskId",
+        element: (
+            <ProtectedRoute>
+                <TaskDetailsPage />
+            </ProtectedRoute>
+        )
     },
 
     // {

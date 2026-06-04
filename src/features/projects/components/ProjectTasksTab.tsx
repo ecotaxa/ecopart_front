@@ -13,6 +13,8 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
+import { useNavigate } from "react-router-dom";
+
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { useProjectTasksTab } from "../hooks/useProjectTasksTab";
 import { Task } from "../api/projects.api";
@@ -22,6 +24,8 @@ interface ProjectTasksTabProps {
 }
 
 export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) => {
+    const navigate = useNavigate();
+
     const {
         tasks, loading, totalRows,
         paginationModel, setPaginationModel,
@@ -39,26 +43,36 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
         }
 
         if (typeof owner === "string") {
-            const cleaned = owner
+            let cleaned = owner
                 .replace(/\bundefined\b/gi, "")
+                .replace(/\bnull\b/gi, "")
                 .replace(/\s+/g, " ")
                 .trim();
+
+            if (cleaned.startsWith("(") && cleaned.endsWith(")")) {
+                cleaned = cleaned.slice(1, -1).trim();
+            }
 
             return cleaned || "System";
         }
 
         const ownerObject = owner as Record<string, unknown>;
         const candidateParts = [
-            ownerObject.user_name,
             ownerObject.first_name,
             ownerObject.last_name,
+            ownerObject.user_name,
         ]
             .filter((value): value is string => typeof value === "string")
             .map((value) => value.trim())
-            .filter((value) => value && value.toLowerCase() !== "undefined");
+            .filter((value) => value && value.toLowerCase() !== "undefined" && value.toLowerCase() !== "null");
 
         if (candidateParts.length > 0) {
-            return candidateParts.join(" ");
+            const name = candidateParts.join(" ");
+            return ownerObject.email ? `${name} (${ownerObject.email})` : name;
+        }
+
+        if (ownerObject.email && typeof ownerObject.email === "string") {
+            return ownerObject.email;
         }
 
         return "System";
@@ -149,8 +163,8 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
             headerName: "",
             width: 50,
             sortable: false,
-            renderCell: () => (
-                <IconButton size="small">
+            renderCell: (params) => (
+                <IconButton size="small" onClick={() => navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}>
                     <OpenInNewIcon fontSize="small" />
                 </IconButton>
             )
