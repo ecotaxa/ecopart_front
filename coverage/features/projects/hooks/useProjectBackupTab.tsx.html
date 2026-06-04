@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for features/projects/hooks/useProjectBackupTab.ts</title>
+    <title>Code coverage report for features/projects/hooks/useProjectBackupTab.tsx</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../../prettify.css" />
     <link rel="stylesheet" href="../../../base.css" />
@@ -19,7 +19,7 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../../index.html">All files</a> / <a href="index.html">features/projects/hooks</a> useProjectBackupTab.ts</h1>
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">features/projects/hooks</a> useProjectBackupTab.tsx</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
@@ -233,7 +233,17 @@
 <a name='L168'></a><a href='#L168'>168</a>
 <a name='L169'></a><a href='#L169'>169</a>
 <a name='L170'></a><a href='#L170'>170</a>
-<a name='L171'></a><a href='#L171'>171</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -325,6 +335,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -340,6 +353,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -403,7 +419,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useState, useEffect } from "react";
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { AlertColor } from "@mui/material";
 import { exportProjectBackup, runProjectBackup, getProjectById, getLastBackupDate } from "../api/projects.api";
 &nbsp;
@@ -419,7 +437,7 @@ export const useProjectBackupTab = (projectId: number) =&gt; {
     const [skipAlreadyImported, setSkipAlreadyImported] = useState(true);
     const [isBackingUp, setIsBackingUp] = useState(false);
 &nbsp;
-    const [snackbar, setSnackbar] = useState&lt;{ open: boolean; message: string; severity: AlertColor }&gt;({
+    const [snackbar, setSnackbar] = useState&lt;{ open: boolean; message: React.ReactNode; severity: AlertColor }&gt;({
         open: false,
         message: "",
         severity: "info",
@@ -467,7 +485,7 @@ export const useProjectBackupTab = (projectId: number) =&gt; {
     }, [projectId]);
 &nbsp;
     // --- 3. HELPERS ---
-    const showSnackbar = (message: string, severity: AlertColor = "info") =&gt; {
+    const showSnackbar = (message: React.ReactNode, severity: AlertColor = "info") =&gt; {
         setSnackbar({ open: true, message, severity });
     };
 &nbsp;
@@ -493,7 +511,10 @@ export const useProjectBackupTab = (projectId: number) =&gt; {
             const response = await exportProjectBackup(projectId, {
                 ftp_export: exportToFtp,
             });
-            showSnackbar(`Export task #${response.task_id} started successfully! You can check its progress in the TASKS tab.`, "success");
+            showSnackbar(
+                &lt;&gt;Export task &lt;Link to={`/projects/${projectId}/tasks/${response.task_id}`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}&gt;#{response.task_id}&lt;/Link&gt; started successfully! You can check its progress in the TASKS tab.&lt;/&gt;,
+                "success"
+            );
         } catch (error) {
 <span class="cstat-no" title="statement not covered" >            console.error("Export failed:", error);</span>
 <span class="cstat-no" title="statement not covered" >            showSnackbar(extractErrorMessage(error, "Failed to start export."), "error");</span>
@@ -509,7 +530,10 @@ export const useProjectBackupTab = (projectId: number) =&gt; {
                 skip_already_imported: skipAlreadyImported,
             });
 &nbsp;
-            showSnackbar(`Backup task #${response.task_id} started successfully! You can check its progress in the TASKS tab.`, "success");
+            showSnackbar(
+                &lt;&gt;Backup task &lt;Link to={`/projects/${projectId}/tasks/${response.task_id}`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}&gt;#{response.task_id}&lt;/Link&gt; started successfully! You can check its progress in the TASKS tab.&lt;/&gt;,
+                "success"
+            );
 &nbsp;
             // MENTOR FIX: Wait for backend to process the task and update the last_backup_date.
             // Backup tasks can take a while, so we retry multiple times if needed.
@@ -580,7 +604,7 @@ export const useProjectBackupTab = (projectId: number) =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-28T12:30:42.267Z
+                at 2026-06-04T14:14:29.609Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

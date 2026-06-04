@@ -18,8 +18,8 @@ export default function TaskDetailsPage() {
     const { id, taskId } = useParams<{ id: string; taskId: string }>();
     const navigate = useNavigate();
 
-    const parsedProjectId = id ? Number.parseInt(id, 10) : null;
-    const parsedTaskId = taskId ? Number.parseInt(taskId, 10) : null;
+    const parsedProjectId = id ? (Number.isNaN(Number.parseInt(id, 10)) ? null : Number.parseInt(id, 10)) : null;
+    const parsedTaskId = taskId ? (Number.isNaN(Number.parseInt(taskId, 10)) ? null : Number.parseInt(taskId, 10)) : null;
 
     // --- 1. LOCAL REACT STATE ---
     const [currentTab, setCurrentTab] = useState<number>(0);
@@ -31,7 +31,7 @@ export default function TaskDetailsPage() {
 
     // --- 2. DATA HYDRATION CALLBACK ---
     const loadTaskDetails = useCallback(async (showSpinner = false) => {
-        if (!parsedTaskId) return;
+        if (parsedTaskId === null) return;
         if (showSpinner) setIsLoading(true);
 
         try {
@@ -76,7 +76,7 @@ export default function TaskDetailsPage() {
     }, [task, loadTaskDetails]);
 
     const handleDeleteTask = async () => {
-        if (!parsedTaskId) return;
+        if (parsedTaskId === null) return;
         if (!window.confirm(`Are you sure you want to delete task #${parsedTaskId}?`)) return;
 
         setIsDeleting(true);
@@ -284,7 +284,7 @@ export default function TaskDetailsPage() {
                                     {logContent ? (
                                         logContent.split("\n").map((line, idx) => (
                                             <Box key={idx} sx={{
-                                                color: line.includes("failed") || line.includes("error") ? "#f44336" : line.includes("sucessfilly") || line.includes("done") ? "#4caf50" : "#d4d4d4"
+                                                color: line.includes("failed") || line.includes("error") ? "#f44336" : line.includes("successfully") || line.includes("done") ? "#4caf50" : "#d4d4d4"
                                             }}>
                                                 {line}
                                             </Box>

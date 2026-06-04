@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">2.43% </span>
+                <span class="strong">2.08% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>1/41</span>
+                <span class='fraction'>1/48</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/34</span>
+                <span class='fraction'>0/45</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/16</span>
+                <span class='fraction'>0/17</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">2.43% </span>
+                <span class="strong">2.12% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>1/41</span>
+                <span class='fraction'>1/47</span>
             </div>
         
             
@@ -322,7 +322,23 @@
 <a name='L257'></a><a href='#L257'>257</a>
 <a name='L258'></a><a href='#L258'>258</a>
 <a name='L259'></a><a href='#L259'>259</a>
-<a name='L260'></a><a href='#L260'>260</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -346,6 +362,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -368,6 +386,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -380,6 +403,11 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -596,6 +624,8 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 &nbsp;
+import { useNavigate } from "react-router-dom";
+&nbsp;
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import { useProjectTasksTab } from "../hooks/useProjectTasksTab";
 import { Task } from "../api/projects.api";
@@ -605,6 +635,8 @@ interface ProjectTasksTabProps {
 }
 &nbsp;
 export const ProjectTasksTab: React.FC&lt;ProjectTasksTabProps&gt; = <span class="fstat-no" title="function not covered" >({</span> projectId }) =&gt; {
+    const <span class="cstat-no" title="statement not covered" >navigate = useNavigate();</span>
+&nbsp;
     const {
         tasks, loading, totalRows,
         paginationModel, setPaginationModel,
@@ -622,26 +654,36 @@ export const ProjectTasksTab: React.FC&lt;ProjectTasksTabProps&gt; = <span class
         }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >        if (typeof owner === "string") {</span>
-            const cleaned = <span class="cstat-no" title="statement not covered" >owner</span>
+            let cleaned = <span class="cstat-no" title="statement not covered" >owner</span>
                 .replace(/\bundefined\b/gi, "")
+                .replace(/\bnull\b/gi, "")
                 .replace(/\s+/g, " ")
                 .trim();
+&nbsp;
+<span class="cstat-no" title="statement not covered" >            if (cleaned.startsWith("(") &amp;&amp; cleaned.endsWith(")")) {</span>
+<span class="cstat-no" title="statement not covered" >                cleaned = cleaned.slice(1, -1).trim();</span>
+            }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >            return cleaned || "System";</span>
         }
 &nbsp;
         const ownerObject = <span class="cstat-no" title="statement not covered" >owner as Record&lt;string, unknown&gt;;</span>
         const candidateParts = <span class="cstat-no" title="statement not covered" >[</span>
-            ownerObject.user_name,
             ownerObject.first_name,
             ownerObject.last_name,
+            ownerObject.user_name,
         ]
             .filter(<span class="fstat-no" title="function not covered" >(v</span>alue): value is string =&gt; <span class="cstat-no" title="statement not covered" >typeof value === "string")</span>
             .map(<span class="fstat-no" title="function not covered" >(v</span>alue) =&gt; <span class="cstat-no" title="statement not covered" >value.trim())</span>
-            .filter(<span class="fstat-no" title="function not covered" >(v</span>alue) =&gt; <span class="cstat-no" title="statement not covered" >value &amp;&amp; value.toLowerCase() !== "undefined")</span>;
+            .filter(<span class="fstat-no" title="function not covered" >(v</span>alue) =&gt; <span class="cstat-no" title="statement not covered" >value &amp;&amp; value.toLowerCase() !== "undefined" &amp;&amp; value.toLowerCase() !== "null")</span>;
 &nbsp;
 <span class="cstat-no" title="statement not covered" >        if (candidateParts.length &gt; 0) {</span>
-<span class="cstat-no" title="statement not covered" >            return candidateParts.join(" ");</span>
+            const name = <span class="cstat-no" title="statement not covered" >candidateParts.join(" ");</span>
+<span class="cstat-no" title="statement not covered" >            return ownerObject.email ? `${name} (${ownerObject.email})` : name;</span>
+        }
+&nbsp;
+<span class="cstat-no" title="statement not covered" >        if (ownerObject.email &amp;&amp; typeof ownerObject.email === "string") {</span>
+<span class="cstat-no" title="statement not covered" >            return ownerObject.email;</span>
         }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >        return "System";</span>
@@ -732,8 +774,8 @@ export const ProjectTasksTab: React.FC&lt;ProjectTasksTabProps&gt; = <span class
             headerName: "",
             width: 50,
             sortable: false,
-            renderCell: <span class="fstat-no" title="function not covered" >() =&gt; (</span>
-<span class="cstat-no" title="statement not covered" >                &lt;IconButton size="small"&gt;</span>
+            renderCell: <span class="fstat-no" title="function not covered" >(p</span>arams) =&gt; (
+<span class="cstat-no" title="statement not covered" >                &lt;IconButton size="small" onClick={<span class="fstat-no" title="function not covered" >() =&gt; <span class="cstat-no" title="statement not covered" >n</span>avigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}&gt;</span></span>
                     &lt;OpenInNewIcon fontSize="small" /&gt;
                 &lt;/IconButton&gt;
             )
@@ -847,7 +889,7 @@ export const ProjectTasksTab: React.FC&lt;ProjectTasksTabProps&gt; = <span class
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-28T12:30:42.267Z
+                at 2026-06-04T14:14:29.609Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

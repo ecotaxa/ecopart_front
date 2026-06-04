@@ -1,4 +1,4 @@
-import { http } from "@/shared/api/http";
+import { http, httpText } from "@/shared/api/http";
 
 /**
  * Minimal user representation returned inside project privileges.
@@ -819,8 +819,7 @@ export async function getOneTask(taskId: number): Promise<Task> {
  * Route: GET /tasks/:task_id/log
  */
 export async function getTaskLog(taskId: number): Promise<string> {
-    // Note: Since the backend returns plain text/html, our http utility handles text extraction
-    return http<string>(`/tasks/${taskId}/log`, {
+    return httpText(`/tasks/${taskId}/log`, {
         method: "GET",
     });
 }

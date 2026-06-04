@@ -106,3 +106,47 @@ export async function http<T>(
 
     return retryResponse.json();
 }
+
+export async function httpText(
+    input: RequestInfo,
+    init: RequestInit = {}
+): Promise<string> {
+    const url = typeof input === 'string' ? `${API_BASE_URL}${input}` : input;
+
+    const response = await fetch(url, {
+        ...init,
+        credentials: "include",
+        headers: { ...(init.headers || {}) },
+    });
+
+    if (response.ok) {
+        return response.text();
+    }
+
+    if (response.status !== 401) {
+        throw new Error(`HTTP Error: ${response.status}`);
+    }
+
+    if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = refreshToken().finally(() => { isRefreshing = false; });
+    }
+
+    try {
+        await refreshPromise;
+    } catch {
+        throw new Error("Session expired");
+    }
+
+    const retryResponse = await fetch(url, {
+        ...init,
+        credentials: "include",
+        headers: { ...(init.headers || {}) },
+    });
+
+    if (!retryResponse.ok) {
+        throw new Error(`HTTP Error: ${retryResponse.status}`);
+    }
+
+    return retryResponse.text();
+}
