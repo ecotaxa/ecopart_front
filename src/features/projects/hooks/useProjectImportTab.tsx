@@ -1,4 +1,6 @@
+import React from "react";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { AlertColor } from "@mui/material";
 import { GridRowSelectionModel } from "@mui/x-data-grid";
 
@@ -13,6 +15,7 @@ import {
     importRawSamples,
     importEcoTaxaSamples,
     importProjectCtdSamples,
+    TaskLaunchResponse,
 } from "../api/projects.api";
 
 export const useProjectImportTab = (projectId: number) => {
@@ -59,7 +62,7 @@ export const useProjectImportTab = (projectId: number) => {
     const [importAllUvpFlag, setImportAllUvpFlag] = useState(false);
 
     // Notifications
-    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: React.ReactNode; severity: AlertColor }>({
         open: false, message: "", severity: "info",
     });
 
@@ -130,7 +133,7 @@ export const useProjectImportTab = (projectId: number) => {
 
     // --- 3. ACTIONS ---
 
-    const showSnackbar = (message: string, severity: AlertColor = "info") => setSnackbar({ open: true, message, severity });
+    const showSnackbar = (message: React.ReactNode, severity: AlertColor = "info") => setSnackbar({ open: true, message, severity });
     const closeSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
 
     const getSelectionCount = (selectionModel: GridRowSelectionModel, totalRows: number): number => {
@@ -211,10 +214,29 @@ export const useProjectImportTab = (projectId: number) => {
                 backup_project_skip_already_imported: skipAlreadyImported
             });
 
-            if (response?.task_import_samples) {
-                showSnackbar(`Import task queued (${response.task_import_samples} samples). Check TASKS tab.`, "success");
+            // Resolve task_id from different possible response shapes
+            const resolvedTaskId: number | undefined =
+                response?.task_id ??
+                (typeof response?.task_import_samples === 'object'
+                    ? (response.task_import_samples as TaskLaunchResponse)?.task_id
+                    : undefined);
+
+            if (resolvedTaskId) {
+                showSnackbar(
+                    <>Import task <Link to={`/projects/${projectId}/tasks/${resolvedTaskId}`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>#{resolvedTaskId}</Link> queued. Check its progress in the <Link to={`/projects/${projectId}/tasks`} style={{ color: "inherit", textDecoration: "underline" }}>TASKS tab</Link>.</>,
+                    "success"
+                );
+            } else if (response?.task_import_samples) {
+                const count = typeof response.task_import_samples === 'number' ? response.task_import_samples : '?';
+                showSnackbar(
+                    <>Import task queued ({count} samples). Check the <Link to={`/projects/${projectId}/tasks`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>TASKS tab</Link>.</>,
+                    "success"
+                );
             } else {
-                showSnackbar("Raw samples import completed. Check TASKS tab.", "success");
+                showSnackbar(
+                    <>Raw samples import completed. Check the <Link to={`/projects/${projectId}/tasks`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>TASKS tab</Link>.</>,
+                    "success"
+                );
             }
 
             setSelectedRawSamples({ type: "include", ids: new Set() });
@@ -249,7 +271,10 @@ export const useProjectImportTab = (projectId: number) => {
                 backup_project_skip_already_imported: skipAlreadyImported
             });
 
-            showSnackbar("EcoTaxa samples import completed successfully.", "success");
+            showSnackbar(
+                <>EcoTaxa samples import completed successfully. Check the <Link to={`/projects/${projectId}/tasks`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>TASKS tab</Link>.</>,
+                "success"
+            );
 
             setSelectedEcoTaxaSamples({ type: "include", ids: new Set() });
 
@@ -278,9 +303,15 @@ export const useProjectImportTab = (projectId: number) => {
             const response = await importProjectCtdSamples(projectId, { samples: samplesToImport });
 
             if (response?.task_id) {
-                showSnackbar(`CTD import task #${response.task_id} started. Check TASKS tab.`, "success");
+                showSnackbar(
+                    <>CTD import task <Link to={`/projects/${projectId}/tasks/${response.task_id}`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>#{response.task_id}</Link> started. Check its progress in the TASKS tab.</>,
+                    "success"
+                );
             } else {
-                showSnackbar("CTD samples import completed. Check TASKS tab.", "success");
+                showSnackbar(
+                    <>CTD samples import completed. Check the <Link to={`/projects/${projectId}/tasks`} style={{ color: "inherit", fontWeight: "bold", textDecoration: "underline" }}>TASKS tab</Link>.</>,
+                    "success"
+                );
             }
 
             setSelectedCtdSamples({ type: "include", ids: new Set() });
