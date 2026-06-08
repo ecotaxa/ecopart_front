@@ -181,6 +181,17 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             const warningIcon = screen.getByTestId('WarningAmberIcon');
             expect(warningIcon).toBeInTheDocument();
         });
+
+        it('TC-P3b - shows an error state (not "No rows") when the EcoTaxa fetch fails', async () => {
+            vi.mocked(searchProjectEcoTaxaSamples).mockRejectedValueOnce(new Error('Cannot get samples'));
+
+            render(<ProjectDataTab projectId={77} />);
+
+            // The EcoTaxa section surfaces the real backend error instead of a silent "No rows".
+            expect(
+                await screen.findByText(/Failed to load EcoTaxa samples \(Cannot get samples\)/i)
+            ).toBeInTheDocument();
+        });
     });
 
     describe('Accessibility Tests', () => {

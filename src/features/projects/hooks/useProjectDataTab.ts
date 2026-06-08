@@ -80,6 +80,12 @@ export const useProjectDataTab = (projectId: number) => {
     const [selectedCtdSamples, setSelectedCtdSamples] = useState<GridRowSelectionModel>(createEmptySelectionModel());
     const [ctdPaginationModel, setCtdPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 10 });
 
+    // Per-section load error (null = no error). Lets the UI show a real error state
+    // instead of a silent "No rows" when the backend fails (e.g. 500/401).
+    const [uvpError, setUvpError] = useState<string | null>(null);
+    const [ecoTaxaError, setEcoTaxaError] = useState<string | null>(null);
+    const [ctdError, setCtdError] = useState<string | null>(null);
+
     const [isActionRunning, setIsActionRunning] = useState(false);
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
         open: false,
@@ -89,6 +95,7 @@ export const useProjectDataTab = (projectId: number) => {
 
     const fetchUvpSamples = useCallback(async () => {
         setLoadingUvp(true);
+        setUvpError(null);
         try {
             const response = await searchProjectSamples(projectId, {
                 page: uvpPaginationModel.page + 1,
@@ -101,6 +108,7 @@ export const useProjectDataTab = (projectId: number) => {
             console.error("Failed to load UVP samples", error);
             setUvpSamples([]);
             setTotalUvpRows(0);
+            setUvpError(error instanceof Error ? error.message : "Unknown error");
         } finally {
             setLoadingUvp(false);
         }
@@ -108,6 +116,7 @@ export const useProjectDataTab = (projectId: number) => {
 
     const fetchEcoTaxaSamples = useCallback(async () => {
         setLoadingEcoTaxa(true);
+        setEcoTaxaError(null);
         try {
             const response = await searchProjectEcoTaxaSamples(projectId, {
                 page: ecoTaxaPaginationModel.page + 1,
@@ -120,6 +129,7 @@ export const useProjectDataTab = (projectId: number) => {
             console.error("Failed to load EcoTaxa samples", error);
             setEcoTaxaSamples([]);
             setTotalEcoTaxaRows(0);
+            setEcoTaxaError(error instanceof Error ? error.message : "Unknown error");
         } finally {
             setLoadingEcoTaxa(false);
         }
@@ -127,6 +137,7 @@ export const useProjectDataTab = (projectId: number) => {
 
     const fetchCtdSamples = useCallback(async () => {
         setLoadingCtd(true);
+        setCtdError(null);
         try {
             const response = await searchProjectCtdSamples(projectId, {
                 page: ctdPaginationModel.page + 1,
@@ -139,6 +150,7 @@ export const useProjectDataTab = (projectId: number) => {
             console.error("Failed to load CTD samples", error);
             setCtdSamples([]);
             setTotalCtdRows(0);
+            setCtdError(error instanceof Error ? error.message : "Unknown error");
         } finally {
             setLoadingCtd(false);
         }
@@ -253,6 +265,9 @@ export const useProjectDataTab = (projectId: number) => {
         uvpSelectionCount: getSelectionCount(selectedUvpSamples, totalUvpRows),
         ecoTaxaSelectionCount: getSelectionCount(selectedEcoTaxaSamples, totalEcoTaxaRows),
         ctdSelectionCount: getSelectionCount(selectedCtdSamples, totalCtdRows),
+        uvpError,
+        ecoTaxaError,
+        ctdError,
         isActionRunning,
         handleDeleteUvpSamples,
         handleDeleteEcoTaxaSamples,
