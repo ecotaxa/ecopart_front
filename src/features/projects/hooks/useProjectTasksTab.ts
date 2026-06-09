@@ -43,12 +43,8 @@ export const useProjectTasksTab = (projectId: number) => {
         severity: "info",
     });
 
-    const buildTasksFilters = (useProjectScope: boolean): SearchFilter[] => {
+    const buildTasksFilters = (): SearchFilter[] => {
         const activeFilters: SearchFilter[] = [];
-
-        if (!useProjectScope) {
-            activeFilters.push({ field: "for_managing", operator: "=", value: true });
-        }
 
         if (debouncedSearchText) {
             activeFilters.push({
@@ -76,28 +72,13 @@ export const useProjectTasksTab = (projectId: number) => {
     const fetchTasks = useCallback(async () => {
         setLoading(true);
         try {
-            const searchOptions = {
+            const response = await searchProjectTasks({
+                projectId,
                 page: paginationModel.page + 1,
                 limit: paginationModel.pageSize,
                 sort_by: "desc(task_id)",
-            };
-
-            const response = await searchProjectTasks({
-                projectId,
-                ...searchOptions,
-                filters: buildTasksFilters(true),
+                filters: buildTasksFilters(),
             });
-
-            if (response.tasks.length === 0 && paginationModel.page === 0 && !debouncedSearchText) {
-                const fallbackResponse = await searchProjectTasks({
-                    ...searchOptions,
-                    filters: buildTasksFilters(false),
-                });
-
-                setTasks(fallbackResponse.tasks || []);
-                setTotalRows(fallbackResponse.search_info?.total || 0);
-                return;
-            }
 
             setTasks(response.tasks || []);
             setTotalRows(response.search_info?.total || 0);

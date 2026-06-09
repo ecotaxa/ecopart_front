@@ -139,9 +139,12 @@ export const useProjectDataTab = (projectId: number) => {
         setLoadingCtd(true);
         setCtdError(null);
         try {
+            // GET /ctd_samples is not paginated server-side: it returns every imported
+            // CTD sample in a single response. We fetch once and paginate client-side in
+            // the grid (the page/limit below are ignored by the backend).
             const response = await searchProjectCtdSamples(projectId, {
-                page: ctdPaginationModel.page + 1,
-                limit: ctdPaginationModel.pageSize,
+                page: 1,
+                limit: 0,
                 filters: [],
             });
             setCtdSamples(response.samples || []);
@@ -154,7 +157,7 @@ export const useProjectDataTab = (projectId: number) => {
         } finally {
             setLoadingCtd(false);
         }
-    }, [projectId, ctdPaginationModel.page, ctdPaginationModel.pageSize]);
+    }, [projectId]);
 
     useEffect(() => {
         fetchUvpSamples();

@@ -265,8 +265,6 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             loading={loadingCtd}
                             rowSelectionModel={selectedCtdSamples}
                             onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
-                            paginationMode="server"
-                            rowCount={totalCtdRows}
                             paginationModel={ctdPaginationModel}
                             onPaginationModelChange={setCtdPaginationModel}
                             pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalCtdRows, 1), label: "All" }]}
