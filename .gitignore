@@ -24,6 +24,8 @@ dist-ssr
 *.sw?
 *.env
 .coverage/**
+coverage
+coverage/**
 test_results.txt
 
 # Prevent accidental TS emit artifacts in source tree
