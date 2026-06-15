@@ -23,10 +23,16 @@ dist-ssr
 *.sln
 *.sw?
 *.env
-.coverage/*
+.coverage/**
+coverage
+coverage/**
 test_results.txt
 
 # Prevent accidental TS emit artifacts in source tree
 src/**/*.js
 src/**/*.js.map
 tsconfig.tsbuildinfo
+
+github.copilot-chat-0.44.2.vsix
+.tmp-newproject-test-output.txt
+*.tmp-newproject-test-output.txt

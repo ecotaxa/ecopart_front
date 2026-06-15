@@ -101,7 +101,7 @@ describe('hooks/useProjectDataTab', () => {
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
         vi.mocked(searchProjectCtdSamples)
             .mockResolvedValueOnce({
-                samples: [{ sample_name: 'ctd-1', ctd_sample_id: 'ctd-1' }],
+                samples: [{ sample_name: 'ctd-1', ctd_import_date: '2024-01-15T10:30:00.000Z', file_extension: 'ctd' }],
                 search_info: { total: 1, page: 1, limit: 10 },
             })
             .mockResolvedValueOnce({

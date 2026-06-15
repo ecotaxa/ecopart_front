@@ -43,6 +43,8 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         ctdSamples, loadingCtd, totalCtdRows, ctdPaginationModel, setCtdPaginationModel,
         selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount,
 
+        uvpError, ecoTaxaError, ctdError,
+
         isActionRunning,
         handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples, handleMatchEcotaxa,
         snackbar, closeSnackbar
@@ -64,10 +66,10 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         { field: "sample_type_label", headerName: "Type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.sample_type_label || 'Cell' },
         { field: "comment", headerName: "Comment", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.comment || 'Cell' },
         {
-            field: "linked_ctd", headerName: "Linked CTD", flex: 1, minWidth: 100, renderCell: (params) => (
+            field: "ctd_imported", headerName: "Linked CTD", flex: 1, minWidth: 100, align: 'center', headerAlign: 'center', renderCell: (params) => (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Typography variant="body2" color={params.row.sample_id % 2 === 0 ? "error" : "textPrimary"}>
-                        {params.row.sample_id % 2 === 0 ? "NO" : "YES"}
+                    <Typography variant="body2" color={params.row.ctd_imported ? "textPrimary" : "error"}>
+                        {params.row.ctd_imported ? "YES" : "NO"}
                     </Typography>
                 </Box>
             )
@@ -105,22 +107,25 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
 
     const ctdSamplesColumns: GridColDef<CtdSampleData>[] = [
         { field: "sample_name", headerName: "Sample name", flex: 1.8, minWidth: 180 },
-        { field: "ctd_sample_id", headerName: "CTD sample ID", flex: 1.4, minWidth: 150, valueGetter: (_value, row) => row.ctd_sample_id ?? row.sample_name },
-        { field: "ctd_import_date", headerName: "Import date", flex: 1.2, minWidth: 140, valueGetter: (_value, row) => formatCompactDate(row.ctd_import_date) },
-        { field: "station_id", headerName: "Station ID", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.station_id ?? "Cell" },
+        { field: "ctd_import_date", headerName: "Import date", flex: 1.4, minWidth: 150, valueGetter: (_value, row) => formatCompactDate(row.ctd_import_date) },
+        { field: "file_extension", headerName: "File type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.file_extension || "Cell" },
     ];
 
     const ecoTaxaSamplesColumns: GridColDef<EcoTaxaSampleData>[] = [
         { field: "sample_name", headerName: "Sample name", flex: 2, minWidth: 200 },
         { field: "ecotaxa_sample_id", headerName: "EcoTaxa sample ID", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.ecotaxa_sample_id || 'Cell' },
-        { field: "ecotaxa_sample_nb_images", headerName: "Number of images", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.ecotaxa_sample_nb_images || '0' },
+        { field: "nb_objects", headerName: "Number of objects", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.nb_objects ?? 0 },
         {
             field: "progress",
             headerName: "Classification progress",
             flex: 2,
             minWidth: 200,
             renderCell: (params) => {
-                const progress = params.row.ecotaxa_sample_id ? (params.row.ecotaxa_sample_id % 10) * 10 : 50;
+                // An object is "classified" once it leaves the unclassified state
+                // (predicted, validated or dubious). nb_objects is the sum of the four counts.
+                const total = params.row.nb_objects ?? 0;
+                const classified = total - (params.row.nb_unclassified ?? 0);
+                const progress = total > 0 ? Math.round((classified / total) * 100) : 0;
                 return (
                     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', height: '100%' }}>
                         <Box sx={{ width: '100%', mr: 1 }}>
@@ -160,8 +165,13 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         '& .MuiDataGrid-columnHeader:focus': { outline: 'none' },
     };
 
-    const renderEmptyState = (message: string) => (
-        <Box sx={{ border: '1px dashed #e0e0e0', borderRadius: 1, py: 4, textAlign: 'center', color: 'text.secondary', mb: 2 }}>
+    const renderEmptyState = (message: string, isError = false) => (
+        <Box sx={{
+            border: '1px dashed',
+            borderColor: isError ? 'error.main' : '#e0e0e0',
+            borderRadius: 1, py: 4, textAlign: 'center',
+            color: isError ? 'error.main' : 'text.secondary', mb: 2,
+        }}>
             {message}
         </Box>
     );
@@ -191,7 +201,12 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                 </Box>
 
                 {uvpSamples.length === 0 ? (
-                    renderEmptyState(loadingUvp ? "Loading UVP samples..." : "No results found.")
+                    renderEmptyState(
+                        loadingUvp ? "Loading UVP samples..."
+                            : uvpError ? `Failed to load UVP samples (${uvpError})`
+                                : "No results found.",
+                        !loadingUvp && !!uvpError
+                    )
                 ) : (
                     <Box sx={{ width: '100%', mb: 1 }}>
                         <DataGrid<SampleData>
@@ -232,7 +247,12 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                     </Button>
                 </Box>
                 {ctdSamples.length === 0 ? (
-                    renderEmptyState(loadingCtd ? "Loading CTD samples..." : "No results found.")
+                    renderEmptyState(
+                        loadingCtd ? "Loading CTD samples..."
+                            : ctdError ? `Failed to load CTD samples (${ctdError})`
+                                : "No results found.",
+                        !loadingCtd && !!ctdError
+                    )
                 ) : (
                     <Box sx={{ width: '100%', mb: 1 }}>
                         <DataGrid<CtdSampleData>
@@ -245,8 +265,6 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             loading={loadingCtd}
                             rowSelectionModel={selectedCtdSamples}
                             onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
-                            paginationMode="server"
-                            rowCount={totalCtdRows}
                             paginationModel={ctdPaginationModel}
                             onPaginationModelChange={setCtdPaginationModel}
                             pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalCtdRows, 1), label: "All" }]}
@@ -279,7 +297,12 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                 </Box>
 
                 {ecoTaxaSamples.length === 0 ? (
-                    renderEmptyState(loadingEcoTaxa ? "Loading EcoTaxa samples..." : "No rows")
+                    renderEmptyState(
+                        loadingEcoTaxa ? "Loading EcoTaxa samples..."
+                            : ecoTaxaError ? `Failed to load EcoTaxa samples (${ecoTaxaError})`
+                                : "No rows",
+                        !loadingEcoTaxa && !!ecoTaxaError
+                    )
                 ) : (
                     <Box sx={{ width: '100%', mb: 1 }}>
                         <DataGrid<EcoTaxaSampleData>
