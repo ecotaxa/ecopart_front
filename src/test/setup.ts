@@ -1,8 +1,14 @@
 import "@testing-library/jest-dom";
 import { beforeAll, afterEach, afterAll } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { server } from "./msw/server";
 import { resetMockAuth } from "./msw/handlers"; // Import the reset function
+
+// The MUI DataGrid-heavy suites are CPU-intensive; when several run in parallel
+// the default 1000ms async-query timeout can lapse before a slow render settles,
+// producing load-induced flakes (the logic is correct — it passes serialized).
+// Raise the global findBy/waitFor timeout to give those renders headroom.
+configure({ asyncUtilTimeout: 5000 });
 
 const originalConsoleError = console.error;
 
