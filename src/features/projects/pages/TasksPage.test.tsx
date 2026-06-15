@@ -114,12 +114,12 @@ describe('TasksPage (Functional)', () => {
         renderTasksPage();
 
         await screen.findByText('IMPORT');
-        await waitFor(() => expect(searchCalls.at(-1)?.page).toBe('1'));
+        await waitFor(() => expect(searchCalls[searchCalls.length - 1]?.page).toBe('1'));
 
         await user.click(screen.getByRole('button', { name: /Go to next page/i }));
 
         await waitFor(() => {
-            const last = searchCalls.at(-1);
+            const last = searchCalls[searchCalls.length - 1];
             expect(last?.page).toBe('2');
             expect(last?.limit).toBe('10');
         });
@@ -137,7 +137,7 @@ describe('TasksPage (Functional)', () => {
 
         await waitFor(
             () => {
-                expect(searchCalls.at(-1)?.filters).toEqual([
+                expect(searchCalls[searchCalls.length - 1]?.filters).toEqual([
                     { field: 'task_status', operator: 'LIKE', value: '%error%' },
                 ]);
             },
@@ -162,7 +162,7 @@ describe('TasksPage (Functional)', () => {
 
         await waitFor(
             () => {
-                expect(searchCalls.at(-1)?.filters).toEqual([
+                expect(searchCalls[searchCalls.length - 1]?.filters).toEqual([
                     { field: 'task_id', operator: '=', value: 42 },
                 ]);
             },

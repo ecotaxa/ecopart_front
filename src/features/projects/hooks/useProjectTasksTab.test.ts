@@ -79,7 +79,10 @@ describe('useProjectTasksTab Hook (Unit)', () => {
         });
 
         await waitFor(() => {
-            const lastCall = mockedSearchProjectTasks.mock.calls.at(-1)?.[0];
+            const lastCall =
+                mockedSearchProjectTasks.mock.calls[
+                    mockedSearchProjectTasks.mock.calls.length - 1
+                ]?.[0];
             expect(lastCall?.filters).toEqual([
                 { field: 'task_type', operator: 'LIKE', value: '%IMPORT%' },
             ]);
@@ -98,7 +101,10 @@ describe('useProjectTasksTab Hook (Unit)', () => {
         });
 
         await waitFor(() => {
-            const lastCall = mockedSearchProjectTasks.mock.calls.at(-1)?.[0];
+            const lastCall =
+                mockedSearchProjectTasks.mock.calls[
+                    mockedSearchProjectTasks.mock.calls.length - 1
+                ]?.[0];
             expect(lastCall).toMatchObject({ page: 3, limit: 5, projectId: PROJECT_ID });
         });
     });

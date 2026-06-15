@@ -92,7 +92,11 @@ describe('ProjectTasksTab (Functional)', () => {
 
         await waitFor(
             () => {
-                expect(mockedSearchProjectTasks.mock.calls.at(-1)?.[0].filters).toEqual([
+                expect(
+                    mockedSearchProjectTasks.mock.calls[
+                        mockedSearchProjectTasks.mock.calls.length - 1
+                    ]?.[0].filters,
+                ).toEqual([
                     { field: 'task_type', operator: 'LIKE', value: '%backup%' },
                 ]);
             },
