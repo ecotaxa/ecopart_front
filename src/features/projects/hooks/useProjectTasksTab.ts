@@ -117,16 +117,28 @@ export const useProjectTasksTab = (projectId: number) => {
 
         setIsActionRunning(true);
         try {
-            for (const taskId of selectedIds) {
-                await deleteProjectTask(taskId);
+            // Attempt every deletion (a single failure must not abort the rest),
+            // then keep only the tasks that actually failed selected so a retry
+            // targets just those instead of re-deleting already-removed ids.
+            const results = await Promise.allSettled(
+                selectedIds.map((taskId) => deleteProjectTask(taskId)),
+            );
+            const failedIds = selectedIds.filter((_, i) => results[i].status === "rejected");
+
+            if (failedIds.length === 0) {
+                showSnackbar("Selected tasks removed successfully.", "success");
+            } else {
+                console.error("[Tasks Hook] Some deletions failed:", failedIds);
+                showSnackbar("Failed to clean up some server tasks.", "error");
             }
 
-            showSnackbar("Selected tasks removed successfully.", "success");
-            setSelectedTasks(createEmptySelectionModel());
+            setSelectedTasks(
+                failedIds.length > 0
+                    ? { type: "include", ids: new Set<number>(failedIds) }
+                    : createEmptySelectionModel(),
+            );
+            // Always refetch so the grid reflects what was really removed.
             fetchTasks();
-        } catch (error) {
-            console.error("[Tasks Hook] Delete batch operation failed:", error);
-            showSnackbar("Failed to clean up some server tasks.", "error");
         } finally {
             setIsActionRunning(false);
         }
