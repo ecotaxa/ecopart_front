@@ -342,6 +342,39 @@ features/reports/
 
 ---
 
+## 🚢 Deployment (CI/CD)
+
+Pushing a `v*.*.*` git tag triggers [`.github/workflows/ci.yml`](.github/workflows/ci.yml), which runs three jobs in sequence:
+
+1. **`test`** — runs the Vitest suite with coverage.
+2. **`build-and-push`** — builds the production Docker image and pushes it to Docker Hub as `ecotaxa/ecopart_front:<version>` and `ecotaxa/ecopart_front:latest` (login via the `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` repository secrets).
+3. **`deploy-test`** — deploys that `:latest` image to the test server.
+
+### Test-server deploy
+
+The test server is behind a firewall, so the deploy step does not run on a GitHub-hosted runner. It runs on a **self-hosted runner registered at the GitHub organization level** with the label **`ecopart-test`**. This is the **same runner used by the backend repo (`ecopart_back`)** — it is already installed on the server and shared, so this repo reuses it with no new installation needed (`runs-on: [self-hosted, ecopart-test]`).
+
+The server runs both the frontend and backend from a **single, hand-maintained `docker-compose.yml`** (alongside its `.env`) at:
+
+```
+DEPLOY_DIR = /ecotaxadev2/ecopart/new_ecopart
+```
+
+That compose file declares two services: `api` (backend — `ecotaxa/ecopart_back:latest`) and `web` (this frontend — `ecotaxa/ecopart_front:latest`).
+
+The `deploy-test` job is **strictly scoped to the `web` service**:
+
+* It does **not** check out the repo into `$DEPLOY_DIR` and never copies or modifies the server's compose file (it is maintained by hand on the server).
+* It restarts the frontend only:
+
+  ```bash
+  cd "$DEPLOY_DIR"
+  docker compose pull web && docker compose up -d web
+  ```
+
+  The backend `api` service keeps running and is left completely untouched.
+* For cleanup it removes **only the previous frontend image**: it captures the `web` image id (`docker compose images -q web`) before the pull and, afterwards, `docker image rm`s the old id only if it changed and is now unused. There is **no** host-wide `docker image prune`.
+
 ## 🔮 Future Improvements (Planned)
 * techno/architecture :
   * Axios + interceptors
