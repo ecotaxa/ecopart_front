@@ -199,8 +199,9 @@ describe('useTasksTable Hook (Unit)', () => {
     });
 
     // TC-R8: Delete Error Handling
-    it('TC-R8: shows an error snackbar and preserves selection when deletion fails', async () => {
+    it('TC-R8: attempts every delete, keeps only the failed task selected and refetches', async () => {
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        // Only the first deletion (task 1) fails; task 2 still gets deleted.
         mockedDeleteProjectTask.mockRejectedValueOnce(new Error('boom'));
 
         const { result } = renderHook(() => useTasksTable());
@@ -211,14 +212,24 @@ describe('useTasksTable Hook (Unit)', () => {
         });
         await waitFor(() => expect(result.current.selectionCount).toBe(2));
 
+        const callsBefore = mockedSearchProjectTasks.mock.calls.length;
+
         await act(async () => {
             await result.current.handleDeleteTasks();
         });
 
+        // A single failure must not abort the batch: both deletions are attempted.
+        expect(mockedDeleteProjectTask).toHaveBeenCalledWith(1);
+        expect(mockedDeleteProjectTask).toHaveBeenCalledWith(2);
+
         expect(result.current.snackbar.severity).toBe('error');
         expect(result.current.snackbar.message).toMatch(/Failed to clean up/i);
         expect(result.current.isActionRunning).toBe(false);
-        expect(result.current.selectionCount).toBe(2);
+        // Only the task that actually failed (1) stays selected for retry.
+        expect(result.current.selectionCount).toBe(1);
+        expect(Array.from(result.current.selectedTasks.ids)).toEqual([1]);
+        // The grid is refreshed so it reflects what was really removed.
+        expect(mockedSearchProjectTasks.mock.calls.length).toBeGreaterThan(callsBefore);
 
         confirmSpy.mockRestore();
     });

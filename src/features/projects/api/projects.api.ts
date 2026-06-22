@@ -539,6 +539,42 @@ export interface EcoTaxaSampleSearchResponse {
     samples: EcoTaxaSampleData[];
 }
 
+/** Common meta fields a paginated sample list may carry (all optional/defensive). */
+type RawPaginatedMeta = {
+    search_info?: { total?: number; page?: number; limit?: number };
+    total?: number;
+    page?: number;
+    limit?: number;
+};
+
+/**
+ * Normalize a defensively-typed sample list (bare array OR paginated object) into
+ * the canonical `{ search_info, samples }` shape. `pickSamples` resolves the
+ * samples array from the object branch (each endpoint keys it differently).
+ */
+function normalizeSampleSearchResponse<T, R extends RawPaginatedMeta>(
+    raw: T[] | R,
+    pickSamples: (obj: R) => T[],
+): { search_info: { total: number; page: number; limit: number }; samples: T[] } {
+    if (Array.isArray(raw)) {
+        return {
+            search_info: { total: raw.length, page: 1, limit: raw.length > 0 ? raw.length : 10 },
+            samples: raw,
+        };
+    }
+
+    const samples = pickSamples(raw);
+
+    return {
+        search_info: {
+            total: raw.search_info?.total ?? raw.total ?? samples.length,
+            page: raw.search_info?.page ?? raw.page ?? 1,
+            limit: raw.search_info?.limit ?? raw.limit ?? (samples.length > 0 ? samples.length : 10),
+        },
+        samples,
+    };
+}
+
 /**
  * The EcoTaxa list endpoint is not fully described in the backend OpenAPI spec
  * (the EcoTaxaSampleListResponse schema is referenced but undefined), so we stay
@@ -559,23 +595,10 @@ type RawEcoTaxaSampleSearchResponse = EcoTaxaSampleData[] | {
 };
 
 function normalizeEcoTaxaSampleSearchResponse(raw: RawEcoTaxaSampleSearchResponse): EcoTaxaSampleSearchResponse {
-    if (Array.isArray(raw)) {
-        return {
-            search_info: { total: raw.length, page: 1, limit: raw.length > 0 ? raw.length : 10 },
-            samples: raw,
-        };
-    }
-
-    const samples = raw.samples ?? raw.ecotaxa_samples ?? raw.items ?? raw.results ?? raw.rows ?? raw.data ?? [];
-
-    return {
-        search_info: {
-            total: raw.search_info?.total ?? raw.total ?? samples.length,
-            page: raw.search_info?.page ?? raw.page ?? 1,
-            limit: raw.search_info?.limit ?? raw.limit ?? (samples.length > 0 ? samples.length : 10),
-        },
-        samples,
-    };
+    return normalizeSampleSearchResponse(
+        raw,
+        (obj) => obj.samples ?? obj.ecotaxa_samples ?? obj.items ?? obj.results ?? obj.rows ?? obj.data ?? [],
+    );
 }
 
 /**
@@ -689,23 +712,10 @@ type RawCtdImportableResponse = string[] | ImportableCtdSample[] | {
 };
 
 function normalizeCtdSampleSearchResponse(raw: RawCtdSampleSearchResponse): CtdSampleSearchResponse {
-    if (Array.isArray(raw)) {
-        return {
-            search_info: { total: raw.length, page: 1, limit: raw.length > 0 ? raw.length : 10 },
-            samples: raw,
-        };
-    }
-
-    const samples = raw.samples ?? raw.items ?? raw.results ?? raw.rows ?? raw.data ?? [];
-
-    return {
-        search_info: {
-            total: raw.search_info?.total ?? raw.total ?? samples.length,
-            page: raw.search_info?.page ?? raw.page ?? 1,
-            limit: raw.search_info?.limit ?? raw.limit ?? (samples.length > 0 ? samples.length : 10),
-        },
-        samples,
-    };
+    return normalizeSampleSearchResponse(
+        raw,
+        (obj) => obj.samples ?? obj.items ?? obj.results ?? obj.rows ?? obj.data ?? [],
+    );
 }
 
 function normalizeImportableCtdSamples(raw: RawCtdImportableResponse): ImportableCtdSample[] {
