@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event';
 vi.mock('@/features/projects/api/projects.api', () => ({
     searchProjectTasks: vi.fn(),
     deleteProjectTask: vi.fn(),
+    downloadTaskFile: vi.fn(),
+    isExportTask: vi.fn(() => false),
 }));
 
 import { searchProjectTasks, deleteProjectTask, Task } from '@/features/projects/api/projects.api';
@@ -22,7 +24,7 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_owner_id: 1,
     task_owner: 'John Doe',
     task_project_id: 77,
-    task_creation_date: '2026-01-01T00:00:00.000Z',
+    task_creation_utc_date_time: '2026-01-01T00:00:00.000Z',
     task_progress_pct: 50,
     ...overrides,
 });
@@ -49,11 +51,9 @@ describe('ProjectTasksTab (Accessibility)', () => {
         await screen.findByText('IMPORT');
 
         const deleteButton = screen.getByRole('button', { name: /DELETE/i });
-        const stopButton = screen.getByRole('button', { name: /STOP/i });
         const restartButton = screen.getByRole('button', { name: /RESTART/i });
 
         expect(deleteButton).toBeDisabled();
-        expect(stopButton).toBeDisabled();
         expect(restartButton).toBeDisabled();
 
         // Select the row using the keyboard (focus the checkbox, press Space).

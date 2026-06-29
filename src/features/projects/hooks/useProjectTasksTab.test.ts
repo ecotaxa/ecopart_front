@@ -23,7 +23,7 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_owner_id: 1,
     task_owner: 'John Doe',
     task_project_id: PROJECT_ID,
-    task_creation_date: '2026-01-01T00:00:00.000Z',
+    task_creation_utc_date_time: '2026-01-01T00:00:00.000Z',
     task_progress_pct: 50,
     ...overrides,
 });
@@ -89,6 +89,40 @@ describe('useProjectTasksTab Hook (Unit)', () => {
         });
 
         expect(result.current.paginationModel.page).toBe(0);
+    });
+
+    // TC-U3b: task_id Exact Match & Numeric Guard
+    it('TC-U3b: uses an exact-match task_id filter and ignores non-numeric input', async () => {
+        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        act(() => {
+            result.current.setSearchAttribute('task_id');
+            result.current.setSearchText('42');
+        });
+
+        await waitFor(() => {
+            const lastCall =
+                mockedSearchProjectTasks.mock.calls[
+                    mockedSearchProjectTasks.mock.calls.length - 1
+                ]?.[0];
+            expect(lastCall?.filters).toEqual([
+                { field: 'task_id', operator: '=', value: 42 },
+            ]);
+        });
+
+        // Non-numeric input must not produce a task_id filter.
+        act(() => {
+            result.current.setSearchText('abc');
+        });
+
+        await waitFor(() => {
+            const lastCall =
+                mockedSearchProjectTasks.mock.calls[
+                    mockedSearchProjectTasks.mock.calls.length - 1
+                ]?.[0];
+            expect(lastCall?.filters).toEqual([]);
+        });
     });
 
     // TC-U4: Pagination 1-indexed to backend

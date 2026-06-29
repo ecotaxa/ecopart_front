@@ -2,7 +2,6 @@ import React from "react";
 import {
     Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, IconButton, LinearProgress
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -46,7 +45,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         uvpError, ecoTaxaError, ctdError,
 
         isActionRunning,
-        handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples, handleMatchEcotaxa,
+        handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples,
         snackbar, closeSnackbar
     } = useProjectDataTab(projectId);
 
@@ -191,9 +190,6 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fafafa', p: 1.5, borderTop: '1px solid #e0e0e0' }}>
                     <Typography variant="body2" fontWeight="bold">{uvpSelectionCount} items selected</Typography>
                     <Stack direction="row" spacing={2}>
-                        <Button variant="text" color="inherit" disabled={uvpSelectionCount === 0 || isActionRunning} onClick={handleMatchEcotaxa} startIcon={<AddIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                            MATCH ECOTAXA SAMPLES
-                        </Button>
                         <Button variant="text" color="inherit" disabled={uvpSelectionCount === 0 || isActionRunning} onClick={handleDeleteUvpSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                             DELETE
                         </Button>

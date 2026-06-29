@@ -10,9 +10,11 @@ import {
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import TerminalIcon from "@mui/icons-material/Terminal";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DownloadIcon from "@mui/icons-material/Download";
 
 import MainLayout from "@/app/layouts/MainLayout";
-import { deleteProjectTask, getOneTask, getTaskLog, Task } from "../api/projects.api";
+import { deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, Task } from "../api/projects.api";
+import { isDownloadableTask } from "../utils/taskColumns";
 
 export default function TaskDetailsPage() {
     const { id, taskId } = useParams<{ id: string; taskId: string }>();
@@ -28,6 +30,7 @@ export default function TaskDetailsPage() {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
+    const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
     // --- 2. DATA HYDRATION CALLBACK ---
     const loadTaskDetails = useCallback(async (showSpinner = false) => {
@@ -74,6 +77,19 @@ export default function TaskDetailsPage() {
 
         return () => clearInterval(intervalId);
     }, [task, loadTaskDetails]);
+
+    const handleDownloadFile = async () => {
+        if (parsedTaskId === null) return;
+        setIsDownloading(true);
+        try {
+            await downloadTaskFile(parsedTaskId);
+        } catch (err) {
+            console.error("[Task Details] Download failed:", err);
+            setError(err instanceof Error ? err.message : "Failed to download the export file.");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     const handleDeleteTask = async () => {
         if (parsedTaskId === null) return;
@@ -185,7 +201,19 @@ export default function TaskDetailsPage() {
                                     {task.task_type} task [{task.task_id}]
                                 </Typography>
                                 <Stack direction="row" spacing={2}>
-                                    <Button variant="outlined" color="inherit" size="small" disabled sx={{ borderColor: "#ccc" }}>STOP</Button>
+                                    {isDownloadableTask(task) && (
+                                        <Button
+                                            variant="outlined"
+                                            color="primary"
+                                            size="small"
+                                            sx={{ fontWeight: "bold" }}
+                                            startIcon={<DownloadIcon />}
+                                            onClick={handleDownloadFile}
+                                            disabled={isDownloading}
+                                        >
+                                            {isDownloading ? "DOWNLOADING..." : "DOWNLOAD"}
+                                        </Button>
+                                    )}
                                     <Button variant="outlined" color="error" size="small" sx={{ fontWeight: "bold" }} onClick={handleDeleteTask} disabled={isDeleting}>{isDeleting ? "DELETING..." : "DELETE"}</Button>
                                 </Stack>
                             </Box>

@@ -7,6 +7,8 @@ vi.mock('../api/projects.api', () => ({
     getOneTask: vi.fn(),
     getTaskLog: vi.fn(),
     deleteProjectTask: vi.fn(),
+    downloadTaskFile: vi.fn(),
+    isExportTask: vi.fn(() => false),
 }));
 
 import { getOneTask, getTaskLog, deleteProjectTask, Task } from '../api/projects.api';
@@ -26,7 +28,7 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_owner_id: 1,
     task_owner: 'John Doe',
     task_project_id: 77,
-    task_creation_date: '2026-01-01T00:00:00.000Z',
+    task_creation_utc_date_time: '2026-01-01T00:00:00.000Z',
     task_progress_pct: 100,
     task_progress_msg: 'Completed',
     task_params: { foo: 'bar' },

@@ -69,50 +69,12 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
             <Divider sx={{ mb: 4 }} />
 
             <Paper variant="outlined" sx={{ p: 4, mb: 4 }}>
-                {/* --- 1. EXPORT SECTION --- */}
+                {/* --- 1. BACKUP SECTION --- */}
                 <Box sx={{ mb: 6 }}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                        Export <Box component="span" fontWeight="normal">of the backed-up raw project</Box>
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Zip of the raw, meta, and config folders.
-                    </Typography>
-
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={exportToFtp}
-                                onChange={(e) => setExportToFtp(e.target.checked)}
-                                color="primary"
-                                disabled={isExporting}
-                            />
-                        }
-                        label={<Typography variant="body1">Export also on FTP</Typography>}
-                        sx={{ mb: 1 }}
-                    />
-
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 6, mb: 3, maxWidth: 600 }}>
-                        In addition to a direct download link available in the task, your export will be located on the FTP in the folder : ecopart_exported_data/task_id/
-                        ecopart_backup_export_projid_YYYYMMDD_HHMMSS.zip.
-                    </Typography>
-
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleStartExport}
-                        disabled={isExporting || isLoadingMetadata}
-                        sx={{ width: 120, boxShadow: 'none' }}
-                    >
-                        {isExporting ? "STARTING..." : "START"}
-                    </Button>
-                </Box>
-
-                {/* --- 2. BACKUP SECTION --- */}
-                <Box>
                     <Typography variant="subtitle1" fontWeight="bold">
                         Backup <Box component="span" fontWeight="normal">of the raw project</Box>
                     </Typography>
-                    
+
                     {/* MENTOR FIX: Show a loading indicator for the date if we are fetching metadata */}
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3, display: 'flex', alignItems: 'center', minHeight: 24 }}>
                         {isLoadingMetadata ? (
@@ -173,6 +135,44 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                         sx={{ width: 120, boxShadow: 'none' }}
                     >
                         {isBackingUp ? "STARTING..." : "START"}
+                    </Button>
+                </Box>
+
+                {/* --- 2. EXPORT SECTION --- */}
+                <Box>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                        Export <Box component="span" fontWeight="normal">of the backed-up raw project</Box>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Zip of the raw, meta, and config folders.
+                    </Typography>
+
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={exportToFtp}
+                                onChange={(e) => setExportToFtp(e.target.checked)}
+                                color="primary"
+                                disabled={isExporting}
+                            />
+                        }
+                        label={<Typography variant="body1">Export also on FTP</Typography>}
+                        sx={{ mb: 1 }}
+                    />
+
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 6, mb: 3, maxWidth: 600 }}>
+                        In addition to a direct download link available in the task, your export will be located on the FTP in the folder : ecopart_exported_data/task_id/
+                        ecopart_backup_export_projid_YYYYMMDD_HHMMSS.zip.
+                    </Typography>
+
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={handleStartExport}
+                        disabled={isExporting || isLoadingMetadata}
+                        sx={{ width: 120, boxShadow: 'none' }}
+                    >
+                        {isExporting ? "STARTING..." : "START"}
                     </Button>
                 </Box>
             </Paper>

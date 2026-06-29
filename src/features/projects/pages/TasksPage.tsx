@@ -1,11 +1,11 @@
 import {
     Box, Container, Typography, Button, TextField, MenuItem,
-    Snackbar, Alert, Stack, IconButton, Paper
+    Snackbar, Alert, Stack, IconButton, Paper, CircularProgress, Tooltip
 } from "@mui/material";
 
 import CloseIcon from "@mui/icons-material/Close";
-import PauseIcon from "@mui/icons-material/Pause";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import DownloadIcon from "@mui/icons-material/Download";
 
 import { useNavigate } from "react-router-dom";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
@@ -13,7 +13,7 @@ import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import MainLayout from "@/app/layouts/MainLayout";
 import { useTasksTable } from "../hooks/useTasksTable";
 import { Task } from "../api/projects.api";
-import { buildBaseTaskColumns } from "../utils/taskColumns";
+import { buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
 
 /**
  * TasksPage — global Tasks list (TopBar "Tasks" link, route `/tasks`).
@@ -34,6 +34,7 @@ export default function TasksPage() {
         searchAttribute, setSearchAttribute,
         isActionRunning,
         handleDeleteTasks,
+        downloadingTaskId, handleDownloadTaskFile,
         snackbar, closeSnackbar
     } = useTasksTable();
 
@@ -42,18 +43,43 @@ export default function TasksPage() {
         {
             field: "actions",
             headerName: "",
-            width: 50,
+            width: 90,
             sortable: false,
             renderCell: (params: GridRenderCellParams<Task>) => {
                 const projectId = params.row.task_project_id;
+                const isDownloading = downloadingTaskId === params.row.task_id;
                 return (
-                    <IconButton
-                        size="small"
-                        disabled={projectId == null}
-                        onClick={() => projectId != null && navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}
-                    >
-                        <OpenInNewIcon fontSize="small" />
-                    </IconButton>
+                    // Stop clicks anywhere in the actions cell from bubbling to the
+                    // row's onRowClick (covers the OpenInNew button and the disabled
+                    // download button, whose click otherwise reaches the row via its
+                    // Tooltip span and navigates away mid-download).
+                    <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
+                        {isDownloadableTask(params.row) && (
+                            <Tooltip title="Download export file">
+                                <span>
+                                    <IconButton
+                                        size="small"
+                                        disabled={isDownloading}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadTaskFile(params.row.task_id);
+                                        }}
+                                    >
+                                        {isDownloading
+                                            ? <CircularProgress size={16} />
+                                            : <DownloadIcon fontSize="small" />}
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        )}
+                        <IconButton
+                            size="small"
+                            disabled={projectId == null}
+                            onClick={() => projectId != null && navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}
+                        >
+                            <OpenInNewIcon fontSize="small" />
+                        </IconButton>
+                    </Stack>
                 );
             }
         }
@@ -67,7 +93,8 @@ export default function TasksPage() {
             color: "text.secondary",
             fontWeight: "normal",
         },
-        "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0" },
+        "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center" },
+        "& .MuiDataGrid-row": { cursor: "pointer" },
         "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: '#f8faff' },
         "& .MuiDataGrid-row.Mui-selected": {
             backgroundColor: "#e6f0ff",
@@ -115,6 +142,8 @@ export default function TasksPage() {
                                 onChange={(e) => setSearchAttribute(e.target.value)}
                                 sx={{ width: 200 }}
                             >
+                                <MenuItem value="task_type">Label</MenuItem>
+                                <MenuItem value="task_owner">Owner</MenuItem>
                                 <MenuItem value="task_status">Status</MenuItem>
                                 <MenuItem value="task_id">Task id</MenuItem>
                             </TextField>
@@ -136,9 +165,6 @@ export default function TasksPage() {
                             >
                                 DELETE
                             </Button>
-                            <Button variant="text" color="inherit" disabled startIcon={<PauseIcon />} sx={{ fontWeight: "bold" }}>
-                                STOP
-                            </Button>
                         </Stack>
                     </Box>
 
@@ -148,6 +174,10 @@ export default function TasksPage() {
                             rows={tasks}
                             columns={columns}
                             getRowId={(row) => row.task_id}
+                            onRowClick={(params) => {
+                                const projectId = params.row.task_project_id;
+                                if (projectId != null) navigate(`/projects/${projectId}/tasks/${params.row.task_id}`);
+                            }}
                             checkboxSelection
                             disableRowSelectionExcludeModel
                             disableRowSelectionOnClick

@@ -18,7 +18,7 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_owner_id: 1,
     task_owner: 'John Doe',
     task_project_id: 7,
-    task_creation_date: '2026-01-01T00:00:00.000Z',
+    task_creation_utc_date_time: '2026-01-01T00:00:00.000Z',
     task_progress_pct: 50,
     ...overrides,
 });
@@ -77,11 +77,9 @@ describe('TasksPage (Accessibility)', () => {
         await screen.findByText('IMPORT');
 
         const deleteButton = screen.getByRole('button', { name: /DELETE/i });
-        const stopButton = screen.getByRole('button', { name: /STOP/i });
 
-        // No selection: both actions are disabled (and thus skipped by keyboard focus).
+        // No selection: the action is disabled (and thus skipped by keyboard focus).
         expect(deleteButton).toBeDisabled();
-        expect(stopButton).toBeDisabled();
 
         // Select a row -> DELETE becomes enabled and focusable.
         const checkboxes = screen.getAllByRole('checkbox');
