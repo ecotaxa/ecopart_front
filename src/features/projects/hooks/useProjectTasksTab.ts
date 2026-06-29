@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AlertColor } from "@mui/material";
 import { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 
-import { deleteProjectTask, SearchFilter, searchProjectTasks, Task } from "../api/projects.api";
+import { deleteProjectTask, downloadTaskFile, SearchFilter, searchProjectTasks, Task } from "../api/projects.api";
 
 export const useProjectTasksTab = (projectId: number) => {
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
@@ -36,6 +36,7 @@ export const useProjectTasksTab = (projectId: number) => {
     });
     const [selectedTasks, setSelectedTasks] = useState<GridRowSelectionModel>(createEmptySelectionModel());
     const [isActionRunning, setIsActionRunning] = useState<boolean>(false);
+    const [downloadingTaskId, setDownloadingTaskId] = useState<number | null>(null);
 
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
         open: false,
@@ -47,11 +48,22 @@ export const useProjectTasksTab = (projectId: number) => {
         const activeFilters: SearchFilter[] = [];
 
         if (debouncedSearchText) {
-            activeFilters.push({
-                field: searchAttribute,
-                operator: "LIKE",
-                value: `%${debouncedSearchText}%`,
-            });
+            if (searchAttribute === "task_id") {
+                // task_id is a numeric exact-match column: only accept fully-numeric
+                // input (parseInt would otherwise turn "42abc" into 42).
+                const trimmed = debouncedSearchText.trim();
+                if (/^\d+$/.test(trimmed)) {
+                    activeFilters.push({ field: "task_id", operator: "=", value: Number(trimmed) });
+                }
+            } else {
+                // task_status is resolved server-side via its label; task_type / task_owner
+                // are sent as LIKE too (these depend on a backend fix to actually match).
+                activeFilters.push({
+                    field: searchAttribute,
+                    operator: "LIKE",
+                    value: `%${debouncedSearchText}%`,
+                });
+            }
         }
 
         return activeFilters;
@@ -144,6 +156,21 @@ export const useProjectTasksTab = (projectId: number) => {
         }
     };
 
+    const handleDownloadTaskFile = async (taskId: number) => {
+        setDownloadingTaskId(taskId);
+        try {
+            await downloadTaskFile(taskId);
+        } catch (error) {
+            console.error("[Tasks Hook] Download failed:", error);
+            showSnackbar(
+                error instanceof Error ? error.message : "Failed to download the export file.",
+                "error",
+            );
+        } finally {
+            setDownloadingTaskId(null);
+        }
+    };
+
     return {
         tasks,
         loading,
@@ -159,6 +186,8 @@ export const useProjectTasksTab = (projectId: number) => {
         setSearchAttribute,
         isActionRunning,
         handleDeleteTasks,
+        downloadingTaskId,
+        handleDownloadTaskFile,
         snackbar,
         closeSnackbar,
     };

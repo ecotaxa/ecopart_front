@@ -6,6 +6,8 @@ import { Routes, Route } from 'react-router-dom';
 vi.mock('../api/projects.api', () => ({
     searchProjectTasks: vi.fn(),
     deleteProjectTask: vi.fn(),
+    downloadTaskFile: vi.fn(),
+    isExportTask: vi.fn(() => false),
 }));
 
 import { searchProjectTasks, deleteProjectTask, Task, TaskSearchResponse } from '../api/projects.api';
@@ -26,7 +28,7 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_owner_id: 1,
     task_owner: 'John Doe',
     task_project_id: PROJECT_ID,
-    task_creation_date: '2026-01-01T00:00:00.000Z',
+    task_creation_utc_date_time: '2026-01-01T00:00:00.000Z',
     task_progress_pct: 50,
     ...overrides,
 });
@@ -67,8 +69,8 @@ describe('ProjectTasksTab (Functional)', () => {
         expect(await screen.findAllByText('IMPORT')).not.toHaveLength(0);
     });
 
-    // TC-T2: Search Attribute Options differ from the global page
-    it('TC-T2: exposes Label / Owner / Message search attributes', async () => {
+    // TC-T2: Search Attribute Options (Label / Owner / Status / Task id)
+    it('TC-T2: exposes Label / Owner / Status / Task id search attributes', async () => {
         const user = userEvent.setup();
         renderTab();
         await screen.findAllByText('IMPORT');
@@ -77,9 +79,32 @@ describe('ProjectTasksTab (Functional)', () => {
 
         expect(await screen.findByRole('option', { name: 'Label' })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: 'Owner' })).toBeInTheDocument();
-        expect(screen.getByRole('option', { name: 'Message' })).toBeInTheDocument();
-        expect(screen.queryByRole('option', { name: 'Status' })).not.toBeInTheDocument();
-        expect(screen.queryByRole('option', { name: 'Task id' })).not.toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Status' })).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Task id' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'Message' })).not.toBeInTheDocument();
+    });
+
+    // TC-T2b: Task id searches send an exact numeric filter, ignoring non-numeric input
+    it('TC-T2b: sends an exact-match task_id filter and ignores non-numeric input', async () => {
+        const user = userEvent.setup();
+        renderTab();
+        await screen.findAllByText('IMPORT');
+
+        await user.click(screen.getByRole('combobox', { name: 'Attribute' }));
+        await user.click(await screen.findByRole('option', { name: 'Task id' }));
+
+        await user.type(screen.getByLabelText('Search'), '42');
+
+        await waitFor(
+            () => {
+                expect(
+                    mockedSearchProjectTasks.mock.calls[
+                        mockedSearchProjectTasks.mock.calls.length - 1
+                    ]?.[0].filters,
+                ).toEqual([{ field: 'task_id', operator: '=', value: 42 }]);
+            },
+            { timeout: 2000 },
+        );
     });
 
     // TC-T3: Search builds a LIKE filter on the selected attribute

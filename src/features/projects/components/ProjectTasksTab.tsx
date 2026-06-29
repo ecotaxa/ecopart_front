@@ -1,21 +1,21 @@
 import React from "react";
 import {
     Box, Typography, Button, TextField, MenuItem, Divider,
-    Snackbar, Alert, Stack, IconButton
+    Snackbar, Alert, Stack, IconButton, CircularProgress, Tooltip
 } from "@mui/material";
 
 // System design elements mapping the user mockup icons
 import CloseIcon from "@mui/icons-material/Close";
-import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import DownloadIcon from "@mui/icons-material/Download";
 
 import { useNavigate } from "react-router-dom";
 
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useProjectTasksTab } from "../hooks/useProjectTasksTab";
 import { Task } from "../api/projects.api";
-import { buildBaseTaskColumns } from "../utils/taskColumns";
+import { buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
 
 interface ProjectTasksTabProps {
     projectId: number;
@@ -32,6 +32,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
         searchAttribute, setSearchAttribute,
         isActionRunning,
         handleDeleteTasks,
+        downloadingTaskId, handleDownloadTaskFile,
         snackbar, closeSnackbar
     } = useProjectTasksTab(projectId);
 
@@ -41,13 +42,40 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
         {
             field: "actions",
             headerName: "",
-            width: 50,
+            width: 90,
             sortable: false,
-            renderCell: (params) => (
-                <IconButton size="small" onClick={() => navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}>
-                    <OpenInNewIcon fontSize="small" />
-                </IconButton>
-            )
+            renderCell: (params) => {
+                const isDownloading = downloadingTaskId === params.row.task_id;
+                return (
+                    // Stop clicks anywhere in the actions cell from bubbling to the
+                    // row's onRowClick (covers the OpenInNew button and the disabled
+                    // download button, whose click otherwise reaches the row via its
+                    // Tooltip span and navigates away mid-download).
+                    <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
+                        {isDownloadableTask(params.row) && (
+                            <Tooltip title="Download export file">
+                                <span>
+                                    <IconButton
+                                        size="small"
+                                        disabled={isDownloading}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownloadTaskFile(params.row.task_id);
+                                        }}
+                                    >
+                                        {isDownloading
+                                            ? <CircularProgress size={16} />
+                                            : <DownloadIcon fontSize="small" />}
+                                    </IconButton>
+                                </span>
+                            </Tooltip>
+                        )}
+                        <IconButton size="small" onClick={() => navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}>
+                            <OpenInNewIcon fontSize="small" />
+                        </IconButton>
+                    </Stack>
+                );
+            }
         }
     ];
 
@@ -59,7 +87,8 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
             color: "text.secondary",
             fontWeight: "normal",
         },
-        "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0" },
+        "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center" },
+        "& .MuiDataGrid-row": { cursor: "pointer" },
         "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: '#f8faff' },
         "& .MuiDataGrid-row.Mui-selected": {
             backgroundColor: "#e6f0ff",
@@ -77,7 +106,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                 <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2, borderBottom: "1px solid #e0e0e0" }}>
                     <TextField
                         size="small"
-                        placeholder="Label, owner, etc..."
+                        placeholder={searchAttribute === "task_id" ? "Search by id (exact)" : "Label, owner, etc..."}
                         label="Search"
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
@@ -93,7 +122,8 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                     >
                         <MenuItem value="task_type">Label</MenuItem>
                         <MenuItem value="task_owner">Owner</MenuItem>
-                        <MenuItem value="task_progress_msg">Message</MenuItem>
+                        <MenuItem value="task_status">Status</MenuItem>
+                        <MenuItem value="task_id">Task id</MenuItem>
                     </TextField>
                 </Box>
 
@@ -112,9 +142,6 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         >
                             DELETE
                         </Button>
-                        <Button variant="text" color="inherit" disabled startIcon={<PauseIcon />} sx={{ fontWeight: "bold" }}>
-                            STOP
-                        </Button>
                         <Button variant="text" color="inherit" disabled startIcon={<PlayArrowIcon />} sx={{ fontWeight: "bold" }}>
                             RESTART
                         </Button>
@@ -127,6 +154,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         rows={tasks}
                         columns={columns}
                         getRowId={(row) => row.task_id}
+                        onRowClick={(params) => navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}
                         checkboxSelection
                         disableRowSelectionExcludeModel
                         disableRowSelectionOnClick

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
-import { searchProjects, Project, SearchFilter } from "../api/projects.api";
+import { searchProjects, searchProjectSamples, Project, SearchFilter } from "../api/projects.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
 export const useProjectsTable = () => {
@@ -31,6 +31,40 @@ export const useProjectsTable = () => {
         ids: new Set(),
     });
 
+    // Monotonic id identifying the latest fetch. The async sample-count enrichment
+    // checks this before applying so a slow count batch can't clobber the rows of a
+    // newer search/pagination request.
+    const fetchRequestId = useRef(0);
+
+    // Enrich the freshly-fetched projects with their server sample totals.
+    // The project-search endpoint does not return a count, so we ask the samples
+    // search endpoint for `search_info.total` (limit=1, one lightweight request per row).
+    const enrichWithSampleCounts = useCallback(async (baseProjects: Project[], requestId: number) => {
+        if (baseProjects.length === 0) return;
+
+        const results = await Promise.allSettled(
+            baseProjects.map((project) =>
+                searchProjectSamples(project.project_id, { page: 1, limit: 1, filters: [] }),
+            ),
+        );
+
+        // Drop the result if a newer fetch has started in the meantime.
+        if (requestId !== fetchRequestId.current) return;
+
+        const enriched = baseProjects.map((project, index) => {
+            const result = results[index];
+            // Only override the count when the samples search actually returned a
+            // numeric total. A failed request or a response without `search_info`
+            // leaves nbr_sample undefined so the grid shows "—" (unknown) rather
+            // than a misleading "0".
+            const total =
+                result.status === "fulfilled" ? result.value.search_info?.total : undefined;
+            return typeof total === "number" ? { ...project, nbr_sample: total } : project;
+        });
+
+        setProjects(enriched);
+    }, []);
+
     useEffect(() => {
         const timerId = setTimeout(() => {
             setDebouncedSearchText(searchText);
@@ -45,6 +79,8 @@ export const useProjectsTable = () => {
     const fetchProjects = useCallback(async () => {
         // Guard clause to prevent fetching if the user is not yet loaded into the store
         if (!currentUser) return;
+
+        const requestId = ++fetchRequestId.current;
 
         setLoading(true);
         setError(null);
@@ -109,8 +145,10 @@ export const useProjectsTable = () => {
             });
 
             if (response && response.projects) {
+                // Render rows immediately, then backfill the sample counts.
                 setProjects(response.projects);
                 setTotalRows(response.search_info?.total || 0);
+                void enrichWithSampleCounts(response.projects, requestId);
             } else {
                 setProjects([]);
                 setTotalRows(0);
@@ -136,7 +174,7 @@ export const useProjectsTable = () => {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearchText, searchAttribute, selectedFilter, paginationModel.page, paginationModel.pageSize, currentUser]);
+    }, [debouncedSearchText, searchAttribute, selectedFilter, paginationModel.page, paginationModel.pageSize, currentUser, enrichWithSampleCounts]);
 
     useEffect(() => {
         fetchProjects();

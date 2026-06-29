@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AlertColor } from "@mui/material";
 import { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 
-import { deleteProjectTask, SearchFilter, searchProjectTasks, Task } from "../api/projects.api";
+import { deleteProjectTask, downloadTaskFile, SearchFilter, searchProjectTasks, Task } from "../api/projects.api";
 
 /**
  * Hook backing the global Tasks page (`/tasks`).
@@ -37,9 +37,10 @@ export const useTasksTable = () => {
 
     const [searchText, setSearchText] = useState<string>("");
     const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
-    // Only task_status (resolved via its label) and task_id (exact) are accepted by
-    // the backend task search; task_type/task_owner/task_progress_msg are rejected
-    // or buggy server-side, so they are not offered as search attributes.
+    // task_status (resolved via its label) and task_id (exact) are fully supported by
+    // the backend task search. task_type (Label) and task_owner (Owner) are also offered
+    // as LIKE attributes, but they only match once the backend filter bugs are fixed
+    // (task_type filters on the id instead of the label; task_owner has no SQL column).
     const [searchAttribute, setSearchAttribute] = useState<string>("task_status");
 
     const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({
@@ -48,6 +49,7 @@ export const useTasksTable = () => {
     });
     const [selectedTasks, setSelectedTasks] = useState<GridRowSelectionModel>(createEmptySelectionModel());
     const [isActionRunning, setIsActionRunning] = useState<boolean>(false);
+    const [downloadingTaskId, setDownloadingTaskId] = useState<number | null>(null);
 
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
         open: false,
@@ -74,10 +76,11 @@ export const useTasksTable = () => {
             const filters: SearchFilter[] = [];
             if (debouncedSearchText) {
                 if (searchAttribute === "task_id") {
-                    // task_id is a numeric exact-match column: ignore non-numeric input.
-                    const parsedId = Number.parseInt(debouncedSearchText, 10);
-                    if (!Number.isNaN(parsedId)) {
-                        filters.push({ field: "task_id", operator: "=", value: parsedId });
+                    // task_id is a numeric exact-match column: only accept fully-numeric
+                    // input (parseInt would otherwise turn "42abc" into 42).
+                    const trimmed = debouncedSearchText.trim();
+                    if (/^\d+$/.test(trimmed)) {
+                        filters.push({ field: "task_id", operator: "=", value: Number(trimmed) });
                     }
                 } else {
                     // task_status is resolved server-side via its label (LIKE, case-insensitive).
@@ -159,6 +162,21 @@ export const useTasksTable = () => {
         }
     };
 
+    const handleDownloadTaskFile = async (taskId: number) => {
+        setDownloadingTaskId(taskId);
+        try {
+            await downloadTaskFile(taskId);
+        } catch (err) {
+            console.error("[Tasks Page] Download failed:", err);
+            showSnackbar(
+                err instanceof Error ? err.message : "Failed to download the export file.",
+                "error",
+            );
+        } finally {
+            setDownloadingTaskId(null);
+        }
+    };
+
     return {
         tasks,
         loading,
@@ -175,6 +193,8 @@ export const useTasksTable = () => {
         setSearchAttribute,
         isActionRunning,
         handleDeleteTasks,
+        downloadingTaskId,
+        handleDownloadTaskFile,
         snackbar,
         closeSnackbar,
     };

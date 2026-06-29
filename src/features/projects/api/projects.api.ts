@@ -1,4 +1,4 @@
-import { http, httpText } from "@/shared/api/http";
+import { http, httpText, httpBlob } from "@/shared/api/http";
 
 /**
  * Minimal user representation returned inside project privileges.
@@ -813,9 +813,9 @@ export interface Task {
         email?: string;
     } | null;
     task_project_id?: number | null;
-    task_creation_date: string;
-    task_start_date?: string | null;
-    task_end_date?: string | null;
+    task_creation_utc_date_time: string;
+    task_start_utc_date_time?: string | null;
+    task_end_utc_date_time?: string | null;
     task_log_file_path?: string;
     task_progress_pct: number;
     task_progress_msg?: string;
@@ -869,6 +869,41 @@ export async function deleteProjectTask(taskId: number): Promise<{ message: stri
     return http<{ message: string }>(`/tasks/${taskId}/`, {
         method: "DELETE",
     });
+}
+
+/**
+ * The task types that produce a downloadable archive (kept in sync with the
+ * backend `TaskType` enum). Only these expose a file via GET /tasks/:id/file.
+ */
+const EXPORT_TASK_TYPES = new Set(["EXPORT", "EXPORT_BACKUP", "EXPORT_RAW"]);
+
+/** True when the task type is one that produces a downloadable export archive. */
+export function isExportTask(task: Pick<Task, "task_type">): boolean {
+    return EXPORT_TASK_TYPES.has((task.task_type ?? "").trim().toUpperCase());
+}
+
+/**
+ * Downloads the ZIP archive produced by an export task and triggers a browser
+ * "Save as" via a transient anchor element.
+ * Route: GET /tasks/:task_id/file
+ */
+export async function downloadTaskFile(taskId: number): Promise<void> {
+    const { blob, filename } = await httpBlob(`/tasks/${taskId}/file`, {
+        method: "GET",
+    });
+
+    const objectUrl = window.URL.createObjectURL(blob);
+    try {
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = filename || `task_${taskId}_export.zip`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    } finally {
+        // Revoke on the next tick so the click-triggered download can start.
+        window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0);
+    }
 }
 
 

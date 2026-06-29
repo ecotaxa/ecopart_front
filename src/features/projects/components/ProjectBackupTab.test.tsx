@@ -66,7 +66,8 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
                 () => screen.getAllByRole('button', { name: /START/i }),
                 { timeout: 10000 }
             );
-            const exportStartBtn = startButtons[0];
+            // Section order is Backup (0) then Export (1): the Export START is the second.
+            const exportStartBtn = startButtons[1];
 
             await user.click(exportStartBtn);
 
@@ -98,7 +99,8 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
                 () => screen.getAllByRole('button', { name: /START/i }),
                 { timeout: 10000 }
             );
-            const backupStartBtn = startButtons[1];
+            // Section order is Backup (0) then Export (1): the Backup START is the first.
+            const backupStartBtn = startButtons[0];
 
             await user.click(backupStartBtn);
 
@@ -128,9 +130,10 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
                 { timeout: 10000 }
             );
 
+            // Section order is Backup (0, "Skip already imported") then Export (1, "Export also on FTP").
             const switches = screen.getAllByRole('switch');
-            expect(switches[0]).toHaveAccessibleName(/Export also on FTP/i);
-            expect(switches[1]).toHaveAccessibleName(/Skip already imported/i);
+            expect(switches[0]).toHaveAccessibleName(/Skip already imported/i);
+            expect(switches[1]).toHaveAccessibleName(/Export also on FTP/i);
 
             await user.click(switches[0]);
             expect(switches[0]).toHaveFocus();

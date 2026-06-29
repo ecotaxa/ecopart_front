@@ -4,7 +4,7 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
-import { Task } from "../api/projects.api";
+import { isExportTask, Task } from "../api/projects.api";
 
 /**
  * Shared task-grid formatting + columns.
@@ -71,6 +71,16 @@ export const formatTaskStatus = (task: Task): string => {
     return "UNKNOWN";
 };
 
+/**
+ * True when a task exposes a downloadable export archive: it must be an export
+ * task AND have finished, since the ZIP only exists once the task is done.
+ */
+export const isDownloadableTask = (task: Task): boolean => {
+    if (!isExportTask(task)) return false;
+    const status = formatTaskStatus(task);
+    return status === "DONE" || status === "COMPLETED";
+};
+
 /** Status cell: an icon (success/error/in-progress) next to the status label. */
 export const renderTaskStatusCell = (params: GridRenderCellParams<Task>) => {
     const status = formatTaskStatus(params.row);
@@ -120,6 +130,7 @@ export const buildBaseTaskColumns = (): GridColDef<Task>[] => [
         headerName: "Status",
         width: 170,
         align: "center",
+        headerAlign: "center",
         renderCell: renderTaskStatusCell,
     },
     {
@@ -137,22 +148,23 @@ export const buildBaseTaskColumns = (): GridColDef<Task>[] => [
         valueGetter: (_value, row) => row.task_progress_msg ?? "No status report",
     },
     {
-        field: "task_creation_date",
+        field: "task_creation_utc_date_time",
         headerName: "Creation",
         flex: 1.5,
         minWidth: 150,
-        valueGetter: (_value, row) => (row.task_creation_date ? new Date(row.task_creation_date).toLocaleString() : ""),
+        valueGetter: (_value, row) =>
+            row.task_creation_utc_date_time ? new Date(row.task_creation_utc_date_time).toLocaleString() : "",
     },
     {
-        field: "task_end_date",
+        field: "task_end_utc_date_time",
         headerName: "Last update",
         flex: 1.5,
         minWidth: 150,
         valueGetter: (_value, row) =>
-            row.task_end_date
-                ? new Date(row.task_end_date).toLocaleString()
-                : row.task_creation_date
-                    ? new Date(row.task_creation_date).toLocaleString()
+            row.task_end_utc_date_time
+                ? new Date(row.task_end_utc_date_time).toLocaleString()
+                : row.task_creation_utc_date_time
+                    ? new Date(row.task_creation_utc_date_time).toLocaleString()
                     : "",
     },
 ];

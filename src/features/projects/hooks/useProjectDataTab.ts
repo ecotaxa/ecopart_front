@@ -239,10 +239,6 @@ export const useProjectDataTab = (projectId: number) => {
         }
     };
 
-    const handleMatchEcotaxa = () => {
-        showSnackbar("Match EcoTaxa function coming soon.", "info");
-    };
-
     return {
         uvpSamples,
         loadingUvp,
@@ -275,7 +271,6 @@ export const useProjectDataTab = (projectId: number) => {
         handleDeleteUvpSamples,
         handleDeleteEcoTaxaSamples,
         handleDeleteCtdSamples,
-        handleMatchEcotaxa,
         snackbar,
         closeSnackbar,
     };

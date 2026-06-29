@@ -179,6 +179,8 @@ export default function ProjectsPage() {
             field: "ecotaxa_project_name",
             headerName: "EcoTaxa Project",
             flex: 1.5,
+            align: "center",
+            headerAlign: "center",
             renderCell: (params) =>
                 params.value ? (
                     <Typography variant="body2">{params.value}</Typography>
@@ -193,7 +195,21 @@ export default function ProjectsPage() {
                 ),
         },
         { field: "root_folder_path", headerName: "RootFolder", flex: 2 },
-        { field: "nbr_sample", headerName: "Nbr Sample", width: 120 },
+        {
+            field: "nbr_sample",
+            headerName: "Nbr Sample",
+            width: 120,
+            align: "center",
+            headerAlign: "center",
+            renderCell: (params: GridRenderCellParams<Project>) =>
+                typeof params.value === "number" ? (
+                    <Typography variant="body2">{params.value}</Typography>
+                ) : (
+                    <Typography variant="caption" color="text.secondary">
+                        —
+                    </Typography>
+                ),
+        },
         {
             field: "privilege",
             headerName: "Privilege",
@@ -378,6 +394,12 @@ export default function ProjectsPage() {
                                 border: 0,
                                 '& .MuiDataGrid-row': {
                                     cursor: 'pointer',
+                                },
+                                // Vertically center every cell's content (custom renderCell
+                                // content otherwise sticks to the top of the row).
+                                "& .MuiDataGrid-cell": {
+                                    display: "flex",
+                                    alignItems: "center",
                                 },
                                 "& .MuiDataGrid-columnHeaders": {
                                     backgroundColor: "#f5f5f5",
