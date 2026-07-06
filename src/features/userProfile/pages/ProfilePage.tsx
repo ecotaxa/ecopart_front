@@ -487,6 +487,7 @@ export default function ProfilePage() {
 
                             <Typography variant="body2" color="text.secondary" paragraph>
                                 Your account will be deactivated. You will not be able to connect to EcoPart anymore.
+                                Please transfer access permissions for any projects you manage before deleting your account.
                                 To completely delete your account, please send an email to contact@ecopart.fr
                             </Typography>
 

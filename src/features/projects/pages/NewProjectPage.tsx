@@ -25,6 +25,7 @@ export default function NewProjectPage() {
         handleLoadMetadata,
         availableUsers,
         isRemoteProject,
+        lockedTitlePrefix,
         snackbar,
         closeSnackbar,
         isSubmitting,
@@ -78,6 +79,7 @@ export default function NewProjectPage() {
                     <ProjectMetadataSection
                         values={values.metadata}
                         onChange={(data) => updateField("metadata", data)}
+                        lockedTitlePrefix={lockedTitlePrefix}
                         errors={{
                             title: errors.projectTitle,
                             acronym: errors.projectAcronym,

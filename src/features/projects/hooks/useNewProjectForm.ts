@@ -254,6 +254,9 @@ export const useNewProjectForm = () => {
 
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
     const [availableUsersLoaded, setAvailableUsersLoaded] = useState(false);
+    // Title loaded from the import folder. Once set, it acts as a non-erasable
+    // prefix in the Project title field: the user may only append text after it.
+    const [lockedTitlePrefix, setLockedTitlePrefix] = useState("");
     const [pendingMetadataPrivilegeIds, setPendingMetadataPrivilegeIds] = useState<number[] | null>(null);
     const isRemoteProject = values.instrument.model.toLowerCase().includes("remote");
 
@@ -481,8 +484,12 @@ export const useNewProjectForm = () => {
             const pathParts = rawPath.split(/[/\\]/);
             const folderName = pathParts[pathParts.length - 1];
 
+            const loadedTitle = folderName || apiMetadata.cruise || "";
+            // Lock the loaded title so it cannot be erased, only appended to.
+            setLockedTitlePrefix(loadedTitle);
+
             updateField("metadata", {
-                title: folderName || apiMetadata.cruise || "",
+                title: loadedTitle,
                 acronym: apiMetadata.project_acronym || "",
                 cruise: apiMetadata.cruise || "",
                 description: apiMetadata.project_description || "",
@@ -719,6 +726,7 @@ export const useNewProjectForm = () => {
         availableUsers,
         currentUser,
         isRemoteProject,
+        lockedTitlePrefix,
         snackbar,
         closeSnackbar,
         isSubmitting,

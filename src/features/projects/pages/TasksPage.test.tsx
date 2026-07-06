@@ -205,8 +205,9 @@ describe('TasksPage (Functional)', () => {
         expect(screen.getByText('System')).toBeInTheDocument();
     });
 
-    // TC-Q8: Row Action Navigation
-    it('TC-Q8: opens the task detail route and disables the action for orphan tasks', async () => {
+    // TC-Q8: Row Navigation — the whole row is clickable; orphan tasks (no
+    // project) stay put since there's no project-scoped route to open.
+    it('TC-Q8: opens the task detail route on row click and ignores orphan tasks', async () => {
         const user = userEvent.setup();
         mockTasksSearch([
             makeTask({ task_id: 3, task_project_id: 7 }),
@@ -215,15 +216,12 @@ describe('TasksPage (Functional)', () => {
 
         renderTasksPage();
 
-        const icons = await screen.findAllByTestId('OpenInNewIcon');
-        const buttons = icons.map((i) => i.closest('button') as HTMLButtonElement);
-        const enabled = buttons.find((b) => !b.disabled);
-        const disabled = buttons.find((b) => b.disabled);
+        // Orphan task (no project): clicking the row does not navigate.
+        await user.click(await screen.findByText('4'));
+        expect(screen.queryByRole('heading', { name: 'Task Details Page' })).not.toBeInTheDocument();
 
-        expect(disabled).toBeTruthy(); // orphan task action is disabled
-
-        await user.click(enabled!);
-
+        // Valid task: clicking the row opens its project-scoped detail route.
+        await user.click(screen.getByText('3'));
         expect(await screen.findByRole('heading', { name: 'Task Details Page' })).toBeInTheDocument();
     });
 
@@ -264,5 +262,17 @@ describe('TasksPage (Functional)', () => {
 
         expect(await screen.findByText(/Failed to load tasks/i)).toBeInTheDocument();
         expect(screen.queryByText('IMPORT')).not.toBeInTheDocument();
+    });
+
+    // TC-Q11: navigation moved to the whole-row click, so the action cell no longer
+    // renders an OpenInNew button (non-export tasks render an empty action cell).
+    it('TC-Q11: no longer renders an OpenInNew navigation button in the action cell', async () => {
+        mockTasksSearch([makeTask({ task_id: 1, task_type: 'IMPORT', task_project_id: 7 })], 1);
+
+        renderTasksPage();
+
+        await screen.findByText('IMPORT');
+
+        expect(screen.queryByTestId('OpenInNewIcon')).not.toBeInTheDocument();
     });
 });

@@ -129,14 +129,13 @@ describe('ProjectTasksTab (Functional)', () => {
         );
     });
 
-    // TC-T4: Row Action Navigation (project-relative)
+    // TC-T4: Row Navigation (project-relative) — the whole row is clickable.
     it('TC-T4: navigates to the task detail route for this project', async () => {
         const user = userEvent.setup();
         mockedSearchProjectTasks.mockResolvedValue(makeResponse([makeTask({ task_id: 3 })], 1));
         renderTab();
 
-        const icon = await screen.findByTestId('OpenInNewIcon');
-        await user.click(icon.closest('button') as HTMLButtonElement);
+        await user.click(await screen.findByText('3'));
 
         expect(await screen.findByRole('heading', { name: 'Task Details Page' })).toBeInTheDocument();
     });
@@ -177,5 +176,15 @@ describe('ProjectTasksTab (Functional)', () => {
         expect(screen.getByTestId('CheckIcon')).toBeInTheDocument();
         expect(screen.getByTestId('PriorityHighIcon')).toBeInTheDocument();
         expect(screen.getByTestId('MoreHorizIcon')).toBeInTheDocument();
+    });
+
+    // TC-T7: navigation moved to the whole-row click, so the action cell no longer
+    // renders an OpenInNew button (non-export tasks render an empty action cell).
+    it('TC-T7: no longer renders an OpenInNew navigation button in the action cell', async () => {
+        renderTab();
+
+        await screen.findAllByText('IMPORT');
+
+        expect(screen.queryByTestId('OpenInNewIcon')).not.toBeInTheDocument();
     });
 });

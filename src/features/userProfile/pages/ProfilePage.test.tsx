@@ -265,6 +265,17 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         expect(await screen.findByText(/Admin Page/i)).toBeInTheDocument();
     });
 
+    // TC-E11: the delete-account section warns to transfer project access first.
+    it('TC-E11: shows the note to transfer project access before deleting the account', async () => {
+        renderWithRouter(<ProfilePage />);
+
+        await screen.findByRole('heading', { name: /Delete account/i });
+
+        expect(
+            screen.getByText(/transfer access permissions for any projects you manage/i),
+        ).toBeInTheDocument();
+    });
+
 });
 
 

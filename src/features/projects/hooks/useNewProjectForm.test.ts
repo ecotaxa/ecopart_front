@@ -216,4 +216,21 @@ describe('useNewProjectForm Hook (Unit)', () => {
         expect(result.current.snackbar.severity).toBe('error');
     });
 
+    // TC-L6: The title loaded from the import folder becomes a locked prefix.
+    it('TC-L6: should lock the loaded title as a non-erasable prefix after loading metadata', async () => {
+        const { result } = renderHook(() => useNewProjectForm());
+
+        act(() => {
+            result.current.updateField('rootFolderPath', '/my/server/UVP5_sn123_mission_2026');
+        });
+
+        await act(async () => {
+            await result.current.handleLoadMetadata();
+        });
+
+        // The folder name is both applied as the title and remembered as the locked prefix.
+        expect(result.current.lockedTitlePrefix).toBe('UVP5_sn123_mission_2026');
+        expect(result.current.values.metadata.title).toBe('UVP5_sn123_mission_2026');
+    });
+
 });
