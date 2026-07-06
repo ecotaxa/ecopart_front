@@ -10,11 +10,52 @@ vi.mock('../api/projects.api', () => ({
     deleteProjectSample: vi.fn(),
     deleteProjectEcoTaxaSamples: vi.fn(),
     deleteProjectCtdSamples: vi.fn(),
+    // The hook resolves the EcoTaxa instance URL via the project; an unlinked
+    // project (null instance) keeps getEcoTaxaInstances out of these unit tests.
+    getProjectById: vi.fn().mockResolvedValue({ ecotaxa_project_id: null, ecotaxa_instance_id: null }),
+}));
+
+// The EcoTaxa deep-link effect resolves the instance base URL from the profile API.
+vi.mock('@/features/userProfile/api/profile.api', () => ({
+    getEcoTaxaInstances: vi.fn(),
 }));
 
 import { searchProjectSamples, searchProjectEcoTaxaSamples, searchProjectCtdSamples } from '../api/projects.api';
-import { deleteProjectSample } from '../api/projects.api';
+import { deleteProjectSample, getProjectById } from '../api/projects.api';
+import type { Project, EcoTaxaSampleData } from '../api/projects.api';
+import { getEcoTaxaInstances } from '@/features/userProfile/api/profile.api';
+import type { EcoTaxaInstance } from '@/features/userProfile/api/profile.api';
 import { ProjectDataTab } from './ProjectDataTab';
+
+const makeProject = (overrides: Partial<Project> = {}): Project => ({
+    project_id: 77,
+    project_title: 'Project 77',
+    project_acronym: 'P77',
+    instrument_model: 'UVP5HD',
+    ecotaxa_project_name: null,
+    root_folder_path: '/data/p77',
+    ...overrides,
+});
+
+const makeEcoTaxaSample = (overrides: Partial<EcoTaxaSampleData> = {}): EcoTaxaSampleData => ({
+    sample_id: 1,
+    sample_name: 'ETX-1',
+    ecotaxa_sample_id: 5001,
+    nb_objects: 0,
+    nb_unclassified: 0,
+    nb_validated: 0,
+    nb_dubious: 0,
+    nb_predicted: 0,
+    ...overrides,
+});
+
+const makeInstance = (overrides: Partial<EcoTaxaInstance> = {}): EcoTaxaInstance => ({
+    ecotaxa_instance_id: 1,
+    ecotaxa_instance_name: 'FR',
+    ecotaxa_instance_description: 'France instance',
+    ecotaxa_instance_url: 'https://ecotaxa.example.fr',
+    ...overrides,
+});
 
 describe('III. DATA TAB (ProjectDataTab)', () => {
     let confirmSpy: ReturnType<typeof vi.spyOn> | undefined;
@@ -28,7 +69,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                     sample_id: 1,
                     sample_name: 'UVP-1',
                     visual_qc_status_label: 'VALIDATED',
-                    sampling_date: '20220906',
+                    sampling_utc_date_time: '20220906',
                     filename: 'file1.raw',
                     sample_type_label: 'Plankton'
                 },
@@ -36,7 +77,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                     sample_id: 2,
                     sample_name: 'UVP-2',
                     visual_qc_status_label: 'TO_BE_CHECKED',
-                    sampling_date: '20220907',
+                    sampling_utc_date_time: '20220907',
                     filename: 'file2.raw',
                     sample_type_label: 'Plankton'
                 },
@@ -77,7 +118,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                             sample_id: 1,
                             sample_name: 'UVP-1',
                             visual_qc_status_label: 'VALIDATED',
-                            sampling_date: '20220906',
+                            sampling_utc_date_time: '20220906',
                             filename: 'file1.raw',
                             sample_type_label: 'Plankton'
                         },
@@ -85,7 +126,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                             sample_id: 2,
                             sample_name: 'UVP-2',
                             visual_qc_status_label: 'TO_BE_CHECKED',
-                            sampling_date: '20220907',
+                            sampling_utc_date_time: '20220907',
                             filename: 'file2.raw',
                             sample_type_label: 'Plankton'
                         },
@@ -98,7 +139,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                             sample_id: 3,
                             sample_name: 'UVP-3',
                             visual_qc_status_label: 'VALIDATED',
-                            sampling_date: '20220908',
+                            sampling_utc_date_time: '20220908',
                             filename: 'file3.raw',
                             sample_type_label: 'Plankton'
                         },
@@ -263,5 +304,63 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             const enabledDeleteBtn = deleteButtons.find(btn => !btn.hasAttribute('disabled'));
             expect(enabledDeleteBtn).toBeDefined();
         }, 15000);
+    });
+
+    describe('EcoTaxa deep-link', () => {
+        // TC-P7: clicking an EcoTaxa row deep-links into the linked EcoTaxa instance.
+        it('TC-P7 - opens the EcoTaxa gallery URL in a new tab when clicking a linked EcoTaxa row', async () => {
+            const user = userEvent.setup();
+            vi.mocked(getProjectById).mockResolvedValueOnce(
+                makeProject({ ecotaxa_project_id: 20092, ecotaxa_instance_id: 1 }),
+            );
+            vi.mocked(getEcoTaxaInstances).mockResolvedValue([
+                makeInstance({ ecotaxa_instance_id: 1, ecotaxa_instance_url: 'https://ecotaxa.example.fr' }),
+            ]);
+            vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({
+                search_info: { total: 1, page: 1, limit: 10 },
+                samples: [makeEcoTaxaSample({ sample_name: 'ETX-1', ecotaxa_sample_id: 5001 })],
+            });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+            try {
+                render(<ProjectDataTab projectId={77} />);
+
+                // Ensure the deep-link effect resolved the instance before clicking.
+                await waitFor(() => expect(getEcoTaxaInstances).toHaveBeenCalled());
+                await user.click(await screen.findByText('ETX-1'));
+
+                await waitFor(() =>
+                    expect(openSpy).toHaveBeenCalledWith(
+                        'https://ecotaxa.example.fr/prj/20092?samples=5001',
+                        '_blank',
+                        'noopener,noreferrer',
+                    ),
+                );
+            } finally {
+                openSpy.mockRestore();
+            }
+        });
+
+        // TC-P8: with no EcoTaxa link there is no URL to open, so the row click is inert.
+        it('TC-P8 - does not open a tab when clicking an EcoTaxa row on an unlinked project', async () => {
+            const user = userEvent.setup();
+            // getProjectById keeps its default (unlinked) resolution from the mock factory.
+            vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({
+                search_info: { total: 1, page: 1, limit: 10 },
+                samples: [makeEcoTaxaSample({ sample_name: 'ETX-1', ecotaxa_sample_id: 5001 })],
+            });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+            try {
+                render(<ProjectDataTab projectId={77} />);
+
+                await waitFor(() => expect(getProjectById).toHaveBeenCalled());
+                await user.click(await screen.findByText('ETX-1'));
+
+                expect(openSpy).not.toHaveBeenCalled();
+            } finally {
+                openSpy.mockRestore();
+            }
+        });
     });
 });

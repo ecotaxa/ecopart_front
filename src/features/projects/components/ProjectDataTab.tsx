@@ -1,6 +1,6 @@
 import React from "react";
 import {
-    Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, IconButton, LinearProgress
+    Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, LinearProgress
 } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
@@ -46,20 +46,21 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
 
         isActionRunning,
         handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples,
+        buildEcoTaxaSampleUrl,
         snackbar, closeSnackbar
     } = useProjectDataTab(projectId);
 
     // --- DATAGRID COLUMNS DEFINITIONS ---
 
     const uvpSamplesColumns: GridColDef<SampleData>[] = [
-        { field: "sample_name", headerName: "Sample ID Name", flex: 1.5, minWidth: 150 },
+        { field: "sample_name", headerName: "Sample name", flex: 1.5, minWidth: 150 },
         {
-            field: "sampling_date",
+            field: "sampling_utc_date_time",
             headerName: "Date",
             flex: 1,
             minWidth: 120,
             // MENTOR FIX: Apply date formatting for better readability
-            valueGetter: (_value, row) => formatCompactDate(row.sampling_date)
+            valueGetter: (_value, row) => formatCompactDate(row.sampling_utc_date_time)
         },
         { field: "filename", headerName: "Raw file name", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.filename || 'Cell' },
         { field: "sample_type_label", headerName: "Type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.sample_type_label || 'Cell' },
@@ -91,22 +92,11 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                 );
             },
         },
-        {
-            field: "actions",
-            headerName: "",
-            width: 50,
-            sortable: false,
-            renderCell: () => (
-                <IconButton size="small">
-                    <OpenInNewIcon fontSize="small" />
-                </IconButton>
-            )
-        }
     ];
 
     const ctdSamplesColumns: GridColDef<CtdSampleData>[] = [
         { field: "sample_name", headerName: "Sample name", flex: 1.8, minWidth: 180 },
-        { field: "ctd_import_date", headerName: "Import date", flex: 1.4, minWidth: 150, valueGetter: (_value, row) => formatCompactDate(row.ctd_import_date) },
+        { field: "ctd_import_utc_date_time", headerName: "Import date", flex: 1.4, minWidth: 150, valueGetter: (_value, row) => formatCompactDate(row.ctd_import_utc_date_time) },
         { field: "file_extension", headerName: "File type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.file_extension || "Cell" },
     ];
 
@@ -287,7 +277,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             OPEN IN ECOTAXA
                         </Button>
                         <Button variant="text" color="inherit" disabled={ecoTaxaSelectionCount === 0 || isActionRunning} onClick={handleDeleteEcoTaxaSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                            DELETE
+                            DELETE FROM ECOTAXA
                         </Button>
                     </Stack>
                 </Box>
@@ -305,6 +295,10 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rows={ecoTaxaSamples}
                             columns={ecoTaxaSamplesColumns}
                             getRowId={(row) => row.sample_name} // Backend expects sample_name array for deletion
+                            onRowClick={(params) => {
+                                const url = buildEcoTaxaSampleUrl(params.row);
+                                if (url) window.open(url, "_blank", "noopener,noreferrer");
+                            }}
                             checkboxSelection
                             disableRowSelectionExcludeModel
                             disableRowSelectionOnClick
@@ -317,7 +311,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             onPaginationModelChange={setEcoTaxaPaginationModel}
                             pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalEcoTaxaRows, 1), label: "All" }]}
                             autoHeight
-                            sx={dataGridStyles}
+                            sx={{ ...dataGridStyles, '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}
                         />
                     </Box>
                 )}

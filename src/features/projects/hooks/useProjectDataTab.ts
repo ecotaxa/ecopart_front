@@ -9,10 +9,12 @@ import {
     deleteProjectSample,
     deleteProjectEcoTaxaSamples,
     deleteProjectCtdSamples,
+    getProjectById,
     SampleData,
     EcoTaxaSampleData,
     CtdSampleData,
 } from "../api/projects.api";
+import { getEcoTaxaInstances } from "@/features/userProfile/api/profile.api";
 
 export const useProjectDataTab = (projectId: number) => {
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
@@ -85,6 +87,12 @@ export const useProjectDataTab = (projectId: number) => {
     const [uvpError, setUvpError] = useState<string | null>(null);
     const [ecoTaxaError, setEcoTaxaError] = useState<string | null>(null);
     const [ctdError, setCtdError] = useState<string | null>(null);
+
+    // EcoTaxa deep-link data: the instance base URL (resolved from the project's
+    // ecotaxa_instance_id) and the linked EcoTaxa project id. Both are needed to
+    // build a per-sample EcoTaxa gallery URL; null until resolved (or if unlinked).
+    const [ecoTaxaInstanceUrl, setEcoTaxaInstanceUrl] = useState<string | null>(null);
+    const [ecoTaxaProjectId, setEcoTaxaProjectId] = useState<number | null>(null);
 
     const [isActionRunning, setIsActionRunning] = useState(false);
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
@@ -171,6 +179,46 @@ export const useProjectDataTab = (projectId: number) => {
         fetchCtdSamples();
     }, [fetchCtdSamples]);
 
+    // Resolve the EcoTaxa instance URL + linked project id so EcoTaxa sample rows
+    // can deep-link into the right EcoTaxa instance. Failures are non-fatal: the
+    // rows simply stay non-clickable instead of breaking the whole tab.
+    useEffect(() => {
+        let active = true;
+
+        (async () => {
+            try {
+                const project = await getProjectById(projectId);
+                if (!active) return;
+
+                setEcoTaxaProjectId(project.ecotaxa_project_id ?? null);
+
+                if (project.ecotaxa_instance_id == null) return;
+
+                const instances = await getEcoTaxaInstances();
+                if (!active) return;
+
+                const instance = instances.find(
+                    (inst) => inst.ecotaxa_instance_id === project.ecotaxa_instance_id,
+                );
+                setEcoTaxaInstanceUrl(instance?.ecotaxa_instance_url ?? null);
+            } catch (error) {
+                console.error("Failed to resolve EcoTaxa instance URL", error);
+            }
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, [projectId]);
+
+    // Builds the EcoTaxa gallery URL for one sample (instance + project + sample
+    // filter). Returns null when the project is not linked to EcoTaxa yet.
+    const buildEcoTaxaSampleUrl = (sample: EcoTaxaSampleData): string | null => {
+        if (!ecoTaxaInstanceUrl || ecoTaxaProjectId == null) return null;
+        const base = ecoTaxaInstanceUrl.replace(/\/+$/, "");
+        return `${base}/prj/${ecoTaxaProjectId}?samples=${sample.ecotaxa_sample_id}`;
+    };
+
     const showSnackbar = (message: string, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });
     };
@@ -203,12 +251,12 @@ export const useProjectDataTab = (projectId: number) => {
         const selectedNames = getSelectedEcoTaxaSampleNames(selectedEcoTaxaSamples);
         if (selectedNames.length === 0) return;
 
-        if (!window.confirm(`Are you sure you want to unlink ${selectedNames.length} EcoTaxa samples?`)) return;
+        if (!window.confirm(`Are you sure you want to delete ${selectedNames.length} samples from EcoTaxa?`)) return;
 
         setIsActionRunning(true);
         try {
             await deleteProjectEcoTaxaSamples(projectId, selectedNames);
-            showSnackbar("EcoTaxa samples removed successfully.", "success");
+            showSnackbar("Samples deleted from EcoTaxa successfully.", "success");
             setSelectedEcoTaxaSamples(createEmptySelectionModel());
             fetchEcoTaxaSamples();
         } catch (error) {
@@ -271,6 +319,7 @@ export const useProjectDataTab = (projectId: number) => {
         handleDeleteUvpSamples,
         handleDeleteEcoTaxaSamples,
         handleDeleteCtdSamples,
+        buildEcoTaxaSampleUrl,
         snackbar,
         closeSnackbar,
     };

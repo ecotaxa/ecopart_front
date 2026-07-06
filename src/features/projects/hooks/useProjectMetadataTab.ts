@@ -38,6 +38,10 @@ export const useProjectMetadataTab = (projectId: number) => {
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
     const [linkedEcoTaxaProject, setLinkedEcoTaxaProject] = useState<EcoTaxaLinkedProject | null>(null);
     const [ecoTaxaUnlinkWarning, setEcoTaxaUnlinkWarning] = useState(false);
+    // Existing project title loaded from the backend. Once set, it acts as a
+    // non-erasable prefix in the Project title field: the user may only append
+    // text after it (same behaviour as the New Project form).
+    const [lockedTitlePrefix, setLockedTitlePrefix] = useState("");
 
     // We initialize with empty values, they will be populated by the API
     const [values, setValues] = useState<NewProjectFormValues>({
@@ -98,6 +102,9 @@ export const useProjectMetadataTab = (projectId: number) => {
 
                 // Fetch the Project Data
                 const projectData = await getProjectById(projectId);
+
+                // Lock the loaded title so it cannot be erased, only appended to.
+                setLockedTitlePrefix(projectData.project_title || "");
 
                 // --- MAP BACKEND DATA TO FRONTEND UI STATE ---
                 setValues((prev) => ({
@@ -371,6 +378,7 @@ export const useProjectMetadataTab = (projectId: number) => {
         saving,
         availableUsers,
         isRemoteProject,
+        lockedTitlePrefix,
         updateField,
         linkedEcoTaxaProject,
         ecoTaxaUnlinkWarning,

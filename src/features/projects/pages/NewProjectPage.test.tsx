@@ -99,6 +99,17 @@ describe('NewProjectPage (Functional)', () => {
         expect(managerToggle).toHaveAttribute('aria-pressed', 'true');
     }, 10000);
 
+    // TC-H1b: Privileges section explains the EcoTaxa annotation / export policy.
+    it('TC-H1b: shows the EcoTaxa annotation & export permissions note in Privileges', async () => {
+        renderWithRouter(<NewProjectPage />);
+
+        await screen.findByRole('heading', { name: /^New project$/i });
+
+        expect(
+            await screen.findByText(/Annotation permissions in EcoTaxa must be configured directly in EcoTaxa/i),
+        ).toBeInTheDocument();
+    }, 10000);
+
     // TC-H2: Validation (Empty Submit)
     it('TC-H2: should prevent submission and show error if mandatory fields are empty', async () => {
         const user = userEvent.setup({ delay: null });

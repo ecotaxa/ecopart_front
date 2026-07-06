@@ -503,7 +503,7 @@ export async function importEcoTaxaSamples(projectId: number, payload: ImportEco
 export interface SampleData {
     sample_id: number;
     sample_name: string;
-    sampling_date?: string;
+    sampling_utc_date_time?: string;
     filename?: string;
     sample_type_label?: string;
     comment?: string;
@@ -673,7 +673,7 @@ export async function deleteProjectEcoTaxaSamples(projectId: number, sampleNames
  */
 export interface CtdSampleData {
     sample_name: string;
-    ctd_import_date?: string;
+    ctd_import_utc_date_time?: string;
     file_extension?: string;
 }
 

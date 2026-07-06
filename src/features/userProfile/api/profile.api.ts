@@ -84,7 +84,7 @@ export async function getEcoTaxaAccounts(userId: number): Promise<EcoTaxaAccount
     const params = new URLSearchParams({
         page: "1",
         limit: "100", // Fetch up to 100 accounts to be safe
-        sort_by: "asc(ecotaxa_account_expiration_date)" // Sort by expiration like in Postman
+        sort_by: "asc(ecotaxa_account_expiration_utc_date_time)" // Sort by expiration (column renamed in backend migration 017)
     });
 
     // 2. We append the query string to the URL

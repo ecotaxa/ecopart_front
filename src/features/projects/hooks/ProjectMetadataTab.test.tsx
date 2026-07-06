@@ -168,4 +168,20 @@ describe('ProjectMetadataTab (Functional)', () => {
         expect(capturedPatchBody).not.toHaveProperty('ecotaxa_project_name');
         expect(capturedPatchBody).not.toHaveProperty('new_ecotaxa_project');
     }, 15000);
+
+    // TC-J5: the title loaded from the backend is locked as a non-erasable prefix.
+    it('TC-J5: locks the loaded project title so it cannot be erased', async () => {
+        const user = userEvent.setup({ delay: null });
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} />);
+
+        const titleInput = await screen.findByDisplayValue('Existing Project');
+
+        // The field advertises that the loaded title cannot be removed...
+        expect(screen.getByText(/The loaded title cannot be removed/i)).toBeInTheDocument();
+
+        // ...and trying to clear it leaves the loaded value in place.
+        await user.clear(titleInput);
+        expect(screen.getByDisplayValue('Existing Project')).toBeInTheDocument();
+    }, 15000);
 });

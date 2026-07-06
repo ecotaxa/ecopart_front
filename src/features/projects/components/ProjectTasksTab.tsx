@@ -7,7 +7,6 @@ import {
 // System design elements mapping the user mockup icons
 import CloseIcon from "@mui/icons-material/Close";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import DownloadIcon from "@mui/icons-material/Download";
 
 import { useNavigate } from "react-router-dom";
@@ -45,34 +44,29 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
             width: 90,
             sortable: false,
             renderCell: (params) => {
+                if (!isDownloadableTask(params.row)) return null;
                 const isDownloading = downloadingTaskId === params.row.task_id;
                 return (
                     // Stop clicks anywhere in the actions cell from bubbling to the
-                    // row's onRowClick (covers the OpenInNew button and the disabled
-                    // download button, whose click otherwise reaches the row via its
-                    // Tooltip span and navigates away mid-download).
+                    // row's onRowClick (the disabled download button otherwise reaches
+                    // the row via its Tooltip span and navigates away mid-download).
                     <Stack direction="row" spacing={0.5} onClick={(e) => e.stopPropagation()}>
-                        {isDownloadableTask(params.row) && (
-                            <Tooltip title="Download export file">
-                                <span>
-                                    <IconButton
-                                        size="small"
-                                        disabled={isDownloading}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDownloadTaskFile(params.row.task_id);
-                                        }}
-                                    >
-                                        {isDownloading
-                                            ? <CircularProgress size={16} />
-                                            : <DownloadIcon fontSize="small" />}
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-                        )}
-                        <IconButton size="small" onClick={() => navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}>
-                            <OpenInNewIcon fontSize="small" />
-                        </IconButton>
+                        <Tooltip title="Download export file">
+                            <span>
+                                <IconButton
+                                    size="small"
+                                    disabled={isDownloading}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownloadTaskFile(params.row.task_id);
+                                    }}
+                                >
+                                    {isDownloading
+                                        ? <CircularProgress size={16} />
+                                        : <DownloadIcon fontSize="small" />}
+                                </IconButton>
+                            </span>
+                        </Tooltip>
                     </Stack>
                 );
             }

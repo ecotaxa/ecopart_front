@@ -26,6 +26,13 @@ interface ProjectMetadataSectionProps {
         cruise?: string;
         description?: string;
     };
+    /**
+     * When set, the Project title field treats this string as a non-erasable prefix:
+     * the user may only append text after it. Used when a title is pre-filled from
+     * the import folder (New Project) or loaded from the backend (Project edit).
+     * Leave undefined/empty to keep the title fully editable.
+     */
+    lockedTitlePrefix?: string;
 }
 
 /**
@@ -37,10 +44,19 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
     values,
     onChange,
     errors,
+    lockedTitlePrefix,
 }) => {
     // State for ship names fetched from API (already string[])
     const [shipOptions, setShipOptions] = useState<string[]>([]);
     const [loadingShips, setLoadingShips] = useState(true);
+
+    const handleTitleChange = (newValue: string) => {
+        // Loaded title is a non-erasable prefix; only allow appending after it.
+        if (lockedTitlePrefix && !newValue.startsWith(lockedTitlePrefix)) {
+            return;
+        }
+        onChange({ title: newValue });
+    };
 
     // Fetch ships on mount
     useEffect(() => {
@@ -76,10 +92,15 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
                         required
                         label="Project title"
                         value={values.title}
-                        onChange={(e) => onChange({ title: e.target.value })}
+                        onChange={(e) => handleTitleChange(e.target.value)}
                         size="small"
                         error={Boolean(errors?.title)}
-                        helperText={errors?.title}
+                        helperText={
+                            errors?.title ||
+                            (lockedTitlePrefix
+                                ? "The loaded title cannot be removed — you can add text after it."
+                                : undefined)
+                        }
                     />
                 </Grid>
 
