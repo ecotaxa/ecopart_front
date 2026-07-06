@@ -28,9 +28,9 @@ interface ProjectMetadataSectionProps {
     };
     /**
      * When set, the Project title field treats this string as a non-erasable prefix:
-     * the user may only append text after it. Used by the New Project flow once the
-     * title has been loaded from the import folder. Left undefined elsewhere so the
-     * field stays fully editable.
+     * the user may only append text after it. Used when a title is pre-filled from
+     * the import folder (New Project) or loaded from the backend (Project edit).
+     * Leave undefined/empty to keep the title fully editable.
      */
     lockedTitlePrefix?: string;
 }
