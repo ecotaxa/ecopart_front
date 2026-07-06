@@ -311,7 +311,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             onPaginationModelChange={setEcoTaxaPaginationModel}
                             pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalEcoTaxaRows, 1), label: "All" }]}
                             autoHeight
-                            sx={{ ...dataGridStyles, '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+                            sx={{ ...dataGridStyles, '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}
                         />
                     </Box>
                 )}
