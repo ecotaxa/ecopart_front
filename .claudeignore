@@ -12,3 +12,4 @@ logs/
 *.lock
 tmp/
 vendor/
+.claude/

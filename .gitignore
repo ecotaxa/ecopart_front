@@ -36,3 +36,6 @@ tsconfig.tsbuildinfo
 github.copilot-chat-0.44.2.vsix
 .tmp-newproject-test-output.txt
 *.tmp-newproject-test-output.txt
+
+# Local Claude Code settings (machine/user-specific)
+.claude/

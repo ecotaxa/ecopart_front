@@ -299,6 +299,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                                 const url = buildEcoTaxaSampleUrl(params.row);
                                 if (url) window.open(url, "_blank", "noopener,noreferrer");
                             }}
+                            getRowClassName={(params) => buildEcoTaxaSampleUrl(params.row) ? 'ecotaxa-row-clickable' : ''}
                             checkboxSelection
                             disableRowSelectionExcludeModel
                             disableRowSelectionOnClick
@@ -311,7 +312,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             onPaginationModelChange={setEcoTaxaPaginationModel}
                             pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalEcoTaxaRows, 1), label: "All" }]}
                             autoHeight
-                            sx={{ ...dataGridStyles, '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+                            sx={{ ...dataGridStyles, '& .ecotaxa-row-clickable': { cursor: 'pointer' } }}
                         />
                     </Box>
                 )}
