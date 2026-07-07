@@ -447,6 +447,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
 
         // Submit
         const loginButton = within(formContainer as HTMLElement).getByRole('button', { name: 'LOG IN' });
+        await waitFor(() => expect(loginButton).toBeEnabled());
         await user.click(loginButton);
 
         // Assertions: We expect to see the new user in the list view
