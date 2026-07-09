@@ -447,6 +447,10 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
 
         // Submit
         const loginButton = within(formContainer as HTMLElement).getByRole('button', { name: 'LOG IN' });
+        // Wait for the consent-driven re-render to enable the button before clicking;
+        // under heavy parallel load the click can otherwise fire while it's still
+        // disabled (pointer-events: none).
+        await waitFor(() => expect(loginButton).toBeEnabled());
         await user.click(loginButton);
 
         // Assertions: We expect to see the new user in the list view
