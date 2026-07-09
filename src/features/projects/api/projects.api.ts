@@ -438,8 +438,71 @@ export interface ImportableEcoTaxaSample {
 
 export interface ImportSamplesPayload {
     samples: string[]; // Array of sample_names
+    /**
+     * Subset of `samples` the operator approved in the pre-import QC preview. The backend marks
+     * these VALIDATED at creation; every other imported sample defaults to PENDING.
+     */
+    validated_samples?: string[];
     backup_project?: boolean;
     backup_project_skip_already_imported?: boolean;
+}
+
+// --- Pre-import QC graphs preview ---------------------------------------------------------------
+// Mirrors the backend SampleQcGraphsResponseModel (ecopart_back sample-qc-graph.ts). The Y axis of
+// every profile is DEPTH in metres; graph 1 is one point per image, graphs 2/3 are binned by depth.
+
+export type QcAxisScale = "linear" | "log";
+
+export interface QcImageDepthPoint {
+    image_index: number;
+    image_id: string;
+    depth_m: number;
+    is_selected: boolean; // within the kept [first_image .. last_image] range
+}
+
+export interface QcImageDepthProfile {
+    points: QcImageDepthPoint[];
+    filter_first_image: string | null;
+    filter_last_image: string | null;
+    total_images: number;
+    selected_images: number;
+}
+
+export interface QcDepthBinPoint {
+    depth_m: number;
+    value: number;
+}
+
+export interface QcDepthProfileSeries {
+    label: string; // "imaged volume" | "1 px" | "2 px" | "3 px"
+    unit: string;  // "L" | "count"
+    points: QcDepthBinPoint[];
+}
+
+export interface QcBinnedDepthProfile {
+    bin_size_m: number;
+    suggested_scale: QcAxisScale;
+    series: QcDepthProfileSeries[];
+}
+
+export interface QcImageFilteringMetadata {
+    first_image: string | null;          // header firstimage (operator-selected start)
+    last_image: string | null;           // header endimg (operator-selected end; may be a sentinel)
+    last_image_used: string | null;      // deepest image kept by the descent filter
+    removed_images: { count: number; percent: number };
+}
+
+export interface SampleQcGraphs {
+    sample_id: number | null;             // null for a pre-import preview
+    sample_name: string;
+    instrument_model: string;
+    depth_unit: "m";
+    visual_qc_status_label: string;       // "NOT_IMPORTED" for a preview
+    image_depth_profile: QcImageDepthProfile;      // graph 1
+    imaged_volume_profile: QcBinnedDepthProfile;   // graph 2 (1 series, unit "L")
+    particle_lpm_profile: QcBinnedDepthProfile;    // graph 3 — light ON, 3 series 1/2/3 px
+    black_profile: QcBinnedDepthProfile | null;    // graph 3 — light OFF, 3 series; null on UVP5
+    image_filtering: QcImageFilteringMetadata;
 }
 
 export interface ImportEcoTaxaSamplesPayload {
@@ -474,6 +537,19 @@ export async function importRawSamples(projectId: number, payload: ImportSamples
     return http<ImportRawSamplesResponse>(`/projects/${projectId}/samples/import`, {
         method: "POST",
         body: JSON.stringify(payload),
+    });
+}
+
+/**
+ * Preview the import QC graphs for not-yet-imported samples, computed on the fly from the project
+ * source folder. Returns one dataset per requested name so the operator can review quality before
+ * committing the import.
+ * Endpoint: POST /projects/:project_id/samples/qc-graphs-preview
+ */
+export async function previewSamplesQcGraphs(projectId: number, sampleNames: string[]): Promise<SampleQcGraphs[]> {
+    return http<SampleQcGraphs[]>(`/projects/${projectId}/samples/qc-graphs-preview`, {
+        method: "POST",
+        body: JSON.stringify({ sample_names: sampleNames }),
     });
 }
 

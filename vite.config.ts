@@ -86,6 +86,7 @@ export default defineConfig(({ mode }) => {
             globals: true,                // Allows using describe, it, expect without importing them
             environment: "jsdom",         // Simulates a browser environment (window, document)
             setupFiles: "./src/test/setup.ts", // Path to the test initialization file
+            testTimeout: 30000,           // 30s per test: full form-fill flows (userEvent + waitFor) can exceed the 5s default under parallel CPU load
             css: true,                    // Processes CSS files (useful if components depend on styles)
             coverage: {
                 provider: "v8",

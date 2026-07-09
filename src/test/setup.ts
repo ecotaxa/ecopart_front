@@ -21,6 +21,17 @@ console.error = (...args: unknown[]) => {
     originalConsoleError(...args);
 };
 
+// JSDOM does not implement ResizeObserver, which MUI X Charts' responsive container relies on.
+// Provide a no-op stub so chart components render (their SVG size comes from the getBoundingClientRect
+// stub below) instead of throwing.
+if (typeof globalThis.ResizeObserver === "undefined") {
+    globalThis.ResizeObserver = class {
+        observe() { /* no-op */ }
+        unobserve() { /* no-op */ }
+        disconnect() { /* no-op */ }
+    };
+}
+
 // JSDOM does not implement layout; provide stable non-zero boxes for MUI Popover/Menu anchors.
 Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
     configurable: true,

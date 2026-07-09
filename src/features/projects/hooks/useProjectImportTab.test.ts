@@ -9,6 +9,7 @@ vi.mock('../api/projects.api', () => ({
     importRawSamples: vi.fn(),
     importEcoTaxaSamples: vi.fn(),
     importProjectCtdSamples: vi.fn(),
+    previewSamplesQcGraphs: vi.fn(),
 }));
 
 import {
@@ -19,6 +20,7 @@ import {
     importRawSamples,
     importEcoTaxaSamples,
     importProjectCtdSamples,
+    previewSamplesQcGraphs,
 } from '../api/projects.api';
 import { useProjectImportTab } from './useProjectImportTab';
 
@@ -29,6 +31,7 @@ const mockedGetImportableCtdSamples = vi.mocked(getImportableCtdSamples);
 const mockedImportRawSamples = vi.mocked(importRawSamples);
 const mockedImportEcoTaxaSamples = vi.mocked(importEcoTaxaSamples);
 const mockedImportProjectCtdSamples = vi.mocked(importProjectCtdSamples);
+const mockedPreviewSamplesQcGraphs = vi.mocked(previewSamplesQcGraphs);
 
 describe('useProjectImportTab', () => {
     beforeEach(() => {
@@ -74,6 +77,7 @@ describe('useProjectImportTab', () => {
         mockedImportRawSamples.mockResolvedValue({ success: true, task_import_samples: 42 });
         mockedImportEcoTaxaSamples.mockResolvedValue({ success: true });
         mockedImportProjectCtdSamples.mockResolvedValue({ task_id: 99, task_status: 'PENDING', task_type: 'IMPORT' });
+        mockedPreviewSamplesQcGraphs.mockResolvedValue([]);
     });
 
     // TC-N6: Hook-level raw import success and cleanup
@@ -93,8 +97,8 @@ describe('useProjectImportTab', () => {
             expect(result.current.rawSelectionCount).toBe(1);
         });
 
-        act(() => {
-            result.current.handlePreImportRawSamples(false);
+        await act(async () => {
+            await result.current.handlePreImportRawSamples(false);
         });
 
         expect(result.current.isQcModalOpen).toBe(true);
@@ -105,6 +109,7 @@ describe('useProjectImportTab', () => {
 
         expect(mockedImportRawSamples).toHaveBeenCalledWith(77, {
             samples: ['raw-1'],
+            validated_samples: [],
             backup_project: false,
             backup_project_skip_already_imported: true,
         });
@@ -209,8 +214,8 @@ describe('useProjectImportTab', () => {
             result.current.setSkipAlreadyImported(false);
         });
 
-        act(() => {
-            result.current.handlePreImportRawSamples(true);
+        await act(async () => {
+            await result.current.handlePreImportRawSamples(true);
         });
 
         expect(result.current.isQcModalOpen).toBe(true);
@@ -221,6 +226,7 @@ describe('useProjectImportTab', () => {
 
         expect(mockedImportRawSamples).toHaveBeenCalledWith(77, {
             samples: ['raw-1', 'raw-2'],
+            validated_samples: [],
             backup_project: true,
             backup_project_skip_already_imported: false,
         });
