@@ -2,7 +2,7 @@ import React from "react";
 import {
     Box, Typography, Button, Switch, FormControlLabel,
     TextField, Divider, Snackbar, Alert, InputAdornment, Paper, Tooltip,
-    Dialog, DialogTitle, DialogContent, DialogActions, Grid
+    Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -13,6 +13,7 @@ import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import { useProjectImportTab } from "../hooks/useProjectImportTab";
 import { ImportableRawSample, ImportableCtdSample } from "../api/projects.api";
+import { QcSampleCard } from "./QcSampleCard";
 
 interface ProjectImportTabProps {
     projectId: number;
@@ -27,13 +28,19 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
         enableAutoBackup, setEnableAutoBackup,
         skipAlreadyImported, setSkipAlreadyImported,
         isImporting,
-        isQcModalOpen, setIsQcModalOpen, importAllUvpFlag,
+        isQcModalOpen, setIsQcModalOpen,
+        qcSampleNames, qcPreviews, qcNotImportable, loadingQcPreview, qcPreviewError, removeQcSample,
         handlePreImportRawSamples, confirmAndExecuteRawImport, handleImportEcoTaxaSamples, handleImportCtdSamples,
         snackbar, closeSnackbar, hasEcoTaxaProject
     } = useProjectImportTab(projectId);
 
     const ecoProjectLinked = hasEcoTaxaProject;
     const ecoTaxaActionsDisabled = !ecoProjectLinked;
+
+    // Import is blocked while the preview is loading, nothing is selected, an import is in flight, or
+    // any sample in the working set is not importable (it would fail the whole backend import).
+    const importActionsDisabled =
+        loadingQcPreview || qcSampleNames.length === 0 || isImporting || qcNotImportable.length > 0;
 
     // --- DATAGRID COLUMNS DEFINITIONS ---
     const rawSamplesColumns: GridColDef<ImportableRawSample>[] = [
@@ -388,44 +395,86 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
             {/* --- QC MODAL --- */}
             <Dialog open={isQcModalOpen} onClose={() => setIsQcModalOpen(false)} maxWidth="lg" fullWidth scroll="paper">
                 <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h5" fontWeight="bold">Import quality control</Typography>
+                    {/* component="span": DialogTitle renders an <h2>, so a nested heading (variant="h5"
+                        defaults to <h5>) would be invalid HTML. */}
+                    <Typography component="span" variant="h5" fontWeight="bold">Import quality control</Typography>
                 </DialogTitle>
                 <DialogContent dividers sx={{ backgroundColor: '#fafafa' }}>
                     <Typography variant="body1" sx={{ mb: 4 }}>
-                        You are about to import <strong>{importAllUvpFlag ? rawSamples.length : rawSelectionCount}</strong> samples.
+                        You are about to import <strong>{qcSampleNames.length}</strong> {qcSampleNames.length === 1 ? "sample" : "samples"} : <strong>{qcSampleNames.join(", ")}</strong>
                     </Typography>
 
-                    <Box sx={{ backgroundColor: 'white', p: 3, borderRadius: 1, border: '1px solid #e0e0e0', mb: 4 }}>
-                        <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2 }}>Sample : 123GUFYG765-Huh_UVP</Typography>
-                        <Grid container spacing={4}>
-                            <Grid size={{ xs: 12, md: 4 }}>
-                                <Box sx={{ border: '1px dashed #ccc', height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Typography variant="caption" color="text.secondary">Vertical profile chart placeholder</Typography>
-                                </Box>
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 8 }}>
-                                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2 }}>UVP frames selection</Typography>
-                                <Grid container spacing={2}>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="First ok" value="407" size="small" InputProps={{ readOnly: true }} /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Last ok" value="999999999999" size="small" InputProps={{ readOnly: true }} /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Last used" value="4108" size="small" InputProps={{ readOnly: true }} /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Other filtered images" value="0 / 0%" size="small" InputProps={{ readOnly: true }} /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed images" value="74 / 3%" size="small" helperText="Between first and last image frame in number/percent" InputProps={{ readOnly: true }} /></Grid>
-                                    <Grid size={{ xs: 6 }}><TextField fullWidth label="Removed empty slice" value="0" size="small" InputProps={{ readOnly: true }} /></Grid>
-                                </Grid>
-                            </Grid>
-                        </Grid>
+                    {qcPreviewError && (
+                        <Alert severity="warning" sx={{ mb: 3 }}>
+                            QC preview unavailable: {qcPreviewError}. You can still import the samples above.
+                        </Alert>
+                    )}
 
-                        <Grid container spacing={4} sx={{ mt: 2 }}>
-                            <Grid size={{ xs: 4 }}><Box sx={{ border: '1px dashed #ccc', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="caption" color="text.secondary">Chart 1</Typography></Box></Grid>
-                            <Grid size={{ xs: 4 }}><Box sx={{ border: '1px dashed #ccc', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="caption" color="text.secondary">Chart 2</Typography></Box></Grid>
-                            <Grid size={{ xs: 4 }}><Box sx={{ border: '1px dashed #ccc', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Typography variant="caption" color="text.secondary">Chart 3</Typography></Box></Grid>
-                        </Grid>
-                    </Box>
+                    {loadingQcPreview ? (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 8, gap: 2 }}>
+                            <CircularProgress />
+                            <Typography variant="body2" color="text.secondary">Computing QC graphs…</Typography>
+                        </Box>
+                    ) : (
+                        <>
+                            {/* Samples the preview endpoint rejected as not importable: no QC graphs, but
+                                shown FIRST (they block the import) with a red border and a REMOVE button so
+                                the operator can spot and drop them without scrolling past the chart cards. */}
+                            {qcNotImportable.map((name) => (
+                                <Box key={name} sx={{ backgroundColor: '#fdecea', p: 3, borderRadius: 1, border: '2px solid', borderColor: 'error.main', mb: 3 }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                        <Typography variant="subtitle2" fontWeight="bold" color="error.main">Sample : {name}</Typography>
+                                        <Button
+                                            onClick={() => removeQcSample(name)}
+                                            disabled={isImporting}
+                                            sx={{ color: '#c2185b', fontWeight: 'bold' }}
+                                            size="small"
+                                        >
+                                            REMOVE FROM IMPORT
+                                        </Button>
+                                    </Box>
+                                    <Alert severity="error">
+                                        This sample is not importable, so no QC preview could be generated. Remove it from the import to continue.
+                                    </Alert>
+                                </Box>
+                            ))}
+
+                            {qcPreviews.map((sample) => (
+                                <QcSampleCard
+                                    key={sample.sample_name}
+                                    sample={sample}
+                                    onRemove={removeQcSample}
+                                    removeDisabled={isImporting}
+                                />
+                            ))}
+                        </>
+                    )}
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
-                    <Button onClick={() => setIsQcModalOpen(false)} sx={{ color: 'orange', fontWeight: 'bold' }}>CANCEL IMPORT</Button>
-                    <Button onClick={confirmAndExecuteRawImport} variant="text" sx={{ color: '#1976d2', fontWeight: 'bold' }}>VALIDATE ALL</Button>
+                    {qcNotImportable.length > 0 && (
+                        <Typography variant="caption" color="error" sx={{ mr: 'auto' }}>
+                            Remove the non-importable sample{qcNotImportable.length > 1 ? 's' : ''} to continue.
+                        </Typography>
+                    )}
+                    <Button
+                        onClick={() => confirmAndExecuteRawImport(true)}
+                        disabled={importActionsDisabled}
+                        variant="text"
+                        sx={{ color: '#1976d2', fontWeight: 'bold', '&.Mui-disabled': { color: 'action.disabled' } }}
+                    >
+                        IMPORT &amp; VALIDATE
+                    </Button>
+                    <Button
+                        onClick={() => confirmAndExecuteRawImport(false)}
+                        disabled={importActionsDisabled}
+                        variant="text"
+                        sx={{ color: '#1976d2', fontWeight: 'bold', '&.Mui-disabled': { color: 'action.disabled' } }}
+                    >
+                        IMPORT &amp; PENDING
+                    </Button>
+                    <Button onClick={() => setIsQcModalOpen(false)} sx={{ color: 'orange', fontWeight: 'bold' }}>
+                        CANCEL IMPORT
+                    </Button>
                 </DialogActions>
             </Dialog>
 
