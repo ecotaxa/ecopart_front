@@ -44,7 +44,7 @@ export const useProjectTasksTab = (projectId: number) => {
         severity: "info",
     });
 
-    const buildTasksFilters = (): SearchFilter[] => {
+    const buildTasksFilters = useCallback((): SearchFilter[] => {
         const activeFilters: SearchFilter[] = [];
 
         if (debouncedSearchText) {
@@ -67,7 +67,7 @@ export const useProjectTasksTab = (projectId: number) => {
         }
 
         return activeFilters;
-    };
+    }, [debouncedSearchText, searchAttribute]);
 
     useEffect(() => {
         const timerId = setTimeout(() => {
@@ -101,7 +101,7 @@ export const useProjectTasksTab = (projectId: number) => {
         } finally {
             setLoading(false);
         }
-    }, [projectId, paginationModel.page, paginationModel.pageSize, debouncedSearchText, searchAttribute]);
+    }, [projectId, paginationModel.page, paginationModel.pageSize, buildTasksFilters]);
 
     useEffect(() => {
         fetchTasks();
