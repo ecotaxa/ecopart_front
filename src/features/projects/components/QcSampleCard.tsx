@@ -1,5 +1,6 @@
 import React from "react";
-import { Box, Typography, Button, TextField, Grid } from "@mui/material";
+import { Box, Typography, Button, TextField } from "@mui/material";
+import Grid from "@mui/material/Grid";
 
 import { QcBinnedDepthProfile, SampleQcGraphs } from "../api/projects.api";
 import { QcChartSeries, QcProfileChart } from "./QcProfileChart";
@@ -69,7 +70,7 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
                         </Grid>
                     </Grid>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                        <strong>firstimage</strong> / <strong>ending</strong> from the sample header : values selected in
+                        <strong>firstimage</strong> / <strong>endimg</strong> from the sample header : values selected in
                         zooprocess or uvpapp by the operator to define the sample from the sequence.
                     </Typography>
 

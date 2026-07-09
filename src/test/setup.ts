@@ -26,6 +26,7 @@ console.error = (...args: unknown[]) => {
 // stub below) instead of throwing.
 if (typeof globalThis.ResizeObserver === "undefined") {
     globalThis.ResizeObserver = class {
+        constructor(_callback: ResizeObserverCallback) { /* no-op */ }
         observe() { /* no-op */ }
         unobserve() { /* no-op */ }
         disconnect() { /* no-op */ }
