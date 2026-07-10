@@ -52,7 +52,7 @@ export const router = createBrowserRouter([
         element: <ValidateEmailPage />,
     },
     {
-        path: "/settings",
+        path: "/settings/:tabName?",
         element: (
             <ProtectedRoute>
                 <ProfilePage />
@@ -93,7 +93,7 @@ export const router = createBrowserRouter([
         ),
     },
     {
-        path: "/projects/:id/tasks/:taskId",
+        path: "/projects/:id/tasks/:taskId/:tabName?",
         element: (
             <ProtectedRoute>
                 <TaskDetailsPage />
@@ -105,6 +105,15 @@ export const router = createBrowserRouter([
         element: (
             <ProtectedRoute>
                 <TasksPage />
+            </ProtectedRoute>
+        ),
+    },
+    {
+        // Global task detail (opened from the /tasks list, no project context).
+        path: "/tasks/:taskId/:tabName?",
+        element: (
+            <ProtectedRoute>
+                <TaskDetailsPage />
             </ProtectedRoute>
         ),
     },

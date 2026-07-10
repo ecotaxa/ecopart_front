@@ -8,6 +8,9 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
+import { ecotaxaColors } from "@/theme";
+import SectionCard from "@/shared/components/SectionCard";
+
 import { useProjectDataTab } from "../hooks/useProjectDataTab";
 import { EcoTaxaSampleData, SampleData, CtdSampleData } from "../api/projects.api";
 
@@ -141,13 +144,13 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
             fontWeight: 'normal',
         },
         '& .MuiDataGrid-cell': { borderBottom: '1px solid #f0f0f0' },
-        '& .MuiDataGrid-row:nth-of-type(even)': { backgroundColor: '#f8faff' },
+        '& .MuiDataGrid-row:nth-of-type(even)': { backgroundColor: ecotaxaColors.stone[50] },
         '& .MuiDataGrid-row.Mui-selected': {
-            backgroundColor: '#e3f2fd',
-            '&:hover': { backgroundColor: '#d9e8ff' }
+            backgroundColor: ecotaxaColors.secondblue[100],
+            '&:hover': { backgroundColor: ecotaxaColors.secondblue[200] }
         },
-        '& .MuiCheckbox-root': { color: '#b0b0b0' },
-        '& .Mui-checked': { color: '#1976d2 !important' },
+        '& .MuiCheckbox-root': { color: ecotaxaColors.stone[400] },
+        '& .Mui-checked': { color: `${ecotaxaColors.secondblue[600]} !important` },
         '& .MuiDataGrid-footerContainer': { borderTop: 'none', minHeight: '40px' },
         // Hide focus outline on cells for cleaner look
         '& .MuiDataGrid-cell:focus': { outline: 'none' },
@@ -166,18 +169,14 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
     );
 
     return (
-        <Box sx={{ mt: 2 }}>
-            <Typography variant="h5" gutterBottom>Data</Typography>
-            <Divider sx={{ mb: 4 }} />
-
+        <SectionCard>
             {/* UVP SAMPLES SECTION */}
             <Box sx={{ mb: 6 }}>
                 <Box sx={{ mb: 2 }}>
                     <Typography variant="h6">UVP samples</Typography>
-                    <Typography variant="body2" color="text.secondary">Additional description if required</Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fafafa', p: 1.5, borderTop: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="body2" fontWeight="bold">{uvpSelectionCount} items selected</Typography>
                     <Stack direction="row" spacing={2}>
                         <Button variant="text" color="inherit" disabled={uvpSelectionCount === 0 || isActionRunning} onClick={handleDeleteUvpSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
@@ -190,7 +189,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                     renderEmptyState(
                         loadingUvp ? "Loading UVP samples..."
                             : uvpError ? `Failed to load UVP samples (${uvpError})`
-                                : "No results found.",
+                                : "No samples imported.",
                         !loadingUvp && !!uvpError
                     )
                 ) : (
@@ -223,10 +222,9 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
             <Box sx={{ mb: 6 }}>
                 <Box sx={{ mb: 2 }}>
                     <Typography variant="h6">Links with CTD samples</Typography>
-                    <Typography variant="body2" color="text.secondary">Additional description if required</Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fafafa', p: 1.5, borderTop: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="body2" fontWeight="bold">{ctdSelectionCount} items selected</Typography>
                     <Button variant="text" color="inherit" disabled={ctdSelectionCount === 0 || isActionRunning} startIcon={<CloseIcon />} onClick={handleDeleteCtdSamples} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                         DELETE
@@ -236,7 +234,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                     renderEmptyState(
                         loadingCtd ? "Loading CTD samples..."
                             : ctdError ? `Failed to load CTD samples (${ctdError})`
-                                : "No results found.",
+                                : "No CTD samples imported.",
                         !loadingCtd && !!ctdError
                     )
                 ) : (
@@ -267,10 +265,9 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
             <Box sx={{ mb: 4 }}>
                 <Box sx={{ mb: 2 }}>
                     <Typography variant="h6">Links with EcoTaxa samples</Typography>
-                    <Typography variant="body2" color="text.secondary">Imported metadata and image data in EcoTaxa</Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fafafa', p: 1.5, borderTop: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="body2" fontWeight="bold">{ecoTaxaSelectionCount} items selected</Typography>
                     <Stack direction="row" spacing={2}>
                         <Button variant="text" color="inherit" disabled={ecoTaxaSelectionCount === 0} startIcon={<OpenInNewIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
@@ -286,7 +283,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                     renderEmptyState(
                         loadingEcoTaxa ? "Loading EcoTaxa samples..."
                             : ecoTaxaError ? `Failed to load EcoTaxa samples (${ecoTaxaError})`
-                                : "No rows",
+                                : "No samples imported into ecotaxa.",
                         !loadingEcoTaxa && !!ecoTaxaError
                     )
                 ) : (
@@ -322,6 +319,6 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </Box>
+        </SectionCard>
     );
 };

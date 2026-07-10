@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
     Box, Container, Typography, Button, Tabs, Tab, Paper, Grid,
     TextField, LinearProgress, CircularProgress, Alert,
-    Stack
+    Stack, InputAdornment, IconButton, Tooltip
 } from "@mui/material";
 
 // Icons from your custom mockup design
@@ -11,20 +11,36 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import TerminalIcon from "@mui/icons-material/Terminal";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DownloadIcon from "@mui/icons-material/Download";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import MainLayout from "@/app/layouts/MainLayout";
+import SectionCard from "@/shared/components/SectionCard";
+import { ecotaxaColors } from "@/theme";
 import { deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, Task } from "../api/projects.api";
 import { isDownloadableTask } from "../utils/taskColumns";
 
 export default function TaskDetailsPage() {
-    const { id, taskId } = useParams<{ id: string; taskId: string }>();
+    const { id, taskId, tabName } = useParams<{ id?: string; taskId: string; tabName?: string }>();
     const navigate = useNavigate();
 
     const parsedProjectId = id ? (Number.isNaN(Number.parseInt(id, 10)) ? null : Number.parseInt(id, 10)) : null;
     const parsedTaskId = taskId ? (Number.isNaN(Number.parseInt(taskId, 10)) ? null : Number.parseInt(taskId, 10)) : null;
 
-    // --- 1. LOCAL REACT STATE ---
-    const [currentTab, setCurrentTab] = useState<number>(0);
+    // The active tab is driven by the URL (general / logfile).
+    const currentTab = tabName === "logfile" ? 1 : 0;
+
+    // "Back" and post-delete navigation: the project's tasks tab when opened from
+    // a project, otherwise the global tasks list.
+    const tasksListPath = parsedProjectId !== null ? `/projects/${parsedProjectId}/tasks` : "/tasks";
+
+    // Base path for this task detail, preserving project vs global context.
+    const taskDetailBase = parsedProjectId !== null
+        ? `/projects/${parsedProjectId}/tasks/${parsedTaskId}`
+        : `/tasks/${parsedTaskId}`;
+
+    const handleTabChange = (_e: React.SyntheticEvent, val: number) => {
+        navigate(`${taskDetailBase}/${val === 1 ? "logfile" : "general"}`);
+    };
     const [task, setTask] = useState<Task | null>(null);
     const [logContent, setLogContent] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -98,7 +114,7 @@ export default function TaskDetailsPage() {
         setIsDeleting(true);
         try {
             await deleteProjectTask(parsedTaskId);
-            navigate(`/projects/${parsedProjectId}/tasks`);
+            navigate(tasksListPath);
         } catch (err) {
             console.error("[Task Details] Delete failed:", err);
             setError("Failed to delete task. Please try again.");
@@ -107,7 +123,9 @@ export default function TaskDetailsPage() {
         }
     };
 
-    if (parsedProjectId === null || parsedTaskId === null) {
+    // The task id must be valid. The project id is optional (absent on the
+    // global /tasks/:taskId route); only flag it when present but malformed.
+    if (parsedTaskId === null || (id !== undefined && parsedProjectId === null)) {
         return (
             <MainLayout>
                 <Container sx={{ mt: 4 }}><Alert severity="error">Malformed route identifiers.</Alert></Container>
@@ -181,7 +199,7 @@ export default function TaskDetailsPage() {
                 {/* BACK NAVIGATION ACTION */}
                 <Button
                     startIcon={<ArrowBackIcon />}
-                    onClick={() => navigate(`/projects/${parsedProjectId}/tasks`)}
+                    onClick={() => navigate(tasksListPath)}
                     sx={{ mb: 3, fontWeight: "bold" }}
                     color="inherit"
                 >
@@ -220,7 +238,7 @@ export default function TaskDetailsPage() {
 
                             {/* NAVIGATION TABS STRUCTURE */}
                             <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 4 }}>
-                                <Tabs value={currentTab} onChange={(_e, val) => setCurrentTab(val)}>
+                                <Tabs value={currentTab} onChange={handleTabChange}>
                                     <Tab icon={<AssignmentIcon />} iconPosition="start" label="GENERAL" />
                                     <Tab icon={<TerminalIcon />} iconPosition="start" label="LOG FILE" />
                                 </Tabs>
@@ -230,8 +248,8 @@ export default function TaskDetailsPage() {
                             {currentTab === 0 ? (
                                 <Box>
                                     {/* PROGRESS LINE COMPONENT */}
-                                    <Paper variant="outlined" sx={{ p: 4, mb: 4, position: "relative" }}>
-                                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>General</Typography>
+                                    <SectionCard sx={{ mb: 4, position: "relative" }}>
+                                        <Typography variant="h6" sx={{ mb: 2 }}>General</Typography>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 3, mt: 3, mb: 2 }}>
                                             <Box sx={{ width: "100%" }}>
                                                 <LinearProgress
@@ -245,11 +263,11 @@ export default function TaskDetailsPage() {
                                                 {task.task_progress_pct ?? 0}%
                                             </Typography>
                                         </Box>
-                                    </Paper>
+                                    </SectionCard>
 
                                     {/* SPECIFIC ATTRIBUTES META CONTROLS */}
-                                    <Paper variant="outlined" sx={{ p: 4, mb: 4 }}>
-                                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 3 }}>Task information</Typography>
+                                    <SectionCard sx={{ mb: 4 }}>
+                                        <Typography variant="h6" sx={{ mb: 3 }}>Task information</Typography>
                                         <Box component="form" noValidate autoComplete="off">
                                             <Grid container spacing={3}>
                                                 <Grid size={{ xs: 12, md: 6 }}>
@@ -262,7 +280,29 @@ export default function TaskDetailsPage() {
                                                     <TextField fullWidth label="Type" value={task.task_type ?? "Unknown"} size="small" InputProps={{ readOnly: true }} />
                                                 </Grid>
                                                 <Grid size={{ xs: 12, md: 6 }}>
-                                                    <TextField fullWidth label="Project ID" value={task.task_project_id ?? "Global scope"} size="small" InputProps={{ readOnly: true }} />
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Project ID"
+                                                        value={task.task_project_id ?? "Global scope"}
+                                                        size="small"
+                                                        InputProps={{
+                                                            readOnly: true,
+                                                            endAdornment: task.task_project_id != null ? (
+                                                                <InputAdornment position="end">
+                                                                    <Tooltip title="Open project">
+                                                                        <IconButton
+                                                                            size="small"
+                                                                            edge="end"
+                                                                            onClick={() => navigate(`/projects/${task.task_project_id}/metadata`)}
+                                                                            aria-label="Open project"
+                                                                        >
+                                                                            <OpenInNewIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                    </Tooltip>
+                                                                </InputAdornment>
+                                                            ) : undefined,
+                                                        }}
+                                                    />
                                                 </Grid>
                                                 <Grid size={{ xs: 12 }}>
                                                     <TextField fullWidth label="Message" value={task.task_progress_msg ?? "No report message available"} size="small" InputProps={{ readOnly: true }} />
@@ -272,17 +312,17 @@ export default function TaskDetailsPage() {
                                                 </Grid>
                                             </Grid>
                                         </Box>
-                                    </Paper>
+                                    </SectionCard>
 
                                     {/* INPUT ARGUMENTS ARBORESCENCE TREE */}
-                                    <Paper variant="outlined" sx={{ p: 4 }}>
-                                        <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>Input parameters :</Typography>
+                                    <SectionCard>
+                                        <Typography variant="h6" sx={{ mb: 2 }}>Input parameters :</Typography>
                                         <Box
                                             sx={{
                                                 p: 3,
-                                                backgroundColor: "#f8fafd",
+                                                backgroundColor: ecotaxaColors.secondblue[50],
                                                 borderRadius: 1,
-                                                border: "1px solid #e3ecf5",
+                                                border: `1px solid ${ecotaxaColors.secondblue[100]}`,
                                                 fontFamily: "monospace",
                                                 fontSize: "0.85rem",
                                                 whiteSpace: "pre-wrap"
@@ -290,7 +330,7 @@ export default function TaskDetailsPage() {
                                         >
                                             {parseTaskParams(task.task_params)}
                                         </Box>
-                                    </Paper>
+                                    </SectionCard>
                                 </Box>
                             ) : (
                                 /* TEXT STREAM CONSOLE COMPONENT */
@@ -312,7 +352,7 @@ export default function TaskDetailsPage() {
                                     {logContent ? (
                                         logContent.split("\n").map((line, idx) => (
                                             <Box key={idx} sx={{
-                                                color: line.includes("failed") || line.includes("error") ? "#f44336" : line.includes("successfully") || line.includes("done") ? "#4caf50" : "#d4d4d4"
+                                                color: line.includes("failed") || line.includes("error") ? ecotaxaColors.danger[400] : line.includes("successfully") || line.includes("done") ? ecotaxaColors.success[400] : "#d4d4d4"
                                             }}>
                                                 {line}
                                             </Box>

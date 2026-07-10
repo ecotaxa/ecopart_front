@@ -131,7 +131,7 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         expect(await screen.findByRole('heading', { name: 'Test Project' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /BACKUP/i })).toHaveAttribute('aria-selected', 'true');
-        expect(await screen.findByRole('heading', { name: /^Backup$/i })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /Backup of the raw project/i })).toBeInTheDocument();
     }, 20000);
 
     // TC-I6: Initial Render From Navigation State
@@ -147,7 +147,7 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         expect(await screen.findByRole('heading', { name: 'Test Project' })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /IMPORT/i })).toHaveAttribute('aria-selected', 'true');
-        expect(await screen.findByRole('heading', { name: /^Import$/i })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: /New UVP samples/i })).toBeInTheDocument();
     });
 
     // TC-I4: Explore Navigation

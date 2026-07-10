@@ -2,6 +2,7 @@ import React from "react";
 import { Box, Typography, TextField } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import InputAdornment from '@mui/material/InputAdornment';
+import { ecotaxaColors } from "@/theme";
 import { NewProjectFormValues } from "../types/newProject.types";
 
 interface DataServerSectionProps {
@@ -24,7 +25,7 @@ export const DataServerSection: React.FC<DataServerSectionProps> = ({ values, on
             {/* LEFT SIDE: The Yellow Warning Box (Mockup exact match) */}
             <Grid size={{ xs: 12, md: 4 }}>
                 <Box sx={{
-                    backgroundColor: '#fff3cd', // Pale yellow
+                    backgroundColor: ecotaxaColors.warning[100], // Pale yellow (palette warning tint)
                     p: 3,
                     height: '100%',
                     display: 'flex',
@@ -39,7 +40,7 @@ export const DataServerSection: React.FC<DataServerSectionProps> = ({ values, on
 
             {/* RIGHT SIDE: The Form */}
             <Grid size={{ xs: 12, md: 8 }}>
-                <Typography variant="h6" fontWeight="bold">Connection to data server</Typography>
+                <Typography variant="h6">Connection to data server</Typography>
                 <Typography variant="body2" color="warning.main" gutterBottom sx={{ mb: 3 }}>
                     Please, don't forget to fill this section, now or later.
                 </Typography>

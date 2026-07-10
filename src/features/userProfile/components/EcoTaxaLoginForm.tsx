@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react"; //  Added useEffect
 import {
-    Box,
     Button,
     TextField,
     Typography,
@@ -27,6 +26,8 @@ interface EcoTaxaLoginFormProps {
     onSuccess: () => void;      // Callback to trigger when login succeeds (to refresh parent list)
     onCancel: () => void;       // Callback to trigger when user clicks cancel
     showCancelButton: boolean;  // Conditional rendering for the cancel button
+    initialEmail?: string;      // Pre-fill the email (used by "Reconnect" on an expired account)
+    initialInstanceId?: number; // Pre-select the EcoTaxa instance (used by "Reconnect")
 }
 
 /**
@@ -38,7 +39,9 @@ export const EcoTaxaLoginForm = ({
     userId,
     onSuccess,
     onCancel,
-    showCancelButton
+    showCancelButton,
+    initialEmail,
+    initialInstanceId
 }: EcoTaxaLoginFormProps) => {
 
     // --- LOCAL STATE ---
@@ -50,8 +53,8 @@ export const EcoTaxaLoginForm = ({
     const [loadingInstances, setLoadingInstances] = useState(true);
 
     // Form state - instance ID will be set after instances are loaded
-    const [etInstance, setEtInstance] = useState<number | "">("");
-    const [etEmail, setEtEmail] = useState("");
+    const [etInstance, setEtInstance] = useState<number | "">(initialInstanceId ?? "");
+    const [etEmail, setEtEmail] = useState(initialEmail ?? "");
     const [etPassword, setEtPassword] = useState("");
     const [etConsent, setEtConsent] = useState(false);
     const [etLinking, setEtLinking] = useState(false); // Loading state for form submission
@@ -66,9 +69,15 @@ export const EcoTaxaLoginForm = ({
                 const fetchedInstances = await getEcoTaxaInstances();
                 setInstances(fetchedInstances);
 
-                // Auto-select the first instance if available
+                // Prefer the pre-selected instance (Reconnect flow) when it is
+                // among the fetched ones; otherwise fall back to the first.
                 if (fetchedInstances.length > 0) {
-                    setEtInstance(fetchedInstances[0].ecotaxa_instance_id);
+                    const preferred =
+                        initialInstanceId != null &&
+                        fetchedInstances.some(i => i.ecotaxa_instance_id === initialInstanceId)
+                            ? initialInstanceId
+                            : fetchedInstances[0].ecotaxa_instance_id;
+                    setEtInstance(preferred);
                 }
             } catch (error) {
                 console.error("Failed to fetch EcoTaxa instances", error);
@@ -79,7 +88,7 @@ export const EcoTaxaLoginForm = ({
         };
 
         fetchInstances();
-    }, []);
+    }, [initialInstanceId]);
 
     // --- HANDLERS ---
 
@@ -153,14 +162,6 @@ export const EcoTaxaLoginForm = ({
 
     return (
         <Stack spacing={3} sx={{ maxWidth: 400, mx: 'auto', textAlign: 'center', alignItems: 'center' }}>
-
-            {/* Header Section with Image Logo */}
-            <Box
-                component="img"
-                src="/logo_ecopart.png"
-                alt="EcoPart"
-                sx={{ height: 48, mb: 2 }}
-            />
 
             <Typography variant="h6" sx={{ mt: 1 }}>
                 Log in to EcoTaxa

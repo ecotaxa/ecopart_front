@@ -17,6 +17,9 @@ import {
     DialogContentText,
     DialogActions,
     Stack,
+    Chip,
+    Checkbox,
+    FormControlLabel,
     IconButton // Added for the logout icon
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -25,18 +28,21 @@ import CloudIcon from "@mui/icons-material/Cloud";
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'; // Icon for admin
 // icons for the list view to match mockup
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ReplayIcon from '@mui/icons-material/Replay';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
 
-// Import useLocation to read the state passed from TopBar
-import { useNavigate, useLocation } from "react-router-dom";
+// useParams drives the active tab from the URL (/settings/:tabName);
+// useLocation still supports the legacy `state.activeTab` navigation.
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 
 // Shared components & layouts
 import MainLayout from "@/app/layouts/MainLayout";
 import { CountriesWrapper, CountryOption } from "@/shared/country-wrapper";
 import { PasswordInput } from "@/shared/components/PasswordInput";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, type SyntheticEvent } from "react";
 
 // Validation utils
 import {
@@ -59,6 +65,7 @@ import {
     type EcoTaxaAccountLink // Type
 } from "../api/profile.api";
 import { User } from "@/features/auth/types/user";
+import { ecotaxaColors } from "@/theme";
 
 // Auth Store (to logout user after deletion)
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -83,9 +90,17 @@ export default function ProfilePage() {
     // Get setUser to update profile locally, and clearUser for deletion
     const { setUser, clearUser } = useAuthStore();
 
-    // Read the initial tab from location.state if it exists, otherwise default to 0
-    const initialTab = location.state?.activeTab ?? 0;
-    const [tabValue, setTabValue] = useState(initialTab);
+    // The active tab is driven by the URL slug (/settings/:tabName).
+    // Falls back to the legacy `location.state.activeTab`, then to tab 0.
+    const { tabName } = useParams<{ tabName?: string }>();
+    const TAB_SLUGS = ["ecopart_account", "ecotaxa_account"] as const;
+    const slugIndex = tabName ? TAB_SLUGS.indexOf(tabName as typeof TAB_SLUGS[number]) : -1;
+    const stateTab = typeof location.state?.activeTab === "number" ? location.state.activeTab : -1;
+    const tabValue = slugIndex >= 0 ? slugIndex : (stateTab >= 0 ? stateTab : 0);
+
+    const handleTabChange = (_e: SyntheticEvent, newValue: number) => {
+        navigate(`/settings/${TAB_SLUGS[newValue] ?? TAB_SLUGS[0]}`);
+    };
 
     const [loadingUser, setLoadingUser] = useState(true);
 
@@ -97,6 +112,8 @@ export default function ProfilePage() {
     const [organisation, setOrganisation] = useState("");
     const [countryCode, setCountryCode] = useState<string>("");
     const [plannedUsage, setPlannedUsage] = useState("");
+    // Admin flag, edited as a form field (only admins can toggle it) and saved with the profile.
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const [profileSaving, setProfileSaving] = useState(false);
     const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -119,10 +136,13 @@ export default function ProfilePage() {
     // --- STATES: LINKED ACCOUNTS LIST & UNLINK ---
     const [linkedAccounts, setLinkedAccounts] = useState<EcoTaxaAccountLink[]>([]);
     const [showLinkForm, setShowLinkForm] = useState(false);
+    // When reconnecting an expired account, seed the form with its email + instance.
+    const [reconnectTarget, setReconnectTarget] = useState<{ email: string; instanceId: number } | null>(null);
 
     // states for the Unlink Confirmation Dialog
     const [openUnlinkDialog, setOpenUnlinkDialog] = useState(false);
     const [accountToUnlink, setAccountToUnlink] = useState<number | null>(null);
+
 
     const countryOptions = useMemo<CountryOption[]>(
         () => CountriesWrapper.list(),
@@ -164,6 +184,7 @@ export default function ProfilePage() {
                 const isValidCode = countryOptions.some((c) => c.code === code);
                 setCountryCode(isValidCode ? code : "");
                 setPlannedUsage(userData.user_planned_usage || "");
+                setIsAdmin(!!userData.is_admin);
 
                 // Load connected accounts immediately when profile loads
                 fetchLinkedAccounts(userData.user_id);
@@ -178,13 +199,6 @@ export default function ProfilePage() {
         loadUserData();
     }, [countryOptions, fetchLinkedAccounts]);
 
-    // Add useEffect to update tab if user clicks the menu while already on the settings page
-    useEffect(() => {
-        if (location.state?.activeTab !== undefined) {
-            setTabValue(location.state.activeTab);
-        }
-    }, [location.state]);
-
     const getDaysLeft = (expirationDate: string) => {
         if (!expirationDate) return 0;
         const today = new Date();
@@ -198,6 +212,12 @@ export default function ProfilePage() {
         return account.ecotaxa_user_email || account.ecotaxa_user_login || account.ecotaxa_user_name;
     };
 
+    // An account is expired once its expiration date is in the past.
+    const isExpired = (expirationDate: string) => {
+        if (!expirationDate) return false;
+        return new Date(expirationDate).getTime() <= Date.now();
+    };
+
     // --- HANDLERS ---
 
     // ... (Keep handleProfileSave, handleProfileCancel, handleChangePassword, handleDeleteClick, handleConfirmDelete AS IS) ...
@@ -206,11 +226,14 @@ export default function ProfilePage() {
         setProfileMessage(null);
         setProfileSaving(true);
         try {
-            const updatedProfileData = await updateProfile(user.user_id, {
+            const payload: Partial<User> = {
                 first_name: firstName, last_name: lastName, organisation, country: countryCode, user_planned_usage: plannedUsage,
-            });
+            };
+            // Only admins can change the admin flag; include it only then.
+            if (user.is_admin) payload.is_admin = isAdmin;
+            const updatedProfileData = await updateProfile(user.user_id, payload);
             const mergedUser = { ...user, ...updatedProfileData };
-            setUserData(mergedUser); setUser(mergedUser);
+            setUserData(mergedUser); setUser(mergedUser); // keep TopBar Admin link in sync
             setProfileMessage({ type: "success", text: "Profile updated successfully." });
         } catch (err) {
             console.error(err);
@@ -220,7 +243,7 @@ export default function ProfilePage() {
 
     const handleProfileCancel = () => {
         if (user) {
-            setFirstName(user.first_name || ""); setLastName(user.last_name || ""); setOrganisation(user.organisation || ""); setCountryCode(user.country || ""); setPlannedUsage(user.user_planned_usage || ""); setProfileMessage(null);
+            setFirstName(user.first_name || ""); setLastName(user.last_name || ""); setOrganisation(user.organisation || ""); setCountryCode(user.country || ""); setPlannedUsage(user.user_planned_usage || ""); setIsAdmin(!!user.is_admin); setProfileMessage(null);
         }
     };
 
@@ -261,8 +284,32 @@ export default function ProfilePage() {
         if (!user) return;
         // 1. Refresh list
         await fetchLinkedAccounts(user.user_id);
-        // 2. Hide form (Component will unmount and reset state automatically)
+        // 2. Hide form and clear any reconnect prefill (form remounts fresh next time)
         setShowLinkForm(false);
+        setReconnectTarget(null);
+    };
+
+    // Reconnect an expired account: unlink it first, then open the link form
+    // pre-filled with its email + instance so the user just re-enters the password.
+    const [reconnecting, setReconnecting] = useState<number | null>(null);
+    const handleReconnectClick = async (account: EcoTaxaAccountLink) => {
+        if (!user) return;
+        const target = {
+            email: account.ecotaxa_user_email || account.ecotaxa_user_login || "",
+            instanceId: account.ecotaxa_account_instance_id,
+        };
+        setReconnecting(account.ecotaxa_account_id);
+        try {
+            await unlinkEcoTaxaAccount(user.user_id, account.ecotaxa_account_id);
+            await fetchLinkedAccounts(user.user_id);
+        } catch (err) {
+            console.error("Failed to unlink account before reconnecting", err);
+        } finally {
+            setReconnecting(null);
+        }
+        // Open the pre-filled form (fetchLinkedAccounts may have toggled it off).
+        setReconnectTarget(target);
+        setShowLinkForm(true);
     };
 
     // --- HANDLERS: ECOTAXA UNLINK ---
@@ -316,7 +363,7 @@ export default function ProfilePage() {
                 <Typography variant="h4" sx={{ mb: 2 }}>Settings</Typography>
 
                 <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
-                    <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
+                    <Tabs value={tabValue} onChange={handleTabChange}>
                         <Tab icon={<PersonIcon />} iconPosition="start" label="ECOPART ACCOUNT" />
                         <Tab icon={<CloudIcon />} iconPosition="start" label="ECOTAXA ACCOUNTS" />
                     </Tabs>
@@ -328,7 +375,9 @@ export default function ProfilePage() {
                         <Paper variant="outlined" sx={{ p: 3, mb: 4 }}>
                             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                                 <Typography variant="h6">Profile</Typography>
-                                {user?.is_admin && <Button variant="contained" color="secondary" size="small" startIcon={<AdminPanelSettingsIcon />} onClick={() => navigate('/admin')}>ADMIN DASHBOARD</Button>}
+                                {user?.is_admin && (
+                                    <Button variant="contained" color="primary" size="small" startIcon={<AdminPanelSettingsIcon />} onClick={() => navigate('/admin')}>ADMIN DASHBOARD</Button>
+                                )}
                             </Stack>
                             <Divider sx={{ mb: 3 }} />
                             {profileMessage && <Alert severity={profileMessage.type} sx={{ mb: 2 }}>{profileMessage.text}</Alert>}
@@ -397,6 +446,14 @@ export default function ProfilePage() {
                                         helperText="Describe briefly how you plan to use the data."
                                     />
                                 </Grid>
+                                {user?.is_admin && (
+                                    <Grid size={{ xs: 12 }}>
+                                        <FormControlLabel
+                                            control={<Checkbox checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />}
+                                            label="Administrator"
+                                        />
+                                    </Grid>
+                                )}
                             </Grid>
                             <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
                                 <Button variant="contained" onClick={handleProfileSave} disabled={profileSaving || !canSaveProfile}>{profileSaving ? "Saving..." : "SAVE"}</Button>
@@ -508,20 +565,24 @@ export default function ProfilePage() {
                     <Box>
                         <Typography variant="h6" gutterBottom>Accounts on EcoTaxa instances</Typography>
 
-                        {/* LIST VIEW */}
-                        {!showLinkForm && (
-                            <Stack spacing={2} sx={{ mt: 2 }}>
-                                {linkedAccounts.map((account) => (
+                        {/* CONNECTED ACCOUNTS — always visible (the form appears below, never hides them) */}
+                        <Stack spacing={2} sx={{ mt: 2 }}>
+                            {linkedAccounts.map((account) => {
+                                const expired = isExpired(account.ecotaxa_expiration_date);
+                                return (
                                     <Paper
                                         key={account.ecotaxa_account_id}
                                         variant="outlined"
                                         sx={{
                                             p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                            backgroundColor: '#F0F7FF', borderColor: '#90CAF9'
+                                            backgroundColor: expired ? ecotaxaColors.danger[50] : ecotaxaColors.secondblue[50],
+                                            borderColor: expired ? 'error.light' : ecotaxaColors.secondblue[200]
                                         }}
                                     >
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                            <CheckCircleOutlineIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
+                                            {expired
+                                                ? <ErrorOutlineIcon sx={{ fontSize: 40, color: 'error.main' }} />
+                                                : <CheckCircleOutlineIcon sx={{ fontSize: 40, color: 'text.secondary' }} />}
                                             <Box>
                                                 <Typography variant="subtitle1" fontWeight="bold">
                                                     {getEcoTaxaAccountLabel(account)}
@@ -529,42 +590,63 @@ export default function ProfilePage() {
                                                 <Typography variant="body2" color="text.secondary">
                                                     Instance: {account.ecotaxa_account_instance_name}
                                                 </Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {getDaysLeft(account.ecotaxa_expiration_date)} days left
-                                                </Typography>
+                                                {expired
+                                                    ? <Chip label="Expired" color="error" size="small" variant="outlined" sx={{ mt: 0.5 }} />
+                                                    : <Typography variant="body2" color="text.secondary">
+                                                        {getDaysLeft(account.ecotaxa_expiration_date)} days left
+                                                    </Typography>}
                                             </Box>
                                         </Box>
 
-                                        {/* UNLINK BUTTON */}
-                                        <IconButton
-                                            size="small"
-                                            color="primary"
-                                            onClick={() => handleUnlinkClick(account.ecotaxa_account_id)}
-                                            aria-label="Disconnect EcoTaxa account"
-                                        >
-                                            <LogoutIcon />
-                                        </IconButton>
+                                        <Stack direction="row" spacing={1} alignItems="center">
+                                            {expired && (
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    startIcon={<ReplayIcon />}
+                                                    disabled={reconnecting === account.ecotaxa_account_id}
+                                                    onClick={() => handleReconnectClick(account)}
+                                                >
+                                                    {reconnecting === account.ecotaxa_account_id ? "Removing…" : "Reconnect"}
+                                                </Button>
+                                            )}
+                                            <IconButton
+                                                size="small"
+                                                color="primary"
+                                                onClick={() => handleUnlinkClick(account.ecotaxa_account_id)}
+                                                aria-label="Disconnect EcoTaxa account"
+                                            >
+                                                <LogoutIcon />
+                                            </IconButton>
+                                        </Stack>
                                     </Paper>
-                                ))}
+                                );
+                            })}
 
+                            {/* Add-account trigger — hidden while the form is open */}
+                            {!showLinkForm && (
                                 <Button
                                     variant="outlined" color="inherit" fullWidth startIcon={<AddIcon />}
-                                    onClick={() => setShowLinkForm(true)}
+                                    onClick={() => { setReconnectTarget(null); setShowLinkForm(true); }}
                                     sx={{ justifyContent: 'flex-start', p: 2, textTransform: 'none', borderColor: 'divider', color: 'text.primary' }}
                                 >
                                     Connect to another account
                                 </Button>
-                            </Stack>
-                        )}
+                            )}
+                        </Stack>
 
-                        {/* FORM VIEW */}
+                        {/* FORM — appears below the list, seeded for reconnect when applicable */}
                         {showLinkForm && user && (
                             <Paper variant="outlined" sx={{ p: 4, mt: 2 }}>
                                 <EcoTaxaLoginForm
+                                    key={reconnectTarget?.email ?? 'new'}
                                     userId={user.user_id}
                                     onSuccess={handleLoginSuccess}
-                                    onCancel={() => setShowLinkForm(false)}
+                                    onCancel={() => { setShowLinkForm(false); setReconnectTarget(null); }}
                                     showCancelButton={linkedAccounts.length > 0}
+                                    initialEmail={reconnectTarget?.email}
+                                    initialInstanceId={reconnectTarget?.instanceId}
                                 />
                             </Paper>
                         )}

@@ -48,7 +48,7 @@ describe('TaskDetailsPage (Accessibility)', () => {
         const user = userEvent.setup();
         renderWithRouter(
             <Routes>
-                <Route path="/projects/:id/tasks/:taskId" element={<TaskDetailsPage />} />
+                <Route path="/projects/:id/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
             </Routes>,
             { route: '/projects/77/tasks/42' },
         );

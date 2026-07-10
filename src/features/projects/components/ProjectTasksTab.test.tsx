@@ -42,7 +42,7 @@ const renderTab = () =>
     renderWithRouter(
         <Routes>
             <Route path="/" element={<ProjectTasksTab projectId={PROJECT_ID} />} />
-            <Route path="/projects/:id/tasks/:taskId" element={<h1>Task Details Page</h1>} />
+            <Route path="/projects/:id/tasks/:taskId/:tabName?" element={<h1>Task Details Page</h1>} />
         </Routes>,
     );
 

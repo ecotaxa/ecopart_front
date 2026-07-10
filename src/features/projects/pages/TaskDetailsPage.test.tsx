@@ -38,7 +38,7 @@ const makeTask = (overrides: Partial<Task> = {}): Task => ({
 const renderDetail = (route = '/projects/77/tasks/42') =>
     renderWithRouter(
         <Routes>
-            <Route path="/projects/:id/tasks/:taskId" element={<TaskDetailsPage />} />
+            <Route path="/projects/:id/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
             <Route path="/projects/:id/tasks" element={<h1>Tasks List Page</h1>} />
         </Routes>,
         { route },
@@ -75,6 +75,26 @@ describe('TaskDetailsPage (Functional)', () => {
         expect(screen.getByDisplayValue('DONE')).toBeInTheDocument(); // Status field
         expect(screen.getByDisplayValue('IMPORT')).toBeInTheDocument(); // Type field
         expect(screen.getByDisplayValue('77')).toBeInTheDocument(); // Project ID field
+    });
+
+    // TC-S2b: Global task route (opened from /tasks, no project in the URL)
+    it('TC-S2b: renders from the global /tasks route and returns to /tasks', async () => {
+        const user = userEvent.setup();
+        renderWithRouter(
+            <Routes>
+                <Route path="/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
+                <Route path="/tasks" element={<h1>Global Tasks List</h1>} />
+            </Routes>,
+            { route: '/tasks/42/general' },
+        );
+
+        // Renders the task (no "Malformed route identifiers." alert) despite the
+        // absent project id, and "back" returns to the global tasks list.
+        expect(await screen.findByText('IMPORT task [42]')).toBeInTheDocument();
+        expect(screen.queryByText('Malformed route identifiers.')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /Back to tasks list/i }));
+        expect(await screen.findByRole('heading', { name: 'Global Tasks List' })).toBeInTheDocument();
     });
 
     // TC-S3: Tab Switch Loads Log

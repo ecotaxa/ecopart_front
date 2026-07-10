@@ -9,6 +9,7 @@ import {
     Tab,
 } from "@mui/material";
 import MainLayout from "@/app/layouts/MainLayout";
+import SectionCard from "@/shared/components/SectionCard";
 
 // Import your tabs
 import { ProjectMetadataTab } from "../components/ProjectMetadataTab";
@@ -110,11 +111,11 @@ export default function ProjectDetailsPage() {
     };
 
     const renderComingSoonTab = (label: string) => (
-        <Box sx={{ p: 4, textAlign: "center" }}>
+        <SectionCard sx={{ textAlign: "center" }}>
             <Typography variant="h6" color="text.secondary">
                 {label} Tab (Coming Soon)
             </Typography>
-        </Box>
+        </SectionCard>
     );
 
     return (

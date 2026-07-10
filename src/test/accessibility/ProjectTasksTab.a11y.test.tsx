@@ -51,10 +51,8 @@ describe('ProjectTasksTab (Accessibility)', () => {
         await screen.findByText('IMPORT');
 
         const deleteButton = screen.getByRole('button', { name: /DELETE/i });
-        const restartButton = screen.getByRole('button', { name: /RESTART/i });
 
         expect(deleteButton).toBeDisabled();
-        expect(restartButton).toBeDisabled();
 
         // Select the row using the keyboard (focus the checkbox, press Space).
         const checkboxes = screen.getAllByRole('checkbox');

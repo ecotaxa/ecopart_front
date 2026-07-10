@@ -1,10 +1,11 @@
 import React from "react";
 import {
     Box, Typography, Button, Switch, FormControlLabel,
-    TextField, Divider, Paper, Snackbar, Alert, CircularProgress, InputAdornment
+    TextField, Snackbar, Alert, CircularProgress, InputAdornment
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
+import SectionCard from "@/shared/components/SectionCard";
 import { useProjectBackupTab } from "../hooks/useProjectBackupTab";
 
 interface ProjectBackupTabProps {
@@ -62,16 +63,11 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
     };
 
     return (
-        <Box sx={{ mt: 2 }}>
-            <Typography variant="h5" gutterBottom>
-                Backup
-            </Typography>
-            <Divider sx={{ mb: 4 }} />
-
-            <Paper variant="outlined" sx={{ p: 4, mb: 4 }}>
+        <>
+            <SectionCard>
                 {/* --- 1. BACKUP SECTION --- */}
                 <Box sx={{ mb: 6 }}>
-                    <Typography variant="subtitle1" fontWeight="bold">
+                    <Typography variant="h6">
                         Backup <Box component="span" fontWeight="normal">of the raw project</Box>
                     </Typography>
 
@@ -140,7 +136,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
 
                 {/* --- 2. EXPORT SECTION --- */}
                 <Box>
-                    <Typography variant="subtitle1" fontWeight="bold">
+                    <Typography variant="h6">
                         Export <Box component="span" fontWeight="normal">of the backed-up raw project</Box>
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -175,7 +171,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                         {isExporting ? "STARTING..." : "START"}
                     </Button>
                 </Box>
-            </Paper>
+            </SectionCard>
 
             {/* --- GLOBAL NOTIFICATIONS --- */}
             <Snackbar
@@ -188,6 +184,6 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </Box>
+        </>
     );
 };

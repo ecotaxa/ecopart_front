@@ -1,6 +1,6 @@
 import {
     Box, Container, Typography, Button, TextField, MenuItem,
-    Snackbar, Alert, Stack, IconButton, Paper, CircularProgress, Tooltip
+    Snackbar, Alert, Stack, IconButton, CircularProgress, Tooltip
 } from "@mui/material";
 
 import CloseIcon from "@mui/icons-material/Close";
@@ -10,6 +10,8 @@ import { useNavigate } from "react-router-dom";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import MainLayout from "@/app/layouts/MainLayout";
+import SectionCard from "@/shared/components/SectionCard";
+import { ecotaxaColors } from "@/theme";
 import { useTasksTable } from "../hooks/useTasksTable";
 import { Task } from "../api/projects.api";
 import { buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
@@ -84,10 +86,10 @@ export default function TasksPage() {
         },
         "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center" },
         "& .MuiDataGrid-row": { cursor: "pointer" },
-        "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: '#f8faff' },
+        "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: ecotaxaColors.stone[50] },
         "& .MuiDataGrid-row.Mui-selected": {
-            backgroundColor: "#e6f0ff",
-            "&:hover": { backgroundColor: "#d9e8ff" }
+            backgroundColor: ecotaxaColors.secondblue[100],
+            "&:hover": { backgroundColor: ecotaxaColors.secondblue[200] }
         },
     };
 
@@ -95,7 +97,7 @@ export default function TasksPage() {
         <MainLayout>
             <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
                 <Box sx={{ mb: 4, textAlign: "center" }}>
-                    <Typography variant="h4" gutterBottom>Tasks</Typography>
+                    <Typography variant="h4" gutterBottom>My tasks</Typography>
                 </Box>
 
                 {error && (
@@ -106,10 +108,9 @@ export default function TasksPage() {
                     </Box>
                 )}
 
-                <Paper sx={{ width: "100%", overflow: "hidden" }}>
-                    {/* 1. HEADER + FILTER CONTROLS */}
-                    <Box sx={{ p: 3, borderBottom: "1px solid #e0e0e0" }}>
-                        <Typography variant="h6">Your tasks</Typography>
+                <SectionCard sx={{ p: 0, overflow: "hidden" }}>
+                    {/* HEADER + FILTER CONTROLS */}
+                    <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider" }}>
                         <Typography variant="body2" color="text.secondary">
                             Projects in which you have permissions
                         </Typography>
@@ -139,8 +140,8 @@ export default function TasksPage() {
                         </Stack>
                     </Box>
 
-                    {/* 2. SELECTION ACTIONS BAR */}
-                    <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f5f5f5" }}>
+                    {/* SELECTION ACTIONS BAR */}
+                    <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "grey.100" }}>
                         <Typography variant="body2" fontWeight="bold">
                             {selectionCount} items selected
                         </Typography>
@@ -163,10 +164,7 @@ export default function TasksPage() {
                             rows={tasks}
                             columns={columns}
                             getRowId={(row) => row.task_id}
-                            onRowClick={(params) => {
-                                const projectId = params.row.task_project_id;
-                                if (projectId != null) navigate(`/projects/${projectId}/tasks/${params.row.task_id}`);
-                            }}
+                            onRowClick={(params) => navigate(`/tasks/${params.row.task_id}/general`)}
                             checkboxSelection
                             disableRowSelectionExcludeModel
                             disableRowSelectionOnClick
@@ -182,7 +180,7 @@ export default function TasksPage() {
                             sx={dataGridStyles}
                         />
                     </Box>
-                </Paper>
+                </SectionCard>
 
                 <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={closeSnackbar} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
                     <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>

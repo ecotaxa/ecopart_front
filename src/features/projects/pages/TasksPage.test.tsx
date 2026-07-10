@@ -63,7 +63,7 @@ const renderTasksPage = (route = '/tasks') =>
     renderWithRouter(
         <Routes>
             <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/projects/:id/tasks/:taskId" element={<h1>Task Details Page</h1>} />
+            <Route path="/tasks/:taskId/:tabName?" element={<h1>Task Details Page</h1>} />
         </Routes>,
         { route },
     );
@@ -89,8 +89,8 @@ describe('TasksPage (Functional)', () => {
 
         renderTasksPage();
 
-        expect(screen.getByRole('heading', { name: 'Tasks' })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: 'Your tasks' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'My tasks' })).toBeInTheDocument();
+        expect(screen.getByText('Projects in which you have permissions')).toBeInTheDocument();
 
         expect(await screen.findByText('IMPORT')).toBeInTheDocument();
         expect(await screen.findByText('BACKUP')).toBeInTheDocument();
@@ -205,9 +205,9 @@ describe('TasksPage (Functional)', () => {
         expect(screen.getByText('System')).toBeInTheDocument();
     });
 
-    // TC-Q8: Row Navigation — the whole row is clickable; orphan tasks (no
-    // project) stay put since there's no project-scoped route to open.
-    it('TC-Q8: opens the task detail route on row click and ignores orphan tasks', async () => {
+    // TC-Q8: Row Navigation — clicking any row opens the global task detail
+    // route (/tasks/:id/general), independent of the task's project.
+    it('TC-Q8: opens the global task detail route on row click', async () => {
         const user = userEvent.setup();
         mockTasksSearch([
             makeTask({ task_id: 3, task_project_id: 7 }),
@@ -216,12 +216,8 @@ describe('TasksPage (Functional)', () => {
 
         renderTasksPage();
 
-        // Orphan task (no project): clicking the row does not navigate.
+        // Orphan task (no project) still opens the global detail route.
         await user.click(await screen.findByText('4'));
-        expect(screen.queryByRole('heading', { name: 'Task Details Page' })).not.toBeInTheDocument();
-
-        // Valid task: clicking the row opens its project-scoped detail route.
-        await user.click(screen.getByText('3'));
         expect(await screen.findByRole('heading', { name: 'Task Details Page' })).toBeInTheDocument();
     });
 

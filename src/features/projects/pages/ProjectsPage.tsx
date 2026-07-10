@@ -8,7 +8,6 @@ import {
     Stack,
     Chip,
     InputAdornment,
-    Paper,
     Menu,
     MenuItem,
     IconButton,
@@ -31,6 +30,7 @@ import CloseIcon from "@mui/icons-material/Close";
 
 import { useNavigate } from "react-router-dom";
 import MainLayout from "@/app/layouts/MainLayout";
+import SectionCard from "@/shared/components/SectionCard";
 import { MinimalUserModel, Project } from "../api/projects.api";
 import { useProjectsTable } from "../hooks/useProjectsTable";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -267,72 +267,9 @@ export default function ProjectsPage() {
             <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
                 <Box sx={{ mb: 4, textAlign: "center" }}>
                     <Typography variant="h4" gutterBottom>
-                        Projects
+                        My projects
                     </Typography>
                 </Box>
-
-                <Paper sx={{ p: 3, mb: 2 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="h6">Your projects</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Projects in which you have privilege
-                            </Typography>
-                        </Box>
-                    </Box>
-
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
-                        <TextField
-                            size="small"
-                            sx={{ flexGrow: 1 }}
-                            placeholder={searchAttribute === "project_id" ? "Search by ID (exact)" : "Search..."}
-                            value={searchText}
-                            onChange={(e) => setSearchText(e.target.value)}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon color="action" />
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-
-                        <TextField
-                            select
-                            label="Attribute"
-                            value={searchAttribute}
-                            onChange={(e) => setSearchAttribute(e.target.value)}
-                            size="small"
-                            sx={{ width: 170 }}
-                        >
-                            {/* Extended attributes based on backend allowed filters */}
-                            <MenuItem value="project_id">ID</MenuItem>
-                            <MenuItem value="project_title">Title</MenuItem>
-                            <MenuItem value="project_acronym">Acronym</MenuItem>
-                            <MenuItem value="cruise">Cruise</MenuItem>
-                            <MenuItem value="ship">Ship</MenuItem>
-                            <MenuItem value="instrument_model">Instrument</MenuItem>
-                            <MenuItem value="data_owner_email">Owner Email</MenuItem>
-                            <MenuItem value="operator_name">Operator</MenuItem>
-                        </TextField>
-
-                        <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick} sx={{ whiteSpace: 'nowrap' }}>
-                            {selectedFilter === "All" ? "All My Projects" :
-                                selectedFilter === "Manager" ? "My Managed Projects" :
-                                    `Filter: ${selectedFilter}`}
-                        </Button>
-
-                        <Menu anchorEl={filterAnchorEl} open={openFilter} onClose={() => handleFilterClose()}>
-                            <MenuItem onClick={() => handleFilterClose("All")}>All My Projects</MenuItem>
-                            <MenuItem onClick={() => handleFilterClose("Manager")}>My Managed Projects</MenuItem>
-                            <MenuItem onClick={() => handleFilterClose("Validated")}>Validated QC</MenuItem>
-                        </Menu>
-
-                        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/new-project")} sx={{ whiteSpace: 'nowrap' }}>
-                            NEW PROJECT
-                        </Button>
-                    </Stack>
-                </Paper>
 
                 {error && (
                     <Box sx={{ mb: 2 }}>
@@ -342,35 +279,108 @@ export default function ProjectsPage() {
                     </Box>
                 )}
 
-                <Paper sx={{ width: "100%", overflow: "hidden" }}>
-                    {rowSelectionModel.ids.size > 0 && (
-                        <Box
-                            sx={{
-                                p: 2,
-                                backgroundColor: "#f5f5f5",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                borderBottom: "1px solid #e0e0e0",
-                            }}
-                        >
-                            <Stack direction="row" alignItems="center" spacing={2}>
-                                <IconButton size="small" onClick={handleClearSelection} title="Clear selection">
-                                    <CloseIcon fontSize="small" />
-                                </IconButton>
-                                <Typography fontWeight="bold">{rowSelectionModel.ids.size} items selected</Typography>
-                            </Stack>
+                {/* SINGLE CARD: header + controls, then the table */}
+                <SectionCard sx={{ p: 0, overflow: "hidden" }}>
+                    {/* HEADER + FILTER CONTROLS */}
+                    <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider" }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Projects in which you have privilege
+                        </Typography>
 
-                            <Button
-                                color="inherit"
-                                endIcon={<ArrowForwardIcon />}
-                                onClick={handleExploreSelection}
-                                sx={{ fontWeight: "bold" }}
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
+                            <TextField
+                                size="small"
+                                sx={{ flexGrow: 1 }}
+                                placeholder={searchAttribute === "project_id" ? "Search by ID (exact)" : "Search..."}
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon color="action" />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+
+                            <TextField
+                                select
+                                label="Attribute"
+                                value={searchAttribute}
+                                onChange={(e) => setSearchAttribute(e.target.value)}
+                                size="small"
+                                sx={{ width: 210 }}
                             >
-                                EXPLORE SELECTION
+                                {/* Labels mirror the real backend field they filter on
+                                (see PublicProjectResponse). */}
+                                <MenuItem value="project_id">ID</MenuItem>
+                                <MenuItem value="project_title">Title</MenuItem>
+                                <MenuItem value="project_acronym">Acronym</MenuItem>
+                                <MenuItem value="project_description">Description</MenuItem>
+                                <MenuItem value="cruise">Cruise</MenuItem>
+                                <MenuItem value="ship">Ship</MenuItem>
+                                <MenuItem value="instrument_model">Instrument model</MenuItem>
+                                <MenuItem value="serial_number">Serial number</MenuItem>
+                                <MenuItem value="data_owner_name">Owner name</MenuItem>
+                                <MenuItem value="data_owner_email">Owner email</MenuItem>
+                                <MenuItem value="operator_name">Operator name</MenuItem>
+                                <MenuItem value="operator_email">Operator email</MenuItem>
+                                <MenuItem value="chief_scientist_name">Chief scientist name</MenuItem>
+                                <MenuItem value="chief_scientist_email">Chief scientist email</MenuItem>
+                                <MenuItem value="ecotaxa_project_name">EcoTaxa project</MenuItem>
+                            </TextField>
+
+                            <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick} sx={{ whiteSpace: 'nowrap' }}>
+                                {selectedFilter === "All" ? "All My Projects" :
+                                    selectedFilter === "Manager" ? "My Managed Projects" :
+                                        `Filter: ${selectedFilter}`}
                             </Button>
-                        </Box>
-                    )}
+
+                            <Menu anchorEl={filterAnchorEl} open={openFilter} onClose={() => handleFilterClose()}>
+                                <MenuItem onClick={() => handleFilterClose("All")}>All My Projects</MenuItem>
+                                <MenuItem onClick={() => handleFilterClose("Manager")}>My Managed Projects</MenuItem>
+                                <MenuItem onClick={() => handleFilterClose("Validated")}>Validated QC</MenuItem>
+                            </Menu>
+
+                            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/new-project")} sx={{ whiteSpace: 'nowrap' }}>
+                                NEW PROJECT
+                            </Button>
+                        </Stack>
+                    </Box>
+
+                    <Box
+                        sx={{
+                            p: 2,
+                            backgroundColor: "grey.100",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                        }}
+                    >
+                        <Stack direction="row" alignItems="center" spacing={2}>
+                            <IconButton
+                                size="small"
+                                onClick={handleClearSelection}
+                                title="Clear selection"
+                                disabled={rowSelectionModel.ids.size === 0}
+                            >
+                                <CloseIcon fontSize="small" />
+                            </IconButton>
+                            <Typography fontWeight="bold">{rowSelectionModel.ids.size} items selected</Typography>
+                        </Stack>
+
+                        <Button
+                            color="inherit"
+                            endIcon={<ArrowForwardIcon />}
+                            onClick={handleExploreSelection}
+                            disabled={rowSelectionModel.ids.size === 0}
+                            sx={{ fontWeight: "bold" }}
+                        >
+                            EXPLORE SELECTION
+                        </Button>
+                    </Box>
 
                     <Box sx={{ height: 600 }}>
                         <DataGrid
@@ -402,14 +412,14 @@ export default function ProjectsPage() {
                                     alignItems: "center",
                                 },
                                 "& .MuiDataGrid-columnHeaders": {
-                                    backgroundColor: "#f5f5f5",
+                                    backgroundColor: "grey.100",
                                     fontWeight: "bold",
-                                    borderTop: rowSelectionModel.ids.size > 0 ? "none" : undefined,
+                                    borderTop: "none",
                                 },
                             }}
                         />
                     </Box>
-                </Paper>
+                </SectionCard>
             </Container>
         </MainLayout>
     );

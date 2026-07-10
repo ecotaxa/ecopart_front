@@ -1,17 +1,19 @@
 import React from "react";
 import {
-    Box, Typography, Button, TextField, MenuItem, Divider,
+    Box, Typography, Button, TextField, MenuItem,
     Snackbar, Alert, Stack, IconButton, CircularProgress, Tooltip
 } from "@mui/material";
 
 // System design elements mapping the user mockup icons
 import CloseIcon from "@mui/icons-material/Close";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import DownloadIcon from "@mui/icons-material/Download";
 
 import { useNavigate } from "react-router-dom";
 
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { ecotaxaColors } from "@/theme";
+import SectionCard from "@/shared/components/SectionCard";
+
 import { useProjectTasksTab } from "../hooks/useProjectTasksTab";
 import { Task } from "../api/projects.api";
 import { buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
@@ -83,21 +85,19 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
         },
         "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center" },
         "& .MuiDataGrid-row": { cursor: "pointer" },
-        "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: '#f8faff' },
+        "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: ecotaxaColors.stone[50] },
         "& .MuiDataGrid-row.Mui-selected": {
-            backgroundColor: "#e6f0ff",
-            "&:hover": { backgroundColor: "#d9e8ff" }
+            backgroundColor: ecotaxaColors.secondblue[100],
+            "&:hover": { backgroundColor: ecotaxaColors.secondblue[200] }
         },
     };
 
     return (
-        <Box sx={{ mt: 2 }}>
-            <Typography variant="h5" gutterBottom>Tasks</Typography>
-            <Divider sx={{ mb: 4 }} />
-
-            <Box sx={{ border: "1px solid #e0e0e0", borderRadius: 1, backgroundColor: "white" }}>
-                {/* 1. FILTER CONTROLS BAR */}
-                <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2, borderBottom: "1px solid #e0e0e0" }}>
+        <>
+            <SectionCard>
+                {/* 1. SECTION TITLE + FILTER CONTROLS */}
+                <Typography variant="h6" gutterBottom>Project's tasks</Typography>
+                <Stack direction="row" alignItems="center" gap={2} sx={{ mb: 3 }}>
                     <TextField
                         size="small"
                         placeholder={searchAttribute === "task_id" ? "Search by id (exact)" : "Label, owner, etc..."}
@@ -119,10 +119,10 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         <MenuItem value="task_status">Status</MenuItem>
                         <MenuItem value="task_id">Task id</MenuItem>
                     </TextField>
-                </Box>
+                </Stack>
 
                 {/* 2. TASK CONTEXT ACTIONS BAR */}
-                <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f5f5f5" }}>
+                <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "grey.100", borderTop: "1px solid", borderColor: "divider" }}>
                     <Typography variant="body2" fontWeight="bold">
                         {selectionCount} items selected
                     </Typography>
@@ -136,9 +136,6 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         >
                             DELETE
                         </Button>
-                        <Button variant="text" color="inherit" disabled startIcon={<PlayArrowIcon />} sx={{ fontWeight: "bold" }}>
-                            RESTART
-                        </Button>
                     </Stack>
                 </Box>
 
@@ -148,7 +145,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         rows={tasks}
                         columns={columns}
                         getRowId={(row) => row.task_id}
-                        onRowClick={(params) => navigate(`/projects/${projectId}/tasks/${params.row.task_id}`)}
+                        onRowClick={(params) => navigate(`/projects/${projectId}/tasks/${params.row.task_id}/general`)}
                         checkboxSelection
                         disableRowSelectionExcludeModel
                         disableRowSelectionOnClick
@@ -164,13 +161,13 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         sx={dataGridStyles}
                     />
                 </Box>
-            </Box>
+            </SectionCard>
 
             <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={closeSnackbar} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
                 <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </Box>
+        </>
     );
 };

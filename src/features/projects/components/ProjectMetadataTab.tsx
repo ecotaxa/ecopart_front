@@ -1,5 +1,7 @@
 import React from "react";
-import { Box, Button, Snackbar, Alert, CircularProgress, Paper, Container } from "@mui/material";
+import { Box, Button, Snackbar, Alert, CircularProgress } from "@mui/material";
+
+import SectionCard from "@/shared/components/SectionCard";
 import Grid from "@mui/material/Grid";
 
 // Import all our reusable Dumb Components
@@ -51,12 +53,10 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         );
     }
 
-    // 2. Render the assembled UI 
-    // We wrap the Paper in a Container with maxWidth="md" and disable padding
-    // so it perfectly matches the width constraints of NewProjectPage!
+    // 2. Render the assembled UI in the shared SectionCard (uniform card style
+    // and width across all project tabs).
     return (
-        <Container maxWidth="md" disableGutters>
-            <Paper sx={{ p: { xs: 3, md: 5 }, borderRadius: 2, boxShadow: "none" }}>
+        <SectionCard>
 
                 <RootFolderSection
                     value={values.rootFolderPath}
@@ -143,7 +143,6 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                     </Alert>
                 </Snackbar>
 
-            </Paper>
-        </Container>
+        </SectionCard>
     );
 };

@@ -269,7 +269,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     variant="text"
                     size="small"
                     onClick={() => {
-                        navigate("/settings", { state: { activeTab: 1 } });
+                        navigate("/settings/ecotaxa_account");
                     }}
                 >
                     ADD AN ECOTAXA ACCOUNT →
