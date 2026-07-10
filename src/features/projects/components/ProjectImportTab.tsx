@@ -1,7 +1,7 @@
 import React from "react";
 import {
     Box, Typography, Button, Switch, FormControlLabel,
-    TextField, Divider, Snackbar, Alert, InputAdornment, Paper, Tooltip,
+    TextField, Divider, Snackbar, Alert, InputAdornment, Tooltip,
     Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
@@ -10,6 +10,9 @@ import AddIcon from "@mui/icons-material/Add";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+
+import { ecotaxaColors } from "@/theme";
+import SectionCard from "@/shared/components/SectionCard";
 
 import { useProjectImportTab } from "../hooks/useProjectImportTab";
 import { ImportableRawSample, ImportableCtdSample } from "../api/projects.api";
@@ -150,32 +153,32 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
     // --- PIXEL PERFECT STYLING ---
     const dataGridStyles = {
         border: 'none',
-        borderBottom: '1px solid #e0e0e0',
+        borderBottom: `1px solid ${ecotaxaColors.stone[200]}`,
         borderRadius: 0,
         '& .MuiDataGrid-columnHeaders': {
             backgroundColor: '#ffffff',
             borderTop: 'none',
-            borderBottom: '1px solid #e0e0e0',
+            borderBottom: `1px solid ${ecotaxaColors.stone[200]}`,
             minHeight: '48px !important',
             maxHeight: '48px !important',
             color: 'text.secondary',
             fontWeight: 'normal',
         },
         '& .MuiDataGrid-cell': { borderBottom: 'none' },
-        '& .MuiDataGrid-row:nth-of-type(even)': { backgroundColor: '#f8faff' },
+        '& .MuiDataGrid-row:nth-of-type(even)': { backgroundColor: ecotaxaColors.stone[50] },
         '& .MuiDataGrid-row.Mui-selected': {
-            backgroundColor: '#e6f0ff',
-            '&:hover': { backgroundColor: '#d9e8ff' }
+            backgroundColor: ecotaxaColors.secondblue[100],
+            '&:hover': { backgroundColor: ecotaxaColors.secondblue[200] }
         },
-        '& .MuiCheckbox-root': { color: '#b0b0b0' },
-        '& .Mui-checked': { color: '#1976d2 !important' },
-        '& .MuiDataGrid-footerContainer': { borderTop: '1px solid #e0e0e0', minHeight: '40px' }
+        '& .MuiCheckbox-root': { color: ecotaxaColors.stone[400] },
+        '& .Mui-checked': { color: `${ecotaxaColors.secondblue[600]} !important` },
+        '& .MuiDataGrid-footerContainer': { borderTop: `1px solid ${ecotaxaColors.stone[200]}`, minHeight: '40px' }
     };
 
     const renderSelectionBar = (count: number, onImport: () => void, disabled: boolean, isEcoTaxa: boolean = false) => (
         <Box sx={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            backgroundColor: '#f5f5f5', p: 1.5, borderTop: '1px solid #e0e0e0', borderBottom: '1px solid #e0e0e0'
+            backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'divider'
         }}>
             <Typography variant="body2" fontWeight="bold">
                 {count} items selected
@@ -194,19 +197,14 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
     );
 
     const renderEmptyState = (message: string) => (
-        <Box sx={{ border: '1px dashed #ccc', borderRadius: 1, p: 3, textAlign: 'center', color: 'text.secondary', mb: 2 }}>
+        <Box sx={{ border: '1px dashed', borderColor: 'divider', borderRadius: 1, p: 3, textAlign: 'center', color: 'text.secondary', mb: 2 }}>
             {message}
         </Box>
     );
 
     return (
-        <Box sx={{ mt: 2 }}>
-            <Typography variant="h5" gutterBottom>
-                Import
-            </Typography>
-            <Divider sx={{ mb: 4 }} />
-
-            <Paper variant="outlined" sx={{ p: 4, mb: 4 }}>
+        <>
+            <SectionCard>
                 <Box sx={{ mb: 6 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ ml: 1.5, position: 'relative', top: '10px', backgroundColor: 'white', px: 0.5, zIndex: 1 }}>
                         Root folder path*
@@ -232,14 +230,13 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Box>
                             <Typography variant="h6">New UVP samples</Typography>
-                            <Typography variant="body2" color="text.secondary">Additional description if required</Typography>
                         </Box>
                         <Button
                             variant="outlined"
                             color="inherit"
                             disabled={rawSamples.length === 0 || isImporting}
                             onClick={() => handlePreImportRawSamples(true)}
-                            sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}
+                            sx={{ borderColor: 'divider', color: 'text.secondary' }}
                         >
                             IMPORT ALL
                         </Button>
@@ -278,14 +275,13 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Box>
                             <Typography variant="h6">New CTD samples</Typography>
-                            <Typography variant="body2" color="text.secondary">Additional description if required</Typography>
                         </Box>
                         <Button
                             variant="outlined"
                             color="inherit"
                             disabled={ctdSamples.length === 0 || isImporting}
                             onClick={() => handleImportCtdSamples(true)}
-                            sx={{ borderColor: '#e0e0e0', color: 'text.secondary' }}
+                            sx={{ borderColor: 'divider', color: 'text.secondary' }}
                         >
                             IMPORT ALL
                         </Button>
@@ -344,14 +340,13 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, opacity: ecoTaxaActionsDisabled ? 0.65 : 1 }}>
                         <Box>
                             <Typography variant="h6">New EcoTaxa samples</Typography>
-                            <Typography variant="body2" color="text.secondary">Import metadata and images data directly in EcoTaxa</Typography>
                         </Box>
                         <Button
                             variant="outlined"
                             color="inherit"
                             disabled={!ecoProjectLinked || ecoTaxaSamples.length === 0 || isImporting}
                             onClick={() => handleImportEcoTaxaSamples(true)}
-                            sx={{ borderColor: '#e0e0e0', color: ecoProjectLinked ? 'text.secondary' : 'text.disabled' }}
+                            sx={{ borderColor: 'divider', color: ecoProjectLinked ? 'text.secondary' : 'text.disabled' }}
                         >
                             IMPORT ALL IN ECOTAXA
                         </Button>
@@ -360,7 +355,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                     {/* If there is no linked EcoTaxa project show an error message and disable import actions */}
                     {
                         !ecoProjectLinked ? (
-                            <Box sx={{ border: '1px dashed #f44336', borderRadius: 1, p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
+                            <Box sx={{ border: `1px dashed ${ecotaxaColors.danger[500]}`, borderRadius: 1, p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
                                 <Typography variant="body2" color="error" fontWeight="bold">
                                     No EcoTaxa project linked
                                 </Typography>
@@ -390,7 +385,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                         )
                     }
                 </Box>
-            </Paper>
+            </SectionCard>
 
             {/* --- QC MODAL --- */}
             <Dialog open={isQcModalOpen} onClose={() => setIsQcModalOpen(false)} maxWidth="lg" fullWidth scroll="paper">
@@ -399,7 +394,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                         defaults to <h5>) would be invalid HTML. */}
                     <Typography component="span" variant="h5" fontWeight="bold">Import quality control</Typography>
                 </DialogTitle>
-                <DialogContent dividers sx={{ backgroundColor: '#fafafa' }}>
+                <DialogContent dividers sx={{ backgroundColor: 'grey.50' }}>
                     <Typography variant="body1" sx={{ mb: 4 }}>
                         You are about to import <strong>{qcSampleNames.length}</strong> {qcSampleNames.length === 1 ? "sample" : "samples"} : <strong>{qcSampleNames.join(", ")}</strong>
                     </Typography>
@@ -421,13 +416,14 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 shown FIRST (they block the import) with a red border and a REMOVE button so
                                 the operator can spot and drop them without scrolling past the chart cards. */}
                             {qcNotImportable.map((name) => (
-                                <Box key={name} sx={{ backgroundColor: '#fdecea', p: 3, borderRadius: 1, border: '2px solid', borderColor: 'error.main', mb: 3 }}>
+                                <Box key={name} sx={{ backgroundColor: ecotaxaColors.danger[50], p: 3, borderRadius: 1, border: '2px solid', borderColor: 'error.main', mb: 3 }}>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                         <Typography variant="subtitle2" fontWeight="bold" color="error.main">Sample : {name}</Typography>
                                         <Button
                                             onClick={() => removeQcSample(name)}
                                             disabled={isImporting}
-                                            sx={{ color: '#c2185b', fontWeight: 'bold' }}
+                                            color="error"
+                                            sx={{ fontWeight: 'bold' }}
                                             size="small"
                                         >
                                             REMOVE FROM IMPORT
@@ -460,7 +456,8 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                         onClick={() => confirmAndExecuteRawImport(true)}
                         disabled={importActionsDisabled}
                         variant="text"
-                        sx={{ color: '#1976d2', fontWeight: 'bold', '&.Mui-disabled': { color: 'action.disabled' } }}
+                        color="success"
+                        sx={{ fontWeight: 'bold' }}
                     >
                         IMPORT &amp; VALIDATE
                     </Button>
@@ -468,11 +465,12 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                         onClick={() => confirmAndExecuteRawImport(false)}
                         disabled={importActionsDisabled}
                         variant="text"
-                        sx={{ color: '#1976d2', fontWeight: 'bold', '&.Mui-disabled': { color: 'action.disabled' } }}
+                        color="info"
+                        sx={{ fontWeight: 'bold' }}
                     >
                         IMPORT &amp; PENDING
                     </Button>
-                    <Button onClick={() => setIsQcModalOpen(false)} sx={{ color: 'orange', fontWeight: 'bold' }}>
+                    <Button onClick={() => setIsQcModalOpen(false)} color="error" sx={{ fontWeight: 'bold' }}>
                         CANCEL IMPORT
                     </Button>
                 </DialogActions>
@@ -483,6 +481,6 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </Box>
+        </>
     );
 };

@@ -2,11 +2,14 @@ import React from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
+import { ecotaxaColors } from "@/theme";
+import SectionCard from "@/shared/components/SectionCard";
 import { QcBinnedDepthProfile, SampleQcGraphs } from "../api/projects.api";
 import { QcChartSeries, QcProfileChart } from "./QcProfileChart";
 
-// Pixel-class series colours (graphs "for 1, 2 and 3 pixels").
-const PIXEL_COLORS = ["#d32f2f", "#2e7d32", "#1976d2"];
+// Shades of blue for the pixel-class series (graphs "for 1, 2 and 3 pixels"):
+// light → medium → dark, so the three curves stay distinguishable.
+const PIXEL_COLORS = [ecotaxaColors.mainblue[400], ecotaxaColors.mainblue[600], ecotaxaColors.mainblue[800]];
 
 /** Map a backend binned profile into chart series (x = value, y = depth). */
 const toSeries = (profile: QcBinnedDepthProfile): QcChartSeries[] =>
@@ -27,20 +30,52 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
 
     const pressureSeries: QcChartSeries[] = [{
         label: "pressure",
-        color: "#d32f2f",
+        color: ecotaxaColors.mainblue[500], // blue for the main pressure profile
         points: depthProfile.points.map((p) => ({ x: p.image_index, y: p.depth_m })),
     }];
 
     const removedPct = Math.round(filtering.removed_images.percent);
 
+    // Bottom-row profile charts. The "black" profile only exists for instruments
+    // with dark frames — when absent, its chart is omitted entirely (no placeholder).
+    // Fewer charts => each one gets more width.
+    const profileCharts = [
+        {
+            key: "imaged-volume",
+            title: "Vertical profile of imaged volume",
+            series: toSeries(sample.imaged_volume_profile),
+            xLabel: "imaged volume (L)",
+            xScale: sample.imaged_volume_profile.suggested_scale,
+            showLegend: false,
+        },
+        ...(sample.black_profile ? [{
+            key: "black",
+            title: "Vertical profile of black for 1, 2 and 3 pixels versus pressure",
+            series: toSeries(sample.black_profile),
+            xLabel: "count",
+            xScale: sample.black_profile.suggested_scale,
+            showLegend: true,
+        }] : []),
+        {
+            key: "particle-lpm",
+            title: "Vertical profile of particle (LPM) for 1, 2 and 3 pixels versus pressure",
+            series: toSeries(sample.particle_lpm_profile),
+            xLabel: "count",
+            xScale: sample.particle_lpm_profile.suggested_scale,
+            showLegend: true,
+        },
+    ];
+    const profileChartCols = profileCharts.length <= 2 ? 6 : 4;
+
     return (
-        <Box sx={{ backgroundColor: "white", p: 3, borderRadius: 1, border: "1px solid #e0e0e0", mb: 3 }}>
+        <SectionCard sx={{ mb: 3 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
                 <Typography variant="subtitle2" fontWeight="bold">Sample : {sample.sample_name}</Typography>
                 <Button
                     onClick={() => onRemove(sample.sample_name)}
                     disabled={removeDisabled}
-                    sx={{ color: "#c2185b", fontWeight: "bold" }}
+                    color="error"
+                    sx={{ fontWeight: "bold" }}
                     size="small"
                 >
                     REMOVE FROM IMPORT
@@ -54,7 +89,7 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
                         series={pressureSeries}
                         xLabel="image index"
                         yLabel="depth (m)"
-                        height={300}
+                        height={340}
                     />
                 </Grid>
                 <Grid size={{ xs: 12, md: 8 }}>
@@ -89,47 +124,19 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
             </Grid>
 
             <Grid container spacing={4} sx={{ mt: 2 }}>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <QcProfileChart
-                        title="Vertical profile of imaged volume"
-                        series={toSeries(sample.imaged_volume_profile)}
-                        xLabel="imaged volume (L)"
-                        xScale={sample.imaged_volume_profile.suggested_scale}
-                        height={200}
-                    />
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    {sample.black_profile ? (
+                {profileCharts.map((c) => (
+                    <Grid key={c.key} size={{ xs: 12, md: profileChartCols }}>
                         <QcProfileChart
-                            title="Vertical profile of black for 1, 2 and 3 pixels versus pressure"
-                            series={toSeries(sample.black_profile)}
-                            xLabel="count"
-                            xScale={sample.black_profile.suggested_scale}
-                            height={200}
-                            showLegend
+                            title={c.title}
+                            series={c.series}
+                            xLabel={c.xLabel}
+                            xScale={c.xScale}
+                            height={320}
+                            showLegend={c.showLegend}
                         />
-                    ) : (
-                        <Box>
-                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, minHeight: 32 }}>
-                                Vertical profile of black for 1, 2 and 3 pixels versus pressure
-                            </Typography>
-                            <Box sx={{ border: "1px dashed #ccc", height: 200, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", p: 1 }}>
-                                <Typography variant="caption" color="text.secondary">No dark frames for this instrument</Typography>
-                            </Box>
-                        </Box>
-                    )}
-                </Grid>
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <QcProfileChart
-                        title="Vertical profile of particle (LPM) for 1, 2 and 3 pixels versus pressure"
-                        series={toSeries(sample.particle_lpm_profile)}
-                        xLabel="count"
-                        xScale={sample.particle_lpm_profile.suggested_scale}
-                        height={200}
-                        showLegend
-                    />
-                </Grid>
+                    </Grid>
+                ))}
             </Grid>
-        </Box>
+        </SectionCard>
     );
 };

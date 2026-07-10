@@ -53,7 +53,8 @@ const makeSample = (overrides: Partial<SampleQcGraphs> = {}): SampleQcGraphs => 
 
 describe('components/QcSampleCard', () => {
     it('TC-AB6: renders the sample header and every graph title', () => {
-        render(<QcSampleCard sample={makeSample()} onRemove={() => {}} />);
+        // Include a black profile so all four graph titles render.
+        render(<QcSampleCard sample={makeSample({ black_profile: binned('linear', [{ label: '1 px', unit: 'count', values: [1, 2] }]) })} onRemove={() => {}} />);
         expect(screen.getByText('Sample : omer2_5')).toBeInTheDocument();
         expect(screen.getByText(/pressure of each image/i)).toBeInTheDocument();
         expect(screen.getByText(/Vertical profile of imaged volume/i)).toBeInTheDocument();
@@ -85,9 +86,10 @@ describe('components/QcSampleCard', () => {
         expect(screen.getByDisplayValue('3 / 13%')).toBeInTheDocument(); // 12.6% -> 13%
     });
 
-    it('TC-AB10: shows the "No dark frames" placeholder when black_profile is null', () => {
+    it('TC-AB10: omits the black graph entirely when black_profile is null', () => {
         render(<QcSampleCard sample={makeSample({ black_profile: null })} onRemove={() => {}} />);
-        expect(screen.getByText(/No dark frames for this instrument/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Vertical profile of black/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/No dark frames for this instrument/i)).not.toBeInTheDocument();
     });
 
     it('TC-AB11: renders the black profile chart (no placeholder) when black_profile is present', () => {

@@ -62,7 +62,7 @@ export const QcProfileChart: React.FC<QcProfileChartProps> = ({
                 {title}
             </Typography>
             {!hasData ? (
-                <Box sx={{ border: "1px dashed #ccc", height, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Box sx={{ border: "1px dashed", borderColor: "divider", borderRadius: 1, height, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Typography variant="caption" color="text.secondary">No data</Typography>
                 </Box>
             ) : (
