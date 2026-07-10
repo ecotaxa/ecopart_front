@@ -16,8 +16,9 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import CloudIcon from "@mui/icons-material/Cloud";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { API_BASE_URL } from '@/config/api';
+import { ecotaxaColors } from "@/theme";
 
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/features/auth";
 
@@ -47,7 +48,7 @@ export default function TopBar() {
 
 
     return (
-        <AppBar position="static" color="transparent" elevation={0}>
+        <AppBar position="static">
             <Toolbar sx={{ justifyContent: "space-between" }}>
                 {/* Logo */}
                 <Box
@@ -62,7 +63,11 @@ export default function TopBar() {
                 >
                     <Box
                         component="img"
-                        src="/logo_ecopart.png"
+                        // White variant of the logo (transparent background) so
+                        // it reads on the teal gradient header. The default
+                        // dark-on-white logo is kept for light surfaces
+                        // (auth pages, EcoTaxa login form).
+                        src="/logo_ecopart_white.png"
                         alt="EcoPart"
                         sx={{
                             height: "100%",
@@ -99,13 +104,13 @@ export default function TopBar() {
                             spacing={1}
                             alignItems="center"
                             onClick={handleOpen}
-                            sx={{ cursor: "pointer" }}
+                            sx={{ cursor: "pointer", color: "common.white" }}
                         >
                             <Typography>
                                 {user.first_name} {user.last_name}
                             </Typography>
 
-                            <IconButton size="large">
+                            <IconButton size="large" sx={{ color: "common.white" }}>
                                 <AccountCircleIcon fontSize="large" />
                             </IconButton>
                         </Stack>
@@ -128,22 +133,19 @@ export default function TopBar() {
 
                             <Divider />
 
-                            {/* * Navigate to settings directly 
-                              */}
+                            {/* Navigate to the EcoPart account tab */}
                             <MenuItem onClick={() => {
                                 handleClose();
-                                navigate("/settings");
+                                navigate("/settings/ecopart_account");
                             }}>
                                 <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
                                 Settings
                             </MenuItem>
 
-                            {/* * Navigate to settings, but pass state telling it to open Tab 1
-                              * This replaces the 404 error with a smooth transition to the correct tab.
-                              */}
+                            {/* Navigate straight to the EcoTaxa accounts tab */}
                             <MenuItem onClick={() => {
                                 handleClose();
-                                navigate("/settings", { state: { activeTab: 1 } });
+                                navigate("/settings/ecotaxa_account");
                             }}>
                                 <CloudIcon fontSize="small" sx={{ mr: 1 }} />
                                 EcoTaxa account
@@ -161,17 +163,30 @@ export default function TopBar() {
                     <Stack direction="row" spacing={2}>
                         <Button
                             variant="outlined"
-                            color="primary"
                             onClick={() => navigate("/login")}
-                            sx={{ minWidth: 110 }}
+                            sx={{
+                                minWidth: 110,
+                                color: "common.white",
+                                borderColor: "rgba(255, 255, 255, 0.6)",
+                                "&:hover": {
+                                    borderColor: "common.white",
+                                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                },
+                            }}
                         >
                             Log in
                         </Button>
                         <Button
                             variant="contained"
-                            color="primary"
                             onClick={() => navigate("/register")}
-                            sx={{ minWidth: 110 }}
+                            sx={{
+                                minWidth: 110,
+                                backgroundColor: "common.white",
+                                color: "primary.main",
+                                "&:hover": {
+                                    backgroundColor: ecotaxaColors.secondblue[50],
+                                },
+                            }}
                         >
                             Register
                         </Button>
@@ -184,14 +199,28 @@ export default function TopBar() {
 }
 
 function NavLink({ to, label }: { to: string; label: string }) {
+    const { pathname } = useLocation();
+    const isExternal = to.startsWith("http");
+    // Active when on the exact route or a nested route (e.g. /projects stays
+    // active on /projects/:id/...). External links are never "active".
+    const active =
+        !isExternal && (pathname === to || pathname.startsWith(to + "/"));
+
     return (
         <Typography
             component={RouterLink}
             to={to}
             sx={{
                 textDecoration: "none",
-                color: "primary.main",
+                color: "common.white",
                 fontWeight: 500,
+                pb: 0.5,
+                borderBottom: "2px solid",
+                borderColor: active ? "common.white" : "transparent",
+                transition: "color 0.2s ease-in-out, border-color 0.2s ease-in-out",
+                "&:hover": {
+                    color: active ? "common.white" : ecotaxaColors.secondblue[200],
+                },
             }}
         >
             {label}

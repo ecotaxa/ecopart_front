@@ -25,10 +25,10 @@ export const AuthPageLayout = ({
     return (
         <MainLayout>
             <Container maxWidth={maxWidth} sx={{ mt: 12, textAlign: "left" }}>
-                {/* Centralized Logo */}
+                {/* Centralized Logo — dark ink on transparent, blends on the light page background */}
                 <Box
                     component="img"
-                    src="/logo_ecopart.png"
+                    src="/logo_ecopart_dark.png"
                     alt="EcoPart"
                     sx={{ height: 48, mb: 2 }}
                 />

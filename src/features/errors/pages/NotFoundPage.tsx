@@ -1,4 +1,5 @@
 import { Button, Container, Typography, Box } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
@@ -19,6 +20,8 @@ function Particle404() {
         }[]
     >([]);
     const [hovered, setHovered] = useState(false);
+    const theme = useTheme();
+    const particleColor = theme.palette.primary.main;
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -34,7 +37,7 @@ function Particle404() {
         canvas.height = height;
 
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = "#1976d2";
+        ctx.fillStyle = particleColor;
         ctx.font = "bold 500px Arial";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -90,7 +93,7 @@ function Particle404() {
                     }
                 }
 
-                ctx.fillStyle = `rgba(25,118,210,${p.alpha})`;
+                ctx.fillStyle = alpha(particleColor, p.alpha);
                 ctx.fillRect(p.x, p.y, 3, 3);
             });
 
@@ -102,7 +105,7 @@ function Particle404() {
         animate();
 
         return () => cancelAnimationFrame(raf);
-    }, [hovered]);
+    }, [hovered, particleColor]);
 
     return (
         <Box
