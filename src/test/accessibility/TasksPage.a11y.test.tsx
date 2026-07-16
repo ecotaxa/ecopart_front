@@ -35,8 +35,8 @@ describe('TasksPage (Accessibility)', () => {
         loginAsUser();
     });
 
-    // TC-Q11: Keyboard Navigation (Filters & DataGrid)
-    it('TC-Q11: lets a keyboard user move through filters and toggle a row with Space', async () => {
+    // TC-Q13: Keyboard Navigation (Filters & DataGrid)
+    it('TC-Q13: lets a keyboard user move through filters and toggle a row with Space', async () => {
         const user = userEvent.setup({ delay: null });
         mockTasks([makeTask({ task_id: 1, task_type: 'IMPORT' })]);
 

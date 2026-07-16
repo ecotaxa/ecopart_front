@@ -2,7 +2,9 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { PublicOnlyRoute } from "@/app/PublicOnlyRoute";
+import AdminRoute from "@/app/AdminRoute";
 import { HomePage } from "@/features/home";
+import { AdminPage } from "@/features/admin";
 import { LoginPage, RegisterPage, ResetPasswordPage, ResetPasswordConfirmPage, ValidateEmailPage } from "@/features/auth";
 import { DashboardPage } from "@/features/dashboard";
 import { NotFoundPage } from "@/features/errors";
@@ -118,13 +120,13 @@ export const router = createBrowserRouter([
         ),
     },
 
-    // {
-    //     path: "/admin",
-    //     element: (
-    //         <AdminRoute>
-    //             <AdminPage />
-    //         </AdminRoute>
-    //     ),
-    // },
+    {
+        path: "/admin/:tabName?",
+        element: (
+            <AdminRoute>
+                <AdminPage />
+            </AdminRoute>
+        ),
+    },
     { path: "*", element: <NotFoundPage /> },
 ]);

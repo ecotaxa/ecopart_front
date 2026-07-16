@@ -18,8 +18,8 @@ describe('ProfilePage - Ecopart Tab (Accessibility)', () => {
         loginAsUser();
     });
 
-    // TC-E11: Keyboard Navigation
-    it('TC-E11: should allow navigating the complete profile form using Tab order', async () => {
+    // TC-E12: Keyboard Navigation
+    it('TC-E12: should allow navigating the complete profile form using Tab order', async () => {
         const user = userEvent.setup({ delay: null });
         renderWithRouter(<ProfilePage />);
 

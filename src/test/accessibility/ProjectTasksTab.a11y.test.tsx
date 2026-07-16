@@ -43,8 +43,8 @@ describe('ProjectTasksTab (Accessibility)', () => {
         vi.restoreAllMocks();
     });
 
-    // TC-T7: Action buttons disabled until a task is selected, then focusable
-    it('TC-T7: keeps the action buttons disabled until a row is selected via keyboard', async () => {
+    // TC-T8: Action buttons disabled until a task is selected, then focusable
+    it('TC-T8: keeps the action buttons disabled until a row is selected via keyboard', async () => {
         const user = userEvent.setup({ delay: null });
         renderWithRouter(<ProjectTasksTab projectId={77} />);
 
