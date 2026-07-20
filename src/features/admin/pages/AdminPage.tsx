@@ -15,15 +15,19 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 import SyncIcon from "@mui/icons-material/Sync";
 
 import MainLayout from "@/app/layouts/MainLayout";
+import AdminQuickAccessTab from "../components/AdminQuickAccessTab";
 import AdminTasksTab from "../components/AdminTasksTab";
 import AdminUsersTab from "../components/AdminUsersTab";
+import AdminProjectsTab from "../components/AdminProjectsTab";
+import AdminUpdatesTab from "../components/AdminUpdatesTab";
 
 /**
  * AdminPage — the EcoPart administration console (route `/admin`, admins only).
  *
- * Mirrors the tabbed layout of ProjectDetailsPage. Only the TASKS panel is
- * implemented for now; the other tabs render a "coming soon" placeholder. The
- * active tab is driven by the `:tabName` route param so tabs are linkable.
+ * Mirrors the tabbed layout of ProjectDetailsPage. All five panels — QUICK
+ * ACCESS, USERS, PROJECTS, TASKS and UPDATES — are implemented. The active tab
+ * is driven by the `:tabName` route param so tabs are linkable, defaulting to
+ * QUICK ACCESS.
  */
 export default function AdminPage() {
     const { tabName } = useParams<{ tabName?: string }>();
@@ -37,23 +41,16 @@ export default function AdminPage() {
         { slug: "updates", label: "UPDATES", icon: <SyncIcon /> },
     ]), []);
 
+    const defaultTabIndex = tabDefinitions.findIndex((tab) => tab.slug === "quick-access");
     const tabIndexFromSlug = tabName
         ? tabDefinitions.findIndex((tab) => tab.slug === tabName)
-        : tabDefinitions.findIndex((tab) => tab.slug === "tasks");
-    const currentTab = tabIndexFromSlug >= 0 ? tabIndexFromSlug : tabDefinitions.findIndex((tab) => tab.slug === "tasks");
+        : defaultTabIndex;
+    const currentTab = tabIndexFromSlug >= 0 ? tabIndexFromSlug : defaultTabIndex;
 
     const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-        const nextSlug = tabDefinitions[newValue]?.slug ?? "tasks";
+        const nextSlug = tabDefinitions[newValue]?.slug ?? "quick-access";
         navigate(`/admin/${nextSlug}`);
     };
-
-    const renderComingSoonTab = (label: string) => (
-        <Box sx={{ p: 4, textAlign: "center" }}>
-            <Typography variant="h6" color="text.secondary">
-                {label} (Coming Soon)
-            </Typography>
-        </Box>
-    );
 
     const currentSlug = tabDefinitions[currentTab]?.slug;
 
@@ -88,10 +85,11 @@ export default function AdminPage() {
 
                 {/* TAB CONTENT */}
                 <Box sx={{ minHeight: 400 }}>
+                    {currentSlug === "quick-access" && <AdminQuickAccessTab />}
                     {currentSlug === "users" && <AdminUsersTab />}
+                    {currentSlug === "projects" && <AdminProjectsTab />}
                     {currentSlug === "tasks" && <AdminTasksTab />}
-                    {currentSlug !== "users" && currentSlug !== "tasks" &&
-                        renderComingSoonTab(tabDefinitions[currentTab]?.label ?? "")}
+                    {currentSlug === "updates" && <AdminUpdatesTab />}
                 </Box>
             </Container>
         </MainLayout>

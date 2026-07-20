@@ -299,6 +299,17 @@ export async function updateProject(
     });
 }
 
+/**
+ * Deletes a project (and its samples / linked EcoTaxa project, server-side).
+ * Allowed for the project managers and for admins.
+ * Endpoint: DELETE /projects/:id/
+ */
+export async function deleteProject(projectId: number): Promise<void> {
+    await http<unknown>(`/projects/${projectId}/`, {
+        method: "DELETE",
+    });
+}
+
 
 // ============================================================================
 // FILE SYSTEM API CALLS
@@ -948,10 +959,13 @@ export async function deleteProjectTask(taskId: number): Promise<{ message: stri
 }
 
 /**
- * The task types that produce a downloadable archive (kept in sync with the
- * backend `TaskType` enum). Only these expose a file via GET /tasks/:id/file.
+ * The task-type labels that produce a downloadable archive (kept in sync with the
+ * backend `TaskType` enum). Only these expose a file via GET /tasks/:id/file, and
+ * they are the ones counted as "Exports" in the admin quick-access panel.
  */
-const EXPORT_TASK_TYPES = new Set(["EXPORT", "EXPORT_BACKUP", "EXPORT_RAW"]);
+export const EXPORT_TASK_TYPE_LABELS = ["EXPORT", "EXPORT_BACKUP", "EXPORT_RAW"] as const;
+
+const EXPORT_TASK_TYPES = new Set<string>(EXPORT_TASK_TYPE_LABELS);
 
 /** True when the task type is one that produces a downloadable export archive. */
 export function isExportTask(task: Pick<Task, "task_type">): boolean {

@@ -435,7 +435,7 @@ The structure forces good decisions and prevents common React project decay.
 This section documents the testing architecture, tooling, and the full catalogue of
 test cases that guard the application.
 
-> **Suite at a glance:** **260 tests** across **46 files** (Vitest).
+> **Suite at a glance:** **298 tests** across **52 files** (Vitest).
 > Every functional test embeds its `TC-…` id in the test title, so a scenario in this
 > table maps 1:1 to a runnable test (`vitest -t "TC-A3"`).
 
@@ -473,7 +473,8 @@ We follow a modular strategy to keep the suite DRY (*Don't Repeat Yourself*) and
 
 > **Convention:** every `it(...)` embeds a globally-unique `TC-…` id; accessibility rows are
 > tagged **♿**. Section letters run `A → Z`, then `AA`, `AB`, … The HTTP utility uses `TC-AC*`,
-> routing guards use `TC-AD*`, and the Admin tabs use `TC-AE*` (Tasks) / `TC-AF*` (Users).
+> routing guards use `TC-AD*`, and the Admin tabs use `TC-AE*` (Tasks) / `TC-AF*` (Users) /
+> `TC-AG*` (Projects) / `TC-AH*` (Quick Access) / `TC-AU*` (Updates — tab, hook, store & banner).
 
 ---
 
@@ -966,3 +967,61 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AF14** | Prevents selecting a deleted account | One active user and one anonymized/deleted user. | Inspect the row checkboxes. | Exactly one checkbox is disabled (the deleted user cannot be selected). |
 | **TC-AF15** | Search error alert | `POST /users/searches` returns 500. | Render the tab. | • "Failed to load users" is shown.<br>• "John Doe" is not rendered. |
 | **TC-AF16** | Partial failure keeps failed users selected | 2 users; `window.confirm` → true; the PATCH for user 2 returns 500, user 1 succeeds. | Select both rows and click **ADD ADMIN**. | • The "Failed to update some users." snackbar shows.<br>• Only the failed user stays selected ("1 items selected"). |
+
+### AG. Admin — Projects Tab (`AdminProjectsTab`)
+
+*`features/admin/components/AdminProjectsTab.test.tsx` — hits `POST /projects/searches` (list), `POST /projects/:id/samples/searches` (per-row sample count) and `DELETE /projects/:id/` (bulk delete).*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AG1** | Render & load (managers & members) | The projects search returns 2 projects with managers and members. | Render the Admin Projects tab. | • The "Projects" and "Project list" headings render.<br>• The project titles, managers ("Marc Picheral") and members ("Julie Coustenoble") appear.<br>• The default sort is `desc(project_id)` and the admin scope omits `for_managing` (empty filters). |
+| **TC-AG2** | "Not linked" chip | A project has no EcoTaxa project (`ecotaxa_project_name: null`). | Render the tab. | The "Not linked" chip is shown. |
+| **TC-AG3** | Empty state | The search returns no projects. | Render the tab. | The "No rows" overlay is shown. |
+| **TC-AG4** | Title search (LIKE, default attribute) | The default attribute is Title. | Type "bats" in the Search field. | The latest filters equal `[{ field: 'project_title', operator: 'LIKE', value: '%bats%' }]`. |
+| **TC-AG5** | Project id search (exact) | The tab is loaded. | Switch the Attribute to "Project id" and type "473". | The latest filters equal `[{ field: 'project_id', operator: '=', value: 473 }]`. |
+| **TC-AG6** | Manager search (exact) | The tab is loaded. | Switch the Attribute to "Manager (user id)" and type "10". | The latest filters equal `[{ field: 'managers', operator: '=', value: 10 }]`. |
+| **TC-AG7** | Non-numeric manager input (no filter) | The Manager attribute is selected. | Type "Marc" (non-numeric) in the Search field. | No manager filter is sent (an empty filter list), rather than a value the backend would reject. |
+| **TC-AG8** | Delete after confirmation | 2 projects; `window.confirm` → true; delete mocked OK. | Select 2 rows, click **DELETE**. | • Both IDs are deleted (`[1, 2]`).<br>• The "Project(s) deleted." snackbar shows.<br>• The selection returns to "0 items selected". |
+| **TC-AG9** | Cancel delete (no API call) | `window.confirm` → false. | Select a row and click **DELETE**. | No DELETE call is made. |
+| **TC-AG10** | Disabled delete without selection | Nothing is selected. | Inspect the **DELETE** button. | It is disabled. |
+| **TC-AG11** | Not-yet-wired actions disabled | The tab is loaded. | Inspect the reserved actions. | **REMOVE ALL MANAGER**, **REMOVE ALL MEMBERS**, **TASKS** and **USERS** are all disabled. |
+| **TC-AG12** | Partial failure keeps failed projects selected | 2 projects; `window.confirm` → true; the DELETE for project 2 returns 500, project 1 succeeds. | Select both rows and click **DELETE**. | • The "Failed to delete some projects." snackbar shows.<br>• Only the failed project stays selected ("1 items selected"). |
+| **TC-AG13** | Search error alert | `POST /projects/searches` returns 500. | Render the tab. | "Failed to load projects" is shown. |
+
+### AH. Admin — Quick Access Tab (`AdminQuickAccessTab`)
+
+*`features/admin/components/AdminQuickAccessTab.test.tsx` — derives four counters from the `search_info.total` of `POST /projects/searches`, `POST /users/searches` and two `POST /tasks/searches` (exports vs. all tasks, told apart by filters).*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AH1** | Render the four counters | The four searches return totals 340 / 600 / 450 / 367. | Render the Admin Quick Access tab. | • The "Quick access" heading renders.<br>• The four counters (340, 600, 450, 367) and their labels (Projects, Users, Exports, Tasks) are shown. |
+| **TC-AH2** | Exports filter & default period | The counters load with the default period. | Render the tab. | • The Exports counter sends an `IN` filter on the export task types (`['EXPORT', 'EXPORT_BACKUP', 'EXPORT_RAW']`).<br>• "All time" (the default) sends no creation-date filter on any counter. |
+| **TC-AH3** | Period scopes every counter (LIKE) | The tab is loaded. | Pick "This year" in the Period selector. | • Each counter gains a `LIKE` date-prefix filter on its creation-date field (e.g. `"2026%"`).<br>• Exports keep the type `IN` filter **and** gain the date-prefix filter. |
+| **TC-AH4** | Shortcuts & useful links | The counters load. | Inspect the shortcuts and links. | • The "See all projects/tasks as administrator" shortcuts render.<br>• The "Github repository" link points to `https://github.com/ecotaxa/ecopart_front`. |
+| **TC-AH5** | Single failing counter (no banner) | One counter's request returns 500; the others succeed. | Render the tab. | • The failing counter shows "—".<br>• The global error banner is **not** raised. |
+| **TC-AH6** | All counters fail (error banner) | Every search returns 500. | Render the tab. | The "Failed to load the administration statistics" banner is shown. |
+
+### AU. Admin — Updates (`AdminUpdatesTab`, `useAdminUpdates`, `announcement.store`, `GlobalAnnouncementBanner`)
+
+*The UPDATES tab broadcasts a single site-wide message to every user. There is no backend endpoint, so the message lives in the `useAnnouncementStore` Zustand store (persisted to `localStorage`), and `GlobalAnnouncementBanner` — mounted in `MainLayout` — shows it on every page. Tests span the tab component, its hook, the store, and the banner.*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AU1** | Render the creation form | No message is active. | Render the Admin Updates tab. | • The "Show message to all users" heading renders.<br>• The Message and Sub message fields and the "Message layout style" label are shown. |
+| **TC-AU2** | CREATE gated on message + confirmation | The form is empty. | Type a message, then tick the confirmation. | • CREATE is disabled while empty.<br>• Still disabled with a message alone.<br>• Enabled once the confirmation is ticked. |
+| **TC-AU3** | Create stores & shows the message | The form is filled. | Fill Message + Sub message, pick "Warning", tick the confirmation, click **Create**. | • The store holds `{ message, subMessage, severity: 'warning' }`.<br>• The form is replaced by the active-message view (no CREATE button). |
+| **TC-AU4** | Remove returns to the form | A message is active. | Click the active alert's close button. | The announcement is cleared and the creation form reappears. |
+| **TC-AU5** | Whitespace-only message stays invalid | `useAdminUpdates`. | Set the message to spaces and tick the confirmation. | `canCreate` is `false` (the `message.trim()` guard). |
+| **TC-AU6** | Trims message & sub message | `useAdminUpdates`. | Set padded message/sub message, pick "Warning", confirm, `create()`. | The stored announcement holds the trimmed strings. |
+| **TC-AU7** | Form reset + toast after create | `useAdminUpdates`. | Fill the form and `create()`. | `message`/`subMessage` are empty, `severity` is back to `"info"`, `confirmed` is `false`, and `justCreated` is `true`. |
+| **TC-AU8** | Dismiss the toast only | `useAdminUpdates` with a fresh announcement. | Call `dismissJustCreated()`. | `justCreated` is `false` while `activeAnnouncement` stays set. |
+| **TC-AU9** | create() no-op when invalid | `useAdminUpdates`. | Set a message without confirming, then `create()`. | No announcement is stored and `justCreated` stays `false`. |
+| **TC-AU10** | remove() clears everything | `useAdminUpdates` with an active announcement. | Call `remove()`. | `activeAnnouncement` is `null` and `justCreated` is `false`. |
+| **TC-AU11** | setAnnouncement resets dismissal | `announcement.store` with `dismissed: true`. | Call `setAnnouncement(...)`. | The announcement is stored and `dismissed` returns to `false`. |
+| **TC-AU12** | dismiss hides without deleting | `announcement.store` with an active announcement. | Call `dismiss()`. | `dismissed` is `true` and the announcement is preserved. |
+| **TC-AU13** | clearAnnouncement resets state | `announcement.store` with an active, dismissed announcement. | Call `clearAnnouncement()`. | `announcement` is `null` and `dismissed` is `false`. |
+| **TC-AU14** | Persists only the announcement | `announcement.store`. | `setAnnouncement(...)` then `dismiss()`. | `localStorage['ecopart-admin-announcement']` holds the announcement but **not** `dismissed` (the `partialize`). |
+| **TC-AU15** | Banner hidden without a message | No announcement. | Render `GlobalAnnouncementBanner`. | No alert is rendered. |
+| **TC-AU16** | Banner hidden when dismissed | An announcement exists but `dismissed: true`. | Render the banner. | No alert is rendered. |
+| **TC-AU17** | Banner renders with the chosen severity | An active "Warning" announcement with a sub message. | Render the banner. | The alert shows the message + sub message and carries the `MuiAlert-standardWarning` class. |
+| **TC-AU18** | Banner close button dismisses | An active announcement. | Click the banner's close button. | The store's `dismissed` becomes `true` and the alert disappears. |
