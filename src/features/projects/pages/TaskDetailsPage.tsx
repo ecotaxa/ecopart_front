@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
     Box, Container, Typography, Button, Tabs, Tab, Paper, Grid,
     TextField, LinearProgress, CircularProgress, Alert,
@@ -22,6 +22,7 @@ import { isDownloadableTask } from "../utils/taskColumns";
 export default function TaskDetailsPage() {
     const { id, taskId, tabName } = useParams<{ id?: string; taskId: string; tabName?: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const parsedProjectId = id ? (Number.isNaN(Number.parseInt(id, 10)) ? null : Number.parseInt(id, 10)) : null;
     const parsedTaskId = taskId ? (Number.isNaN(Number.parseInt(taskId, 10)) ? null : Number.parseInt(taskId, 10)) : null;
@@ -29,9 +30,16 @@ export default function TaskDetailsPage() {
     // The active tab is driven by the URL (general / logfile).
     const currentTab = tabName === "logfile" ? 1 : 0;
 
-    // "Back" and post-delete navigation: the project's tasks tab when opened from
-    // a project, otherwise the global tasks list.
+    // Post-delete/back navigation: the project's tasks tab when opened from a
+    // project, otherwise the global tasks list.
     const tasksListPath = parsedProjectId !== null ? `/projects/${parsedProjectId}/tasks` : "/tasks";
+
+    // Where the "Back to tasks list" arrow (and the post-delete redirect) should
+    // land. Callers that opened this page from a different list — e.g. the admin
+    // console — pass `state.from`; otherwise fall back to the tasks list above.
+    // location.state is typed `unknown`, so narrow it before reading `from`.
+    const navState = location.state as { from?: unknown } | null;
+    const backTo = typeof navState?.from === "string" ? navState.from : tasksListPath;
 
     // Base path for this task detail, preserving project vs global context.
     const taskDetailBase = parsedProjectId !== null
@@ -114,7 +122,7 @@ export default function TaskDetailsPage() {
         setIsDeleting(true);
         try {
             await deleteProjectTask(parsedTaskId);
-            navigate(tasksListPath);
+            navigate(backTo);
         } catch (err) {
             console.error("[Task Details] Delete failed:", err);
             setError("Failed to delete task. Please try again.");
@@ -199,7 +207,7 @@ export default function TaskDetailsPage() {
                 {/* BACK NAVIGATION ACTION */}
                 <Button
                     startIcon={<ArrowBackIcon />}
-                    onClick={() => navigate(tasksListPath)}
+                    onClick={() => navigate(backTo)}
                     sx={{ mb: 3, fontWeight: "bold" }}
                     color="inherit"
                 >

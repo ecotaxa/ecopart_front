@@ -17,8 +17,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         vi.clearAllMocks();
     });
 
-    // TC-M1: Standard Success
-    it('TC-M1: should return parsed JSON on a successful request (200 OK)', async () => {
+    // TC-AC1: Standard Success
+    it('TC-AC1: should return parsed JSON on a successful request (200 OK)', async () => {
         server.use(
             mswHttp.get(TEST_URL, () => {
                 return HttpResponse.json({ message: 'success data' }, { status: 200 });
@@ -29,8 +29,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         expect(response.message).toBe('success data');
     });
 
-    // TC-M2: Standard API Error
-    it('TC-M2: should throw an error on standard API failures (e.g. 400 Bad Request)', async () => {
+    // TC-AC2: Standard API Error
+    it('TC-AC2: should throw an error on standard API failures (e.g. 400 Bad Request)', async () => {
         server.use(
             mswHttp.get(TEST_URL, () => {
                 return HttpResponse.json({ message: 'Invalid data' }, { status: 400 });
@@ -41,7 +41,7 @@ describe('HTTP Utility (API Fetcher)', () => {
         await expect(http(TEST_URL)).rejects.toThrow();
     });
 
-    it('TC-M2.1: should extract the first backend error from an errors array', async () => {
+    it('TC-AC2.1: should extract the first backend error from an errors array', async () => {
         server.use(
             mswHttp.get(TEST_URL, () => {
                 return HttpResponse.json({ errors: ['EcoTaxa project is already linked to an EcoPart project'] }, { status: 500 });
@@ -51,8 +51,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         await expect(http(TEST_URL)).rejects.toThrow(/already linked/i);
     });
 
-    // TC-M3: The Core Engine - Refresh Token Loop
-    it('TC-M3: should intercept 401, refresh the token, and retry the original request successfully', async () => {
+    // TC-AC3: The Core Engine - Refresh Token Loop
+    it('TC-AC3: should intercept 401, refresh the token, and retry the original request successfully', async () => {
         let attemptCount = 0;
 
         server.use(
@@ -84,8 +84,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         expect(attemptCount).toBe(2); // It tried exactly twice
     });
 
-    // TC-M4: The Core Engine - Refresh Token Failure
-    it('TC-M4: should throw "Session expired" if the refresh token also fails (e.g. 401 on refresh)', async () => {
+    // TC-AC4: The Core Engine - Refresh Token Failure
+    it('TC-AC4: should throw "Session expired" if the refresh token also fails (e.g. 401 on refresh)', async () => {
         server.use(
             // 1. Target endpoint fails
             mswHttp.get(TEST_URL, () => {
@@ -107,8 +107,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         // expect(authState.isAuthenticated).toBe(false);
     });
 
-    // TC-M5: Concurrent 401 Deduplication
-    it('TC-M5: should perform only one refresh for concurrent 401 responses', async () => {
+    // TC-AC5: Concurrent 401 Deduplication
+    it('TC-AC5: should perform only one refresh for concurrent 401 responses', async () => {
         let requestCount = 0;
         let refreshCount = 0;
 
@@ -141,8 +141,8 @@ describe('HTTP Utility (API Fetcher)', () => {
         expect(requestCount).toBe(4);
     });
 
-    // TC-M6: Retry Failure After Refresh
-    it('TC-M6: should surface retry error when request still fails after successful refresh', async () => {
+    // TC-AC6: Retry Failure After Refresh
+    it('TC-AC6: should surface retry error when request still fails after successful refresh', async () => {
         let attemptCount = 0;
 
         server.use(

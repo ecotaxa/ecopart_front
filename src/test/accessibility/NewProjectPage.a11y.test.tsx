@@ -20,8 +20,8 @@ describe('NewProjectPage (Accessibility)', () => {
         );
     });
 
-    // TC-H8: Keyboard Navigation
-    it('TC-H8: should allow navigating the main form inputs using Tab order', async () => {
+    // TC-H10: Keyboard Navigation
+    it('TC-H10: should allow navigating the main form inputs using Tab order', async () => {
         const user = userEvent.setup({ delay: null });
         renderWithRouter(<NewProjectPage />);
 

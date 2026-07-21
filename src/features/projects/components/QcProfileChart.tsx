@@ -69,8 +69,13 @@ export const QcProfileChart: React.FC<QcProfileChartProps> = ({
                 <ScatterChart
                     height={height}
                     series={scatterSeries}
-                    xAxis={[{ label: xLabel, scaleType }]}
-                    yAxis={[{ label: yLabel, reverse: true }]}
+                    // `height`/`width` reserve room for the axis TITLE *plus* a line
+                    // of tick labels. Without an explicit size MUI can auto-size the
+                    // axis too small, and since these axes carry a title it then has
+                    // no room left for the tick labels and blanks them entirely
+                    // (empty text under every tick). These sizes keep both visible.
+                    xAxis={[{ label: xLabel, scaleType, height: 56 }]}
+                    yAxis={[{ label: yLabel, reverse: true, width: 64 }]}
                     hideLegend={!showLegend}
                     disableVoronoi
                     grid={{ horizontal: true, vertical: true }}

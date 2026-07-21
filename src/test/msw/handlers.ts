@@ -227,4 +227,117 @@ export const handlers = [
     http.delete('*/users/:userId/ecotaxa_account/:connectionId', () => {
         return HttpResponse.json({ message: 'Account unlinked successfully' }, { status: 200 });
     }),
+
+    // --- MOCK ADMIN STATISTICS ---
+    // Respects `include_storage`: every *_bytes field is null unless the query
+    // explicitly asks for the (expensive) storage computation. This mirrors the
+    // backend contract so the UI's "compute on click" flow is testable.
+    http.get('*/admin/stats', ({ request }) => {
+        const url = new URL(request.url);
+        const includeStorage = url.searchParams.get('include_storage') === 'true';
+        return HttpResponse.json(buildAdminStats(includeStorage));
+    }),
 ];
+
+/**
+ * Builds a deterministic admin-stats payload for tests. When `includeStorage`
+ * is false, all size fields are null (matching the backend when the disk scan
+ * is not requested); when true they are populated with realistic byte counts.
+ */
+function buildAdminStats(includeStorage: boolean) {
+    const bytes = (v: number) => (includeStorage ? v : null);
+    return {
+        generated_at: '2026-07-20T10:00:00.000Z',
+        totals: {
+            users: {
+                total: 42,
+                admins: 3,
+                validated_email: 38,
+                pending_validation: 4,
+                deleted: 1,
+                distinct_organisations: 7,
+            },
+            projects: {
+                total: 40,
+                backed_up: 30,
+                linked_to_ecotaxa: 25,
+                by_instrument: [
+                    { label: 'UVP6LP', count: 22 },
+                    { label: 'UVP5HD', count: 18 },
+                ],
+            },
+            tasks: {
+                total: 120,
+                exports: 50,
+                imports: 60,
+                running: 2,
+                failed: 5,
+                by_type: [
+                    { label: 'EXPORT', count: 40 },
+                    { label: 'EXPORT_RAW', count: 10 },
+                    { label: 'IMPORT_ECO_TAXA', count: 60 },
+                ],
+                by_status: [
+                    { label: 'DONE', count: 110 },
+                    { label: 'RUNNING', count: 2 },
+                    { label: 'ERROR', count: 5 },
+                ],
+            },
+            samples: {
+                total: 300,
+                imported_to_ecotaxa: 180,
+                by_qc_status: [
+                    { label: 'PENDING', count: 100 },
+                    { label: 'VALIDATED', count: 170 },
+                    { label: 'REJECTED', count: 30 },
+                ],
+            },
+            storage: {
+                total_size_bytes: bytes(123456789),
+            },
+            top_organisations: [
+                { organisation: 'Sorbonne Universite', users: 20 },
+                { organisation: 'CNRS', users: 12 },
+            ],
+        },
+        period: {
+            from: '2026-01-01T00:00:00.000Z',
+            to: '2026-07-20T00:00:00.000Z',
+            granularity: 'month',
+            new_users: 10,
+            new_projects: 8,
+            new_samples: 90,
+            tasks: {
+                total: 60,
+                exports: 25,
+                by_type: [{ label: 'EXPORT', count: 25 }],
+                by_status: [{ label: 'DONE', count: 55 }],
+            },
+            baseline: {
+                projects: 32,
+                samples: 210,
+                data_size_bytes: bytes(50000000),
+            },
+            series: [
+                {
+                    interval: '2026-01',
+                    projects_created: 3,
+                    samples_created: 30,
+                    data_size_bytes: bytes(10000000),
+                    cumulative_projects: 35,
+                    cumulative_samples: 240,
+                    cumulative_data_size_bytes: bytes(60000000),
+                },
+                {
+                    interval: '2026-02',
+                    projects_created: 5,
+                    samples_created: 60,
+                    data_size_bytes: bytes(20000000),
+                    cumulative_projects: 40,
+                    cumulative_samples: 300,
+                    cumulative_data_size_bytes: bytes(80000000),
+                },
+            ],
+        },
+    };
+}

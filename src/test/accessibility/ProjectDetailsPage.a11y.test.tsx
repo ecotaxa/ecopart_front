@@ -23,8 +23,8 @@ describe('ProjectDetailsPage (Accessibility)', () => {
         );
     });
 
-    // TC-I6: Keyboard Navigation (Tabs)
-    it('TC-I6: should allow navigating the tabs via keyboard', async () => {
+    // TC-I7: Keyboard Navigation (Tabs)
+    it('TC-I7: should allow navigating the tabs via keyboard', async () => {
         const user = userEvent.setup({ delay: null });
 
         renderWithRouter(

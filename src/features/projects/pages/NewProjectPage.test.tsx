@@ -390,8 +390,8 @@ describe('NewProjectPage (Functional)', () => {
         expect(within(privilegesSection as HTMLElement).queryByText(/Ghost User/i)).not.toBeInTheDocument();
     }, 30000);
 
-    // TC-H8: Loading State During Submission
-    it('TC-H8: should show loader and disable CREATE button during project submission', async () => {
+    // TC-H8b: Loading State During Submission
+    it('TC-H8b: should show loader and disable CREATE button during project submission', async () => {
         const user = userEvent.setup({ delay: null });
 
         let resolveProjectCreation!: () => void;

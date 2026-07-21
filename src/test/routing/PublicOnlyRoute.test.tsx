@@ -11,7 +11,7 @@ describe('PublicOnlyRoute (Routing)', () => {
         logoutUser();
     });
 
-    it('redirects authenticated users away from login and register pages', () => {
+    it('TC-AD3: redirects authenticated users away from login and register pages', () => {
         loginAsUser();
 
         // Test /login redirect

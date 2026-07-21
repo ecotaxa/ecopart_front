@@ -78,6 +78,20 @@ export default defineConfig(({ mode }) => {
                     target: backendUrl,
                     changeOrigin: true,
                 },
+
+                // Admin APIs (e.g. /admin/stats). "/admin/:tabName?" is also a
+                // client-side route, so a browser navigation must fall back to
+                // the SPA while fetch()/XHR calls are proxied to the backend.
+                "/admin": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                    bypass: (req) => {
+                        if (req.headers.accept?.includes('text/html')) {
+                            return '/index.html';
+                        }
+                        return null;
+                    }
+                },
             },
         },
 

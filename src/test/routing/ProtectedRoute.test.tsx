@@ -15,8 +15,8 @@ describe('ProtectedRoute (Routing)', () => {
         logoutUser();
     });
 
-    // TC-R1: Block unauthenticated access
-    it('TC-R1: should redirect unauthenticated user to login', () => {
+    // TC-AD1: Block unauthenticated access
+    it('TC-AD1: should redirect unauthenticated user to login', () => {
         renderWithRouter(
             <Routes>
                 <Route
@@ -41,8 +41,8 @@ describe('ProtectedRoute (Routing)', () => {
         expect(screen.getByText(/Login Page/i)).toBeInTheDocument();
     });
 
-    // TC-R2: Allow authenticated access
-    it('TC-R2: should allow authenticated user to access protected route', () => {
+    // TC-AD2: Allow authenticated access
+    it('TC-AD2: should allow authenticated user to access protected route', () => {
         // Helper to simulate logged-in state
         loginAsUser();
 
