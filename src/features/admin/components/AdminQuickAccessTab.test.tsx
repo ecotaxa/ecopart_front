@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
@@ -75,16 +75,22 @@ describe('AdminQuickAccessTab', () => {
 
         renderQuickAccess();
 
+        const quickAccessCard = screen
+            .getByRole('heading', { name: 'Quick access' })
+            .closest('.MuiPaper-root') as HTMLElement;
+
         expect(screen.getByRole('heading', { name: 'Quick access' })).toBeInTheDocument();
         expect(await screen.findByText('340')).toBeInTheDocument();
         expect(screen.getByText('600')).toBeInTheDocument();
         expect(screen.getByText('450')).toBeInTheDocument();
         expect(screen.getByText('367')).toBeInTheDocument();
 
-        expect(screen.getByText('Projects')).toBeInTheDocument();
-        expect(screen.getByText('Users')).toBeInTheDocument();
-        expect(screen.getByText('Exports')).toBeInTheDocument();
-        expect(screen.getByText('Tasks')).toBeInTheDocument();
+        // Scoped to the counters card: the statistics dashboard below this tab
+        // also renders "Projects"/"Users" text (chart legends, breakdown titles).
+        expect(within(quickAccessCard).getByText('Projects')).toBeInTheDocument();
+        expect(within(quickAccessCard).getByText('Users')).toBeInTheDocument();
+        expect(within(quickAccessCard).getByText('Exports')).toBeInTheDocument();
+        expect(within(quickAccessCard).getByText('Tasks')).toBeInTheDocument();
     });
 
     it('TC-AH2: counts exports with an IN filter on the export task types and no date filter by default', async () => {

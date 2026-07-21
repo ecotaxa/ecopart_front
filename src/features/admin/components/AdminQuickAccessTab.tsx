@@ -12,6 +12,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { useNavigate } from "react-router-dom";
 
 import { QUICK_ACCESS_PERIODS, useAdminQuickAccess } from "../hooks/useAdminQuickAccess";
+import AdminStatisticsSection from "./AdminStatisticsSection";
 
 // Vivid, distinct accent colours for the four counters (from the admin mockup).
 const STAT_COLORS = {
@@ -180,6 +181,9 @@ export default function AdminQuickAccessTab() {
                     </Box>
                 </Box>
             </Paper>
+
+            {/* Full /admin/stats analytics dashboard, below the headline counters. */}
+            <AdminStatisticsSection />
         </Box>
     );
 }

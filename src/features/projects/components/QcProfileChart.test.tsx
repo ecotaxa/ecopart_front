@@ -60,6 +60,30 @@ describe('components/QcProfileChart', () => {
         expect(container.querySelector('svg')).not.toBeNull();
     });
 
+    it('TC-AB6: renders the x-axis title and non-empty tick labels', () => {
+        // Regression: both axes carry a title, so if MUI auto-sizes the x-axis too
+        // small it leaves no room for the tick labels and blanks them (empty <tspan>
+        // under every tick). The component pins an explicit axis height/width to keep
+        // the tick labels visible. NOTE: jsdom measures text width as 0, so it can't
+        // reproduce the squeeze itself — this asserts the labels render with content
+        // in the normal path and that the x-axis title is present.
+        const { container } = render(
+            <QcProfileChart
+                title="Linear"
+                series={[seriesFrom('a', '#000', [1000, 5000, 9000, 12000])]}
+                xLabel="count"
+            />
+        );
+        // The x-axis title renders.
+        expect(screen.getByText('count')).toBeInTheDocument();
+        // At least one x-axis tick label has non-empty text (labels are not blanked).
+        const xTickLabels = Array.from(
+            container.querySelectorAll('.MuiChartsAxis-directionX .MuiChartsAxis-tickLabel')
+        );
+        expect(xTickLabels.length).toBeGreaterThan(0);
+        expect(xTickLabels.some((el) => (el.textContent ?? '').trim() !== '')).toBe(true);
+    });
+
     describe('Accessibility Tests', () => {
         it('TC-AB12: exposes a readable text label and announces the empty state as text', () => {
             // A ScatterChart is an opaque <svg> for a screen reader: the title caption is the only
