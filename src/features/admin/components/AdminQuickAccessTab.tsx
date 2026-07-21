@@ -69,7 +69,7 @@ const StatCard = ({ label, value, loading, color, icon }: StatCardProps) => (
 const USEFUL_LINKS: { label: string; href: string }[] = [
     { label: "Docker administration", href: "https://hub.docker.com/r/ecotaxa/ecopart_front" },
     { label: "Specifications", href: "https://github.com/ecotaxa/ecopart_front#readme" },
-    { label: "Github repository", href: "https://github.com/ecotaxa/ecopart_front" },
+    { label: "GitHub repository", href: "https://github.com/ecotaxa/ecopart_front" },
 ];
 
 /**

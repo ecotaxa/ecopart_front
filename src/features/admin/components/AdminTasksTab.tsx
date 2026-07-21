@@ -96,8 +96,6 @@ export default function AdminTasksTab() {
 
     return (
         <Box>
-            <Typography variant="h5" gutterBottom>Tasks</Typography>
-
             {error && (
                 <Box sx={{ mb: 2 }}>
                     <Alert severity="error" variant="outlined">

@@ -134,8 +134,6 @@ export default function AdminProjectsTab() {
 
     return (
         <Box>
-            <Typography variant="h5" gutterBottom>Projects</Typography>
-
             {error && (
                 <Box sx={{ mb: 2 }}>
                     <Alert severity="error" variant="outlined">

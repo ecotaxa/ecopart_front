@@ -172,8 +172,6 @@ export default function AdminUsersTab() {
 
     return (
         <Box>
-            <Typography variant="h5" gutterBottom>Users</Typography>
-
             {error && (
                 <Box sx={{ mb: 2 }}>
                     <Alert severity="error" variant="outlined">
@@ -273,7 +271,7 @@ export default function AdminUsersTab() {
                         <Tooltip title="Coming soon">
                             <span>
                                 <Button variant="text" color="inherit" disabled startIcon={<BlockIcon />} sx={{ fontWeight: "bold" }}>
-                                    DEACTIVE
+                                    DEACTIVATE
                                 </Button>
                             </span>
                         </Tooltip>

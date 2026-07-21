@@ -93,7 +93,6 @@ describe('AdminProjectsTab', () => {
 
         renderProjectsTab();
 
-        expect(screen.getByRole('heading', { name: 'Projects' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Project list' })).toBeInTheDocument();
         expect(screen.getByText('All projects with advanced filters')).toBeInTheDocument();
 

@@ -1,4 +1,5 @@
 import { Box, Alert, AlertTitle, Typography } from "@mui/material";
+import { useShallow } from "zustand/react/shallow";
 
 import { useAnnouncementStore } from "@/features/admin/store/announcement.store";
 
@@ -11,9 +12,15 @@ import { useAnnouncementStore } from "@/features/admin/store/announcement.store"
  * (until a full reload) without deleting the message.
  */
 export default function GlobalAnnouncementBanner() {
-    const announcement = useAnnouncementStore((s) => s.announcement);
-    const dismissed = useAnnouncementStore((s) => s.dismissed);
-    const dismiss = useAnnouncementStore((s) => s.dismiss);
+    // A single shallow-compared selector, so the three fields are read from one
+    // consistent snapshot and the component re-renders at most once per update.
+    const { announcement, dismissed, dismiss } = useAnnouncementStore(
+        useShallow((s) => ({
+            announcement: s.announcement,
+            dismissed: s.dismissed,
+            dismiss: s.dismiss,
+        })),
+    );
 
     if (!announcement || dismissed) return null;
 

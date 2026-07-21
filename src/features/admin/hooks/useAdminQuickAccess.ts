@@ -69,8 +69,9 @@ const totalFrom = (
  * Hook backing the admin QUICK ACCESS panel.
  *
  * Fetches the four headline counters (projects, users, exports, tasks) in
- * parallel, each scoped to the selected time window via a `>=` filter on the
- * entity's creation-date column. Every count uses a `limit: 1` search and reads
+ * parallel, each scoped to the selected time window via a `LIKE` date-prefix
+ * filter on the entity's creation-date column (see computeDatePrefix for why a
+ * `>=` rolling window isn't usable). Every count uses a `limit: 1` search and reads
  * `search_info.total`, so no rows are transferred. Failures are isolated per
  * counter (Promise.allSettled): a single failing endpoint shows "—" while the
  * others still render, and the error banner only appears if all four fail.

@@ -7,7 +7,7 @@ export type AnnouncementSeverity = "info" | "warning" | "error";
 /** A site-wide message an admin broadcasts to every user, or `null` when none. */
 export interface Announcement {
     message: string;
-    /** Optional secondary line shown under the main message. */
+    /** Secondary line shown under the main message; empty string when there is none. */
     subMessage: string;
     severity: AnnouncementSeverity;
 }

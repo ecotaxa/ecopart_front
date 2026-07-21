@@ -82,7 +82,6 @@ describe('AdminUsersTab', () => {
 
         renderUsersTab();
 
-        expect(screen.getByRole('heading', { name: 'Users' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'User list' })).toBeInTheDocument();
         expect(screen.getByText('Additional description if required')).toBeInTheDocument();
 
@@ -278,7 +277,7 @@ describe('AdminUsersTab', () => {
         expect(screen.getByRole('button', { name: 'NEW USER' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'REMOVE FROM ALL PROJECTS' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'ACTIVE' })).toBeDisabled();
-        expect(screen.getByRole('button', { name: 'DEACTIVE' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'DEACTIVATE' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'TASKS' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'PROJECTS' })).toBeDisabled();
     });

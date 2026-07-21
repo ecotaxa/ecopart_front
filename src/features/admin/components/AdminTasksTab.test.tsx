@@ -98,7 +98,6 @@ describe('AdminTasksTab', () => {
 
         renderAdminTasksTab();
 
-        expect(screen.getByRole('heading', { name: 'Tasks' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Task list' })).toBeInTheDocument();
         expect(screen.getByText('Additional description if required')).toBeInTheDocument();
 

@@ -37,7 +37,9 @@ export default function TaskDetailsPage() {
     // Where the "Back to tasks list" arrow (and the post-delete redirect) should
     // land. Callers that opened this page from a different list — e.g. the admin
     // console — pass `state.from`; otherwise fall back to the tasks list above.
-    const backTo = typeof location.state?.from === "string" ? location.state.from : tasksListPath;
+    // location.state is typed `unknown`, so narrow it before reading `from`.
+    const navState = location.state as { from?: unknown } | null;
+    const backTo = typeof navState?.from === "string" ? navState.from : tasksListPath;
 
     // Base path for this task detail, preserving project vs global context.
     const taskDetailBase = parsedProjectId !== null

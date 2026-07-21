@@ -146,7 +146,7 @@ describe('AdminQuickAccessTab', () => {
         expect(screen.getByRole('button', { name: /See all projects as administrator/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /See all tasks as administrator/i })).toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Github repository' })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: 'GitHub repository' })).toHaveAttribute(
             'href',
             'https://github.com/ecotaxa/ecopart_front',
         );
