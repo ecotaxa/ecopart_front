@@ -1,7 +1,8 @@
 import {
     Box, Typography, Button, TextField, MenuItem,
-    Alert, Stack, Paper, Skeleton, Link,
+    Alert, Stack, Paper, Skeleton, Link, Divider,
 } from "@mui/material";
+import Grid from "@mui/material/Grid";
 
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
@@ -11,22 +12,20 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 import { useNavigate } from "react-router-dom";
 
+import SectionCard from "@/shared/components/SectionCard";
 import { QUICK_ACCESS_PERIODS, useAdminQuickAccess } from "../hooks/useAdminQuickAccess";
 import AdminStatisticsSection from "./AdminStatisticsSection";
 
-// Vivid, distinct accent colours for the four counters (from the admin mockup).
+// Headline-counter accents drawn from the app theme (teal-led EcoPart palette)
+// instead of the off-brand mockup colours, so the tab matches the rest of the app.
 const STAT_COLORS = {
-    projects: "#4c7df0",
-    users: "#9b51c7",
-    exports: "#e15563",
-    tasks: "#45a06a",
+    projects: "primary.main",
+    users: "secondary.main",
+    exports: "info.main",
+    tasks: "success.main",
 } as const;
 
-// The mockup renders the admin shortcuts and the useful links in a plain blue
-// (not the app's teal primary), so we set it explicitly here.
-const ACTION_BLUE = "#1976d2";
-
-/** One coloured headline counter (projects / users / exports / tasks). */
+/** One brand-coloured headline counter (projects / users / exports / tasks). */
 interface StatCardProps {
     label: string;
     value: number | null;
@@ -41,10 +40,10 @@ const StatCard = ({ label, value, loading, color, icon }: StatCardProps) => (
         sx={{
             backgroundColor: color,
             color: "common.white",
-            borderRadius: 3,
+            borderRadius: 2,
             p: 2.5,
-            width: 150,
-            height: 150,
+            height: "100%",
+            minHeight: 140,
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -94,96 +93,97 @@ export default function AdminQuickAccessTab() {
                 </Box>
             )}
 
-            <Paper variant="outlined" sx={{ width: "100%", overflow: "hidden" }}>
-                {/* CARD HEADER */}
-                <Box sx={{ p: 3, borderBottom: "1px solid #e0e0e0" }}>
+            {/* One big container for the whole tab, matching the project tabs'
+                single-SectionCard architecture. */}
+            <SectionCard>
+                {/* HEADER + PERIOD SELECTOR */}
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 2,
+                        mb: 3,
+                    }}
+                >
                     <Typography variant="h6">Quick access</Typography>
-                </Box>
-
-                <Box sx={{ p: 4 }}>
-                    {/* PERIOD SELECTOR */}
-                    <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 3 }}>
-                        <TextField
-                            select
-                            size="small"
-                            label="Period"
-                            value={period}
-                            onChange={(e) => setPeriod(e.target.value as typeof period)}
-                            sx={{ minWidth: 200 }}
-                        >
-                            {QUICK_ACCESS_PERIODS.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    </Box>
-
-                    {/* STAT CARDS */}
-                    <Stack
-                        direction="row"
-                        spacing={2.5}
-                        sx={{ flexWrap: "wrap", gap: 2.5, mb: 5, justifyContent: "center" }}
+                    <TextField
+                        select
+                        size="small"
+                        label="Period"
+                        value={period}
+                        onChange={(e) => setPeriod(e.target.value as typeof period)}
+                        sx={{ minWidth: 200 }}
                     >
-                        <StatCard label="Projects" value={stats.projects} loading={loading} color={STAT_COLORS.projects} icon={<ViewModuleIcon />} />
-                        <StatCard label="Users" value={stats.users} loading={loading} color={STAT_COLORS.users} icon={<PeopleAltIcon />} />
-                        <StatCard label="Exports" value={stats.exports} loading={loading} color={STAT_COLORS.exports} icon={<CloudUploadIcon />} />
-                        <StatCard label="Tasks" value={stats.tasks} loading={loading} color={STAT_COLORS.tasks} icon={<ListAltIcon />} />
-                    </Stack>
-
-                    {/* ADMIN SHORTCUTS */}
-                    <Stack spacing={1.5} sx={{ alignItems: "flex-start", mb: 4 }}>
-                        <Button
-                            variant="outlined"
-                            endIcon={<ArrowForwardIcon />}
-                            onClick={() => navigate("/admin/projects")}
-                            sx={{
-                                color: ACTION_BLUE,
-                                borderColor: ACTION_BLUE,
-                                "&:hover": { borderColor: ACTION_BLUE, backgroundColor: "rgba(25,118,210,0.04)" },
-                            }}
-                        >
-                            See all <Box component="span" sx={{ fontWeight: 700 }}>projects</Box> as administrator
-                        </Button>
-                        <Button
-                            variant="outlined"
-                            endIcon={<ArrowForwardIcon />}
-                            onClick={() => navigate("/admin/tasks")}
-                            sx={{
-                                color: ACTION_BLUE,
-                                borderColor: ACTION_BLUE,
-                                "&:hover": { borderColor: ACTION_BLUE, backgroundColor: "rgba(25,118,210,0.04)" },
-                            }}
-                        >
-                            See all <Box component="span" sx={{ fontWeight: 700 }}>tasks</Box> as administrator
-                        </Button>
-                    </Stack>
-
-                    {/* USEFUL LINKS */}
-                    <Box>
-                        <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                            Useful links:
-                        </Typography>
-                        <Stack spacing={0.5} sx={{ alignItems: "flex-start" }}>
-                            {USEFUL_LINKS.map((link) => (
-                                <Link
-                                    key={link.label}
-                                    href={link.href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    underline="hover"
-                                    sx={{ color: ACTION_BLUE }}
-                                >
-                                    {link.label}
-                                </Link>
-                            ))}
-                        </Stack>
-                    </Box>
+                        {QUICK_ACCESS_PERIODS.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                            </MenuItem>
+                        ))}
+                    </TextField>
                 </Box>
-            </Paper>
 
-            {/* Full /admin/stats analytics dashboard, below the headline counters. */}
-            <AdminStatisticsSection />
+                {/* STAT CARDS */}
+                <Grid container spacing={2.5} sx={{ mb: 5 }}>
+                    <Grid size={{ xs: 6, md: 3 }}>
+                        <StatCard label="Projects" value={stats.projects} loading={loading} color={STAT_COLORS.projects} icon={<ViewModuleIcon />} />
+                    </Grid>
+                    <Grid size={{ xs: 6, md: 3 }}>
+                        <StatCard label="Users" value={stats.users} loading={loading} color={STAT_COLORS.users} icon={<PeopleAltIcon />} />
+                    </Grid>
+                    <Grid size={{ xs: 6, md: 3 }}>
+                        <StatCard label="Exports" value={stats.exports} loading={loading} color={STAT_COLORS.exports} icon={<CloudUploadIcon />} />
+                    </Grid>
+                    <Grid size={{ xs: 6, md: 3 }}>
+                        <StatCard label="Tasks" value={stats.tasks} loading={loading} color={STAT_COLORS.tasks} icon={<ListAltIcon />} />
+                    </Grid>
+                </Grid>
+
+                {/* ADMIN SHORTCUTS */}
+                <Stack spacing={1.5} sx={{ alignItems: "flex-start", mb: 4 }}>
+                    <Button
+                        variant="outlined"
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => navigate("/admin/projects")}
+                    >
+                        See all <Box component="span" sx={{ fontWeight: 700, mx: 0.5 }}>projects</Box> as administrator
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        endIcon={<ArrowForwardIcon />}
+                        onClick={() => navigate("/admin/tasks")}
+                    >
+                        See all <Box component="span" sx={{ fontWeight: 700, mx: 0.5 }}>tasks</Box> as administrator
+                    </Button>
+                </Stack>
+
+                {/* USEFUL LINKS */}
+                <Box>
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        Useful links:
+                    </Typography>
+                    <Stack spacing={0.5} sx={{ alignItems: "flex-start" }}>
+                        {USEFUL_LINKS.map((link) => (
+                            <Link
+                                key={link.label}
+                                href={link.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                underline="hover"
+                                color="primary"
+                            >
+                                {link.label}
+                            </Link>
+                        ))}
+                    </Stack>
+                </Box>
+
+                <Divider sx={{ my: 4 }} />
+
+                {/* Full /admin/stats analytics dashboard, in the same container. */}
+                <AdminStatisticsSection />
+            </SectionCard>
         </Box>
     );
 }

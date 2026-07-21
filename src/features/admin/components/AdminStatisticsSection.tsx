@@ -4,6 +4,7 @@ import {
     Box,
     Button,
     CircularProgress,
+    Divider,
     Stack,
     TextField,
     ToggleButton,
@@ -12,8 +13,6 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import StorageIcon from "@mui/icons-material/Storage";
-
-import SectionCard from "@/shared/components/SectionCard";
 
 import { useAdminStats } from "../hooks/useAdminStats";
 import type { StatsGranularity } from "../api/adminStats.api";
@@ -56,9 +55,9 @@ export default function AdminStatisticsSection() {
     };
 
     return (
-        <Box sx={{ mt: 4 }}>
+        <Box>
             <Box sx={{ mb: 2 }}>
-                <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+                <Typography variant="subtitle1" component="h4" fontWeight={600} gutterBottom>
                     Application statistics
                 </Typography>
                 {data?.generated_at && (
@@ -77,13 +76,13 @@ export default function AdminStatisticsSection() {
                     <CircularProgress aria-label="Loading statistics" />
                 </Box>
             ) : (
-                <Stack spacing={3}>
+                <Stack spacing={4} divider={<Divider flexItem />}>
                     {/* --- Overview KPIs (totals) ---
                         The four hero metrics (Projects, Users, Exports, Tasks) are already
                         shown as the coloured counters at the top of this tab, so this grid
                         carries the complementary health/quality metrics only. */}
-                    <SectionCard>
-                        <Typography variant="h6" component="h3" gutterBottom>
+                    <Box component="section">
+                        <Typography variant="subtitle1" component="h4" fontWeight={600} gutterBottom>
                             Overview
                         </Typography>
                         <Grid container spacing={2}>
@@ -121,11 +120,11 @@ export default function AdminStatisticsSection() {
                                 />
                             </Grid>
                         </Grid>
-                    </SectionCard>
+                    </Box>
 
                     {/* --- Period selector + evolution charts --- */}
-                    <SectionCard>
-                        <Typography variant="h6" component="h3" gutterBottom>
+                    <Box component="section">
+                        <Typography variant="subtitle1" component="h4" fontWeight={600} gutterBottom>
                             Activity over time
                         </Typography>
 
@@ -212,11 +211,11 @@ export default function AdminStatisticsSection() {
                                 />
                             </Grid>
                         </Grid>
-                    </SectionCard>
+                    </Box>
 
                     {/* --- Breakdowns (totals) --- */}
-                    <SectionCard>
-                        <Typography variant="h6" component="h3" gutterBottom>
+                    <Box component="section">
+                        <Typography variant="subtitle1" component="h4" fontWeight={600} gutterBottom>
                             Breakdowns
                         </Typography>
                         <Grid container spacing={3}>
@@ -259,11 +258,11 @@ export default function AdminStatisticsSection() {
                                 />
                             </Grid>
                         </Grid>
-                    </SectionCard>
+                    </Box>
 
                     {/* --- Advanced: storage & data size (computed on click) --- */}
-                    <SectionCard>
-                        <Typography variant="h6" component="h3" gutterBottom>
+                    <Box component="section">
+                        <Typography variant="subtitle1" component="h4" fontWeight={600} gutterBottom>
                             Storage &amp; data size
                         </Typography>
                         {data.totals.storage.total_size_bytes === null ? (
@@ -312,7 +311,7 @@ export default function AdminStatisticsSection() {
                                 </Grid>
                             </Grid>
                         )}
-                    </SectionCard>
+                    </Box>
                 </Stack>
             )}
         </Box>
