@@ -10,6 +10,39 @@ import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import { ecotaxaColors } from "@/theme";
 import SectionCard from "@/shared/components/SectionCard";
+import InfoTooltip from "@/shared/components/InfoTooltip";
+
+// Scope of the destructive DELETE actions on this tab (user terms, no server internals).
+const uvpDeleteInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p">
+            DELETE removes the selected UVP samples and their imported particle and image data from
+            this EcoPart project. You are asked to confirm first. Samples still present in the source
+            folder can be imported again from the Import tab.
+        </Typography>
+    </Box>
+);
+
+const ctdDeleteInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p">
+            DELETE removes the CTD file linked to the selected samples. The samples themselves are
+            kept; only their attached CTD data is removed.
+        </Typography>
+    </Box>
+);
+
+const ecoTaxaDeleteInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 1 }}>
+            DELETE FROM ECOTAXA removes the selected samples from the linked EcoTaxa project, an
+            external system, not only from EcoPart. You are asked to confirm first.
+        </Typography>
+        <Typography variant="caption" component="p">
+            OPEN IN ECOTAXA opens the selected samples in EcoTaxa.
+        </Typography>
+    </Box>
+);
 
 import { useProjectDataTab } from "../hooks/useProjectDataTab";
 import { EcoTaxaSampleData, SampleData, CtdSampleData } from "../api/projects.api";
@@ -173,7 +206,10 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
             {/* UVP SAMPLES SECTION */}
             <Box sx={{ mb: 6 }}>
                 <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6">UVP samples</Typography>
+                    <Typography variant="h6">
+                        UVP samples
+                        <InfoTooltip title={uvpDeleteInfoContent} />
+                    </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
@@ -221,7 +257,10 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
             {/* CTD SAMPLES SECTION */}
             <Box sx={{ mb: 6 }}>
                 <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6">Links with CTD samples</Typography>
+                    <Typography variant="h6">
+                        Links with CTD samples
+                        <InfoTooltip title={ctdDeleteInfoContent} />
+                    </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
@@ -264,7 +303,10 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
             {/* ECOTAXA SAMPLES SECTION */}
             <Box sx={{ mb: 4 }}>
                 <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6">Links with EcoTaxa samples</Typography>
+                    <Typography variant="h6">
+                        Links with EcoTaxa samples
+                        <InfoTooltip title={ecoTaxaDeleteInfoContent} />
+                    </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>

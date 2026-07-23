@@ -6,6 +6,7 @@ import {
 import FilterListIcon from "@mui/icons-material/FilterList";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import InfoTooltip from "@/shared/components/InfoTooltip";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import RemoveModeratorIcon from "@mui/icons-material/RemoveModerator";
@@ -233,6 +234,14 @@ export default function AdminUsersTab() {
                 <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, backgroundColor: "#f5f5f5" }}>
                     <Typography variant="body2" fontWeight="bold">
                         {selectionCount} items selected
+                        <InfoTooltip
+                            title={
+                                <Typography variant="caption" component="p">
+                                    ADD ADMIN grants full administrator rights to the selected users; REMOVE ADMIN
+                                    revokes them. You are asked to confirm first.
+                                </Typography>
+                            }
+                        />
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
                         {/* No backend endpoint yet — reserved bulk action from the mockup. */}

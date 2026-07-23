@@ -14,6 +14,7 @@ import {
 
 // Importing shared components based on your architecture image
 import { PasswordInput } from "@/shared/components/PasswordInput";
+import InfoTooltip from "@/shared/components/InfoTooltip";
 // Validation utility
 import { isNonEmpty } from "@/shared/utils/validation";
 // API calls - using centralized functions from profile.api
@@ -235,6 +236,15 @@ export const EcoTaxaLoginForm = ({
                 label={
                     <Typography variant="body2" sx={{ textAlign: 'left' }}>
                         I consent to granting EcoPart full access to my EcoTaxa account so it can manage my data on EcoTaxa.
+                        <InfoTooltip
+                            title={
+                                <Typography variant="caption" component="p">
+                                    This lets EcoPart act in EcoTaxa on your behalf with this account: create and update
+                                    projects, upload samples, and read your data. You can disconnect the account at any
+                                    time from your profile.
+                                </Typography>
+                            }
+                        />
                     </Typography>
                 }
                 sx={{ alignItems: 'flex-start', mt: 1, width: '100%' }}

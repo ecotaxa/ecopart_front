@@ -65,7 +65,7 @@ export const useProjectImportTab = (projectId: number) => {
     const [hasEcoTaxaProject, setHasEcoTaxaProject] = useState<boolean>(false);
 
     // Backup Options State 
-    const [enableAutoBackup, setEnableAutoBackup] = useState(false);
+    const [enableAutoBackup, setEnableAutoBackup] = useState(true);
     const [skipAlreadyImported, setSkipAlreadyImported] = useState(true);
 
     const [isImporting, setIsImporting] = useState(false);
