@@ -25,7 +25,7 @@ describe('AdminStatisticsSection', () => {
         statsRequests.length = 0;
     });
 
-    it('loads basic stats + a chart without requesting storage, and shows the compute placeholder', async () => {
+    it('TC-AI17: loads basic stats + a chart without requesting storage, and shows the compute placeholder', async () => {
         renderWithRouter(<AdminStatisticsSection />);
 
         // Basic KPIs render (the "Pending email validations" tile only appears once data resolves).
@@ -45,7 +45,7 @@ describe('AdminStatisticsSection', () => {
         expect(statsRequests.every((u) => !u.includes('include_storage=true'))).toBe(true);
     });
 
-    it('computes storage on click: fires include_storage=true and reveals the storage KPI + chart', async () => {
+    it('TC-AI18: computes storage on click: fires include_storage=true and reveals the storage KPI + chart', async () => {
         const user = userEvent.setup();
         renderWithRouter(<AdminStatisticsSection />);
 
@@ -63,7 +63,7 @@ describe('AdminStatisticsSection', () => {
         expect(statsRequests.some((u) => u.includes('include_storage=true'))).toBe(true);
     });
 
-    it('resets the storage block to the placeholder when the period changes (no auto recompute)', async () => {
+    it('TC-AI19: resets the storage block to the placeholder when the period changes (no auto recompute)', async () => {
         const user = userEvent.setup();
         renderWithRouter(<AdminStatisticsSection />);
 

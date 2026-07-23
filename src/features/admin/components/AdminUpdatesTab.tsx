@@ -1,6 +1,6 @@
 import {
     Box, Typography, Button, TextField, Paper, Alert, AlertTitle,
-    FormControlLabel, Checkbox, Radio, RadioGroup, Snackbar,
+    FormControlLabel, Checkbox, Radio, RadioGroup, Snackbar, CircularProgress,
 } from "@mui/material";
 
 import {
@@ -67,6 +67,7 @@ export default function AdminUpdatesTab() {
         severity, setSeverity,
         confirmed, setConfirmed,
         canCreate, create, remove,
+        submitting, error, dismissError,
     } = useAdminUpdates();
 
     return (
@@ -144,6 +145,7 @@ export default function AdminUpdatesTab() {
                                 variant="contained"
                                 onClick={create}
                                 disabled={!canCreate}
+                                startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : undefined}
                                 sx={{ display: "block", maxWidth: 520, width: "100%" }}
                             >
                                 Create
@@ -174,6 +176,18 @@ export default function AdminUpdatesTab() {
                             {activeAnnouncement.subMessage}
                         </Typography>
                     )}
+                </Alert>
+            </Snackbar>
+
+            {/* Surfaces a failed publish/remove request. */}
+            <Snackbar
+                open={!!error}
+                autoHideDuration={6000}
+                onClose={dismissError}
+                anchorOrigin={{ vertical: "top", horizontal: "right" }}
+            >
+                <Alert severity="error" onClose={dismissError} variant="filled">
+                    {error}
                 </Alert>
             </Snackbar>
         </Box>
