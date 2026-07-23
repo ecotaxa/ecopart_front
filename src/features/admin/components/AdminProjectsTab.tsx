@@ -7,6 +7,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
+import InfoTooltip from "@/shared/components/InfoTooltip";
 import GroupRemoveIcon from "@mui/icons-material/GroupRemove";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
@@ -202,6 +203,14 @@ export default function AdminProjectsTab() {
                 <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, backgroundColor: "#f5f5f5" }}>
                     <Typography variant="body2" fontWeight="bold">
                         {selectionCount} items selected
+                        <InfoTooltip
+                            title={
+                                <Typography variant="caption" component="p">
+                                    DELETE permanently deletes the selected projects, including their samples and any
+                                    linked EcoTaxa project. This cannot be undone.
+                                </Typography>
+                            }
+                        />
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
                         <Button

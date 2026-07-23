@@ -435,7 +435,7 @@ The structure forces good decisions and prevents common React project decay.
 This section documents the testing architecture, tooling, and the full catalogue of
 test cases that guard the application.
 
-> **Suite at a glance:** **298 tests** across **52 files** (Vitest).
+> **Suite at a glance:** **336 tests** across **64 files** (Vitest).
 > Every functional test embeds its `TC-…` id in the test title, so a scenario in this
 > table maps 1:1 to a runnable test (`vitest -t "TC-A3"`).
 
@@ -945,9 +945,9 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AE8** | Reserved bulk actions disabled | The tab is loaded. | Inspect the USERS and PROJECTS bulk-action buttons. | Both are disabled (reserved). |
 | **TC-AE9** | Error alert | `POST /tasks/searches` returns 500. | Render the tab. | • "Failed to load tasks" is shown.<br>• No IMPORT row is rendered. |
 
-### AF. Admin — Users Tab (`AdminUsersTab`)
+### AF. Admin — Users Tab (`AdminUsersTab`, `adminUsers.api`)
 
-*`features/admin/components/AdminUsersTab.test.tsx` — hits `POST /users/searches` (list) and `PATCH /users/:id/` (grant/revoke admin).*
+*`features/admin/components/AdminUsersTab.test.tsx` — hits `POST /users/searches` (list) and `PATCH /users/:id/` (grant/revoke admin). `adminUsers.api.test.ts` (TC-AF17–18) pins the same two endpoints at the API layer against MSW.*
 
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
@@ -967,6 +967,8 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AF14** | Prevents selecting a deleted account | One active user and one anonymized/deleted user. | Inspect the row checkboxes. | Exactly one checkbox is disabled (the deleted user cannot be selected). |
 | **TC-AF15** | Search error alert | `POST /users/searches` returns 500. | Render the tab. | • "Failed to load users" is shown.<br>• "John Doe" is not rendered. |
 | **TC-AF16** | Partial failure keeps failed users selected | 2 users; `window.confirm` → true; the PATCH for user 2 returns 500, user 1 succeeds. | Select both rows and click **ADD ADMIN**. | • The "Failed to update some users." snackbar shows.<br>• Only the failed user stays selected ("1 items selected"). |
+| **TC-AF17** | `searchUsers` query + body split | MSW captures `POST /users/searches`. | Call with page/limit/sort_by and a filter array. | `page`/`limit`/`sort_by` are in the query; the filter array is the POST body. |
+| **TC-AF18** | `setUserAdmin` PATCHes one user | MSW captures `PATCH /users/:id/`. | Call `setUserAdmin(7, true)`. | A `PATCH /users/7/` carries `{ is_admin: true }` and returns the updated row. |
 
 ### AG. Admin — Projects Tab (`AdminProjectsTab`)
 
@@ -1001,27 +1003,73 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AH5** | Single failing counter (no banner) | One counter's request returns 500; the others succeed. | Render the tab. | • The failing counter shows "—".<br>• The global error banner is **not** raised. |
 | **TC-AH6** | All counters fail (error banner) | Every search returns 500. | Render the tab. | The "Failed to load the administration statistics" banner is shown. |
 
-### AU. Admin — Updates (`AdminUpdatesTab`, `useAdminUpdates`, `announcement.store`, `GlobalAnnouncementBanner`)
+### AI. Admin — Statistics dashboard (`AdminStatisticsSection`, `KpiCard`, `BreakdownChart`, `EvolutionChart`, `adminStats.api`, `formatBytes`, `prettifyLabel`, `chartColors`)
 
-*The UPDATES tab broadcasts a single site-wide message to every user. There is no backend endpoint, so the message lives in the `useAnnouncementStore` Zustand store (persisted to `localStorage`), and `GlobalAnnouncementBanner` — mounted in `MainLayout` — shows it on every page. Tests span the tab component, its hook, the store, and the banner.*
+*The admin statistics dashboard, tested across every layer under one section: the `AdminStatisticsSection` component (a single `GET /admin/stats` query, tested vs MSW), its presentational parts (`KpiCard` + the two MUI X charts, which render in jsdom via the `ResizeObserver`/`getBoundingClientRect` stubs), the `adminStats.api` fetcher, and the pure helpers (`formatBytes`, `prettifyLabel`, `chartColorAt`). Basic stats + charts load immediately; the expensive storage/data-size figures are computed only on an explicit "Compute storage" click (`include_storage=true`), never on load or filter change. Utilities are unit-tested in isolation; the charts share a "No data" placeholder shown when there is nothing to plot.*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AI1** | `formatBytes` guards nullish & non-positive | — | Call with `null`/`undefined`/`NaN`, then `0` and a negative. | Nullish/`NaN` → `"—"`; `0` and negatives → `"0 B"`. |
+| **TC-AI2** | `formatBytes` scales & rounds | — | Format `512`, `1024`, `123456789`, `1536` (2 decimals) and `Number.MAX_VALUE`. | `"512 B"` (bytes whole), `"1.0 KB"`, `"117.7 MB"`, `"1.50 KB"`; never scales past `EB`. |
+| **TC-AI3** | `prettifyLabel` prettifies enums | — | Prettify `"EXPORT_RAW"`, `"IMPORT_ECO_TAXA"`, `"PENDING"`. | `"Export raw"`, `"Import eco taxa"`, `"Pending"`. |
+| **TC-AI4** | `prettifyLabel` leaves acronyms alone | — | Prettify `"UVP6LP"` and `"Zooscan"`. | Both are returned unchanged (acronym / mixed-case instrument names). |
+| **TC-AI5** | `prettifyLabel` passes empty through | — | Prettify `""`. | `""`. |
+| **TC-AI6** | `chartColorAt` wraps the palette | — | Read colours at `0`, `3`, `length` and `length + 1`. | Returns `chartColors[i]`, wrapping back to the first colour past the end. |
+| **TC-AI7** | `getAdminStats` builds the full query | MSW captures `GET /admin/stats`. | Call with `from`/`to`/`granularity`/`include_storage: true`. | All four params are on the query string, with `include_storage=true`. |
+| **TC-AI8** | `getAdminStats` omits `include_storage` when false | MSW captures the request. | Call with `include_storage: false`, then with no params. | `include_storage` is absent; a param-less call sends a bare path with no query string. |
+| **TC-AI9** | `KpiCard` renders label/value/icon/sub | — | Render with a `sub` + `icon`, then re-render without a `sub`. | Label, value, icon and sub render; the caption line disappears when no `sub` is given. |
+| **TC-AI10** | `KpiCard` accepts a pre-formatted value | — | Render with `value="117.7 MB"`. | The pre-formatted string renders as the value. |
+| **TC-AI11** | `BreakdownChart` "No data" placeholder | — | Render with an empty list, then all-zero counts. | The "No data" placeholder shows and no chart is labelled. |
+| **TC-AI12** | `BreakdownChart` bar (default) | Non-zero counts. | Render the default variant. | An accessible bar chart labelled with its title renders (no placeholder). |
+| **TC-AI13** | `BreakdownChart` pie | Non-zero counts. | Render with `variant="pie"`. | An accessible pie chart labelled with its title renders. |
+| **TC-AI14** | `EvolutionChart` "No data" placeholder | — | Render with no x labels, then an all-null series. | The "No data" placeholder shows and no chart is labelled. |
+| **TC-AI15** | `EvolutionChart` line (default) | x labels + a numeric series. | Render the default variant. | An accessible line chart labelled with its title renders (no placeholder). |
+| **TC-AI16** | `EvolutionChart` bar | x labels + a numeric series. | Render with `variant="bar"`. | An accessible bar chart labelled with its title renders. |
+| **TC-AI17** | Section loads basic stats, defers storage | `GET /admin/stats` returns basic stats. | Render the section. | KPIs + an evolution chart render; the storage block shows the "not computed" placeholder and no request carries `include_storage=true`. |
+| **TC-AI18** | Compute storage on click | The section is loaded. | Click "Compute storage & data size". | A request with `include_storage=true` fires and the storage KPI + data-size chart appear. |
+| **TC-AI19** | Period change resets storage | Storage has been computed. | Change the period. | The storage block reverts to the placeholder and the refetch does **not** request storage again. |
+
+### AJ. Admin — Page shell & routing (`AdminPage`)
+
+*The `/admin` console is a tabbed shell whose active panel is driven by the `:tabName` route param (linkable tabs, defaulting to QUICK ACCESS). Tests assert only the routing; the panels are covered in AE–AI and AU, with their endpoints stubbed here.*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AJ1** | Default tab | Route `/admin` (no slug). | Render the page. | The "EcoPart administration" heading renders and QUICK ACCESS is the selected tab. |
+| **TC-AJ2** | Tab from slug | Route `/admin/users`. | Render the page. | USERS is selected and QUICK ACCESS is not. |
+| **TC-AJ3** | Unknown slug falls back | Route `/admin/does-not-exist`. | Render the page. | QUICK ACCESS is selected (invalid slug ignored). |
+| **TC-AJ4** | Clicking a tab navigates | Route `/admin`. | Click the PROJECTS tab. | Navigation updates the route param and PROJECTS becomes the selected tab. |
+
+### AU. Admin — Updates (`AdminUpdatesTab`, `useAdminUpdates`, `announcement.store`, `GlobalAnnouncementBanner`, `broadcastMessages.api`)
+
+*The UPDATES tab broadcasts a single site-wide message to every user. The message is owned by the backend (`/broadcast_messages`: `GET` reads the current one — or `null` — for any authenticated user, `POST` sets/replaces it and `DELETE` clears it, both admin-only). The `useAnnouncementStore` Zustand store fetches it via `refresh()` and drives the admin mutations (`publish`/`clear`); only the per-viewer dismissal (`dismissedKey`, keyed on the message's creation timestamp) is persisted to `localStorage`. `GlobalAnnouncementBanner` — mounted in `MainLayout` — refetches on each navigation and shows the message on every page, with a close button that hides it for that viewer until a newer message is pushed. The tab/hook/store/banner tests mock the API; the API helpers themselves (TC-AU19–21) are exercised end-to-end against MSW.*
 
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
 | **TC-AU1** | Render the creation form | No message is active. | Render the Admin Updates tab. | • The "Show message to all users" heading renders.<br>• The Message and Sub message fields and the "Message layout style" label are shown. |
 | **TC-AU2** | CREATE gated on message + confirmation | The form is empty. | Type a message, then tick the confirmation. | • CREATE is disabled while empty.<br>• Still disabled with a message alone.<br>• Enabled once the confirmation is ticked. |
-| **TC-AU3** | Create stores & shows the message | The form is filled. | Fill Message + Sub message, pick "Warning", tick the confirmation, click **Create**. | • The store holds `{ message, subMessage, severity: 'warning' }`.<br>• The form is replaced by the active-message view (no CREATE button). |
-| **TC-AU4** | Remove returns to the form | A message is active. | Click the active alert's close button. | The announcement is cleared and the creation form reappears. |
+| **TC-AU3** | Create pushes & shows the message | The form is filled. | Fill Message + Sub message, pick "Warning", tick the confirmation, click **Create**. | • `setBroadcastMessage` is called with `{ message, sub_message, level: 'warning' }`.<br>• The form is replaced by the active-message view (no CREATE button). |
+| **TC-AU4** | Remove returns to the form | A message is active. | Click the active alert's close button. | `deleteBroadcastMessage` is called, the broadcast is cleared and the creation form reappears. |
 | **TC-AU5** | Whitespace-only message stays invalid | `useAdminUpdates`. | Set the message to spaces and tick the confirmation. | `canCreate` is `false` (the `message.trim()` guard). |
-| **TC-AU6** | Trims message & sub message | `useAdminUpdates`. | Set padded message/sub message, pick "Warning", confirm, `create()`. | The stored announcement holds the trimmed strings. |
+| **TC-AU6** | Trims message & sub message | `useAdminUpdates`. | Set padded message/sub message, pick "Warning", confirm, `create()`. | `setBroadcastMessage` receives the trimmed strings and `activeAnnouncement` reflects them. |
+| **TC-AU6b** | Blank sub message sent as `null` | `useAdminUpdates`. | Fill only the message, confirm, `create()`. | `setBroadcastMessage` receives `sub_message: null`. |
 | **TC-AU7** | Form reset + toast after create | `useAdminUpdates`. | Fill the form and `create()`. | `message`/`subMessage` are empty, `severity` is back to `"info"`, `confirmed` is `false`, and `justCreated` is `true`. |
 | **TC-AU8** | Dismiss the toast only | `useAdminUpdates` with a fresh announcement. | Call `dismissJustCreated()`. | `justCreated` is `false` while `activeAnnouncement` stays set. |
-| **TC-AU9** | create() no-op when invalid | `useAdminUpdates`. | Set a message without confirming, then `create()`. | No announcement is stored and `justCreated` stays `false`. |
-| **TC-AU10** | remove() clears everything | `useAdminUpdates` with an active announcement. | Call `remove()`. | `activeAnnouncement` is `null` and `justCreated` is `false`. |
-| **TC-AU11** | setAnnouncement resets dismissal | `announcement.store` with `dismissed: true`. | Call `setAnnouncement(...)`. | The announcement is stored and `dismissed` returns to `false`. |
-| **TC-AU12** | dismiss hides without deleting | `announcement.store` with an active announcement. | Call `dismiss()`. | `dismissed` is `true` and the announcement is preserved. |
-| **TC-AU13** | clearAnnouncement resets state | `announcement.store` with an active, dismissed announcement. | Call `clearAnnouncement()`. | `announcement` is `null` and `dismissed` is `false`. |
-| **TC-AU14** | Persists only the announcement | `announcement.store`. | `setAnnouncement(...)` then `dismiss()`. | `localStorage['ecopart-admin-announcement']` holds the announcement but **not** `dismissed` (the `partialize`). |
-| **TC-AU15** | Banner hidden without a message | No announcement. | Render `GlobalAnnouncementBanner`. | No alert is rendered. |
-| **TC-AU16** | Banner hidden when dismissed | An announcement exists but `dismissed: true`. | Render the banner. | No alert is rendered. |
-| **TC-AU17** | Banner renders with the chosen severity | An active "Warning" announcement with a sub message. | Render the banner. | The alert shows the message + sub message and carries the `MuiAlert-standardWarning` class. |
-| **TC-AU18** | Banner close button dismisses | An active announcement. | Click the banner's close button. | The store's `dismissed` becomes `true` and the alert disappears. |
+| **TC-AU9** | create() no-op when invalid | `useAdminUpdates`. | Set a message without confirming, then `create()`. | `setBroadcastMessage` is not called and `justCreated` stays `false`. |
+| **TC-AU10** | remove() clears everything | `useAdminUpdates` with an active announcement. | Call `remove()`. | `deleteBroadcastMessage` is called, `activeAnnouncement` is `null` and `justCreated` is `false`. |
+| **TC-AU10b** | Publish failure surfaces an error | `useAdminUpdates`; `setBroadcastMessage` rejects. | Fill the form, confirm, `create()`. | `error` holds the backend message, `activeAnnouncement` stays `null` and the form is preserved for retry. |
+| **TC-AU11** | refresh loads the current broadcast | `announcement.store`; `getBroadcastMessage` resolves a message. | Call `refresh()`. | `broadcast` holds the fetched row and `loaded` is `true`. |
+| **TC-AU11b** | refresh swallows backend errors | `announcement.store`; `getBroadcastMessage` rejects. | Call `refresh()`. | `broadcast` stays `null` and `loaded` is `true` (a failed banner fetch never breaks the page). |
+| **TC-AU12** | publish sends input & stores result | `announcement.store`. | Call `publish(input)`. | `setBroadcastMessage` receives the input and `broadcast` holds the returned row. |
+| **TC-AU13** | clear deletes on the backend | `announcement.store` with an active broadcast. | Call `clear()`. | `deleteBroadcastMessage` is called and `broadcast` becomes `null`. |
+| **TC-AU13b** | dismiss records the timestamp | `announcement.store` with an active broadcast. | Call `dismiss()`. | `dismissedKey` equals the broadcast's creation timestamp and the broadcast is preserved. |
+| **TC-AU13c** | Newer message reappears after dismissal | `isBroadcastVisible` helper. | Compare a dismissed message and a newer one (different timestamp). | The dismissed one is hidden; a newer timestamp is visible again; `null` is never visible. |
+| **TC-AU14** | Persists only the dismissal key | `announcement.store`. | Set a broadcast then `dismiss()`. | `localStorage['ecopart-admin-announcement']` holds `dismissedKey` but **not** the message (the `partialize`). |
+| **TC-AU15** | Banner hidden without a message | `getBroadcastMessage` resolves `null`. | Render `GlobalAnnouncementBanner`. | No alert is rendered. |
+| **TC-AU16** | Banner hidden when dismissed | A message exists but `dismissedKey` matches its timestamp. | Render the banner. | No alert is rendered. |
+| **TC-AU17** | Banner renders with the chosen level | `getBroadcastMessage` resolves a "warning" message with a sub message. | Render the banner. | The alert shows the message + sub message and carries the `MuiAlert-standardWarning` class. |
+| **TC-AU18** | Banner close button dismisses | An active broadcast. | Click the banner's close button. | `dismissedKey` becomes the message's timestamp and the alert disappears. |
+| **TC-AU19** | `getBroadcastMessage` reads the current row | `broadcastMessages.api` vs MSW; `GET /broadcast_messages` returns a message. | Call `getBroadcastMessage()`. | The parsed `BroadcastMessage` is returned from `/broadcast_messages`. |
+| **TC-AU19b** | Empty/blank/`null`/bad body → `null` | `broadcastMessages.api` vs MSW; `GET` returns an empty, whitespace, `"null"`, or malformed body. | Call `getBroadcastMessage()`. | Each case resolves to `null` (the endpoint sends an empty body when no message is set; parse errors are swallowed). |
+| **TC-AU20** | `setBroadcastMessage` POSTs the input | `broadcastMessages.api` vs MSW. | Call `setBroadcastMessage(input)`. | A `POST /broadcast_messages` carries the input body and the stored row is returned. |
+| **TC-AU21** | `deleteBroadcastMessage` clears the message | `broadcastMessages.api` vs MSW. | Call `deleteBroadcastMessage()`. | A `DELETE /broadcast_messages` is sent and the promise resolves to `undefined`. |

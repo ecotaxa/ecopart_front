@@ -121,7 +121,12 @@ export const useAdminUsersTable = () => {
         if (selectedIds.length === 0) return;
 
         const verb = makeAdmin ? "grant admin rights to" : "revoke admin rights from";
-        if (!window.confirm(`Are you sure you want to ${verb} ${selectedIds.length} user(s)?`)) return;
+        const consequence = makeAdmin
+            ? "They will get full administrator access: manage all users, projects and tasks."
+            : "They will lose administrator access.";
+        if (!window.confirm(
+            `Are you sure you want to ${verb} ${selectedIds.length} user(s)? ${consequence}`,
+        )) return;
 
         setIsActionRunning(true);
         try {

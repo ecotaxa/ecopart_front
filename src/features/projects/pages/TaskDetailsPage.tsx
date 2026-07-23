@@ -117,7 +117,11 @@ export default function TaskDetailsPage() {
 
     const handleDeleteTask = async () => {
         if (parsedTaskId === null) return;
-        if (!window.confirm(`Are you sure you want to delete task #${parsedTaskId}?`)) return;
+        if (!window.confirm(
+            `Are you sure you want to delete task #${parsedTaskId}? ` +
+            `This removes the task and its logs. ` +
+            `It does not undo work the task already performed. This cannot be undone.`,
+        )) return;
 
         setIsDeleting(true);
         try {

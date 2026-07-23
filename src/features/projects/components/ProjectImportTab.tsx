@@ -13,6 +13,7 @@ import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import { ecotaxaColors } from "@/theme";
 import SectionCard from "@/shared/components/SectionCard";
+import InfoTooltip from "@/shared/components/InfoTooltip";
 
 import { useProjectImportTab } from "../hooks/useProjectImportTab";
 import { ImportableRawSample, ImportableCtdSample } from "../api/projects.api";
@@ -21,6 +22,102 @@ import { QcSampleCard } from "./QcSampleCard";
 interface ProjectImportTabProps {
     projectId: number;
 }
+
+// What a sample import does and which data/options apply (user terms, no server internals).
+const sampleImportInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 1 }}>
+            Imports the selected samples into the project. A sample can only be imported if its
+            source data is present and passes basic quality checks; any missing or invalid sample
+            stops the import (nothing is imported).
+        </Typography>
+        <Typography variant="caption" component="p" sx={{ fontWeight: 600 }}>
+            What is imported, per instrument:
+        </Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            <li>
+                <strong>UVP5:</strong> for each sample, the processed cast data plus its metadata
+                and configuration (instrument header, cruise info, UVP5 settings, install configuration).
+            </li>
+            <li>
+                <strong>UVP6:</strong> for each sample, the particle data and the images/vignettes.
+            </li>
+        </Box>
+        <Typography variant="caption" component="p" sx={{ mt: 1, fontWeight: 600 }}>
+            Options:
+        </Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            <li>
+                In the import QC preview, confirm with <strong>"Import &amp; validate"</strong> to mark
+                the reviewed samples as visually QC-validated right away, or <strong>"Import &amp; pending"</strong>
+                {" "}to leave them pending.
+            </li>
+            <li>
+                <strong>"Enable automatic backup of the raw project at every import":</strong> also run a
+                project backup once the import succeeds (skipped if the import fails).
+            </li>
+            <li>
+                <strong>"Skip already imported":</strong> incremental toggle for that backup. On: only new
+                raw acquisitions are added. Off: everything is backed up again.
+            </li>
+        </Box>
+    </Box>
+);
+
+// What a CTD import does (attaches CTD files to existing samples; no backup, no options).
+const ctdImportInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 1 }}>
+            Attaches CTD (hydrological cast) files to samples that already exist in the project. It
+            does not re-import the samples themselves and does not run a backup.
+        </Typography>
+        <Typography variant="caption" component="p" sx={{ fontWeight: 600 }}>
+            What is imported:
+        </Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            <li>
+                For each selected sample, its CTD file (provided alongside the acquisition data) is
+                added to the sample. UVP5 and UVP6 datasets store these files in their respective CTD folders.
+            </li>
+        </Box>
+        <Typography variant="caption" component="p" sx={{ mt: 1 }}>
+            A CTD file can be imported only if it is present and valid for the sample (correct format,
+            expected columns); otherwise the import stops. No options.
+        </Typography>
+    </Box>
+);
+
+// What an EcoTaxa import does (sends validated samples to the linked EcoTaxa instance).
+const ecoTaxaImportInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 1 }}>
+            Sends the selected samples (images and classification file) to the project's linked EcoTaxa
+            instance. It works on samples already imported into the project.
+        </Typography>
+        <Typography variant="caption" component="p" sx={{ fontWeight: 600 }}>
+            Requirements:
+        </Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            <li>
+                Only samples that have passed visual QC (status VALIDATED) can be sent to EcoTaxa; any
+                non-validated sample stops the import (nothing is sent).
+            </li>
+        </Box>
+        <Typography variant="caption" component="p" sx={{ mt: 1, fontWeight: 600 }}>
+            Options:
+        </Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            <li>
+                <strong>"Enable automatic backup of the raw project at every import":</strong> also run a
+                project backup once the import succeeds (skipped if the import fails).
+            </li>
+            <li>
+                <strong>"Skip already imported":</strong> incremental toggle for that backup. On: only new
+                raw acquisitions are added. Off: everything is backed up again.
+            </li>
+        </Box>
+    </Box>
+);
 
 export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId }) => {
     const {
@@ -229,7 +326,10 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                 <Box sx={{ mb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Box>
-                            <Typography variant="h6">New UVP samples</Typography>
+                            <Typography variant="h6">
+                                New UVP samples
+                                <InfoTooltip title={sampleImportInfoContent} />
+                            </Typography>
                         </Box>
                         <Button
                             variant="outlined"
@@ -274,7 +374,10 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                 <Box sx={{ mb: 4 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Box>
-                            <Typography variant="h6">New CTD samples</Typography>
+                            <Typography variant="h6">
+                                New CTD samples
+                                <InfoTooltip title={ctdImportInfoContent} />
+                            </Typography>
                         </Box>
                         <Button
                             variant="outlined"
@@ -339,7 +442,10 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                 <Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, opacity: ecoTaxaActionsDisabled ? 0.65 : 1 }}>
                         <Box>
-                            <Typography variant="h6">New EcoTaxa samples</Typography>
+                            <Typography variant="h6">
+                                New EcoTaxa samples
+                                <InfoTooltip title={ecoTaxaImportInfoContent} />
+                            </Typography>
                         </Box>
                         <Button
                             variant="outlined"

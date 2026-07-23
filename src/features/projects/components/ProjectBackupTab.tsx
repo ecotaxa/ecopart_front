@@ -6,11 +6,74 @@ import {
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 import SectionCard from "@/shared/components/SectionCard";
+import InfoTooltip from "@/shared/components/InfoTooltip";
 import { useProjectBackupTab } from "../hooks/useProjectBackupTab";
 
 interface ProjectBackupTabProps {
     projectId: number;
 }
+
+// What gets archived, in user terms (folders and formats, no server internals).
+const backupInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 1 }}>
+            The backup archives the raw acquisition data and its description files, as they
+            appear in the project source folder.
+        </Typography>
+        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            <li>
+                <strong>Raw data ("raw" folder):</strong> each acquisition/profile is compressed
+                into a .zip archive.
+                <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                    <li>UVP5: one folder per cast (HDR…), archived as .zip.</li>
+                    <li>UVP6: one folder per acquisition (timestamped), archived as .zip.</li>
+                </Box>
+            </li>
+            <li>
+                <strong>Metadata ("meta" folder):</strong> the instrument header file, kept as-is.
+            </li>
+            <li>
+                <strong>Configuration ("config" folder):</strong> kept as-is.
+                <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                    <li>UVP5: cruise info, UVP5 settings, install configuration.</li>
+                    <li>UVP6: cruise info, acquisition times, hardware time, vignette computation, timetable.</li>
+                </Box>
+            </li>
+        </Box>
+        <Typography variant="caption" component="p" sx={{ mt: 1 }}>
+            Raw acquisitions are compressed to .zip; the meta and config files are copied unchanged.
+        </Typography>
+    </Box>
+);
+
+// Effect of the "Skip already imported" toggle (incremental backup).
+const skipInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 0.5 }}>
+            Incremental backup.
+        </Typography>
+        <Typography variant="caption" component="p" sx={{ mb: 0.5 }}>
+            <strong>On:</strong> only raw acquisitions not yet present in the backup are added.
+            Metadata and configuration are always refreshed.
+        </Typography>
+        <Typography variant="caption" component="p">
+            <strong>Off:</strong> all raw acquisitions are backed up again.
+        </Typography>
+    </Box>
+);
+
+// Effect of the "Export also on FTP" toggle.
+const ftpInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 0.5 }}>
+            <strong>On:</strong> the export archive is also dropped on the FTP, in addition to the
+            download link.
+        </Typography>
+        <Typography variant="caption" component="p">
+            <strong>Off:</strong> only the download link is provided.
+        </Typography>
+    </Box>
+);
 
 export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId }) => {
     // Connect to our business logic Brain
@@ -69,6 +132,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                 <Box sx={{ mb: 6 }}>
                     <Typography variant="h6">
                         Backup <Box component="span" fontWeight="normal">of the raw project</Box>
+                        <InfoTooltip title={backupInfoContent} />
                     </Typography>
 
                     {/* MENTOR FIX: Show a loading indicator for the date if we are fetching metadata */}
@@ -115,7 +179,12 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                                 disabled={isBackingUp}
                             />
                         }
-                        label={<Typography variant="body1">Skip already imported</Typography>}
+                        label={
+                            <Typography variant="body1" component="span">
+                                Skip already imported
+                                <InfoTooltip title={skipInfoContent} />
+                            </Typography>
+                        }
                         sx={{ mb: 1, display: 'block' }}
                     />
 
@@ -152,7 +221,12 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                                 disabled={isExporting}
                             />
                         }
-                        label={<Typography variant="body1">Export also on FTP</Typography>}
+                        label={
+                            <Typography variant="body1" component="span">
+                                Export also on FTP
+                                <InfoTooltip title={ftpInfoContent} />
+                            </Typography>
+                        }
                         sx={{ mb: 1 }}
                     />
 
