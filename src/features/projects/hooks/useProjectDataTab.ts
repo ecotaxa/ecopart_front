@@ -231,7 +231,11 @@ export const useProjectDataTab = (projectId: number) => {
         const selectedIds = getSelectedUvpSampleIds(selectedUvpSamples);
         if (selectedIds.length === 0) return;
 
-        if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} UVP samples?`)) return;
+        if (!window.confirm(
+            `Are you sure you want to delete ${selectedIds.length} UVP sample(s)? ` +
+            `This removes the selected samples and their imported particle and image data from this project. ` +
+            `Samples still present in the source folder can be imported again. This cannot be undone.`,
+        )) return;
 
         setIsActionRunning(true);
         try {
@@ -251,7 +255,11 @@ export const useProjectDataTab = (projectId: number) => {
         const selectedNames = getSelectedEcoTaxaSampleNames(selectedEcoTaxaSamples);
         if (selectedNames.length === 0) return;
 
-        if (!window.confirm(`Are you sure you want to delete ${selectedNames.length} samples from EcoTaxa?`)) return;
+        if (!window.confirm(
+            `Are you sure you want to delete ${selectedNames.length} samples from EcoTaxa? ` +
+            `This removes them from the linked EcoTaxa project, an external system, not only from EcoPart. ` +
+            `This cannot be undone.`,
+        )) return;
 
         setIsActionRunning(true);
         try {
@@ -271,7 +279,11 @@ export const useProjectDataTab = (projectId: number) => {
         const selectedNames = getSelectedCtdSampleNames(selectedCtdSamples);
         if (selectedNames.length === 0) return;
 
-        if (!window.confirm(`Are you sure you want to delete ${selectedNames.length} CTD samples?`)) return;
+        if (!window.confirm(
+            `Are you sure you want to delete ${selectedNames.length} CTD sample(s)? ` +
+            `This removes the CTD file linked to the selected samples; the samples themselves are kept. ` +
+            `This cannot be undone.`,
+        )) return;
 
         setIsActionRunning(true);
         try {

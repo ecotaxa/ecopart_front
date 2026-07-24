@@ -26,6 +26,20 @@ import {
     EcoTaxaInstance,
 } from "@/features/userProfile/api/profile.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import InfoTooltip from "@/shared/components/InfoTooltip";
+
+// What linking does and the effect of unlinking (matches the unlink warning shown on save).
+const ecoTaxaLinkInfoContent = (
+    <Box>
+        <Typography variant="caption" component="p" sx={{ mb: 1 }}>
+            Links this EcoPart project to an EcoTaxa project so validated samples can be sent there.
+        </Typography>
+        <Typography variant="caption" component="p">
+            Unlinking (UNLINK ECOTAXA PROJECT) detaches the two: all samples in this project are marked
+            as not imported in EcoTaxa and their import history is cleared. Nothing is deleted inside EcoTaxa itself.
+        </Typography>
+    </Box>
+);
 
 interface EcoTaxaLinkSectionProps {
     values: NewProjectFormValues["ecoTaxa"];
@@ -264,6 +278,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0 }}>
                 <Typography variant="h6" gutterBottom>
                     Link to EcoTaxa
+                    <InfoTooltip title={ecoTaxaLinkInfoContent} />
                 </Typography>
                 <Button
                     variant="text"

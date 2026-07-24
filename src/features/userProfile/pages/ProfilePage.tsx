@@ -32,6 +32,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import ReplayIcon from '@mui/icons-material/Replay';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
+import InfoTooltip from "@/shared/components/InfoTooltip";
 
 // useParams drives the active tab from the URL (/settings/:tabName);
 // useLocation still supports the legacy `state.activeTab` navigation.
@@ -450,7 +451,19 @@ export default function ProfilePage() {
                                     <Grid size={{ xs: 12 }}>
                                         <FormControlLabel
                                             control={<Checkbox checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} />}
-                                            label="Administrator"
+                                            label={
+                                                <Typography variant="body1" component="span">
+                                                    Administrator
+                                                    <InfoTooltip
+                                                        title={
+                                                            <Typography variant="caption" component="p">
+                                                                Grants full administrator access: manage all users, projects and tasks.
+                                                                This option is only visible to administrators and takes effect after you save.
+                                                            </Typography>
+                                                        }
+                                                    />
+                                                </Typography>
+                                            }
                                         />
                                     </Grid>
                                 )}

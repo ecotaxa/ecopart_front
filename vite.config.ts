@@ -43,6 +43,11 @@ export default defineConfig(({ mode }) => {
                     target: backendUrl,
                     changeOrigin: true,
                 },
+                // Proxy for the site-wide broadcast message endpoint (admin UPDATES)
+                "/broadcast_messages": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
                 /// Smartly intercept "/projects"
                 "/projects": {
                     target: backendUrl,

@@ -125,7 +125,11 @@ export const useProjectTasksTab = (projectId: number) => {
         const selectedIds = getSelectedTaskIds(selectedTasks);
         if (selectedIds.length === 0) return;
 
-        if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} tasks?`)) return;
+        if (!window.confirm(
+            `Are you sure you want to delete ${selectedIds.length} task(s)? ` +
+            `This removes the selected background tasks and their logs. ` +
+            `It does not undo work a completed task already performed. This cannot be undone.`,
+        )) return;
 
         setIsActionRunning(true);
         try {

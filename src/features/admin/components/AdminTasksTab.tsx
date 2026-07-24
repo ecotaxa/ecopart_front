@@ -5,6 +5,7 @@ import {
 
 import CloseIcon from "@mui/icons-material/Close";
 import DownloadIcon from "@mui/icons-material/Download";
+import InfoTooltip from "@/shared/components/InfoTooltip";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import LaunchIcon from "@mui/icons-material/Launch";
@@ -148,6 +149,14 @@ export default function AdminTasksTab() {
                 <Box sx={{ p: 1.5, display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f5f5f5" }}>
                     <Typography variant="body2" fontWeight="bold">
                         {selectionCount} items selected
+                        <InfoTooltip
+                            title={
+                                <Typography variant="caption" component="p">
+                                    DELETE removes the selected background tasks and their logs across all projects. You
+                                    are asked to confirm first. It does not undo work a completed task already performed.
+                                </Typography>
+                            }
+                        />
                     </Typography>
                     <Stack direction="row" spacing={2}>
                         <Button
