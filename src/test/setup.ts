@@ -2,7 +2,9 @@ import "@testing-library/jest-dom";
 import { beforeAll, afterEach, afterAll } from "vitest";
 import { cleanup, configure } from "@testing-library/react";
 import { server } from "./msw/server";
+import { queryClient } from "@/shared/api/queryClient";
 import { resetMockAuth } from "./msw/handlers"; // Import the reset function
+import { resetConfirmDialogs } from "./helpers/confirm.helpers";
 
 // The MUI DataGrid-heavy suites are CPU-intensive; when several run in parallel
 // the default 1000ms async-query timeout can lapse before a slow render settles,
@@ -63,6 +65,8 @@ beforeAll(() => server.listen());
 afterEach(() => {
     server.resetHandlers();
     resetMockAuth(); // Reset the fake server login state
+    resetConfirmDialogs(); // Drop auto-answered confirm dialogs and any left open
+    queryClient.clear(); // The app-wide query cache (used by getProjectById) must not leak between tests
     cleanup();
 });
 
