@@ -11,9 +11,9 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
 
-import { MinimalUserModel, Project, SearchFilter } from "@/features/projects/api/projects.api";
+import type { MinimalUserModel, Project, SearchFilter } from "@/features/projects/api/projects.api";
 import { useAdminProjectsTable } from "../hooks/useAdminProjectsTable";
 import { parseUserIdsParam } from "../utils/userFilterParams";
 
@@ -158,23 +158,6 @@ export default function AdminProjectsTab() {
             renderCell: (params: GridRenderCellParams<Project>) => renderPeopleCell(params.row.members),
         },
     ];
-
-    const dataGridStyles = {
-        border: "none",
-        "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: "#ffffff",
-            borderBottom: "1px solid #e0e0e0",
-            color: "text.secondary",
-            fontWeight: "normal",
-        },
-        "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center" },
-        "& .MuiDataGrid-row": { cursor: "pointer" },
-        "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: '#f8faff' },
-        "& .MuiDataGrid-row.Mui-selected": {
-            backgroundColor: "#e6f0ff",
-            "&:hover": { backgroundColor: "#d9e8ff" }
-        },
-    };
 
     // Numeric exact-match attributes (project id, manager / member user id) get an
     // "id (exact)" placeholder; the LIKE text attributes get the generic one.
@@ -329,7 +312,6 @@ export default function AdminProjectsTab() {
                         onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={[5, 10, 25]}
                         autoHeight
-                        sx={dataGridStyles}
                     />
                 </Box>
             </Paper>

@@ -1,4 +1,6 @@
 import type { Components, Theme } from "@mui/material/styles";
+// Registers `MuiDataGrid` in the theme's `components` map.
+import type {} from "@mui/x-data-grid/themeAugmentation";
 
 import { ecotaxaColors } from "./palette";
 
@@ -84,6 +86,52 @@ export const components: Components<Theme> = {
     MuiLink: {
         defaultProps: {
             underline: "hover",
+        },
+    },
+
+    // The one look of every data grid in the app (projects, tasks, samples,
+    // admin lists): borderless, quiet header, striped rows, teal selection.
+    // Screens only add per-grid deltas through `sx` (e.g. a pointer cursor on
+    // clickable rows) instead of re-declaring this block.
+    MuiDataGrid: {
+        styleOverrides: {
+            root: {
+                border: "none",
+                "& .MuiDataGrid-columnHeaders": {
+                    backgroundColor: "#ffffff",
+                    borderTop: "none",
+                    borderBottom: `1px solid ${stone[200]}`,
+                    color: "rgba(0, 0, 0, 0.6)",
+                    fontWeight: 400,
+                },
+                "& .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 500,
+                },
+                "& .MuiDataGrid-cell": {
+                    borderBottom: `1px solid ${stone[100]}`,
+                    // Vertically center every cell's content (custom renderCell content
+                    // otherwise sticks to the top of the row).
+                    display: "flex",
+                    alignItems: "center",
+                },
+                "& .MuiDataGrid-row:nth-of-type(even)": {
+                    backgroundColor: stone[50],
+                },
+                "& .MuiDataGrid-row.Mui-selected": {
+                    backgroundColor: secondblue[100],
+                    "&:hover": { backgroundColor: secondblue[200] },
+                },
+                "& .MuiCheckbox-root": { color: stone[400] },
+                "& .MuiCheckbox-root.Mui-checked": { color: secondblue[600] },
+                "& .MuiDataGrid-footerContainer": {
+                    borderTop: `1px solid ${stone[200]}`,
+                    minHeight: 40,
+                },
+                // No focus ring on cells / headers: the grids are read-only lists.
+                "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within": {
+                    outline: "none",
+                },
+            },
         },
     },
 };

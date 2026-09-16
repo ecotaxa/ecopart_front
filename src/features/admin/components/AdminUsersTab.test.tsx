@@ -9,6 +9,7 @@ import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 import type { AdminUser } from '../api/adminUsers.api';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 /** Surfaces the current location so navigation-driven actions can be asserted. */
 function LocationProbe() {
@@ -214,7 +215,7 @@ describe('AdminUsersTab', () => {
 
     it('TC-AF9: grants admin rights to the selection after confirmation', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockUsersSearch([
             makeUser({ user_id: 1, last_name: 'Doe', is_admin: false }),
             makeUser({ user_id: 2, first_name: 'Jane', last_name: 'Roe', is_admin: false }),
@@ -241,7 +242,7 @@ describe('AdminUsersTab', () => {
 
     it('TC-AF10: revokes admin rights to the selection after confirmation', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockUsersSearch([makeUser({ user_id: 5, is_admin: true })], 1);
         mockUserPatch();
 
@@ -262,7 +263,7 @@ describe('AdminUsersTab', () => {
 
     it('TC-AF11: does not call the API when the admin action is not confirmed', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(false);
+        answerConfirmDialogs(false);
         mockUsersSearch([makeUser({ user_id: 1 })], 1);
         mockUserPatch();
 
@@ -310,7 +311,7 @@ describe('AdminUsersTab', () => {
 
     it('TC-AF17: DELETE deactivates the selected accounts via DELETE /users/:id/ after confirmation', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockUsersSearch([
             makeUser({ user_id: 1, last_name: 'Doe' }),
             makeUser({ user_id: 2, first_name: 'Jane', last_name: 'Roe' }),
@@ -465,7 +466,7 @@ describe('AdminUsersTab', () => {
 
     it('TC-AF16: keeps only the failed users selected when some admin updates fail', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockUsersSearch([
             makeUser({ user_id: 1, last_name: 'Doe' }),
             makeUser({ user_id: 2, first_name: 'Jane', last_name: 'Roe' }),

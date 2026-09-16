@@ -9,6 +9,7 @@ import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 import type { Task } from '@/features/projects/api/projects.api';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers — the admin TASKS tab reuses useTasksTable, so it hits the same
@@ -207,7 +208,7 @@ describe('AdminTasksTab', () => {
 
     it('TC-AE7: deletes the selected tasks after confirmation', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockTasksSearch([
             makeTask({ task_id: 1, task_type: 'IMPORT' }),
             makeTask({ task_id: 2, task_type: 'BACKUP' }),

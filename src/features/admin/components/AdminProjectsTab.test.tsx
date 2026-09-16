@@ -9,6 +9,7 @@ import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 import type { Project } from '@/features/projects/api/projects.api';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 /** Surfaces the current location so navigation-driven actions can be asserted. */
 function LocationProbe() {
@@ -218,7 +219,7 @@ describe('AdminProjectsTab', () => {
 
     it('TC-AG8: deletes the selection after confirmation', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockProjectsSearch([
             makeProject({ project_id: 1 }),
             makeProject({ project_id: 2, project_title: 'second_project' }),
@@ -244,7 +245,7 @@ describe('AdminProjectsTab', () => {
 
     it('TC-AG9: does not call the API when the delete is not confirmed', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(false);
+        answerConfirmDialogs(false);
         mockProjectsSearch([makeProject({ project_id: 1 })], 1);
         mockProjectDelete();
 
@@ -329,7 +330,7 @@ describe('AdminProjectsTab', () => {
 
     it('TC-AG12: keeps only the failed projects selected when some deletions fail', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockProjectsSearch([
             makeProject({ project_id: 1 }),
             makeProject({ project_id: 2, project_title: 'second_project' }),

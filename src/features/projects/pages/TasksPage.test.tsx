@@ -9,6 +9,7 @@ import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 import type { Task } from '../api/projects.api';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers — Tasks endpoints have no default MSW handler, so each test registers
@@ -224,7 +225,7 @@ describe('TasksPage (Functional)', () => {
     // TC-Q9: Delete Flow (with confirmation)
     it('TC-Q9: deletes the selected tasks after confirmation', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockTasksSearch([
             makeTask({ task_id: 1, task_type: 'IMPORT' }),
             makeTask({ task_id: 2, task_type: 'BACKUP' }),

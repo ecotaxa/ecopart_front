@@ -10,9 +10,10 @@ vi.mock('../api/projects.api', () => ({
     isExportTask: vi.fn(() => false),
 }));
 
-import { searchProjectTasks, deleteProjectTask, Task, TaskSearchResponse } from '../api/projects.api';
+import { searchProjectTasks, deleteProjectTask, type Task, type TaskSearchResponse } from '../api/projects.api';
 import { ProjectTasksTab } from './ProjectTasksTab';
 import { renderWithRouter } from '@/test/utils';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 const mockedSearchProjectTasks = vi.mocked(searchProjectTasks);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
@@ -143,7 +144,7 @@ describe('ProjectTasksTab (Functional)', () => {
     // TC-T5: Delete Flow
     it('TC-T5: deletes the selected tasks after confirmation', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         renderTab();
         await screen.findAllByText('IMPORT');
 

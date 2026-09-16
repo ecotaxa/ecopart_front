@@ -11,9 +11,10 @@ vi.mock('../api/projects.api', () => ({
     isExportTask: vi.fn(() => false),
 }));
 
-import { getOneTask, getTaskLog, deleteProjectTask, Task } from '../api/projects.api';
+import { getOneTask, getTaskLog, deleteProjectTask, type Task } from '../api/projects.api';
 import TaskDetailsPage from './TaskDetailsPage';
 import { renderWithRouter } from '@/test/utils';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 const mockedGetOneTask = vi.mocked(getOneTask);
 const mockedGetTaskLog = vi.mocked(getTaskLog);
@@ -128,7 +129,7 @@ describe('TaskDetailsPage (Functional)', () => {
     // TC-S5: Delete Success + Navigation
     it('TC-S5: deletes the task and navigates back to the tasks list', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         renderDetail();
         await screen.findByText('IMPORT task [42]');
 
@@ -141,7 +142,7 @@ describe('TaskDetailsPage (Functional)', () => {
     // TC-S6: Delete Error keeps the user on the page
     it('TC-S6: stays on the detail page and re-enables DELETE when deletion fails', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockedDeleteProjectTask.mockRejectedValueOnce(new Error('boom'));
         renderDetail();
         await screen.findByText('IMPORT task [42]');

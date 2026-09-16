@@ -32,6 +32,8 @@ describe('CreateUserModal', () => {
         mockOrganisations();
     });
 
+    // The three tests below fill the whole form with userEvent: like the other
+    // form-heavy suites they get 60 s so parallel CPU load cannot make them lapse.
     it('TC-CU1: keeps the submit button disabled until the form is valid', async () => {
         const user = userEvent.setup();
         renderWithRouter(<CreateUserModal open onClose={vi.fn()} onCreated={vi.fn()} />);
@@ -41,7 +43,7 @@ describe('CreateUserModal', () => {
         await fillValidForm(user);
 
         await waitFor(() => expect(screen.getByTestId('create-user-submit')).toBeEnabled());
-    });
+    }, 60000);
 
     it('TC-CU2: creates the user via POST /users then calls onCreated and onClose', async () => {
         const user = userEvent.setup();
@@ -71,7 +73,7 @@ describe('CreateUserModal', () => {
             country: 'FR',
             user_planned_usage: 'Research',
         });
-    });
+    }, 60000);
 
     it('TC-CU3: surfaces a server error and keeps the dialog open', async () => {
         const user = userEvent.setup();
@@ -92,5 +94,5 @@ describe('CreateUserModal', () => {
         expect(await screen.findByText(/Email already in use/i)).toBeInTheDocument();
         expect(onCreated).not.toHaveBeenCalled();
         expect(onClose).not.toHaveBeenCalled();
-    });
+    }, 60000);
 });

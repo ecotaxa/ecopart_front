@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 
 vi.mock('../api/projects.api', () => ({
     searchProjectTasks: vi.fn(),
     deleteProjectTask: vi.fn(),
 }));
 
-import { searchProjectTasks, deleteProjectTask, Task, TaskSearchResponse } from '../api/projects.api';
+import { searchProjectTasks, deleteProjectTask, type Task, type TaskSearchResponse } from '../api/projects.api';
 import { useProjectTasksTab } from './useProjectTasksTab';
+import { TASKS_QUERY_KEY } from './useTasksTable';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
+import { renderHookWithProviders } from '@/test/utils';
 
 const mockedSearchProjectTasks = vi.mocked(searchProjectTasks);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
@@ -46,7 +49,7 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U1: Initial Fetch with projectId
     it('TC-U1: fetches project-scoped tasks and exposes pagination info', async () => {
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -59,7 +62,7 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U2: Default State
     it('TC-U2: defaults to the task_type attribute with an empty selection', async () => {
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -71,7 +74,7 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U3: Debounced LIKE filter on the selected attribute
     it('TC-U3: builds a LIKE filter on the selected attribute after debounce', async () => {
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -93,7 +96,7 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U3b: task_id Exact Match & Numeric Guard
     it('TC-U3b: uses an exact-match task_id filter and ignores non-numeric input', async () => {
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -127,7 +130,7 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U4: Pagination 1-indexed to backend
     it('TC-U4: sends page+1 and pageSize to the backend', async () => {
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -145,8 +148,8 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U5: Delete Success (batch + cleanup)
     it('TC-U5: deletes each selected task, resets selection and refetches', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const confirmSpy = answerConfirmDialogs(true);
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -173,8 +176,8 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U6: Delete Cancelled
     it('TC-U6: does nothing when the confirmation is declined', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const confirmSpy = answerConfirmDialogs(false);
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -194,11 +197,11 @@ describe('useProjectTasksTab Hook (Unit)', () => {
 
     // TC-U7: Delete Error Handling
     it('TC-U7: attempts every delete, keeps only the failed task selected and refetches', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = answerConfirmDialogs(true);
         // Only the first deletion (task 1) fails; task 2 still gets deleted.
         mockedDeleteProjectTask.mockRejectedValueOnce(new Error('boom'));
 
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -233,7 +236,7 @@ describe('useProjectTasksTab Hook (Unit)', () => {
         mockedSearchProjectTasks.mockReset();
         mockedSearchProjectTasks.mockRejectedValue(new Error('network down'));
 
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+        const { result } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
 
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.tasks).toEqual([]);
@@ -241,13 +244,13 @@ describe('useProjectTasksTab Hook (Unit)', () => {
     });
 
     // TC-U9: External Refresh Event
-    it('TC-U9: refetches when the "ecopart:tasks:refresh" event is dispatched', async () => {
-        const { result } = renderHook(() => useProjectTasksTab(PROJECT_ID));
+    it('TC-U9: refetches when the tasks query key is invalidated (e.g. after an import)', async () => {
+        const { result, queryClient } = renderHookWithProviders(() => useProjectTasksTab(PROJECT_ID));
         await waitFor(() => expect(result.current.loading).toBe(false));
         const callsBefore = mockedSearchProjectTasks.mock.calls.length;
 
-        act(() => {
-            window.dispatchEvent(new Event('ecopart:tasks:refresh'));
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: [...TASKS_QUERY_KEY] });
         });
 
         await waitFor(() => {
