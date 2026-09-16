@@ -150,7 +150,9 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
         snackbar, closeSnackbar, hasEcoTaxaProject
     } = useProjectImportTab(projectId);
 
-    const ecoProjectLinked = hasEcoTaxaProject;
+    // `hasEcoTaxaProject` is null while the project loads: EcoTaxa actions stay
+    // disabled and the "not linked" warning only shows once the answer is known.
+    const ecoProjectLinked = hasEcoTaxaProject === true;
     const ecoTaxaActionsDisabled = !ecoProjectLinked;
 
     /**
@@ -512,7 +514,9 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
 
                     {/* If there is no linked EcoTaxa project show an error message and disable import actions */}
                     {
-                        !ecoProjectLinked ? (
+                        hasEcoTaxaProject === null ? (
+                            renderEmptyState("Loading samples...")
+                        ) : !ecoProjectLinked ? (
                             <Box sx={{ border: `1px dashed ${ecotaxaColors.danger[500]}`, borderRadius: 1, p: 3, textAlign: 'center', color: 'error.main', mb: 2 }}>
                                 <Typography variant="body2" color="error" fontWeight="bold">
                                     No EcoTaxa project linked

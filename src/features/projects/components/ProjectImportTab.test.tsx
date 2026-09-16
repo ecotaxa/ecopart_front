@@ -441,8 +441,10 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             );
             expect(emptyStateText).toBeInTheDocument();
 
-            // Only the UVP grid should remain visible when EcoTaxa is empty
-            const grids = screen.queryAllByRole('grid');
+            // Only the UVP grid should remain visible when EcoTaxa is empty.
+            // (The warning and the grids land in the same render, but waiting for
+            // the grid keeps the assertion independent of the render timing.)
+            const grids = await screen.findAllByRole('grid');
             expect(grids).toHaveLength(1);
         }, 15000);
     });

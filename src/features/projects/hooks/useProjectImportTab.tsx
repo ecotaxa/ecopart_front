@@ -92,7 +92,9 @@ export const useProjectImportTab = (projectId: number) => {
     });
 
     // Track whether the project has an EcoTaxa project linked
-    const [hasEcoTaxaProject, setHasEcoTaxaProject] = useState<boolean>(false);
+    // `null` until the project has loaded, so the "No EcoTaxa project linked"
+    // warning never flashes for a linked project while its data is still coming.
+    const [hasEcoTaxaProject, setHasEcoTaxaProject] = useState<boolean | null>(null);
 
     // Backup Options State 
     const [enableAutoBackup, setEnableAutoBackup] = useState(true);
