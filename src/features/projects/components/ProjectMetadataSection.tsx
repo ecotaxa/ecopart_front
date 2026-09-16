@@ -1,20 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
     Box,
     Typography,
     TextField,
     Divider,
-    Stack,
-    FormControlLabel,
-    Switch,
     Autocomplete,
     CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
-import { NewProjectFormValues } from "../types/newProject.types";
-// Import centralized API function for fetching ships
-import { getShips } from "@/shared/api/referenceData.api";
+import type { NewProjectFormValues } from "../types/newProject.types";
+import { useShips } from "@/shared/api/referenceData.hooks";
 
 interface ProjectMetadataSectionProps {
     values: NewProjectFormValues["metadata"];
@@ -38,17 +34,16 @@ interface ProjectMetadataSectionProps {
 /**
  * Presentational component for project metadata.
  * This component stays reusable because it only receives values + callbacks + errors.
- * Now fetches ships dynamically from the API instead of using hardcoded values.
+ * The ship list comes from the shared reference-data cache.
  */
-export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
+const ProjectMetadataSectionImpl: React.FC<ProjectMetadataSectionProps> = ({
     values,
     onChange,
     errors,
     lockedTitlePrefix,
 }) => {
-    // State for ship names fetched from API (already string[])
-    const [shipOptions, setShipOptions] = useState<string[]>([]);
-    const [loadingShips, setLoadingShips] = useState(true);
+    // Ship names (already string[]); an empty list on failure leaves the freeSolo input usable.
+    const { data: shipOptions = [], isPending: loadingShips } = useShips();
 
     const handleTitleChange = (newValue: string) => {
         // Loaded title is a non-erasable prefix; only allow appending after it.
@@ -57,26 +52,6 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
         }
         onChange({ title: newValue });
     };
-
-    // Fetch ships on mount
-    useEffect(() => {
-        const fetchShips = async () => {
-            setLoadingShips(true);
-            try {
-                // getShips now returns string[] directly
-                const fetchedShips = await getShips();
-                setShipOptions(fetchedShips);
-            } catch (error) {
-                console.error("Failed to fetch ships:", error);
-                // Leave the list empty - UI will handle gracefully with freeSolo input
-                setShipOptions([]);
-            } finally {
-                setLoadingShips(false);
-            }
-        };
-
-        fetchShips();
-    }, []);
 
     return (
         <Box sx={{ mb: 4 }}>
@@ -121,14 +96,16 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
                                 label="Ship"
                                 error={Boolean(errors?.ship)}
                                 helperText={errors?.ship}
-                                InputProps={{
-                                    ...params.InputProps,
-                                    endAdornment: (
-                                        <>
-                                            {loadingShips ? <CircularProgress size={20} /> : null}
-                                            {params.InputProps.endAdornment}
-                                        </>
-                                    ),
+                                slotProps={{
+                                    input: {
+                                        ...params.InputProps,
+                                        endAdornment: (
+                                            <>
+                                                {loadingShips ? <CircularProgress size={20} /> : null}
+                                                {params.InputProps.endAdornment}
+                                            </>
+                                        ),
+                                    },
                                 }}
                             />
                         )}
@@ -161,7 +138,7 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
                     />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12 }}>
                     <TextField
                         fullWidth
                         multiline
@@ -175,37 +152,13 @@ export const ProjectMetadataSection: React.FC<ProjectMetadataSectionProps> = ({
                         helperText={errors?.description}
                     />
                 </Grid>
-
-                <Grid size={{ xs: 12, md: 6 }}>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        <Box>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={values.filteredBeforeImport}
-                                        onChange={(e) => onChange({ filteredBeforeImport: e.target.checked })}
-                                    />
-                                }
-                                label="Data filtered before import into EcoPart"
-                            />
-
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={values.timeDurationCheck}
-                                        onChange={(e) => onChange({ timeDurationCheck: e.target.checked })}
-                                    />
-                                }
-                                label="Time duration check"
-
-                            />
-                            <Typography variant="caption" color="text.secondary">
-                                <br />Disable if the project is longer than 1 year.
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </Grid>
             </Grid>
         </Box>
     );
 };
+
+/**
+ * Memoized: the project form keeps every section's handlers stable, so typing
+ * in one section re-renders only that section instead of the whole form.
+ */
+export const ProjectMetadataSection = React.memo(ProjectMetadataSectionImpl);

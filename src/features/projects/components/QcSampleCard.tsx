@@ -4,8 +4,8 @@ import Grid from "@mui/material/Grid";
 
 import { ecotaxaColors } from "@/theme";
 import SectionCard from "@/shared/components/SectionCard";
-import { QcBinnedDepthProfile, SampleQcGraphs } from "../api/projects.api";
-import { QcChartSeries, QcProfileChart } from "./QcProfileChart";
+import type { QcBinnedDepthProfile, SampleQcGraphs } from "../api/projects.api";
+import { type QcChartSeries, QcProfileChart } from "./QcProfileChart";
 import { useQcChartMetrics } from "./qcChartLayout";
 
 // Shades of blue for the pixel-class series (graphs "for 1, 2 and 3 pixels"):
@@ -143,10 +143,10 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
                     </Typography>
                     <Grid container spacing={2}>
                         <Grid size={{ xs: 6 }}>
-                            <TextField fullWidth label="First image" value={filtering.first_image ?? "—"} size="small" InputProps={{ readOnly: true }} />
+                            <TextField fullWidth label="First image" value={filtering.first_image ?? "—"} size="small" slotProps={{ input: { readOnly: true } }} />
                         </Grid>
                         <Grid size={{ xs: 6 }}>
-                            <TextField fullWidth label="Last image" value={filtering.last_image ?? "—"} size="small" InputProps={{ readOnly: true }} />
+                            <TextField fullWidth label="Last image" value={filtering.last_image ?? "—"} size="small" slotProps={{ input: { readOnly: true } }} />
                         </Grid>
                     </Grid>
                     <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
@@ -159,10 +159,10 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
                     </Typography>
                     <Grid container spacing={2}>
                         <Grid size={{ xs: 6 }}>
-                            <TextField fullWidth label="Last used" value={filtering.last_image_used ?? "—"} size="small" InputProps={{ readOnly: true }} helperText="Last image used after descendent filter (depth profiles only)" />
+                            <TextField fullWidth label="Last used" value={filtering.last_image_used ?? "—"} size="small" slotProps={{ input: { readOnly: true } }} helperText="Last image used after descendent filter (depth profiles only)" />
                         </Grid>
                         <Grid size={{ xs: 6 }}>
-                            <TextField fullWidth label="Removed images" value={`${filtering.removed_images.count} / ${removedPct}%`} size="small" InputProps={{ readOnly: true }} helperText="Between first and last image in number/percent" />
+                            <TextField fullWidth label="Removed images" value={`${filtering.removed_images.count} / ${removedPct}%`} size="small" slotProps={{ input: { readOnly: true } }} helperText="Between first and last image in number/percent" />
                         </Grid>
                     </Grid>
                 </Grid>

@@ -85,7 +85,9 @@ describe('ProjectSecurityTab (Functional)', () => {
         await user.click(saveButton);
 
         // Expect custom frontend validation message
-        expect(await screen.findByText('A contact is required before saving.')).toBeInTheDocument();
+        // The message shows twice: the warning snackbar and the inline helper under the
+        // privileges table. Assert on the snackbar (the ARIA alert).
+        expect(await screen.findByRole('alert')).toHaveTextContent('A contact is required.');
     });
 
     // TC-K3: Update Success

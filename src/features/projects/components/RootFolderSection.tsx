@@ -4,14 +4,14 @@ import {
 } from "@mui/material";
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
-//   Removed the import of 'normalizeServerFolderPath' because it 
-// was deleted from the API file. We now pass the raw string exactly as typed.
+// The raw string is passed exactly as typed / selected: the backend owns path normalisation.
 import { ServerFolderBrowserDialog } from "./ServerFolderBrowserDialog";
 
 interface RootFolderSectionProps {
     value: string;
     onChange: (value: string) => void;
-    onLoadMetadata: () => void;
+    /** When provided, renders the "Load metadata" button (project creation only). */
+    onLoadMetadata?: () => void;
     error?: string;
 }
 
@@ -21,7 +21,7 @@ interface RootFolderSectionProps {
  * It manages the visual layout of the input field and delegates the complex folder 
  * browsing logic to the <ServerFolderBrowserDialog /> component.
  */
-export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
+const RootFolderSectionImpl: React.FC<RootFolderSectionProps> = ({
     value,
     onChange,
     onLoadMetadata,
@@ -44,30 +44,34 @@ export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
                     onChange={(e) => onChange(e.target.value)}
                     error={Boolean(error)}
                     helperText={error}
-                    InputProps={{
-                        endAdornment: (
-                            <InputAdornment position="end">
-                                <IconButton
-                                    onClick={() => setModalOpen(true)}
-                                    edge="end"
-                                    title="Browse Server Folders"
-                                    aria-label="Browse server folders"
-                                >
-                                    <FolderOpenIcon color="primary" />
-                                </IconButton>
-                            </InputAdornment>
-                        ),
+                    slotProps={{
+                        input: {
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    <IconButton
+                                        onClick={() => setModalOpen(true)}
+                                        edge="end"
+                                        title="Browse Server Folders"
+                                        aria-label="Browse server folders"
+                                    >
+                                        <FolderOpenIcon color="primary" />
+                                    </IconButton>
+                                </InputAdornment>
+                            ),
+                        },
                     }}
                     size="small"
                 />
 
-                <Button
-                    variant="outlined"
-                    onClick={onLoadMetadata}
-                    sx={{ whiteSpace: 'nowrap', height: '40px' }}
-                >
-                    Load metadata
-                </Button>
+                {onLoadMetadata && (
+                    <Button
+                        variant="outlined"
+                        onClick={onLoadMetadata}
+                        sx={{ whiteSpace: 'nowrap', height: '40px' }}
+                    >
+                        Load metadata
+                    </Button>
+                )}
             </Stack>
 
             <Divider sx={{ mt: 3 }} />
@@ -87,3 +91,9 @@ export const RootFolderSection: React.FC<RootFolderSectionProps> = ({
         </Box>
     );
 };
+
+/**
+ * Memoized: the project form keeps every section's handlers stable, so typing
+ * in one section re-renders only that section instead of the whole form.
+ */
+export const RootFolderSection = React.memo(RootFolderSectionImpl);

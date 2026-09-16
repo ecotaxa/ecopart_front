@@ -50,16 +50,16 @@ describe('NewProjectPage (Accessibility)', () => {
         await user.tab();
         expect(screen.getByLabelText(/Instrument serial number/i)).toHaveFocus();
 
-        // We jump ahead to test a switch to verify structural flow.
-        // MUI Switch components use `role="switch"`, not `role="checkbox"`.
-        const switchInput = screen.getByRole('switch', { name: /Data filtered before import into EcoPart/i });
+        // We jump ahead to the import settings to verify structural flow: the offset
+        // field is followed by its switch (MUI Switch uses `role="switch"`).
+        const offsetInput = screen.getByLabelText(/Override depth offset/i);
         act(() => {
-            switchInput.focus();
+            offsetInput.focus();
         });
-        expect(switchInput).toHaveFocus();
+        expect(offsetInput).toHaveFocus();
 
         await user.tab();
-        expect(screen.getByRole('switch', { name: /Time duration check/i })).toHaveFocus();
+        expect(screen.getByRole('switch', { name: /Enable descent filter/i })).toHaveFocus();
     }, 45000);
 
     // TC-H9: Root Folder Modal Keyboard Accessibility

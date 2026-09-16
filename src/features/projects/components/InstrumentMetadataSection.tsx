@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
     Box,
     Typography,
@@ -9,9 +9,8 @@ import {
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
-import { NewProjectFormValues } from "../types/newProject.types";
-// Import centralized API function for fetching instrument models
-import { getInstrumentModels, InstrumentModel } from "@/shared/api/referenceData.api";
+import type { NewProjectFormValues } from "../types/newProject.types";
+import { useInstrumentModels } from "@/shared/api/referenceData.hooks";
 
 interface InstrumentMetadataSectionProps {
     values: NewProjectFormValues["instrument"];
@@ -26,33 +25,14 @@ interface InstrumentMetadataSectionProps {
  * Presentational component for the Instrument Metadata section.
  * Now fetches instrument models dynamically from the API instead of using hardcoded values.
  */
-export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps> = ({
+const InstrumentMetadataSectionImpl: React.FC<InstrumentMetadataSectionProps> = ({
     values,
     onChange,
     errors,
 }) => {
-    // State for instrument models fetched from API
-    const [instrumentModels, setInstrumentModels] = useState<InstrumentModel[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    // Fetch instrument models on mount
-    useEffect(() => {
-        const fetchInstruments = async () => {
-            setLoading(true);
-            try {
-                const models = await getInstrumentModels();
-                setInstrumentModels(models);
-            } catch (error) {
-                console.error("Failed to fetch instrument models:", error);
-                // Leave the list empty - UI will handle gracefully
-                setInstrumentModels([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchInstruments();
-    }, []);
+    // Instrument models from the shared reference-data cache; an empty list on
+    // failure shows the "No instruments available" entry.
+    const { data: instrumentModels = [], isPending: loading } = useInstrumentModels();
 
     const modelExists = instrumentModels.some(
         (model) => model.instrument_model_name === values.model
@@ -80,8 +60,10 @@ export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps>
                         error={Boolean(errors?.model)}
                         helperText={errors?.model}
                         disabled={loading}
-                        InputProps={{
-                            endAdornment: loading ? <CircularProgress size={20} /> : null,
+                        slotProps={{
+                            input: {
+                                endAdornment: loading ? <CircularProgress size={20} /> : null,
+                            },
                         }}
                     >
                         {instrumentModels.map((model) => (
@@ -116,3 +98,9 @@ export const InstrumentMetadataSection: React.FC<InstrumentMetadataSectionProps>
         </Box>
     );
 };
+
+/**
+ * Memoized: the project form keeps every section's handlers stable, so typing
+ * in one section re-renders only that section instead of the whole form.
+ */
+export const InstrumentMetadataSection = React.memo(InstrumentMetadataSectionImpl);

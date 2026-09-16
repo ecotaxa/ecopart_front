@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 
 vi.mock('../api/projects.api', () => ({
     getProjectById: vi.fn(),
@@ -23,6 +23,7 @@ import {
     previewSamplesQcGraphs,
 } from '../api/projects.api';
 import { useProjectImportTab } from './useProjectImportTab';
+import { renderHookWithProviders } from '@/test/utils';
 
 const mockedGetProjectById = vi.mocked(getProjectById);
 const mockedGetImportableRawSamples = vi.mocked(getImportableRawSamples);
@@ -82,7 +83,7 @@ describe('useProjectImportTab', () => {
 
     // TC-N6: Hook-level raw import success and cleanup
     it('TC-N6: imports selected raw samples and clears importing/selection on success', async () => {
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.loadingRaw).toBe(false);
@@ -121,7 +122,7 @@ describe('useProjectImportTab', () => {
     it('TC-N7: maps selected EcoTaxa sample_id to sample_name and clears importing on error', async () => {
         mockedImportEcoTaxaSamples.mockRejectedValueOnce(new Error('import failed'));
 
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.loadingRaw).toBe(false);
@@ -155,7 +156,7 @@ describe('useProjectImportTab', () => {
     it('TC-N8: keeps selection unchanged when there are no raw samples to import', async () => {
         mockedGetImportableRawSamples.mockResolvedValue([]);
 
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.loadingRaw).toBe(false);
@@ -172,7 +173,7 @@ describe('useProjectImportTab', () => {
 
     // TC-N9: Hook-level EcoTaxa import supports exclude selection mode
     it('TC-N9: imports EcoTaxa samples using exclude selection mode', async () => {
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.loadingEcoTaxa).toBe(false);
@@ -203,7 +204,7 @@ describe('useProjectImportTab', () => {
 
     // TC-N10: Hook-level raw import all with backup options + snackbar close
     it('TC-N10: imports all raw samples with backup options and closes snackbar', async () => {
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.loadingRaw).toBe(false);
@@ -242,7 +243,7 @@ describe('useProjectImportTab', () => {
     it('TC-N11: sets error root path when project loading fails', async () => {
         mockedGetProjectById.mockRejectedValueOnce(new Error('init failed'));
 
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.rootFolderPath).toBe('Error loading data');
@@ -255,7 +256,7 @@ describe('useProjectImportTab', () => {
     it('TC-N12: shows warning and skips API call when importing all EcoTaxa samples with empty list', async () => {
         mockedGetImportableEcoTaxaSamples.mockResolvedValueOnce([]);
 
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.loadingEcoTaxa).toBe(false);
@@ -273,7 +274,7 @@ describe('useProjectImportTab', () => {
 
     // TC-N13: Hook-level CTD import success
     it('TC-N13: imports selected CTD samples and clears selection on success', async () => {
-        const { result } = renderHook(() => useProjectImportTab(77));
+        const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
         await waitFor(() => {
             expect(result.current.loadingCtd).toBe(false);

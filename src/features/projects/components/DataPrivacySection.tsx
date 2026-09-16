@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Box, Typography, TextField, Stack, InputAdornment, Divider } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
-import { NewProjectFormValues } from "../types/newProject.types";
+import type { NewProjectFormValues } from "../types/newProject.types";
 
 interface DataPrivacySectionProps {
     values: NewProjectFormValues["privacy"];
@@ -63,7 +63,7 @@ const createNumberFieldChangeHandler = (
     };
 };
 
-export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
+const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
     values,
     onChange,
     privateMonthsError,
@@ -120,11 +120,11 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     onChange={createNumberFieldChangeHandler("privateMonths", onChange, setDraftValues)}
                     onBlur={createNumberFieldBlurHandler("privateMonths", onChange, setDraftValues)}
                     size="small"
-                    inputProps={{ min: 1 }}
                     error={Boolean(privateMonthsError)}
                     helperText={privateMonthsError}
-                    InputProps={{
-                        startAdornment: <InputAdornment position="start">Months</InputAdornment>,
+                    slotProps={{
+                        htmlInput: { min: 1 },
+                        input: { startAdornment: <InputAdornment position="start">Months</InputAdornment> },
                     }}
                 />
                 <TextField
@@ -136,11 +136,11 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     onChange={createNumberFieldChangeHandler("visibleMonths", onChange, setDraftValues)}
                     onBlur={createNumberFieldBlurHandler("visibleMonths", onChange, setDraftValues)}
                     size="small"
-                    inputProps={{ min: 1 }}
                     error={Boolean(visibleMonthsError)}
                     helperText={visibleMonthsError}
-                    InputProps={{
-                        startAdornment: <InputAdornment position="start">Months</InputAdornment>,
+                    slotProps={{
+                        htmlInput: { min: 1 },
+                        input: { startAdornment: <InputAdornment position="start">Months</InputAdornment> },
                     }}
                 />
                 <TextField
@@ -152,14 +152,20 @@ export const DataPrivacySection: React.FC<DataPrivacySectionProps> = ({
                     onChange={createNumberFieldChangeHandler("publicMonths", onChange, setDraftValues)}
                     onBlur={createNumberFieldBlurHandler("publicMonths", onChange, setDraftValues)}
                     size="small"
-                    inputProps={{ min: 1 }}
                     error={Boolean(publicMonthsError)}
                     helperText={publicMonthsError}
-                    InputProps={{
-                        startAdornment: <InputAdornment position="start">Months</InputAdornment>,
+                    slotProps={{
+                        htmlInput: { min: 1 },
+                        input: { startAdornment: <InputAdornment position="start">Months</InputAdornment> },
                     }}
                 />
             </Stack>
         </Box>
     );
 };
+
+/**
+ * Memoized: the project form keeps every section's handlers stable, so typing
+ * in one section re-renders only that section instead of the whole form.
+ */
+export const DataPrivacySection = React.memo(DataPrivacySectionImpl);

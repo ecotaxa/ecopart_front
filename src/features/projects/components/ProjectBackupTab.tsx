@@ -75,6 +75,8 @@ const ftpInfoContent = (
     </Box>
 );
 
+const NEVER_BACKED_UP = "This project has never been backed up.";
+
 export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId }) => {
     // Connect to our business logic Brain
     const {
@@ -90,23 +92,24 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
         skipAlreadyImported,
         setSkipAlreadyImported,
         isBackingUp,
+        runningBackupTaskId,
         handleStartBackup,
 
         snackbar,
         closeSnackbar,
     } = useProjectBackupTab(projectId);
 
-    // MENTOR FIX: Robust date formatter that handles "Invalid Date" objects.
+    // Robust date formatter that handles "Invalid Date" objects.
     const formatLastBackupDate = (dateString: string | null): React.ReactNode => {
         // If it's explicitly null or empty, and we aren't loading, it hasn't been backed up.
-        if (!dateString) return "The project have never been backuped.";
-        
+        if (!dateString) return NEVER_BACKED_UP;
+
         try {
             const date = new Date(dateString);
-            
-            // CRITICAL CHECK: In JS, `new Date("garbage")` returns an object, but its time is NaN.
+
+            // In JS, `new Date("garbage")` returns an object, but its time is NaN.
             if (isNaN(date.getTime())) {
-                return "The project have never been backuped."; // Or "Invalid date format from server"
+                return NEVER_BACKED_UP;
             }
             
             const formattedDate = date.toLocaleDateString(undefined, {
@@ -121,7 +124,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
 
             return `Last backup done on ${formattedDate} at ${formattedTime}`;
         } catch {
-            return "The project have never been backuped.";
+            return NEVER_BACKED_UP;
         }
     };
 
@@ -135,13 +138,19 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                         <InfoTooltip title={backupInfoContent} />
                     </Typography>
 
-                    {/* MENTOR FIX: Show a loading indicator for the date if we are fetching metadata */}
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, display: 'flex', alignItems: 'center', minHeight: 24 }}>
+                    {/* Loading indicator while the date is fetched; then the server-reported last backup. */}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: runningBackupTaskId !== null ? 1 : 3, display: 'flex', alignItems: 'center', minHeight: 24 }}>
                         {isLoadingMetadata ? (
                             <CircularProgress size={16} sx={{ mr: 1, color: 'text.secondary' }} />
                         ) : null}
                         {isLoadingMetadata ? "Checking backup status..." : formatLastBackupDate(lastBackupDate)}
                     </Typography>
+                    {runningBackupTaskId !== null && (
+                        <Typography variant="body2" color="primary" sx={{ mb: 3, display: 'flex', alignItems: 'center', minHeight: 24 }}>
+                            <CircularProgress size={16} sx={{ mr: 1 }} />
+                            Backup task #{runningBackupTaskId} in progress — the date above will refresh once it completes.
+                        </Typography>
+                    )}
 
                     {/*  NOTE: Read-only TextField to display the path stored in the DB.
                         It is visually matching the mockup, but disabled to prevent the user
@@ -153,17 +162,19 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                         <TextField
                             fullWidth
                             value={backupFolderPath}
-                            disabled // CRITICAL: This makes it read-only
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        {isLoadingMetadata ? (
-                                            <CircularProgress size={20} color="inherit" />
-                                        ) : (
-                                            <FolderOpenIcon color="disabled" />
-                                        )}
-                                    </InputAdornment>
-                                ),
+                            disabled // read-only: the path is edited on the METADATA tab
+                            slotProps={{
+                                input: {
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            {isLoadingMetadata ? (
+                                                <CircularProgress size={20} color="inherit" />
+                                            ) : (
+                                                <FolderOpenIcon color="disabled" />
+                                            )}
+                                        </InputAdornment>
+                                    ),
+                                },
                             }}
                             size="small"
                             sx={{ '& .Mui-disabled': { WebkitTextFillColor: 'rgba(0, 0, 0, 0.6) !important' } }}
@@ -196,7 +207,7 @@ export const ProjectBackupTab: React.FC<ProjectBackupTabProps> = ({ projectId })
                         variant="contained"
                         color="primary"
                         onClick={handleStartBackup}
-                        disabled={isBackingUp || isLoadingMetadata}
+                        disabled={isBackingUp || isLoadingMetadata || runningBackupTaskId !== null}
                         sx={{ width: 120, boxShadow: 'none' }}
                     >
                         {isBackingUp ? "STARTING..." : "START"}

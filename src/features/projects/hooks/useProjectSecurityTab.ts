@@ -1,19 +1,19 @@
-import { useState, useEffect } from "react";
-import { AlertColor } from "@mui/material";
+import { useState, useEffect, useCallback } from "react";
+import type { AlertColor } from "@mui/material";
 
 // Reuse the exact same types we use for creation to keep our Dumb Components happy
-import { NewProjectFormValues } from "../types/newProject.types";
-import { getProjectById, updateProject, PublicProjectUpdateModel } from "../api/projects.api";
-import { fetchActiveUsers, UserSearchResponse } from "@/features/auth/api/users.api";
-
-/**
- * Narrow error shape used to safely extract backend validation messages
- * without using `any`.
- */
-interface ApiErrorShape {
-    message?: string;
-    errors?: string[];
-}
+import { getProjectById, updateProject, type PublicProjectUpdateModel } from "../api/projects.api";
+import { fetchActiveUsers, type UserSearchResponse } from "@/features/auth/api/users.api";
+import { extractErrorMessage } from "@/shared/utils/errorMessage";
+import {
+    DEFAULT_PRIVACY,
+    type ProjectFormErrors,
+    type SecurityFormValues,
+    buildPrivilegesPayload,
+    mapProjectPrivacy,
+    mapProjectPrivileges,
+    validateProjectForm,
+} from "../utils/projectForm";
 
 export const useProjectSecurityTab = (projectId: number) => {
     // --------------------------------------------------
@@ -21,15 +21,13 @@ export const useProjectSecurityTab = (projectId: number) => {
     // --------------------------------------------------
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState<ProjectFormErrors>({});
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
 
     // We initialize only the parts of the form state relevant to the Security tab
-    const [values, setValues] = useState<{
-        privileges: NewProjectFormValues["privileges"];
-        privacy: NewProjectFormValues["privacy"];
-    }>({
+    const [values, setValues] = useState<SecurityFormValues>({
         privileges: [],
-        privacy: { privateMonths: 2, visibleMonths: 24, publicMonths: 36 },
+        privacy: { ...DEFAULT_PRIVACY },
     });
 
     // Notification State
@@ -39,69 +37,59 @@ export const useProjectSecurityTab = (projectId: number) => {
         severity: "info",
     });
 
-    const showSnackbar = (message: string, severity: AlertColor = "info") => {
+    const showSnackbar = useCallback((message: string, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });
-    };
+    }, []);
 
-    const closeSnackbar = () => setSnackbar((prev) => ({ ...prev, open: false }));
+    const closeSnackbar = useCallback(() => setSnackbar((prev) => ({ ...prev, open: false })), []);
 
     // --------------------------------------------------
-    // 2. DATA FETCHING (ON MOUNT)
+    // 2. DATA FETCHING (ON MOUNT / PROJECT CHANGE)
     // --------------------------------------------------
     useEffect(() => {
+        if (!projectId) return;
+        // Ignore the response of a superseded load (project id changed / unmount).
+        let cancelled = false;
+
         const loadData = async () => {
             setLoading(true);
 
             try {
-                // Fetch active users for the Privileges dropdown
-                const usersResponse = await fetchActiveUsers();
+                // The users list (privileges dropdown) and the project are independent.
+                const [usersResponse, projectData] = await Promise.all([
+                    fetchActiveUsers(),
+                    getProjectById(projectId),
+                ]);
+                if (cancelled) return;
+
                 if (usersResponse?.users) {
                     setAvailableUsers(usersResponse.users);
                 }
 
-                // Fetch the Project Data
-                const projectData = await getProjectById(projectId);
-
-                // --- MAP BACKEND DATA TO FRONTEND UI STATE ---
                 setValues({
-                    privacy: {
-                        privateMonths: projectData.privacy_duration ?? 2,
-                        visibleMonths: projectData.visible_duration ?? 24,
-                        publicMonths: projectData.public_duration ?? 36,
-                    },
-                    // Map privileges: Contact is radio, Managers/Members are rows
-                    privileges: [
-                        ...(projectData.managers || []).map((manager) => ({
-                            userId: manager.user_id.toString(),
-                            role: "Manager" as const,
-                            contact: projectData.contact?.user_id === manager.user_id,
-                        })),
-                        ...(projectData.members || []).map((member) => ({
-                            userId: member.user_id.toString(),
-                            role: "Member" as const,
-                            contact: projectData.contact?.user_id === member.user_id,
-                        })),
-                    ],
+                    privacy: mapProjectPrivacy(projectData),
+                    privileges: mapProjectPrivileges(projectData),
                 });
+                setErrors({});
             } catch (error) {
+                if (cancelled) return;
                 console.error("Failed to load project security details", error);
                 showSnackbar("Failed to load project details.", "error");
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
-        if (projectId) {
-            loadData();
-        }
-    }, [projectId]);
+        loadData();
+        return () => { cancelled = true; };
+    }, [projectId, showSnackbar]);
 
     // --------------------------------------------------
     // 3. FIELD UPDATER
     // --------------------------------------------------
-    const updateField = <T extends keyof typeof values>(
+    const updateField = useCallback(<T extends keyof SecurityFormValues>(
         section: T,
-        data: Partial<typeof values[T]> | typeof values[T]
+        data: Partial<SecurityFormValues[T]> | SecurityFormValues[T]
     ) => {
         setValues((prev) => {
             const currentValue = prev[section];
@@ -120,78 +108,59 @@ export const useProjectSecurityTab = (projectId: number) => {
                 [section]: data,
             };
         });
-    };
-
-    // --------------------------------------------------
-    // 4. HELPERS
-    // --------------------------------------------------
-    const safeParseInt = (value: string, fallback: number = 1): number => {
-        const parsed = Number.parseInt(value, 10);
-        return Number.isNaN(parsed) ? fallback : parsed;
-    };
-
-    const extractErrorMessage = (error: unknown): string => {
-        if (error instanceof Error) {
-            return error.message;
-        }
-
-        if (typeof error === "object" && error !== null) {
-            const apiError = error as ApiErrorShape;
-
-            if (typeof apiError.message === "string" && apiError.message.trim() !== "") {
-                return apiError.message;
+        // Editing a section clears its inline errors.
+        setErrors((prev) => {
+            const next = { ...prev };
+            if (section === "privileges") {
+                delete next.privilegesManager;
+                delete next.privilegesContact;
+            } else {
+                delete next.privateMonths;
+                delete next.visibleMonths;
+                delete next.publicMonths;
             }
-
-            if (Array.isArray(apiError.errors) && apiError.errors.length > 0) {
-                return apiError.errors[0];
-            }
-        }
-
-        return "An error occurred while saving.";
-    };
+            return next;
+        });
+    }, []);
 
     // --------------------------------------------------
-    // 5. SAVE HANDLER (PATCH REQUEST)
+    // 4. SAVE HANDLER (PATCH REQUEST)
     // --------------------------------------------------
     const handleSave = async () => {
+        if (saving) return;
+
+        // Same rules as project creation, restricted to what this tab edits.
+        const nextErrors = validateProjectForm(values, { privileges: true, privacy: true });
+        setErrors(nextErrors);
+        const firstError = Object.values(nextErrors)[0];
+        if (firstError) {
+            showSnackbar(firstError, "warning");
+            return;
+        }
+
         setSaving(true);
 
         try {
-            const selectedContact = values.privileges.find((row) => row.contact === true);
-
-            if (!selectedContact) {
-                showSnackbar("A contact is required before saving.", "warning");
-                setSaving(false);
-                return;
-            }
+            const { contact, managers, members } = buildPrivilegesPayload(values.privileges);
 
             // Map UI State back to Backend PATCH Model.
-            // Note: We use Partial<PublicProjectUpdateModel> because we are ONLY updating security fields.
-            // The backend PATCH route must be capable of receiving partial updates without complaining about missing required fields.
-            const payload: Partial<PublicProjectUpdateModel> = {
+            // Only the security fields are sent: the backend PATCH route accepts
+            // partial updates.
+            const payload: PublicProjectUpdateModel = {
                 privacy_duration: values.privacy.privateMonths,
                 visible_duration: values.privacy.visibleMonths,
                 public_duration: values.privacy.publicMonths,
-                
-                contact: { user_id: safeParseInt(selectedContact.userId) },
-                
-                managers: values.privileges
-                    .filter((row) => row.role === "Manager" && row.userId.trim() !== "")
-                    .map((row) => ({ user_id: safeParseInt(row.userId) })),
-                    
-                members: values.privileges
-                    .filter((row) => row.role === "Member" && row.userId.trim() !== "")
-                    .map((row) => ({ user_id: safeParseInt(row.userId) })),
+                contact,
+                managers,
+                members,
             };
 
-            console.log("[ProjectSecurity] PATCH Payload:", payload);
-
-            await updateProject(projectId, payload as PublicProjectUpdateModel);
+            await updateProject(projectId, payload);
 
             showSnackbar("Security settings updated successfully!", "success");
         } catch (error: unknown) {
             console.error("Failed to update project security", error);
-            showSnackbar(extractErrorMessage(error), "error");
+            showSnackbar(extractErrorMessage(error, "An error occurred while saving."), "error");
         } finally {
             setSaving(false);
         }
@@ -203,6 +172,7 @@ export const useProjectSecurityTab = (projectId: number) => {
 
     return {
         values,
+        errors,
         loading,
         saving,
         availableUsers,

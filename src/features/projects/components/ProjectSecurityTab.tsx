@@ -8,7 +8,6 @@ import { PrivilegesSection } from "./PrivilegesSection";
 import { DataPrivacySection } from "./DataPrivacySection";
 
 import { useProjectSecurityTab } from "@/features/projects/hooks/useProjectSecurityTab";
-import { useAuthStore } from "@/features/auth/store/auth.store";
 
 interface ProjectSecurityTabProps {
     // The ID of the project we are currently viewing
@@ -24,6 +23,7 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
     // 1. Connect to the "Brain" (Hook)
     const {
         values,
+        errors,
         loading,
         saving,
         availableUsers,
@@ -33,8 +33,6 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
         snackbar,
         closeSnackbar
     } = useProjectSecurityTab(projectId);
-
-    const currentUser = useAuthStore((state) => state.user);
 
     // Show a loading spinner while data is being fetched
     if (loading) {
@@ -55,6 +53,9 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
                     values={values.privacy}
                     // We cast the data to Partial<typeof values.privacy> to avoid using 'any'
                     onChange={(data) => updateField('privacy', data as Partial<typeof values.privacy>)}
+                    privateMonthsError={errors.privateMonths}
+                    visibleMonthsError={errors.visibleMonths}
+                    publicMonthsError={errors.publicMonths}
                 />
 
                 <Box sx={{ mt: 6 }}>
@@ -62,8 +63,9 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
                     <PrivilegesSection
                         values={values.privileges}
                         availableUsers={availableUsers}
-                        currentUserId={currentUser?.user_id ?? null}
                         onChange={(data) => updateField('privileges', data)}
+                        managerError={errors.privilegesManager}
+                        contactError={errors.privilegesContact}
                     />
                 </Box>
 

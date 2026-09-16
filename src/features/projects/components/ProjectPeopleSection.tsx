@@ -5,7 +5,7 @@ import Grid from "@mui/material/Grid";
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 
-import { NewProjectFormValues } from "../types/newProject.types";
+import type { NewProjectFormValues } from "../types/newProject.types";
 
 interface ProjectPeopleSectionProps {
     values: NewProjectFormValues["people"];
@@ -44,7 +44,7 @@ const VerificationIcon: React.FC<VerificationIconProps> = ({ userId, emailValue 
     );
 };
 
-export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
+const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
     values,
     onChange,
     errors,
@@ -52,7 +52,7 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
     return (
         <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom>
-                Project peoples
+                Project people
             </Typography>
             <Divider sx={{ mb: 3 }} />
 
@@ -77,16 +77,19 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
                         required
                         label="Data owner email"
                         value={values.dataOwnerEmail}
-                        onChange={(e) => onChange({ dataOwnerEmail: e.target.value })}
+                        // A different email is no longer the verified EcoPart account: drop the resolved id.
+                        onChange={(e) => onChange({ dataOwnerEmail: e.target.value, dataOwnerId: null })}
                         size="small"
                         error={Boolean(errors?.dataOwnerEmail)}
                         helperText={errors?.dataOwnerEmail}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} />
-                                </InputAdornment>
-                            ),
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} />
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
                     />
                 </Grid>
@@ -111,16 +114,18 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
                         required
                         label="Chief scientist email"
                         value={values.chiefScientistEmail}
-                        onChange={(e) => onChange({ chiefScientistEmail: e.target.value })}
+                        onChange={(e) => onChange({ chiefScientistEmail: e.target.value, chiefScientistId: null })}
                         size="small"
                         error={Boolean(errors?.chiefScientistEmail)}
                         helperText={errors?.chiefScientistEmail}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} />
-                                </InputAdornment>
-                            ),
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} />
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
                     />
                 </Grid>
@@ -145,16 +150,18 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
                         required
                         label="Operator email"
                         value={values.operatorEmail}
-                        onChange={(e) => onChange({ operatorEmail: e.target.value })}
+                        onChange={(e) => onChange({ operatorEmail: e.target.value, operatorId: null })}
                         size="small"
                         error={Boolean(errors?.operatorEmail)}
                         helperText={errors?.operatorEmail}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} />
-                                </InputAdornment>
-                            ),
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} />
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
                     />
                 </Grid>
@@ -162,3 +169,9 @@ export const ProjectPeopleSection: React.FC<ProjectPeopleSectionProps> = ({
         </Box>
     );
 };
+
+/**
+ * Memoized: the project form keeps every section's handlers stable, so typing
+ * in one section re-renders only that section instead of the whole form.
+ */
+export const ProjectPeopleSection = React.memo(ProjectPeopleSectionImpl);

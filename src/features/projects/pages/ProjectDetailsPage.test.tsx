@@ -8,6 +8,7 @@ import ProjectDetailsPage from './ProjectDetailsPage';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 // Helper to mock the project fetch API call which the child tabs rely on
 const mockProjectFetch = (projectId: number) => {
@@ -246,7 +247,7 @@ describe('ProjectDetailsPage (Functional)', () => {
                 return HttpResponse.json({ message: 'deleted' });
             })
         );
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = answerConfirmDialogs(true);
 
         renderWithRouter(
             <Routes>

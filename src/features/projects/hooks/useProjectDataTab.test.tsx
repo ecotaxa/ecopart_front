@@ -14,7 +14,7 @@ vi.mock('../api/projects.api', () => ({
 }));
 
 // The deep-link effect resolves the instance base URL from the user-profile API.
-vi.mock('@/features/userProfile/api/profile.api', () => ({
+vi.mock('@/shared/api/ecotaxa.api', () => ({
     getEcoTaxaInstances: vi.fn(),
 }));
 
@@ -28,9 +28,10 @@ import {
     getProjectById,
 } from '../api/projects.api';
 import type { Project, EcoTaxaSampleData } from '../api/projects.api';
-import { getEcoTaxaInstances } from '@/features/userProfile/api/profile.api';
+import { getEcoTaxaInstances } from '@/shared/api/ecotaxa.api';
 import type { EcoTaxaInstance } from '@/features/userProfile/api/profile.api';
 import { useProjectDataTab } from './useProjectDataTab';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 const makeProject = (overrides: Partial<Project> = {}): Project => ({
     project_id: 77,
@@ -100,7 +101,7 @@ describe('hooks/useProjectDataTab', () => {
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
         vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
         vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = answerConfirmDialogs(true);
 
         try {
             const { result } = renderHook(() => useProjectDataTab(77));
@@ -161,7 +162,7 @@ describe('hooks/useProjectDataTab', () => {
                 search_info: { total: 0, page: 1, limit: 10 },
             });
         vi.mocked(deleteProjectCtdSamples).mockResolvedValue({ message: 'Deleted' });
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = answerConfirmDialogs(true);
 
         try {
             const { result } = renderHook(() => useProjectDataTab(77));
@@ -196,7 +197,7 @@ describe('hooks/useProjectDataTab', () => {
                 search_info: { total: 0, page: 1, limit: 10 },
             });
         vi.mocked(deleteProjectEcoTaxaSamples).mockResolvedValue({ message: 'Deleted' });
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = answerConfirmDialogs(true);
 
         try {
             const { result } = renderHook(() => useProjectDataTab(77));
@@ -213,7 +214,10 @@ describe('hooks/useProjectDataTab', () => {
                 await result.current.handleDeleteEcoTaxaSamples();
             });
 
-            expect(confirmSpy).toHaveBeenCalledWith(expect.stringMatching(/delete 1 samples from EcoTaxa/i));
+            expect(confirmSpy).toHaveBeenCalledWith(expect.objectContaining({
+                title: 'Delete samples from EcoTaxa',
+                message: expect.stringMatching(/removes 1 sample\(s\) from the linked EcoTaxa project/i),
+            }));
             expect(deleteProjectEcoTaxaSamples).toHaveBeenCalledWith(77, ['etx-1']);
             await waitFor(() => {
                 expect(result.current.snackbar.message).toBe('Samples deleted from EcoTaxa successfully.');
