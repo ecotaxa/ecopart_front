@@ -832,6 +832,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-S7** | Initial load error | `getOneTask` rejects on the first load. | Render the page. | The "Failed to synchronize task metrics from server." alert is displayed (the task staying null). |
 | **TC-S8** | Adaptive polling while RUNNING | `getOneTask` returns a task with status RUNNING (fake timers). | Mount the page, let the initial load settle, advance time by 2500 ms. | `getOneTask` is re-called (goes from 1 to 2 calls) — polling runs while the task is in progress. |
 | **TC-S8b** | No polling once DONE | `getOneTask` returns a task with status DONE (fake timers). | Mount the page, advance time by 8000 ms. | `getOneTask` stays at 1 call — no "non-active" task is re-polled. |
+| **TC-S8c** | Late response for a task the user has left | `getOneTask` for task 42 never resolves before the user opens task 43 (a link in the test). | Open task 42, click through to task 43, then resolve the task-42 request. | The header shows task 43 before and after the late answer; task 42 never appears — a response only applies if no newer load (other task, tab, poll) has started since. |
 | ♿ **TC-S9** | Tabs keyboard navigation | The page is loaded with a task. | Verify `role="tablist"`, focus the GENERAL tab, press ArrowRight then Enter. | • ArrowRight moves focus to the LOG FILE tab (roving tabindex).<br>• Enter activates it (`aria-selected=true`) — manual activation per MUI Tabs. |
 
 ### T. Project Tasks Tab (`ProjectTasksTab` — project tab)
@@ -1090,6 +1091,16 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AJ2** | Tab from slug | Route `/admin/users`. | Render the page. | USERS is selected and QUICK ACCESS is not. |
 | **TC-AJ3** | Unknown slug falls back | Route `/admin/does-not-exist`. | Render the page. | QUICK ACCESS is selected (invalid slug ignored). |
 | **TC-AJ4** | Clicking a tab navigates | Route `/admin`. | Click the PROJECTS tab. | Navigation updates the route param and PROJECTS becomes the selected tab. |
+
+### AK. Auth Bootstrap (`app/AuthBootstrap.tsx`)
+
+*`app/AuthBootstrap.test.tsx`*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AK1** | Cache dropped on user change | `fetchMe` is mocked to fail (signed out); a query is seeded in the app-wide `queryClient`. | Sign in user 1, seed again, sign in user 2, seed again, sign out. | After each change of signed-in user the seeded query is gone — a user never sees data cached by the previous one. |
+| **TC-AK2** | Cache kept for the same user | User 1 is signed in and a query is seeded. | Call `setUser` again with the same `user_id` (renamed profile). | The seeded query is still there — only a change of identity clears the cache. |
+| **TC-AK3** | Session-expired handler signs out | The bootstrap registered its handler through `setSessionExpiredHandler` (mocked); user 1 is signed in with a seeded query. | Invoke the registered handler. | `isAuthenticated = false`, `user = null`, and the cache is empty (signing out is a user change). |
 
 ### AU. Admin — Updates (`AdminUpdatesTab`, `useAdminUpdates`, `announcement.store`, `GlobalAnnouncementBanner`, `broadcastMessages.api`)
 

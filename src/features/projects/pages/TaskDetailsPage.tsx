@@ -56,40 +56,47 @@ export default function TaskDetailsPage() {
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
     const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
-    // Guards against overlapping refreshes (a slow poll must not pile up behind
-    // the next tick) and against applying a response after unmount.
-    const inFlight = useRef(false);
-    const mounted = useRef(true);
-    useEffect(() => {
-        mounted.current = true;
-        return () => { mounted.current = false; };
-    }, []);
+    // Every load gets a generation number; a response is applied only if no
+    // newer load has started since (a later poll, another task id or tab, or
+    // unmount). A slow answer for the previous task can therefore never
+    // overwrite the task that is now open. Polls additionally skip a tick while
+    // a poll of the same task/tab is still pending, so they don't pile up.
+    const loadGeneration = useRef(0);
+    const pendingPollKey = useRef<string | null>(null);
+    useEffect(() => () => { loadGeneration.current += 1; }, []);
 
     // --- 2. DATA HYDRATION CALLBACK ---
     const loadTaskDetails = useCallback(async (showSpinner = false) => {
-        if (parsedTaskId === null || inFlight.current) return;
-        inFlight.current = true;
+        if (parsedTaskId === null) return;
+        const pollKey = `${parsedTaskId}/${currentTab}`;
+        if (!showSpinner && pendingPollKey.current === pollKey) return;
+
+        const generation = ++loadGeneration.current;
+        const isCurrent = () => loadGeneration.current === generation;
+        pendingPollKey.current = pollKey;
         if (showSpinner) setIsLoading(true);
 
         try {
             const taskData = await getOneTask(parsedTaskId);
-            if (!mounted.current) return;
+            if (!isCurrent()) return;
             setTask(taskData);
 
             // Only fetch logs if we are on the log tab to preserve resources
             if (currentTab === 1) {
                 const logs = await getTaskLog(parsedTaskId);
-                if (!mounted.current) return;
+                if (!isCurrent()) return;
                 setLogContent(logs);
             }
             setError(null);
         } catch (err: unknown) {
-            if (!mounted.current) return;
+            if (!isCurrent()) return;
             console.error("[Task Details] Hydration error:", err);
             setError("Failed to synchronize task metrics from server.");
         } finally {
-            inFlight.current = false;
-            if (showSpinner && mounted.current) setIsLoading(false);
+            if (isCurrent()) {
+                pendingPollKey.current = null;
+                if (showSpinner) setIsLoading(false);
+            }
         }
     }, [parsedTaskId, currentTab]);
 

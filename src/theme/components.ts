@@ -127,9 +127,15 @@ export const components: Components<Theme> = {
                     borderTop: `1px solid ${stone[200]}`,
                     minHeight: 40,
                 },
-                // No focus ring on cells / headers: the grids are read-only lists.
+                // Focus ring for keyboard users only: clicking a cell or header with
+                // the mouse doesn't outline it, Tab / arrow keys do. Controls inside a
+                // cell (checkbox, buttons) keep their own MUI focus-visible indicator.
                 "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within": {
                     outline: "none",
+                },
+                "& .MuiDataGrid-cell:focus-visible, & .MuiDataGrid-columnHeader:focus-visible": {
+                    outline: `2px solid ${secondblue[500]}`,
+                    outlineOffset: -2,
                 },
             },
         },
