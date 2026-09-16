@@ -2,7 +2,6 @@ import { Box, Container, Stack, Typography } from "@mui/material";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import WorkspacesIcon from "@mui/icons-material/Workspaces";
 import HubIcon from "@mui/icons-material/Hub";
-import MainLayout from "@/app/layouts/MainLayout";
 import ParticleField from "../components/ParticleField";
 
 /** Short, truthful entry points that mirror the app's real sections. */
@@ -29,7 +28,7 @@ const HIGHLIGHTS = [
 
 export default function HomePage() {
     return (
-        <MainLayout>
+        <>
             {/* Full-bleed hero: break out of MainLayout's padding so the
                 interactive particle field runs edge-to-edge under the TopBar. */}
             <Box
@@ -141,6 +140,6 @@ export default function HomePage() {
                     </Stack>
                 </Container>
             </Box>
-        </MainLayout>
+        </>
     );
 }

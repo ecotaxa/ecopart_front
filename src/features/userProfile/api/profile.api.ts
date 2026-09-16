@@ -1,31 +1,16 @@
 import { http } from "@/shared/api/http";
 import type { User } from "@/features/auth/types/user";
 
-// --- TYPES ---
-// Based on the backend response structure
-export interface EcoTaxaAccountLink {
-    ecotaxa_account_id: number;
-    ecotaxa_account_ecotaxa_id: number;
-    ecotaxa_user_name: string;
-    ecotaxa_user_email?: string;
-    ecotaxa_user_login?: string;
-    ecotaxa_expiration_date: string;
-    ecotaxa_account_instance_id: number;
-    ecotaxa_account_instance_name: string;
-}
-
-/**
- * Interface mirroring the backend 'ecotaxa_instance' table.
- * This is used across the application wherever EcoTaxa instances are needed.
- * Centralized here to ensure consistency and reusability.
- */
-export interface EcoTaxaInstance {
-    ecotaxa_instance_id: number;
-    ecotaxa_instance_name: string;
-    ecotaxa_instance_description: string;
-    ecotaxa_instance_url: string;
-    ecotaxa_instance_creation_date?: string; // Optional field from backend
-}
+// The EcoTaxa instance / account calls are shared with the project forms and
+// the data tab; they live in shared and are re-exported here for the profile screens.
+export {
+    getEcoTaxaAccounts,
+    getEcoTaxaInstances,
+    linkEcoTaxaAccount,
+    unlinkEcoTaxaAccount,
+    type EcoTaxaAccountLink,
+    type EcoTaxaInstance,
+} from "@/shared/api/ecotaxa.api";
 
 /**
  * Fetches the current connected user's details.
@@ -33,13 +18,18 @@ export interface EcoTaxaInstance {
  */
 export { fetchMe } from "@/features/auth/api/auth.api";
 
+/** The profile fields a user (or an admin, for the admin flag) may edit. */
+export type ProfileUpdatePayload = Partial<
+    Pick<User, "first_name" | "last_name" | "organisation" | "country" | "user_planned_usage" | "is_admin">
+>;
+
 /**
  * Updates the user profile information.
  * Endpoint: PATCH /users/:id
  * @param userId - The ID of the user to update.
  * @param data - The fields to update (first_name, last_name, etc.).
  */
-export async function updateProfile(userId: number, data: Partial<User>): Promise<User> {
+export async function updateProfile(userId: number, data: ProfileUpdatePayload): Promise<User> {
     return http<User>(`/users/${userId}`, {
         method: "PATCH",
         body: JSON.stringify(data),
@@ -49,7 +39,7 @@ export async function updateProfile(userId: number, data: Partial<User>): Promis
 /**
  * Changes the user's password.
  * Endpoint: POST /auth/password/change
- * * Note: The backend requires:
+ * Note: The backend requires:
  * 1. user_id
  * 2. password (the CURRENT password)
  * 3. new_password (the NEW password)
@@ -73,79 +63,4 @@ export async function deleteAccount(userId: number): Promise<void> {
     return http<void>(`/users/${userId}`, {
         method: "DELETE",
     });
-}
-
-/**
- * Get the list of linked EcoTaxa accounts.
- * Endpoint: GET users/:id/ecotaxa_account?page=1&limit=100
- */
-export async function getEcoTaxaAccounts(userId: number): Promise<EcoTaxaAccountLink[]> {
-    // 1. We create search parameters to match the Postman request
-    const params = new URLSearchParams({
-        page: "1",
-        limit: "100", // Fetch up to 100 accounts to be safe
-        sort_by: "asc(ecotaxa_account_expiration_utc_date_time)" // Sort by expiration (column renamed in backend migration 017)
-    });
-
-    // 2. We append the query string to the URL
-    const res = await http<{ ecotaxa_accounts: EcoTaxaAccountLink[] }>(
-        `/users/${userId}/ecotaxa_account?${params.toString()}`
-    );
-
-    // 3. Return the array (or an empty array if undefined/null)
-    return res.ecotaxa_accounts || [];
-}
-
-/**
- * Unlink (remove) a specific EcoTaxa account connection.
- * Endpoint: DELETE users/:userId/ecotaxa_account/:connectionId
- */
-export async function unlinkEcoTaxaAccount(userId: number, connectionId: number): Promise<void> {
-    return http<void>(`/users/${userId}/ecotaxa_account/${connectionId}`, {
-        method: "DELETE",
-    });
-}
-
-/**
- * Link an external EcoTaxa account to the current user.
- * Endpoint: POST users/:id/ecotaxa_account
- */
-export async function linkEcoTaxaAccount(
-    userId: number,
-    instanceId: number,
-    email: string,
-    password: string
-): Promise<void> {
-
-    const params = new URLSearchParams();
-    params.append("ecotaxa_user_login", email);
-    params.append("ecotaxa_user_password", password);
-    params.append("ecotaxa_instance_id", String(instanceId));
-
-    return http<void>(`/users/${userId}/ecotaxa_account`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params.toString(),
-    });
-}
-
-/**
- * Fetches all available EcoTaxa instances from the backend.
- * Endpoint: GET /ecotaxa_instances
- * 
- * This is a centralized function that can be reused across the application
- * wherever EcoTaxa instance data is needed (e.g., EcoTaxaLinkSection, EcoTaxaLoginForm).
- * 
- * @returns Promise<EcoTaxaInstance[]> - Array of EcoTaxa instances from the database
- */
-export async function getEcoTaxaInstances(): Promise<EcoTaxaInstance[]> {
-    const response = await http<EcoTaxaInstance[] | { ecotaxa_instances: EcoTaxaInstance[] }>("/ecotaxa_instances");
-
-    // Handle both direct array and wrapped object responses
-    if (Array.isArray(response)) {
-        return response.filter((inst) => inst && inst.ecotaxa_instance_id);
-    }
-    return (response.ecotaxa_instances || []).filter((inst) => inst && inst.ecotaxa_instance_id);
 }

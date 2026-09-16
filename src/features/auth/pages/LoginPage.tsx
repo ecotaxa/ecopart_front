@@ -3,14 +3,12 @@ import {
     Button,
     TextField,
     Box,
-    Checkbox,
-    FormControlLabel,
     Link,
     CircularProgress,
 } from "@mui/material";
 import { useNavigate, Navigate, useLocation } from "react-router-dom";
 
-import { loginRequest, fetchMe } from "../api/auth.api";
+import { loginRequest, fetchMe, InvalidCredentialsError } from "../api/auth.api";
 import { useAuthStore } from "../store/auth.store";
 
 // Validation utilities
@@ -21,6 +19,9 @@ import { VALIDATION_MESSAGES } from "@/shared/utils/validation/messages";
 import { AuthPageLayout } from "@/shared/components/AuthPageLayout";
 import { PasswordInput } from "@/shared/components/PasswordInput";
 
+/** Where a freshly logged-in user lands when no protected page redirected them here. */
+const DEFAULT_AFTER_LOGIN = "/dashboard";
+
 export default function LoginPage() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -30,13 +31,19 @@ export default function LoginPage() {
     // Form State
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [rememberMe, setRememberMe] = useState(false);
 
     // UI State
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const successMessage = location.state?.successMessage;
+    // location.state is untyped: narrow what we read from it.
+    const navState = location.state as { successMessage?: unknown; from?: unknown } | null;
+    const successMessage = typeof navState?.successMessage === "string" ? navState.successMessage : undefined;
+    // Only in-app paths are honoured (never an absolute URL), so the redirect
+    // can't be abused to send the user off-site.
+    const from = typeof navState?.from === "string" && navState.from.startsWith("/") && !navState.from.startsWith("//")
+        ? navState.from
+        : DEFAULT_AFTER_LOGIN;
 
     // Validation Logic
     const emailIsValid = isValidEmail(email);
@@ -47,7 +54,7 @@ export default function LoginPage() {
 
     // Redirect if already authenticated
     if (isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to={from} replace />;
     }
 
     const handleSubmit = async () => {
@@ -60,10 +67,12 @@ export default function LoginPage() {
             await loginRequest(email, password);
             const user = await fetchMe();
             setUser(user);
-            navigate("/dashboard");
+            navigate(from, { replace: true });
         } catch (err) {
             console.error("Login error:", err);
-            setError(VALIDATION_MESSAGES.LOGIN_FAILED);
+            // Wrong credentials and a backend outage are different problems:
+            // don't tell the user their password is wrong when the server is down.
+            setError(err instanceof InvalidCredentialsError ? VALIDATION_MESSAGES.LOGIN_FAILED : VALIDATION_MESSAGES.GENERIC_ERROR);
         } finally {
             setLoading(false);
         }
@@ -75,13 +84,21 @@ export default function LoginPage() {
             error={error}
             successMessage={successMessage}
         >
-            <Box>
+            <Box
+                component="form"
+                noValidate
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSubmit();
+                }}
+            >
                 <TextField
                     fullWidth
                     required
                     label="Email address"
                     placeholder="your@email.com"
                     margin="normal"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
@@ -99,30 +116,17 @@ export default function LoginPage() {
                     required
                     label="Password"
                     margin="normal"
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSubmit();
-                    }}
-                />
-
-                <FormControlLabel
-                    sx={{ alignSelf: "flex-start", mt: 1 }}
-                    control={
-                        <Checkbox
-                            checked={rememberMe}
-                            onChange={(e) => setRememberMe(e.target.checked)}
-                        />
-                    }
-                    label="Remember me"
                 />
 
                 <Button
                     fullWidth
+                    type="submit"
                     variant="contained"
                     sx={{ mt: 3, height: 48 }}
-                    onClick={handleSubmit}
                     // Button is disabled if form is invalid or request is loading
                     disabled={loading || !formIsValid}
                     // We add a testId to specifically target this button in tests,
@@ -142,6 +146,7 @@ export default function LoginPage() {
                 >
                     <Link
                         component="button"
+                        type="button"
                         variant="body2"
                         onClick={() => navigate("/reset-password")}
                     >
@@ -150,6 +155,7 @@ export default function LoginPage() {
 
                     <Link
                         component="button"
+                        type="button"
                         variant="body2"
                         onClick={() => navigate("/register")}
                     >

@@ -1,4 +1,4 @@
-import { useState, MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
 import {
     AppBar,
     Box,
@@ -15,16 +15,19 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CloudIcon from "@mui/icons-material/Cloud";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import { API_BASE_URL } from '@/config/api';
 import { ecotaxaColors } from "@/theme";
+import { queryClient } from "@/shared/api/queryClient";
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/features/auth";
+import { logoutRequest } from "@/features/auth/api/auth.api";
 
 export default function TopBar() {
     const navigate = useNavigate();
-    const { isAuthenticated, user, clearUser } = useAuthStore();
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const user = useAuthStore((s) => s.user);
+    const clearUser = useAuthStore((s) => s.clearUser);
 
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
@@ -35,13 +38,17 @@ export default function TopBar() {
     const handleClose = () => setAnchorEl(null);
 
     const handleLogout = async () => {
+        handleClose();
         try {
-            await fetch(`${API_BASE_URL}/auth/logout`, {
-                method: "POST",
-                credentials: "include",
-            });
+            await logoutRequest();
+        } catch (error) {
+            // The server session may already be gone; the client side is cleared regardless.
+            console.warn("[TopBar] Logout request failed", error);
         } finally {
             clearUser();
+            // Forget every cached server response so the next user never sees
+            // data fetched for the previous one.
+            queryClient.clear();
             navigate("/");
         }
     };
@@ -110,7 +117,7 @@ export default function TopBar() {
                                 {user.first_name} {user.last_name}
                             </Typography>
 
-                            <IconButton size="large" sx={{ color: "common.white" }}>
+                            <IconButton size="large" sx={{ color: "common.white" }} aria-label="Open account menu">
                                 <AccountCircleIcon fontSize="large" />
                             </IconButton>
                         </Stack>

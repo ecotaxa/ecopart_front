@@ -28,7 +28,6 @@ describe('LoginPage (Accessibility)', () => {
 
         const emailInput = screen.getByLabelText(/Email address/i);
         const passwordInput = screen.getByLabelText(/Password/i, { selector: 'input' });
-        const rememberCheckbox = screen.getByLabelText(/Remember me/i);
         // We select the submit button by testId
         const submitButton = screen.getByTestId('auth-submit');
 
@@ -45,10 +44,6 @@ describe('LoginPage (Accessibility)', () => {
         // Tab -> Eye Icon (Visibility Toggle)
         await user.tab();
         expect(screen.getByLabelText(/toggle password visibility/i)).toHaveFocus();
-
-        // Tab -> Remember Me
-        await user.tab();
-        expect(rememberCheckbox).toHaveFocus();
 
         // Tab -> Submit Button
         await user.tab();

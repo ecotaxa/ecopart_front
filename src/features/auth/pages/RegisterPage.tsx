@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
     Button,
     TextField,
@@ -8,7 +8,7 @@ import {
     CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import { CountriesWrapper, CountryOption } from "@/shared/country-wrapper";
+import { CountriesWrapper, type CountryOption } from "@/shared/country-wrapper";
 import { registerUser } from "../api/register.api";
 
 // Validation utils
@@ -24,16 +24,17 @@ import { VALIDATION_MESSAGES } from "@/shared/utils/validation/messages";
 import { AuthPageLayout } from "@/shared/components/AuthPageLayout";
 import { PasswordInput } from "@/shared/components/PasswordInput";
 
-// Import centralized API function for fetching organisations
-import { getOrganisations } from "@/shared/api/referenceData.api";
+import { useOrganisations } from "@/shared/api/referenceData.hooks";
 
 export default function RegisterPage() {
     const [submitted, setSubmitted] = useState(false);
+    // Guards against a double click creating two accounts while the request is in flight.
+    const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // State for organisation names fetched from API (already string[])
-    const [organisationOptions, setOrganisationOptions] = useState<string[]>([]);
-    const [loadingOrganisations, setLoadingOrganisations] = useState(true);
+    // Organisation names from the shared reference-data cache (an empty list on
+    // failure leaves the freeSolo input usable).
+    const { data: organisationOptions = [], isPending: loadingOrganisations } = useOrganisations();
 
     // Form Fields
     const [firstName, setFirstName] = useState("");
@@ -51,26 +52,6 @@ export default function RegisterPage() {
         () => CountriesWrapper.list(),
         []
     );
-
-    // Fetch organisations on mount
-    useEffect(() => {
-        const fetchOrganisations = async () => {
-            setLoadingOrganisations(true);
-            try {
-                // getOrganisations now returns string[] directly
-                const fetchedOrganisations = await getOrganisations();
-                setOrganisationOptions(fetchedOrganisations);
-            } catch (err) {
-                console.error("Failed to fetch organisations:", err);
-                // Leave the list empty - freeSolo allows manual input
-                setOrganisationOptions([]);
-            } finally {
-                setLoadingOrganisations(false);
-            }
-        };
-
-        fetchOrganisations();
-    }, []);
 
     // Validation Checkers
     const emailIsValid = isValidEmail(email);
@@ -90,8 +71,9 @@ export default function RegisterPage() {
         acceptedTerms;
 
     const handleSubmit = async () => {
-        if (!formIsValid) return;
+        if (!formIsValid || submitting) return;
         setError(null);
+        setSubmitting(true);
 
         try {
             await registerUser({
@@ -107,6 +89,8 @@ export default function RegisterPage() {
         } catch (err) {
             setSubmitted(false);
             setError(err instanceof Error ? err.message : "Registration failed");
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -209,14 +193,16 @@ export default function RegisterPage() {
                                 {...params}
                                 required
                                 label="Organisation"
-                                InputProps={{
-                                    ...params.InputProps,
-                                    endAdornment: (
-                                        <>
-                                            {loadingOrganisations ? <CircularProgress size={20} /> : null}
-                                            {params.InputProps.endAdornment}
-                                        </>
-                                    ),
+                                slotProps={{
+                                    input: {
+                                        ...params.InputProps,
+                                        endAdornment: (
+                                            <>
+                                                {loadingOrganisations ? <CircularProgress size={20} /> : null}
+                                                {params.InputProps.endAdornment}
+                                            </>
+                                        ),
+                                    },
                                 }}
                             />
                         )}
@@ -266,13 +252,12 @@ export default function RegisterPage() {
                 fullWidth
                 variant="contained"
                 sx={{ mt: 4 }}
-                // Disable sign up until form is valid
-                disabled={!formIsValid}
+                // Disable sign up until form is valid, and while the request runs
+                disabled={!formIsValid || submitting}
                 onClick={handleSubmit}
-
                 data-testid="register-submit"
             >
-                Sign up
+                {submitting ? <CircularProgress size={24} color="inherit" /> : "Sign up"}
             </Button>
         </AuthPageLayout>
     );

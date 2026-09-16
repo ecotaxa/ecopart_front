@@ -92,7 +92,27 @@ describe('LoginPage (Functional)', () => {
         expectSubmitEnabled('auth-submit');
         await submitAuthForm(user);
 
-        // Ensure we stayed on page and got an error
+        // Ensure we stayed on page and got an error — a server failure is NOT
+        // reported as wrong credentials.
+        expectNotOnDashboard();
+        expect(await screen.findByText(VALIDATION_MESSAGES.GENERIC_ERROR)).toBeInTheDocument();
+    });
+
+    // TC-A4b: Wrong credentials (401 from the default login mock)
+    it('TC-A4b: should show the invalid-credentials message on a 401', async () => {
+        const user = userEvent.setup();
+
+        renderWithRouter(
+            <Routes>
+                <Route path="/" element={<LoginPage />} />
+                <Route path="/dashboard" element={<h1>Welcome to Dashboard</h1>} />
+            </Routes>
+        );
+
+        await fillAuthForm(user, { email: 'john@doe.com', password: 'WrongPass1!' });
+        expectSubmitEnabled('auth-submit');
+        await submitAuthForm(user);
+
         expectNotOnDashboard();
         expect(await screen.findByText(VALIDATION_MESSAGES.LOGIN_FAILED)).toBeInTheDocument();
     });
