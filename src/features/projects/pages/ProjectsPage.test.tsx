@@ -8,6 +8,7 @@ import ProjectsPage from './ProjectsPage';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 // Helper to mock the complex POST search request
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,7 +175,7 @@ describe('ProjectsPage (Functional)', () => {
                 return HttpResponse.json({ message: 'deleted' });
             })
         );
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = answerConfirmDialogs(true);
 
         renderWithRouter(<ProjectsPage />, { route: '/projects' });
 

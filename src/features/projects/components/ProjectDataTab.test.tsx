@@ -1,4 +1,3 @@
-import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,16 +15,17 @@ vi.mock('../api/projects.api', () => ({
 }));
 
 // The EcoTaxa deep-link effect resolves the instance base URL from the profile API.
-vi.mock('@/features/userProfile/api/profile.api', () => ({
+vi.mock('@/shared/api/ecotaxa.api', () => ({
     getEcoTaxaInstances: vi.fn(),
 }));
 
 import { searchProjectSamples, searchProjectEcoTaxaSamples, searchProjectCtdSamples } from '../api/projects.api';
 import { deleteProjectSample, getProjectById } from '../api/projects.api';
 import type { Project, EcoTaxaSampleData } from '../api/projects.api';
-import { getEcoTaxaInstances } from '@/features/userProfile/api/profile.api';
+import { getEcoTaxaInstances } from '@/shared/api/ecotaxa.api';
 import type { EcoTaxaInstance } from '@/features/userProfile/api/profile.api';
 import { ProjectDataTab } from './ProjectDataTab';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 const makeProject = (overrides: Partial<Project> = {}): Project => ({
     project_id: 77,
@@ -58,7 +58,7 @@ const makeInstance = (overrides: Partial<EcoTaxaInstance> = {}): EcoTaxaInstance
 });
 
 describe('III. DATA TAB (ProjectDataTab)', () => {
-    let confirmSpy: ReturnType<typeof vi.spyOn> | undefined;
+    let confirmSpy: ReturnType<typeof answerConfirmDialogs> | undefined;
     beforeEach(() => {
         vi.clearAllMocks();
 
@@ -94,7 +94,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             samples: [],
         });
 
-        confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        confirmSpy = answerConfirmDialogs(true);
     });
 
     afterEach(() => confirmSpy?.mockRestore());
@@ -200,7 +200,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
 
             await user.click(enabledDeleteBtn!);
 
-            expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('delete'));
+            expect(confirmSpy).toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringMatching(/delete/i) }));
             await waitFor(() => {
                 expect(deleteProjectSample).toHaveBeenCalledTimes(2);
                 expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);

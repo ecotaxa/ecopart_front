@@ -17,9 +17,9 @@ import {
 } from "@mui/material";
 import {
     DataGrid,
-    GridColDef,
-    GridRenderCellParams,
-    GridRowParams,
+    type GridColDef,
+    type GridRenderCellParams,
+    type GridRowParams,
 } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
@@ -32,11 +32,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { useNavigate } from "react-router-dom";
-import MainLayout from "@/app/layouts/MainLayout";
 import SectionCard from "@/shared/components/SectionCard";
-import { MinimalUserModel, Project } from "../api/projects.api";
-import { useProjectsTable } from "../hooks/useProjectsTable";
+import type { MinimalUserModel, Project } from "../api/projects.api";
+import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 
 /**
  * ProjectsPage Component
@@ -102,9 +102,9 @@ export default function ProjectsPage() {
         setFilterAnchorEl(event.currentTarget);
     };
 
-    const handleFilterClose = (filterValue?: string) => {
+    const handleFilterClose = (filterValue?: ProjectsScope) => {
         setFilterAnchorEl(null);
-        if (typeof filterValue === "string") {
+        if (filterValue) {
             setSelectedFilter(filterValue);
         }
     };
@@ -216,10 +216,10 @@ export default function ProjectsPage() {
                     />
                 ),
         },
-        { field: "root_folder_path", headerName: "RootFolder", flex: 2 },
+        { field: "root_folder_path", headerName: "Root folder", flex: 2 },
         {
             field: "nbr_sample",
-            headerName: "Nbr Sample",
+            headerName: "Samples",
             width: 120,
             align: "center",
             headerAlign: "center",
@@ -285,7 +285,7 @@ export default function ProjectsPage() {
     // Render
     // ---------------------------------------------------------------------------
     return (
-        <MainLayout>
+        <>
             <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
                 <Box sx={{ mb: 4, textAlign: "center" }}>
                     <Typography variant="h4" gutterBottom>
@@ -316,12 +316,14 @@ export default function ProjectsPage() {
                                 placeholder={searchAttribute === "project_id" ? "Search by ID (exact)" : "Search..."}
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <SearchIcon color="action" />
-                                        </InputAdornment>
-                                    ),
+                                slotProps={{
+                                    input: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <SearchIcon color="action" />
+                                            </InputAdornment>
+                                        ),
+                                    },
                                 }}
                             />
 
@@ -445,26 +447,10 @@ export default function ProjectsPage() {
                             rowSelectionModel={rowSelectionModel}
                             onRowSelectionModelChange={setRowSelectionModel}
                             loading={loading}
-                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalRows, 1), label: "All" }]}
+                            pageSizeOptions={buildPageSizeOptions(totalRows)}
                             disableRowSelectionOnClick
                             onRowClick={handleRowClick}
-                            sx={{
-                                border: 0,
-                                '& .MuiDataGrid-row': {
-                                    cursor: 'pointer',
-                                },
-                                // Vertically center every cell's content (custom renderCell
-                                // content otherwise sticks to the top of the row).
-                                "& .MuiDataGrid-cell": {
-                                    display: "flex",
-                                    alignItems: "center",
-                                },
-                                "& .MuiDataGrid-columnHeaders": {
-                                    backgroundColor: "grey.100",
-                                    fontWeight: "bold",
-                                    borderTop: "none",
-                                },
-                            }}
+                            sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                         />
                     </Box>
                 </SectionCard>
@@ -480,6 +466,6 @@ export default function ProjectsPage() {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
-        </MainLayout>
+        </>
     );
 }

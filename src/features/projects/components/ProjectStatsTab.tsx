@@ -43,11 +43,18 @@ const StatsInfoRow: React.FC<StatsInfoRowProps> = ({ icon, title, description, a
 );
 
 interface ProjectStatsTabProps {
+    /** Whether the project already has an EcoTaxa project linked (hides the link call-to-action). */
+    ecoTaxaLinked: boolean;
     onImportData: () => void;
     onLinkProject: () => void;
 }
 
-export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ onImportData, onLinkProject }) => {
+/**
+ * Empty-state cards of the STATS tab: the two things a fresh project needs
+ * before statistics mean anything. The EcoTaxa card only shows while the
+ * project is still unlinked.
+ */
+export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ ecoTaxaLinked, onImportData, onLinkProject }) => {
     return (
         <SectionCard>
             <Stack spacing={2}>
@@ -58,13 +65,15 @@ export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ onImportData, 
                     actionLabel="IMPORT DATA"
                     onAction={onImportData}
                 />
-                <StatsInfoRow
-                    icon={<CloudIcon />}
-                    title="Your project is not linked to an EcoTaxa project. Please link it to an existing or new EcoTaxa project."
-                    description="You will then be able to import images to EcoTaxa from EcoPart and classify them in EcoTaxa."
-                    actionLabel="LINK PROJECT"
-                    onAction={onLinkProject}
-                />
+                {!ecoTaxaLinked && (
+                    <StatsInfoRow
+                        icon={<CloudIcon />}
+                        title="Your project is not linked to an EcoTaxa project. Please link it to an existing or new EcoTaxa project."
+                        description="You will then be able to import images to EcoTaxa from EcoPart and classify them in EcoTaxa."
+                        actionLabel="LINK PROJECT"
+                        onAction={onLinkProject}
+                    />
+                )}
             </Stack>
         </SectionCard>
     );

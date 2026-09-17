@@ -12,20 +12,20 @@ export interface NewProjectFormValues {
         ship: string[];
         cruise: string;
         description: string;
-        filteredBeforeImport: boolean;
-        timeDurationCheck: boolean;
     };
 
     people: {
         dataOwnerName: string;
         dataOwnerEmail: string;
-        dataOwnerId?: number | null; 
+        // EcoPart user id resolved from the email by the import-folder metadata
+        // (null when the email is not a known EcoPart account).
+        dataOwnerId?: number | null;
         chiefScientistName: string;
         chiefScientistEmail: string;
-        chiefScientistId?: number | null; 
+        chiefScientistId?: number | null;
         operatorName: string;
         operatorEmail: string;
-        operatorId?: number | null; 
+        operatorId?: number | null;
     };
 
     importSettings: {
@@ -50,13 +50,5 @@ export interface NewProjectFormValues {
         privateMonths: number;
         visibleMonths: number;
         publicMonths: number;
-    };
-
-    dataServer: {
-        host: string;
-        username: string;
-        password: string;
-        directory: string;
-        vectorReference: string;
     };
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TextField, InputAdornment, IconButton, TextFieldProps } from "@mui/material";
+import { TextField, InputAdornment, IconButton, type TextFieldProps } from "@mui/material";
 
 // Standard MUI icons for password visibility
 // See: https://mui.com/material-ui/react-text-field/#input-adornments
@@ -10,7 +10,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
  * Reusable Password Input component.
  * Centralizes the icon logic so it looks the same everywhere in the app.
  */
-export const PasswordInput = (props: TextFieldProps) => {
+export const PasswordInput = ({ slotProps, ...props }: TextFieldProps) => {
     const [showPassword, setShowPassword] = useState(false);
 
     const handleClickShowPassword = () => setShowPassword((show) => !show);
@@ -25,19 +25,25 @@ export const PasswordInput = (props: TextFieldProps) => {
             {...props}
             // Toggle between text (visible) and password (hidden)
             type={showPassword ? "text" : "password"}
-            InputProps={{
-                endAdornment: (
-                    <InputAdornment position="end">
-                        <IconButton
-                            aria-label="toggle password visibility"
-                            onClick={handleClickShowPassword}
-                            onMouseDown={handleMouseDownPassword}
-                            edge="end"
-                        >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                    </InputAdornment>
-                ),
+            slotProps={{
+                ...slotProps,
+                input: {
+                    ...(slotProps?.input as object | undefined),
+                    endAdornment: (
+                        <InputAdornment position="end">
+                            <IconButton
+                                aria-label="toggle password visibility"
+                                // Explicit type so the toggle never submits an enclosing <form>.
+                                type="button"
+                                onClick={handleClickShowPassword}
+                                onMouseDown={handleMouseDownPassword}
+                                edge="end"
+                            >
+                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                        </InputAdornment>
+                    ),
+                },
             }}
         />
     );

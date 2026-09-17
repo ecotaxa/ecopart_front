@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
     Alert,
     Box,
@@ -18,13 +18,8 @@ import {
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useNavigate } from "react-router-dom";
 
-import { NewProjectFormValues } from "../types/newProject.types";
-import {
-    getEcoTaxaAccounts,
-    getEcoTaxaInstances,
-    EcoTaxaAccountLink,
-    EcoTaxaInstance,
-} from "@/features/userProfile/api/profile.api";
+import type { NewProjectFormValues } from "../types/newProject.types";
+import { useEcoTaxaAccounts, useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import InfoTooltip from "@/shared/components/InfoTooltip";
 
@@ -61,7 +56,7 @@ interface EcoTaxaLinkSectionProps {
     };
 }
 
-export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
+const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
     values,
     onChange,
     projectTitle,
@@ -73,11 +68,15 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
     errors,
 }) => {
     const navigate = useNavigate();
-    const { user } = useAuthStore();
+    const user = useAuthStore((state) => state.user);
+    const userId = user?.user_id;
 
-    const [accounts, setAccounts] = useState<EcoTaxaAccountLink[]>([]);
-    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]);
-    const [loadingData, setLoadingData] = useState(false);
+    // Both lists come from the shared React Query cache: fetched once per user /
+    // session and shared with the profile page and the data tab, never refetched
+    // because this form re-rendered.
+    const { data: accounts = [], isPending: loadingAccounts } = useEcoTaxaAccounts(userId);
+    const { data: instances = [] } = useEcoTaxaInstances();
+    const loadingData = userId != null && loadingAccounts;
 
     const availableInstanceIds = new Set(accounts.map((account) => account.ecotaxa_account_instance_id.toString()));
     const safeInstanceValue = values.instance && availableInstanceIds.has(values.instance) ? values.instance : "";
@@ -92,38 +91,26 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
         ? values.account
         : "";
 
+    // Pre-select the first linked account once the list is known (New Project
+    // form only). The parent passes a fresh `onChange` arrow on every render and
+    // `values.instance` changes as the user types, so both are read through refs:
+    // the effect runs when the accounts land, not on every keystroke of the form.
+    const onChangeRef = useRef(onChange);
+    const instanceRef = useRef(values.instance);
     useEffect(() => {
-        const fetchData = async () => {
-            if (!user?.user_id) return;
+        onChangeRef.current = onChange;
+        instanceRef.current = values.instance;
+    });
+    const autoSelected = useRef(false);
 
-            setLoadingData(true);
-            try {
-                const linkedAccounts = await getEcoTaxaAccounts(user.user_id);
-                setAccounts(linkedAccounts);
-
-                try {
-                    const dbInstances = await getEcoTaxaInstances();
-                    setInstances(dbInstances);
-                } catch (apiError) {
-                    console.warn("Failed to fetch EcoTaxa instances from API.", apiError);
-                    setInstances([]);
-                }
-
-                if (autoSelectLinkedAccount && linkedAccounts.length > 0 && !values.instance) {
-                    onChange({
-                        instance: linkedAccounts[0].ecotaxa_account_instance_id.toString(),
-                        account: linkedAccounts[0].ecotaxa_account_id.toString(),
-                    });
-                }
-            } catch (error) {
-                console.error("Failed to load EcoTaxa data", error);
-            } finally {
-                setLoadingData(false);
-            }
-        };
-
-        fetchData();
-    }, [user?.user_id, values.instance, onChange, autoSelectLinkedAccount]);
+    useEffect(() => {
+        if (!autoSelectLinkedAccount || autoSelected.current || accounts.length === 0 || instanceRef.current) return;
+        autoSelected.current = true;
+        onChangeRef.current({
+            instance: accounts[0].ecotaxa_account_instance_id.toString(),
+            account: accounts[0].ecotaxa_account_id.toString(),
+        });
+    }, [accounts, autoSelectLinkedAccount]);
 
     const linkedInstanceData = linkedProject?.instanceId
         ? instances.find((instance) => instance.ecotaxa_instance_id === linkedProject.instanceId)
@@ -155,21 +142,23 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 size="medium"
                 error={Boolean(errors?.instance)}
                 helperText={errors?.instance}
-                SelectProps={{
-                    renderValue: (selected: unknown) => {
-                        const selectedString = selected as string;
-                        if (!selectedString) return "";
+                slotProps={{
+                    select: {
+                        renderValue: (selected: unknown) => {
+                            const selectedString = selected as string;
+                            if (!selectedString) return "";
 
-                        const instanceData = instances.find((inst) => inst.ecotaxa_instance_id.toString() === selectedString);
-                        if (!instanceData) return selectedString;
+                            const instanceData = instances.find((inst) => inst.ecotaxa_instance_id.toString() === selectedString);
+                            if (!instanceData) return selectedString;
 
-                        return (
-                            <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
-                                <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description}
-                                <br />
-                                ({instanceData.ecotaxa_instance_url})
-                            </Box>
-                        );
+                            return (
+                                <Box sx={{ whiteSpace: "normal", lineHeight: 1.4 }}>
+                                    <strong>{instanceData.ecotaxa_instance_name}</strong>, {instanceData.ecotaxa_instance_description}
+                                    <br />
+                                    ({instanceData.ecotaxa_instance_url})
+                                </Box>
+                            );
+                        },
                     },
                 }}
             >
@@ -214,8 +203,10 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                 disabled={!safeInstanceValue || loadingData}
                 error={Boolean(errors?.account)}
                 helperText={errors?.account}
-                InputProps={{
-                    endAdornment: loadingData ? <CircularProgress size={20} /> : null,
+                slotProps={{
+                    input: {
+                        endAdornment: loadingData ? <CircularProgress size={20} /> : null,
+                    },
                 }}
             >
                 {availableAccounts.map((account) => (
@@ -284,7 +275,7 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                     variant="text"
                     size="small"
                     onClick={() => {
-                        navigate("/settings/ecotaxa_account");
+                        navigate(userId != null ? `/settings/${userId}/ecotaxa_account` : "/settings/ecotaxa_account");
                     }}
                 >
                     ADD AN ECOTAXA ACCOUNT →
@@ -301,19 +292,21 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
                             value={linkedProjectLabel}
                             size="small"
                             disabled
-                            InputProps={{
-                                endAdornment: (
-                                    <Tooltip title="Open EcoTaxa project">
-                                        <IconButton
-                                            aria-label="Open EcoTaxa project"
-                                            size="small"
-                                            onClick={() => window.open(linkedProjectUrl, "_blank", "noopener,noreferrer")}
-                                            sx={{ color: "primary.main" }}
-                                        >
-                                            <OpenInNewIcon fontSize="small" />
-                                        </IconButton>
-                                    </Tooltip>
-                                ),
+                            slotProps={{
+                                input: {
+                                    endAdornment: (
+                                        <Tooltip title="Open EcoTaxa project">
+                                            <IconButton
+                                                aria-label="Open EcoTaxa project"
+                                                size="small"
+                                                onClick={() => window.open(linkedProjectUrl, "_blank", "noopener,noreferrer")}
+                                                sx={{ color: "primary.main" }}
+                                            >
+                                                <OpenInNewIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    ),
+                                },
                             }}
                         />
 
@@ -332,3 +325,9 @@ export const EcoTaxaLinkSection: React.FC<EcoTaxaLinkSectionProps> = ({
         </Box>
     );
 };
+
+/**
+ * Memoized: the project form keeps every section's handlers stable, so typing
+ * in one section re-renders only that section instead of the whole form.
+ */
+export const EcoTaxaLinkSection = React.memo(EcoTaxaLinkSectionImpl);

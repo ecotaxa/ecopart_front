@@ -16,11 +16,11 @@ import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import ErrorIcon from "@mui/icons-material/Error";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { DataGrid, GridColDef, GridRenderCellParams, GridRowParams } from "@mui/x-data-grid";
+import { DataGrid, type GridColDef, type GridRenderCellParams, type GridRowParams } from "@mui/x-data-grid";
 
 import { CountriesWrapper } from "@/shared/country-wrapper";
-import { SearchFilter, searchProjects } from "@/features/projects/api/projects.api";
-import { AdminUser } from "../api/adminUsers.api";
+import { type SearchFilter, searchProjects } from "@/features/projects/api/projects.api";
+import type { AdminUser } from "../api/adminUsers.api";
 import { useAdminUsersTable } from "../hooks/useAdminUsersTable";
 import { parseUserIdsParam } from "../utils/userFilterParams";
 import CreateUserModal from "./CreateUserModal";
@@ -228,23 +228,6 @@ export default function AdminUsersTab() {
         },
     ];
 
-    const dataGridStyles = {
-        border: "none",
-        "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: "#ffffff",
-            borderBottom: "1px solid #e0e0e0",
-            color: "text.secondary",
-            fontWeight: "normal",
-        },
-        "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center" },
-        "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: '#f8faff' },
-        "& .MuiDataGrid-row.Mui-selected": {
-            backgroundColor: "#e6f0ff",
-            "&:hover": { backgroundColor: "#d9e8ff" }
-        },
-        "& .MuiDataGrid-row.row-clickable": { cursor: "pointer" },
-    };
-
     // Deleted / anonymized accounts can't be edited (the backend rejects any PATCH
     // on a deleted user), so their row isn't clickable to the edit page.
     const handleRowClick = (params: GridRowParams<AdminUser>) => {
@@ -417,7 +400,7 @@ export default function AdminUsersTab() {
                         onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={[5, 10, 25]}
                         autoHeight
-                        sx={dataGridStyles}
+                        sx={{ "& .MuiDataGrid-row.row-clickable": { cursor: "pointer" } }}
                     />
                 </Box>
             </Paper>

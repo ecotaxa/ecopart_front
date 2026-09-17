@@ -1,4 +1,4 @@
-import { RegisterPayload } from "../types/user";
+import type { RegisterPayload } from "../types/user";
 import { API_BASE_URL } from '@/config/api';
 import type { ApiErrorResponse } from "@/shared/types/apiError";
 

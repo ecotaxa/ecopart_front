@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@/test/msw/server';
+import { queryClient } from '@/shared/api/queryClient';
 import {
     searchProjectTasks,
     deleteProjectTask,
@@ -27,7 +28,7 @@ import {
     getProjectById,
     updateProject,
     getOneTask,
-    SearchFilter,
+    type SearchFilter,
 } from './projects.api';
 
 const PID = 77;
@@ -292,11 +293,24 @@ describe('Projects API helpers (W)', () => {
         const project = await getProjectById(77);
         expect(project.project_id).toBe(77);
 
-        // Empty result → getProjectById throws not-found
+        // Empty result → getProjectById throws not-found. The project fetched just
+        // above is cached (React Query, 15 s): the cache is dropped first so the
+        // second call really hits the (now empty) endpoint.
         server.use(
             http.post('*/projects/searches', () => HttpResponse.json({ projects: [] })),
         );
+        queryClient.clear();
         await expect(getProjectById(77)).rejects.toThrow('Project with ID 77 not found.');
+
+        // A second call within the stale window is served from the cache (no request).
+        server.use(
+            http.post('*/projects/searches', () => HttpResponse.json({ projects: [{ project_id: 77, project_title: 'Cached' }] })),
+        );
+        let requests = 0;
+        server.events.on('request:start', () => { requests += 1; });
+        expect((await getProjectById(77)).project_title).toBe('Cached');
+        expect((await getProjectById(77)).project_title).toBe('Cached');
+        expect(requests).toBe(1);
 
         // 400 with a backend message → http maps it to Error(message)
         server.use(

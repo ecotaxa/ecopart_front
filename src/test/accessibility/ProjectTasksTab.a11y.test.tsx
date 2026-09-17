@@ -9,7 +9,7 @@ vi.mock('@/features/projects/api/projects.api', () => ({
     isExportTask: vi.fn(() => false),
 }));
 
-import { searchProjectTasks, deleteProjectTask, Task } from '@/features/projects/api/projects.api';
+import { searchProjectTasks, deleteProjectTask, type Task } from '@/features/projects/api/projects.api';
 import { ProjectTasksTab } from '@/features/projects/components/ProjectTasksTab';
 import { renderWithRouter } from '@/test/utils';
 

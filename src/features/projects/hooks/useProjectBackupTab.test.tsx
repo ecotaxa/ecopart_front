@@ -6,9 +6,10 @@ vi.mock('../api/projects.api', () => ({
     getLastBackupDate: vi.fn(),
     exportProjectBackup: vi.fn(),
     runProjectBackup: vi.fn(),
+    getOneTask: vi.fn(),
 }));
 
-import { getProjectById, getLastBackupDate, exportProjectBackup, runProjectBackup } from '../api/projects.api';
+import { getProjectById, getLastBackupDate, exportProjectBackup, runProjectBackup, getOneTask } from '../api/projects.api';
 import { useProjectBackupTab } from './useProjectBackupTab';
 
 describe('hooks/useProjectBackupTab', () => {
@@ -55,35 +56,58 @@ describe('hooks/useProjectBackupTab', () => {
         expect(result.current.isExporting).toBe(false);
     });
 
-    it('TC-O8: handleStartBackup updates lastBackupDate after retry', async () => {
+    it('TC-O8: handleStartBackup follows the task and refreshes lastBackupDate once it is DONE', async () => {
         vi.mocked(getProjectById).mockResolvedValue(mockProject);
 
-        // initial load returns null
+        // Initial load: never backed up. After the task completes the server reports the real date.
         vi.mocked(getLastBackupDate)
-            .mockResolvedValueOnce({ last_backup_date: null }) // initial
-            .mockResolvedValueOnce({ last_backup_date: null }) // first attempt in handler
-            .mockResolvedValueOnce({ last_backup_date: '2025-05-01T12:00:00Z' }); // second attempt
+            .mockResolvedValueOnce({ last_backup_date: null })
+            .mockResolvedValue({ last_backup_date: '2025-05-01T12:00:00Z' });
 
         vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 99, task_status: 'PENDING', task_type: 'BACKUP' });
+        // First poll: still running; second poll: done.
+        vi.mocked(getOneTask)
+            .mockResolvedValueOnce({ task_id: 99, task_status: 'RUNNING' } as never)
+            .mockResolvedValue({ task_id: 99, task_status: 'DONE' } as never);
 
         const { result } = renderHook(() => useProjectBackupTab(77));
 
-        await waitFor(() => expect(result.current.isBackingUp).toBe(false));
+        await waitFor(() => expect(result.current.isLoadingMetadata).toBe(false));
+        expect(result.current.lastBackupDate).toBeNull();
 
-        vi.useFakeTimers();
-        try {
-            const backupPromise = result.current.handleStartBackup();
+        await act(async () => {
+            await result.current.handleStartBackup();
+        });
 
-            await act(async () => {
-                await vi.runAllTimersAsync();
-                await backupPromise;
-            });
+        expect(runProjectBackup).toHaveBeenCalledWith(77, expect.any(Object));
+        // The launch itself is over; the date is untouched until the server confirms the backup.
+        expect(result.current.isBackingUp).toBe(false);
+        expect(result.current.runningBackupTaskId).toBe(99);
+        expect(result.current.lastBackupDate).toBeNull();
 
-            expect(runProjectBackup).toHaveBeenCalledWith(77, expect.any(Object));
-            expect(result.current.lastBackupDate).toBe('2025-05-01T12:00:00Z');
-            expect(result.current.isBackingUp).toBe(false);
-        } finally {
-            vi.useRealTimers();
-        }
+        // Two polls (3 s apart) until the task reports DONE.
+        await waitFor(() => expect(result.current.lastBackupDate).toBe('2025-05-01T12:00:00Z'), { timeout: 10000 });
+        expect(getOneTask).toHaveBeenCalledTimes(2);
+        expect(result.current.runningBackupTaskId).toBeNull();
+    }, 20000);
+
+    it('TC-O9: a failed backup task never updates lastBackupDate', async () => {
+        vi.mocked(getProjectById).mockResolvedValue(mockProject);
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+        vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 100, task_status: 'PENDING', task_type: 'BACKUP' });
+        vi.mocked(getOneTask).mockResolvedValue({ task_id: 100, task_status: 'ERROR', task_error: 'disk full' } as never);
+
+        const { result } = renderHook(() => useProjectBackupTab(77));
+        await waitFor(() => expect(result.current.isLoadingMetadata).toBe(false));
+
+        await act(async () => {
+            await result.current.handleStartBackup();
+        });
+
+        await waitFor(() => expect(result.current.runningBackupTaskId).toBeNull(), { timeout: 10000 });
+        expect(result.current.lastBackupDate).toBeNull();
+        expect(result.current.snackbar.severity).toBe('error');
+        // Only the initial load asked for the date: a failed task never refreshes it.
+        expect(getLastBackupDate).toHaveBeenCalledTimes(1);
     }, 20000);
 });

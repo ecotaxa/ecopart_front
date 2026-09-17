@@ -8,6 +8,19 @@ Modern React frontend for the Ecopart platform.
 This project is intentionally **strict**, **predictable**, and **scalable**.
 All architectural choices are made to avoid long-term technical debt.
 
+## 🚀 Getting started
+
+```bash
+cp .env.example .env     # VITE_BACKEND_URL — the backend the dev proxy forwards to (default http://localhost:4000)
+npm ci
+npm run dev              # http://localhost:5173, API calls proxied to VITE_BACKEND_URL (see vite.config.ts)
+npm run build            # type-check (tsc -b, strict: tsconfig.app.json) + vite build
+npm run lint
+npm test
+```
+
+`.env` is git-ignored (local machine only); `.env.example` is the committed template.
+
 ---
 
 ## 🧱 Technology Stack
@@ -96,12 +109,19 @@ Contains **global wiring**, nothing business-specific.
 
 ```txt
 app/
-├─ App.tsx              # Router root
-├─ router.tsx           # All routes
-├─ providers.tsx        # MUI, React Query, etc.
-├─ ProtectedRoute.tsx   # Auth guard
+├─ App.tsx                 # Router root (waits for the auth bootstrap)
+├─ router.tsx              # All routes, lazy-loaded pages, MainLayout as layout route
+├─ providers.tsx           # MUI, React Query, ConfirmDialogHost, AuthBootstrap
+├─ AuthBootstrap.tsx       # GET /auth/user/me at start-up; session-expired handler
+├─ ProtectedRoute.tsx      # Auth guard (remembers the requested page)
+├─ PublicOnlyRoute.tsx     # Login / register: bounce authenticated users
+├─ AdminRoute.tsx          # Admin console guard
+├─ RouteErrorPage.tsx      # errorElement of the route tree
+├─ PageFallback.tsx        # Suspense fallback while a page chunk loads
 └─ layouts/
-   └─ MainLayout.tsx    # App shell (AppBar, Drawer, etc.)
+   ├─ MainLayout.tsx       # App shell: TopBar + announcement banner + <Outlet />
+   ├─ TopBar.tsx
+   └─ GlobalAnnouncementBanner.tsx
 ```
 
 ### Example: Protected Route
@@ -137,7 +157,7 @@ features/auth/
 ├─ api/            # API calls related to the feature
 ├─ store/          # Feature state (Zustand, local state)
 ├─ types/          # Feature-specific TypeScript types
-└─ index.ts        # Public feature API
+└─ index.ts        # Public feature API (only when other features / app need more than the pages)
 ```
 
 ### What belongs in a feature
@@ -195,7 +215,10 @@ export { default as LoginPage } from "./pages/LoginPage";
 export { useAuthStore } from "./store/auth.store";
 ```
 
-**Router imports only feature entry points**, never deep paths.
+**Pages are code-split**: `app/router.tsx` lazy-loads every page from its own
+file (`React.lazy(() => import("@/features/<x>/pages/<Page>"))`) so each route
+is a separate chunk. A feature `index.ts` is only needed for what *other* code
+imports (e.g. `useAuthStore` from `features/auth`).
 
 ---
 
@@ -206,35 +229,59 @@ Only put code here if it’s used by **multiple features**.
 ```txt
 shared/
 ├─ api/
-│  ├─ http.ts          # Fetch wrapper with JWT
-│  └─ queryClient.ts
+│  ├─ http.ts            # fetch wrapper: cookie session, 401 → refresh → retry, 204-safe
+│  ├─ queryClient.ts     # the app-wide React Query client
+│  └─ referenceData.api.ts
+├─ components/
+│  ├─ ConfirmDialog.tsx  # ConfirmDialogHost — the one confirmation dialog of the app
+│  ├─ TopBar.tsx, GlobalAnnouncementBanner.tsx, SectionCard.tsx, InfoTooltip.tsx, …
+├─ confirm/
+│  └─ confirm.store.ts   # confirmDialog(options): Promise<boolean>
 ├─ hooks/
+│  ├─ useServerTable.ts  # search + pagination + selection + bulk actions for every DataGrid screen
+│  └─ useDebounce.ts
 ├─ utils/
+│  ├─ errorMessage.ts    # extractErrorMessage(error, fallback)
+│  ├─ pageSizeOptions.ts
+│  └─ validation/
 └─ types/
+   └─ api.ts             # SearchFilter, SearchInfo (the backend search contract)
 ```
 
-### Example: Auth-aware HTTP helper
+### The HTTP helper (`shared/api/http.ts`)
 
-```ts
-export async function http<T>(url: string, init: RequestInit = {}) {
-  const token = localStorage.getItem("token");
+The session lives in httpOnly cookies set by the backend; nothing is stored in
+`localStorage`. `http()`, `httpText()` and `httpBlob()` share one flow:
 
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-  });
+1. `fetch(API_BASE_URL + path, { credentials: "include" })`
+2. on a `401`, call `POST /auth/refreshToken` **once** (concurrent 401s share the
+   same refresh) and retry the original request once
+3. if the refresh itself fails, notify the registered `setSessionExpiredHandler`
+   (the app bootstrap clears the auth store → `ProtectedRoute` redirects to
+   `/login`) and throw `"Session expired"`
+4. a `204` / empty body resolves to `undefined` instead of failing on JSON parsing
+5. errors carry the backend message (`{ message }` or `{ errors: [...] }`)
 
-  return res.json();
-}
-```
+### Server-paginated grids (`shared/hooks/useServerTable.ts`)
 
-Why:
+Every DataGrid screen (projects, tasks, admin users / projects / tasks) is a thin
+wrapper around `useServerTable`, which owns the debounced attribute search, the
+pagination model, the checkbox selection, the fetch itself (React Query: cached,
+deduplicated, immune to out-of-order responses) and the *confirm → run →
+report → refetch* flow of bulk actions (`runBulkAction`). Feature hooks only
+provide `fetchPage`, the searchable attributes and the actions.
 
-* One place to manage headers, errors, auth
-* Easy to replace with Axios later
+### Confirmations (`shared/confirm`)
+
+Destructive actions call `await confirmDialog({ title, message, confirmLabel })`
+— an awaitable replacement for `window.confirm` rendered by the single
+`ConfirmDialogHost` mounted in `AppProviders`. In tests,
+`answerConfirmDialogs(true | false)` auto-answers it.
+
+### Why
+
+* One place to manage the session, errors and empty bodies
+* One table behaviour for eight grids instead of eight copies
 
 ---
 
@@ -262,18 +309,24 @@ All routing lives in **one file**:
 
 ```ts
 // app/router.tsx
+const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
+const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
+
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginPage /> },
   {
-    path: "/",
-    element: (
-      <ProtectedRoute>
-        <DashboardPage />
-      </ProtectedRoute>
-    ),
+    element: <MainLayout />,          // layout route: header + banner + <Outlet />
+    errorElement: <RouteErrorPage />, // render / chunk-load errors
+    children: [
+      { path: "/login", element: page(<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>) },
+      { path: "/dashboard", element: protectedPage(<DashboardPage />) },
+      { path: "*", element: page(<NotFoundPage />) },
+    ],
   },
 ]);
 ```
+
+`page()` wraps the lazy element in a `<Suspense>` with the page fallback;
+`protectedPage()` adds the auth guard. Pages never wrap themselves in `MainLayout`.
 
 Why:
 
@@ -302,9 +355,12 @@ Why:
 
 ## 🔐 Authentication Strategy
 
-* JWT stored in memory + `localStorage`
-* Zustand for auth state
-* Route protection at router level
+* Session in **httpOnly cookies** (access + refresh) set by the backend — nothing in `localStorage`
+* `AuthBootstrap` calls `GET /auth/user/me` once at start-up to hydrate the Zustand auth store
+* Route protection at router level (`ProtectedRoute` remembers the requested page and the
+  login page sends the user back there; `AdminRoute` for the console)
+* Access-token expiry is transparent (`http()` refreshes and retries); a refresh failure logs
+  the user out client-side
 
 ### Why Zustand?
 
@@ -328,8 +384,8 @@ Why:
 
 1. Create a folder under `features/`
 2. Add `pages/`, `api/`, `store/` as needed
-3. Export public API via `index.ts`
-4. Register route in `app/router.tsx`
+3. Register the page as a lazy route in `app/router.tsx` (it renders inside `MainLayout`, no wrapper needed)
+4. Export anything other features need via `index.ts`
 
 Example:
 
@@ -428,13 +484,13 @@ The **test** runner (label `ecopart-test`) lives on a different machine and was 
 
 ## 🔮 Future Improvements (Planned)
 * techno/architecture :
-  * Axios + interceptors
-  * Token refresh & 401 handling
-  * Role-based access control
-  * Nested routes with layouts
+  * Backend aggregates for the per-row counts (`nbr_sample` in the project search,
+    manager/member counts in the user search) — the front currently derives them
+    with one request per row (`enrichProjectsWithSampleCounts`, `useAdminUsersTable`)
+  * One documented response shape per backend endpoint, so the defensive
+    normalisers in `projects.api.ts` can go
+  * Automated accessibility checks (axe) on top of the keyboard-navigation tests
   * E2E tests (Playwright)
-  * dockerize
-  * CI/CD integrated pipeline with github actions
 * features to come: 
   * about
   * explore
@@ -544,9 +600,10 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-A1** | Initial rendering & state | User is not authenticated. | Navigate to `/login`. | • The login form is displayed.<br>• The login button is disabled (this implicitly verifies that empty fields prevent submission).<br>• No error message is visible. |
 | **TC-A2** | Validation logic (email) | User is on the Login page. | • Enter an invalid email format.<br>• Move focus away from the field (blur). | • The email validation error message is displayed.<br>• The login button remains disabled. |
 | **TC-A3** | Successful login (happy path) | The backend login API is available. | • Enter a valid email and password.<br>• Click **LOG IN**. | • The login API is called with the correct credentials.<br>• The user is redirected to `/dashboard`. |
-| **TC-A4** | API error handling (401 & 500) | The backend returns an error (401 Unauthorized or 500 Server Error). | • Enter valid credential formats.<br>• Click **LOG IN**. | • The app handles the error gracefully (no crash).<br>• A generic error message ("Invalid email or password") is displayed.<br>• The user remains on the login page. |
+| **TC-A4** | Server error handling (500) | The backend returns a 500 Server Error. | • Enter valid credential formats.<br>• Click **LOG IN**. | • The app handles the error gracefully (no crash).<br>• The generic error message ("An unexpected error occurred…") is displayed — a backend outage is never reported as wrong credentials.<br>• The user remains on the login page. |
+| **TC-A4b** | Wrong credentials (401) | The backend rejects the email / password pair. | • Enter a wrong password.<br>• Click **LOG IN**. | • "Invalid email or password" is displayed.<br>• The user remains on the login page. |
 | **TC-A5** | Redirect authenticated user | The user is already authenticated (a session exists). | Navigate to `/login`. | The user is immediately redirected to `/dashboard`. |
-| ♿ **TC-A6** | Keyboard navigation & labels | User is on the Login page. | • Fill the form (to enable the button).<br>• Navigate through the form using only the Tab key. | • All inputs have an associated `<label>`.<br>• Focus moves logically: Email → Password → Visibility toggle → Remember me → Login button. |
+| ♿ **TC-A6** | Keyboard navigation & labels | User is on the Login page. | • Fill the form (to enable the button).<br>• Navigate through the form using only the Tab key. | • All inputs have an associated `<label>`.<br>• Focus moves logically: Email → Password → Visibility toggle → Login button. |
 
 ### B. Register Page
 
@@ -685,7 +742,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
 | **TC-K1** | Initial data loading (privileges & privacy) | The backend returns privacy settings and privileges arrays. | Render the component. | • Privacy inputs show the correct months.<br>• The privileges list shows existing managers/members. |
-| **TC-K2** | Validation (no contact) | The form is loaded. | Remove the Contact radio selection (or ensure none is selected) and click **SAVE**. | • Submission is blocked.<br>• A warning snackbar appears ("A contact is required before saving."). |
+| **TC-K2** | Validation (no contact) | The form is loaded. | Remove the Contact radio selection (or ensure none is selected) and click **SAVE**. | • Submission is blocked.<br>• A warning snackbar appears ("A contact is required.") — the same validator as project creation (a manager is required too). |
 | **TC-K3** | Update success (PATCH) | Valid security data; `PATCH /projects/101` mocked OK. | Change a privacy delay (6 → 12) and click **SAVE**. | • `PATCH /projects/101` is called.<br>• The "Security settings updated successfully!" snackbar appears. |
 
 ### L. `useNewProjectForm` Hook (unit)
@@ -749,10 +806,11 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | --- | --- | --- | --- | --- |
 | **TC-O1** | Dynamic last-backup date formatter | `getLastBackupDate` returns a valid date matching "30 days ago". | Open the Backup tab. | • "Backup of the raw project" shows "Last backup done on [formatted date] at [formatted time]".<br>• If the date is null, the default text "The project has never been backed up." is shown. |
 | **TC-O2** | Export task launch & UI feedback | The project is loaded; the *Export to FTP* switch is on. | Click **START** in the Export section. | • The button switches to "STARTING…" and disables.<br>• `exportProjectBackup` is called.<br>• On return, a success snackbar shows the task number (e.g. "Export task #22 started successfully!").<br>• The button returns to **START**. |
-| **TC-O3** | Backup task retry logic | The user clicks **START** in Backup; the backend is very slow to update the date. | Follow the console logs during `handleStartBackup`. | • The system checks the date 3 times with growing delays (2s, 5s, 10s).<br>• If still not updated, a visual fallback uses `setLastBackupDate(currentDate)` and an info notice tells the user "Date updated to current time (may differ if task is still processing)". |
+| **TC-O3** | Backup task launch & UI feedback | The user clicks **START** in Backup; `runProjectBackup` returns task #99, still RUNNING when polled. | Click **START** in the Backup section. | • A success snackbar with the task link (#99) appears.<br>• "Backup task #99 in progress" is shown and the START button stays disabled while the task runs.<br>• The last-backup line is NOT replaced by an invented date (still "never been backed up"). |
 | **TC-O6** | Initializes with project path & last backup date (hook) | `getProjectById` and `getLastBackupDate` mocked; `getLastBackupDate` returns an ISO date. | Mount `useProjectBackupTab(projectId)` and wait for init. | • `backupFolderPath` holds the project path.<br>• `lastBackupDate` holds the value returned by the API. |
 | **TC-O7** | `handleStartExport` calls API & clears `isExporting` (hook) | The project is loaded; `exportProjectBackup` mocked and resolved. | Call `handleStartExport()` from the hook. | • `exportProjectBackup(77, …)` is called.<br>• `isExporting` returns to false after resolution. |
-| **TC-O8** | `handleStartBackup` updates `lastBackupDate` after retries (hook) | `getLastBackupDate` is initially null then becomes a date after a few attempts; `runProjectBackup` mocked (fake timers). | Call `handleStartBackup()`. | • `runProjectBackup` is called.<br>• The hook re-checks `getLastBackupDate` several times and finally updates `lastBackupDate`.<br>• `isBackingUp` is false at the end. |
+| **TC-O8** | `handleStartBackup` follows the task then refreshes `lastBackupDate` (hook) | `getLastBackupDate` is initially null; `getOneTask` reports RUNNING then DONE; `runProjectBackup` mocked. | Call `handleStartBackup()`. | • `runProjectBackup` is called; `isBackingUp` is false right after the launch and `runningBackupTaskId` is 99.<br>• `lastBackupDate` stays null until the task is DONE, then takes the server-reported date (`getOneTask` polled twice).<br>• `runningBackupTaskId` is null at the end. |
+| **TC-O9** | A failed backup task never updates the date (hook) | `getOneTask` reports ERROR. | Call `handleStartBackup()`. | • `lastBackupDate` stays null and `getLastBackupDate` is only called by the initial load.<br>• An error snackbar is shown. |
 | ♿ **TC-O4** | Switch toggles (a11y) | The user navigates the Backup tab by keyboard. | Tab to the "Export also on FTP" and "Skip already imported" switches, then press Space. | • The switch state toggles correctly.<br>• The screen reader explicitly reads the "Checked"/"Not checked" state, correctly associating the `<label>` with the `<input type="checkbox">`. |
 | ♿ **TC-O5** | Disabled read-only field contrast | The user views the "Backup of the raw project" section. | Inspect the disabled "Backup from root folder path" TextField. | Although disabled, the text stays legible thanks to the CSS override (`WebkitTextFillColor: 'rgba(0,0,0,0.6) !important'`), meeting the minimum WCAG AA contrast to prevent grey data from becoming invisible. |
 
@@ -832,6 +890,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-S7** | Initial load error | `getOneTask` rejects on the first load. | Render the page. | The "Failed to synchronize task metrics from server." alert is displayed (the task staying null). |
 | **TC-S8** | Adaptive polling while RUNNING | `getOneTask` returns a task with status RUNNING (fake timers). | Mount the page, let the initial load settle, advance time by 2500 ms. | `getOneTask` is re-called (goes from 1 to 2 calls) — polling runs while the task is in progress. |
 | **TC-S8b** | No polling once DONE | `getOneTask` returns a task with status DONE (fake timers). | Mount the page, advance time by 8000 ms. | `getOneTask` stays at 1 call — no "non-active" task is re-polled. |
+| **TC-S8c** | Late response for a task the user has left | `getOneTask` for task 42 never resolves before the user opens task 43 (a link in the test). | Open task 42, click through to task 43, then resolve the task-42 request. | The header shows task 43 before and after the late answer; task 42 never appears — a response only applies if no newer load (other task, tab, poll) has started since. |
 | ♿ **TC-S9** | Tabs keyboard navigation | The page is loaded with a task. | Verify `role="tablist"`, focus the GENERAL tab, press ArrowRight then Enter. | • ArrowRight moves focus to the LOG FILE tab (roving tabindex).<br>• Enter activates it (`aria-selected=true`) — manual activation per MUI Tabs. |
 
 ### T. Project Tasks Tab (`ProjectTasksTab` — project tab)
@@ -890,7 +949,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-W5** | EcoTaxa samples | MSW captures the import body. | Call `getImportableEcoTaxaSamples(77)` then `importEcoTaxaSamples(77, { samples: ['eco-1'], ecotaxa_user: 'bob' })`. | • The GET resolves 1 sample.<br>• The import forwards the body `{ samples: ['eco-1'], ecotaxa_user: 'bob' }`. |
 | **TC-W6** | Sample search & delete + EcoTaxa normalization | MSW returns object then bare-array EcoTaxa shapes. | Call `searchProjectSamples` with page/limit/sort/filter, `searchProjectEcoTaxaSamples` (both shapes), then `deleteProjectSample(77, 9)` and `deleteProjectEcoTaxaSamples(77, ['a','b'])`. | • The search hits `/projects/77/samples/searches` with the right query and filter body.<br>• An object EcoTaxa list passes through; a bare array is normalized to `{ total: 2, page: 1, limit: 2 }`.<br>• The delete hits `/projects/77/samples/9`; the EcoTaxa delete sends `{ samples: ['a','b'] }`. |
 | **TC-W7** | CTD search / import / delete + normalization | MSW returns object, array, string-array, and empty CTD shapes. | Call `searchProjectCtdSamples` (both shapes), `getImportableCtdSamples` (string array, object, empty), then `importProjectCtdSamples` and `deleteProjectCtdSamples`. | • Object shape passes through; a bare array normalizes to `{ total: 2, page: 1, limit: 2 }`.<br>• A string array becomes objects with `file_extension: 'ctd'`; an object shape passes through; empty → `[]`.<br>• Import sends `{ samples: ['ctd-1'] }`; delete sends `{ samples: ['c1'] }`. |
-| **TC-W8** | Project search & fetch + error mapping | MSW returns a `results + total` shape, then empty, then a 400. | Call `searchProjects`, `getProjectById(77)` (found), `getProjectById(77)` (empty), `searchProjects` (400). | • `searchProjects` normalizes to `projects` + `search_info.total`.<br>• `getProjectById` finds project 77.<br>• On empty it throws "Project with ID 77 not found.".<br>• A 400 with a message is mapped to `Error('Bad thing')`. |
+| **TC-W8** | Project search & fetch + error mapping | MSW returns a `results + total` shape, then empty, then a 400. | Call `searchProjects`, `getProjectById(77)` (found), `getProjectById(77)` (empty), `searchProjects` (400). | • `searchProjects` normalizes to `projects` + `search_info.total`.<br>• `getProjectById` finds project 77.<br>• On empty (after the React Query cache is cleared) it throws "Project with ID 77 not found.".<br>• Two calls within the 15 s stale window hit the endpoint once (the project is served from the cache).<br>• A 400 with a message is mapped to `Error('Bad thing')`. |
 | **TC-W9** | Update project | MSW captures the PATCH. | Call `updateProject(77, { project_title: 'Updated' })`. | • The method is PATCH, path `/projects/77`, body `{ project_title: 'Updated' }`.<br>• The updated project is returned. |
 | **TC-W10** | Get one task | MSW mocks `GET /tasks/:id/`. | Call `getOneTask(5)`. | • It GETs `/tasks/5/`.<br>• It returns `{ task_id: 5, task_status: 'DONE', … }`. |
 
@@ -1090,6 +1149,16 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AJ2** | Tab from slug | Route `/admin/users`. | Render the page. | USERS is selected and QUICK ACCESS is not. |
 | **TC-AJ3** | Unknown slug falls back | Route `/admin/does-not-exist`. | Render the page. | QUICK ACCESS is selected (invalid slug ignored). |
 | **TC-AJ4** | Clicking a tab navigates | Route `/admin`. | Click the PROJECTS tab. | Navigation updates the route param and PROJECTS becomes the selected tab. |
+
+### AK. Auth Bootstrap (`app/AuthBootstrap.tsx`)
+
+*`app/AuthBootstrap.test.tsx`*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AK1** | Cache dropped on user change | `fetchMe` is mocked to fail (signed out); a query is seeded in the app-wide `queryClient`. | Sign in user 1, seed again, sign in user 2, seed again, sign out. | After each change of signed-in user the seeded query is gone — a user never sees data cached by the previous one. |
+| **TC-AK2** | Cache kept for the same user | User 1 is signed in and a query is seeded. | Call `setUser` again with the same `user_id` (renamed profile). | The seeded query is still there — only a change of identity clears the cache. |
+| **TC-AK3** | Session-expired handler signs out | The bootstrap registered its handler through `setSessionExpiredHandler` (mocked); user 1 is signed in with a seeded query. | Invoke the registered handler. | `isAuthenticated = false`, `user = null`, and the cache is empty (signing out is a user change). |
 
 ### AU. Admin — Updates (`AdminUpdatesTab`, `useAdminUpdates`, `announcement.store`, `GlobalAnnouncementBanner`, `broadcastMessages.api`)
 

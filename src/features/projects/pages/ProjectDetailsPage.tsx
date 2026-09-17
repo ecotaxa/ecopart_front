@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import {
     Alert,
@@ -12,7 +12,6 @@ import {
     Tab,
     Tooltip,
 } from "@mui/material";
-import MainLayout from "@/app/layouts/MainLayout";
 import SectionCard from "@/shared/components/SectionCard";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 
@@ -24,7 +23,9 @@ import { ProjectBackupTab } from "../components/ProjectBackupTab";
 import { ProjectImportTab } from "../components/ProjectImportTab";
 import { ProjectTasksTab } from "../components/ProjectTasksTab";
 import { ProjectStatsTab } from "../components/ProjectStatsTab";
-import { deleteProject, getProjectById } from "../api/projects.api";
+import { deleteProject } from "../api/projects.api";
+import { useProject } from "../hooks/useProject";
+import { confirmDialog } from "@/shared/confirm/confirm.store";
 
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -67,10 +68,16 @@ export default function ProjectDetailsPage() {
     const parsedProjectId = id ? Number.parseInt(id, 10) : null;
     const projectId = parsedProjectId !== null && !Number.isNaN(parsedProjectId) ? parsedProjectId : null;
 
-    const [projectTitle, setProjectTitle] = useState("Project Details");
+    // The project itself comes from the shared React Query cache: the tabs below
+    // read the same entry, so the page and its active tab cost one request.
+    const { data: project } = useProject(projectId);
+    const projectTitle = project?.project_title?.trim() ? project.project_title : "Project Details";
     // Managers of the loaded project: DELETE is a manager-only action server-side,
     // so we only offer the button to a manager (or an admin).
-    const [managerIds, setManagerIds] = useState<number[]>([]);
+    const managerIds = useMemo(
+        () => (project?.managers ?? []).map((manager) => Number(manager.user_id)).filter((userId) => !Number.isNaN(userId)),
+        [project],
+    );
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -79,49 +86,14 @@ export default function ProjectDetailsPage() {
         ? tabDefinitions.findIndex((tab) => tab.slug === tabName)
         : defaultTabIndex;
     const currentTab = tabIndexFromSlug >= 0 ? tabIndexFromSlug : defaultTabIndex;
-    useEffect(() => {
-        let isMounted = true;
-
-        const loadProjectTitle = async () => {
-            // Guard: don't fetch if projectId is null (invalid URL)
-            if (projectId === null) return;
-
-            try {
-                const project = await getProjectById(projectId);
-                if (!isMounted) return;
-
-                if (project.project_title.trim() !== "") {
-                    setProjectTitle(project.project_title);
-                }
-                setManagerIds(
-                    (project.managers ?? [])
-                        .map((manager) => Number(manager.user_id))
-                        .filter((userId) => !Number.isNaN(userId)),
-                );
-            } catch {
-                if (isMounted) {
-                    setProjectTitle("Project Details");
-                    setManagerIds([]);
-                }
-            }
-        };
-
-        loadProjectTitle();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [projectId]);
 
     if (projectId === null) {
         return (
-            <MainLayout>
-                <Container sx={{ mt: 4 }}>
-                    <Typography variant="h4" color="error">
-                        Invalid Project ID
-                    </Typography>
-                </Container>
-            </MainLayout>
+            <Container sx={{ mt: 4 }}>
+                <Typography variant="h4" color="error">
+                    Invalid Project ID
+                </Typography>
+            </Container>
         );
     }
 
@@ -135,10 +107,11 @@ export default function ProjectDetailsPage() {
         (currentUser != null && managerIds.includes(Number(currentUser.user_id)));
 
     const handleDeleteProject = async () => {
-        if (!window.confirm(
-            `Are you sure you want to delete "${projectTitle}"? ` +
-            `This also removes its samples and any linked EcoTaxa project. This cannot be undone.`,
-        )) return;
+        if (!(await confirmDialog({
+            title: `Delete "${projectTitle}"`,
+            message: "This also removes its samples and any linked EcoTaxa project. This cannot be undone.",
+            confirmLabel: "Delete",
+        }))) return;
 
         setIsDeleting(true);
         setDeleteError(null);
@@ -162,7 +135,7 @@ export default function ProjectDetailsPage() {
     );
 
     return (
-        <MainLayout>
+        <>
             {/* The main container is "lg" to allow future data tables to be wide */}
             <Container
                 maxWidth={false} // Disable default width breakpoints
@@ -240,6 +213,7 @@ export default function ProjectDetailsPage() {
 
                     {currentTab === 0 && (
                         <ProjectStatsTab
+                            ecoTaxaLinked={project?.ecotaxa_project_id != null}
                             onImportData={() => navigate(`/projects/${projectId}/import`)}
                             onLinkProject={() => navigate(`/projects/${projectId}/metadata#ecotaxa-link`)}
                         />
@@ -271,6 +245,6 @@ export default function ProjectDetailsPage() {
                     Failed to delete the project: {deleteError}
                 </Alert>
             </Snackbar>
-        </MainLayout>
+        </>
     );
 }

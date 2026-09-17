@@ -6,9 +6,8 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
 
-import { ecotaxaColors } from "@/theme";
 import SectionCard from "@/shared/components/SectionCard";
 import InfoTooltip from "@/shared/components/InfoTooltip";
 
@@ -45,7 +44,8 @@ const ecoTaxaDeleteInfoContent = (
 );
 
 import { useProjectDataTab } from "../hooks/useProjectDataTab";
-import { EcoTaxaSampleData, SampleData, CtdSampleData } from "../api/projects.api";
+import type { EcoTaxaSampleData, SampleData, CtdSampleData } from "../api/projects.api";
+import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 
 interface ProjectDataTabProps {
     projectId: number;
@@ -133,7 +133,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
     const ctdSamplesColumns: GridColDef<CtdSampleData>[] = [
         { field: "sample_name", headerName: "Sample name", flex: 1.8, minWidth: 180 },
         { field: "ctd_import_utc_date_time", headerName: "Import date", flex: 1.4, minWidth: 150, valueGetter: (_value, row) => formatCompactDate(row.ctd_import_utc_date_time) },
-        { field: "file_extension", headerName: "File type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.file_extension || "Cell" },
+        { field: "file_extension", headerName: "File type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.file_extension || "—" },
     ];
 
     const ecoTaxaSamplesColumns: GridColDef<EcoTaxaSampleData>[] = [
@@ -166,30 +166,6 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
     ];
 
     // --- REUSABLE STYLES & COMPONENTS ---
-    // MENTOR NOTE: Exact same styling logic applied here to maintain consistency across tabs
-    const dataGridStyles = {
-        border: 'none',
-        '& .MuiDataGrid-columnHeaders': {
-            backgroundColor: '#ffffff',
-            borderBottom: '1px solid #e0e0e0',
-            borderTop: 'none',
-            color: 'text.secondary',
-            fontWeight: 'normal',
-        },
-        '& .MuiDataGrid-cell': { borderBottom: '1px solid #f0f0f0' },
-        '& .MuiDataGrid-row:nth-of-type(even)': { backgroundColor: ecotaxaColors.stone[50] },
-        '& .MuiDataGrid-row.Mui-selected': {
-            backgroundColor: ecotaxaColors.secondblue[100],
-            '&:hover': { backgroundColor: ecotaxaColors.secondblue[200] }
-        },
-        '& .MuiCheckbox-root': { color: ecotaxaColors.stone[400] },
-        '& .Mui-checked': { color: `${ecotaxaColors.secondblue[600]} !important` },
-        '& .MuiDataGrid-footerContainer': { borderTop: 'none', minHeight: '40px' },
-        // Hide focus outline on cells for cleaner look
-        '& .MuiDataGrid-cell:focus': { outline: 'none' },
-        '& .MuiDataGrid-columnHeader:focus': { outline: 'none' },
-    };
-
     const renderEmptyState = (message: string, isError = false) => (
         <Box sx={{
             border: '1px dashed',
@@ -244,9 +220,8 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rowCount={totalUvpRows}
                             paginationModel={uvpPaginationModel}
                             onPaginationModelChange={setUvpPaginationModel}
-                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalUvpRows, 1), label: "All" }]}
+                            pageSizeOptions={buildPageSizeOptions(totalUvpRows)}
                             autoHeight
-                            sx={dataGridStyles}
                         />
                     </Box>
                 )}
@@ -290,9 +265,8 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
                             paginationModel={ctdPaginationModel}
                             onPaginationModelChange={setCtdPaginationModel}
-                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalCtdRows, 1), label: "All" }]}
+                            pageSizeOptions={buildPageSizeOptions(totalCtdRows)}
                             autoHeight
-                            sx={dataGridStyles}
                         />
                     </Box>
                 )}
@@ -348,9 +322,9 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rowCount={totalEcoTaxaRows}
                             paginationModel={ecoTaxaPaginationModel}
                             onPaginationModelChange={setEcoTaxaPaginationModel}
-                            pageSizeOptions={[5, 10, 25, 50, 100, { value: Math.max(totalEcoTaxaRows, 1), label: "All" }]}
+                            pageSizeOptions={buildPageSizeOptions(totalEcoTaxaRows)}
                             autoHeight
-                            sx={{ ...dataGridStyles, '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}
+                            sx={{ '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}
                         />
                     </Box>
                 )}

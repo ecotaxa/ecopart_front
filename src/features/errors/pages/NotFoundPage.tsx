@@ -3,7 +3,6 @@ import { alpha, useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
-import MainLayout from "@/app/layouts/MainLayout";
 
 // Particle 404 component
 function Particle404() {
@@ -129,23 +128,21 @@ export default function NotFoundPage() {
     const navigate = useNavigate();
 
     return (
-        <MainLayout>
-            <Container sx={{ mt: 8, textAlign: "center" }}>
-                {/* Replaced 404 */}
-                <Particle404 />
+        <Container sx={{ mt: 8, textAlign: "center" }}>
+            {/* Replaced 404 */}
+            <Particle404 />
 
-                <Typography variant="h6" gutterBottom>
-                    Page not found
-                </Typography>
+            <Typography variant="h6" gutterBottom>
+                Page not found
+            </Typography>
 
-                <Typography sx={{ mb: 4 }}>
-                    The page you are looking for does not exist or has been moved.
-                </Typography>
+            <Typography sx={{ mb: 4 }}>
+                The page you are looking for does not exist or has been moved.
+            </Typography>
 
-                <Button variant="contained" onClick={() => navigate("/")}>
-                    Go to Home
-                </Button>
-            </Container>
-        </MainLayout>
+            <Button variant="contained" onClick={() => navigate("/")}>
+                Go to Home
+            </Button>
+        </Container>
     );
 }

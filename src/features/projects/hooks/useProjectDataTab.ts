@@ -1,6 +1,6 @@
-﻿import { useState, useEffect, useCallback } from "react";
-import { AlertColor } from "@mui/material";
-import { GridRowSelectionModel, GridPaginationModel } from "@mui/x-data-grid";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { AlertColor } from "@mui/material";
+import type { GridRowSelectionModel, GridPaginationModel } from "@mui/x-data-grid";
 
 import {
     searchProjectSamples,
@@ -10,11 +10,12 @@ import {
     deleteProjectEcoTaxaSamples,
     deleteProjectCtdSamples,
     getProjectById,
-    SampleData,
-    EcoTaxaSampleData,
-    CtdSampleData,
+    type SampleData,
+    type EcoTaxaSampleData,
+    type CtdSampleData,
 } from "../api/projects.api";
-import { getEcoTaxaInstances } from "@/features/userProfile/api/profile.api";
+import { getEcoTaxaInstances } from "@/shared/api/ecotaxa.api";
+import { confirmDialog } from "@/shared/confirm/confirm.store";
 
 export const useProjectDataTab = (projectId: number) => {
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
@@ -101,7 +102,15 @@ export const useProjectDataTab = (projectId: number) => {
         severity: "info",
     });
 
+    // One counter per list: a response is applied only if it belongs to the latest
+    // request, so paging quickly (or a delete's refetch) can never show stale rows.
+    const uvpRequestId = useRef(0);
+    const ecoTaxaRequestId = useRef(0);
+    const ctdRequestId = useRef(0);
+
     const fetchUvpSamples = useCallback(async () => {
+        const requestId = ++uvpRequestId.current;
+        const isLatest = () => requestId === uvpRequestId.current;
         setLoadingUvp(true);
         setUvpError(null);
         try {
@@ -110,19 +119,23 @@ export const useProjectDataTab = (projectId: number) => {
                 limit: uvpPaginationModel.pageSize,
                 filters: [],
             });
+            if (!isLatest()) return;
             setUvpSamples(response.samples || []);
             setTotalUvpRows(response.search_info?.total || 0);
         } catch (error) {
+            if (!isLatest()) return;
             console.error("Failed to load UVP samples", error);
             setUvpSamples([]);
             setTotalUvpRows(0);
             setUvpError(error instanceof Error ? error.message : "Unknown error");
         } finally {
-            setLoadingUvp(false);
+            if (isLatest()) setLoadingUvp(false);
         }
     }, [projectId, uvpPaginationModel.page, uvpPaginationModel.pageSize]);
 
     const fetchEcoTaxaSamples = useCallback(async () => {
+        const requestId = ++ecoTaxaRequestId.current;
+        const isLatest = () => requestId === ecoTaxaRequestId.current;
         setLoadingEcoTaxa(true);
         setEcoTaxaError(null);
         try {
@@ -131,19 +144,23 @@ export const useProjectDataTab = (projectId: number) => {
                 limit: ecoTaxaPaginationModel.pageSize,
                 filters: [],
             });
+            if (!isLatest()) return;
             setEcoTaxaSamples(response.samples || []);
             setTotalEcoTaxaRows(response.search_info?.total || 0);
         } catch (error) {
+            if (!isLatest()) return;
             console.error("Failed to load EcoTaxa samples", error);
             setEcoTaxaSamples([]);
             setTotalEcoTaxaRows(0);
             setEcoTaxaError(error instanceof Error ? error.message : "Unknown error");
         } finally {
-            setLoadingEcoTaxa(false);
+            if (isLatest()) setLoadingEcoTaxa(false);
         }
     }, [projectId, ecoTaxaPaginationModel.page, ecoTaxaPaginationModel.pageSize]);
 
     const fetchCtdSamples = useCallback(async () => {
+        const requestId = ++ctdRequestId.current;
+        const isLatest = () => requestId === ctdRequestId.current;
         setLoadingCtd(true);
         setCtdError(null);
         try {
@@ -155,15 +172,17 @@ export const useProjectDataTab = (projectId: number) => {
                 limit: 0,
                 filters: [],
             });
+            if (!isLatest()) return;
             setCtdSamples(response.samples || []);
             setTotalCtdRows(response.search_info?.total || 0);
         } catch (error) {
+            if (!isLatest()) return;
             console.error("Failed to load CTD samples", error);
             setCtdSamples([]);
             setTotalCtdRows(0);
             setCtdError(error instanceof Error ? error.message : "Unknown error");
         } finally {
-            setLoadingCtd(false);
+            if (isLatest()) setLoadingCtd(false);
         }
     }, [projectId]);
 
@@ -231,21 +250,29 @@ export const useProjectDataTab = (projectId: number) => {
         const selectedIds = getSelectedUvpSampleIds(selectedUvpSamples);
         if (selectedIds.length === 0) return;
 
-        if (!window.confirm(
-            `Are you sure you want to delete ${selectedIds.length} UVP sample(s)? ` +
-            `This removes the selected samples and their imported particle and image data from this project. ` +
-            `Samples still present in the source folder can be imported again. This cannot be undone.`,
-        )) return;
+        if (!(await confirmDialog({
+            title: "Delete UVP samples",
+            message: `This removes ${selectedIds.length} sample(s) and their imported particle and image data from this project. ` +
+                `Samples still present in the source folder can be imported again. This cannot be undone.`,
+            confirmLabel: "Delete",
+        }))) return;
 
         setIsActionRunning(true);
         try {
-            await Promise.all(selectedIds.map((id) => deleteProjectSample(projectId, id)));
-            showSnackbar("UVP samples deleted successfully.", "success");
-            setSelectedUvpSamples(createEmptySelectionModel());
+            // Attempt every deletion (a single failure must not abort the rest), then
+            // keep only the samples that actually failed selected so a retry targets those.
+            const results = await Promise.allSettled(selectedIds.map((id) => deleteProjectSample(projectId, id)));
+            const failedIds = selectedIds.filter((_, i) => results[i].status === "rejected");
+
+            if (failedIds.length === 0) {
+                showSnackbar("UVP samples deleted successfully.", "success");
+                setSelectedUvpSamples(createEmptySelectionModel());
+            } else {
+                console.error("Failed to delete UVP samples:", failedIds);
+                showSnackbar(`Failed to delete ${failedIds.length} of ${selectedIds.length} UVP sample(s).`, "error");
+                setSelectedUvpSamples({ type: "include", ids: new Set<number>(failedIds) });
+            }
             fetchUvpSamples();
-        } catch (error) {
-            console.error("Failed to delete UVP samples:", error);
-            showSnackbar("An error occurred while deleting some UVP samples.", "error");
         } finally {
             setIsActionRunning(false);
         }
@@ -255,11 +282,12 @@ export const useProjectDataTab = (projectId: number) => {
         const selectedNames = getSelectedEcoTaxaSampleNames(selectedEcoTaxaSamples);
         if (selectedNames.length === 0) return;
 
-        if (!window.confirm(
-            `Are you sure you want to delete ${selectedNames.length} samples from EcoTaxa? ` +
-            `This removes them from the linked EcoTaxa project, an external system, not only from EcoPart. ` +
-            `This cannot be undone.`,
-        )) return;
+        if (!(await confirmDialog({
+            title: "Delete samples from EcoTaxa",
+            message: `This removes ${selectedNames.length} sample(s) from the linked EcoTaxa project — an external system, not only from EcoPart. ` +
+                `This cannot be undone.`,
+            confirmLabel: "Delete",
+        }))) return;
 
         setIsActionRunning(true);
         try {
@@ -279,11 +307,12 @@ export const useProjectDataTab = (projectId: number) => {
         const selectedNames = getSelectedCtdSampleNames(selectedCtdSamples);
         if (selectedNames.length === 0) return;
 
-        if (!window.confirm(
-            `Are you sure you want to delete ${selectedNames.length} CTD sample(s)? ` +
-            `This removes the CTD file linked to the selected samples; the samples themselves are kept. ` +
-            `This cannot be undone.`,
-        )) return;
+        if (!(await confirmDialog({
+            title: "Delete CTD samples",
+            message: `This removes the CTD file linked to ${selectedNames.length} sample(s); the samples themselves are kept. ` +
+                `This cannot be undone.`,
+            confirmLabel: "Delete",
+        }))) return;
 
         setIsActionRunning(true);
         try {

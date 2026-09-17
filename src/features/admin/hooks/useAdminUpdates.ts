@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 
 import {
-    AnnouncementSeverity,
-    Announcement,
+    type AnnouncementSeverity,
+    type Announcement,
     toAnnouncementView,
     useAnnouncementStore,
 } from "../store/announcement.store";

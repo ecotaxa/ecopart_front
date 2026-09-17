@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { http as mswHttp, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
-import { http } from '@/shared/api/http'; // Import your fetch wrapper
+import { http, setSessionExpiredHandler } from '@/shared/api/http'; // Import your fetch wrapper
 import { useAuthStore } from '@/features/auth/store/auth.store';
 
 describe('HTTP Utility (API Fetcher)', () => {
@@ -98,13 +98,27 @@ describe('HTTP Utility (API Fetcher)', () => {
             })
         );
 
-        // Based on previous logs, your http.ts throws a specific error when this happens
-        await expect(http(TEST_URL)).rejects.toThrow(/Session expired/i);
+        // The registered session-expired handler (AuthBootstrap wires it to clearUser)
+        // is notified so the UI can drop back to the login page.
+        const onExpired = vi.fn();
+        setSessionExpiredHandler(onExpired);
+        try {
+            await expect(http(TEST_URL)).rejects.toThrow(/Session expired/i);
+            expect(onExpired).toHaveBeenCalledTimes(1);
+        } finally {
+            setSessionExpiredHandler(null);
+        }
+    });
 
-        // Optional: If your http.ts automatically clears the user store on refresh failure,
-        // you can verify it here. (Uncomment if applicable to your code)
-        // const authState = useAuthStore.getState();
-        // expect(authState.isAuthenticated).toBe(false);
+    // TC-AC7: Empty successful bodies (DELETE endpoints answering 204 / 200 with no body)
+    it('TC-AC7: should resolve to undefined on a 204 or an empty 200 body instead of failing on JSON parsing', async () => {
+        server.use(
+            mswHttp.delete(TEST_URL, () => new HttpResponse(null, { status: 204 })),
+            mswHttp.get(TEST_URL, () => new HttpResponse('', { status: 200 })),
+        );
+
+        await expect(http(TEST_URL, { method: 'DELETE' })).resolves.toBeUndefined();
+        await expect(http(TEST_URL)).resolves.toBeUndefined();
     });
 
     // TC-AC5: Concurrent 401 Deduplication

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; //  Added useEffect
+import { useState, useEffect } from "react";
 import {
     Button,
     TextField,
@@ -18,7 +18,8 @@ import InfoTooltip from "@/shared/components/InfoTooltip";
 // Validation utility
 import { isNonEmpty } from "@/shared/utils/validation";
 // API calls - using centralized functions from profile.api
-import { linkEcoTaxaAccount, getEcoTaxaInstances, EcoTaxaInstance } from "../api/profile.api";
+import { linkEcoTaxaAccount } from "../api/profile.api";
+import { useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
 
 /* ---------------- TYPES ---------------- */
 // We define what the parent MUST provide to this component
@@ -34,7 +35,7 @@ interface EcoTaxaLoginFormProps {
 /**
  * EcoTaxaLoginForm Component
  * Handles the interaction and state for linking a new EcoTaxa account.
- * Now fetches instances dynamically from the API instead of using hardcoded values.
+ * The instance list comes from the shared reference-data cache.
  */
 export const EcoTaxaLoginForm = ({
     userId,
@@ -49,9 +50,8 @@ export const EcoTaxaLoginForm = ({
     // These states are confined to this component. 
     // When this component unmounts, these states are destroyed automatically.
 
-    // State for EcoTaxa instances fetched from API
-    const [instances, setInstances] = useState<EcoTaxaInstance[]>([]);
-    const [loadingInstances, setLoadingInstances] = useState(true);
+    // EcoTaxa instances from the shared reference-data cache.
+    const { data: instances = [], isPending: loadingInstances, isError: instancesFailed } = useEcoTaxaInstances();
 
     // Form state - instance ID will be set after instances are loaded
     const [etInstance, setEtInstance] = useState<number | "">(initialInstanceId ?? "");
@@ -61,35 +61,23 @@ export const EcoTaxaLoginForm = ({
     const [etLinking, setEtLinking] = useState(false); // Loading state for form submission
     const [etMessage, setEtMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-    // --- FETCH INSTANCES ON MOUNT ---
+    // --- DEFAULT INSTANCE ---
+    // Once the instances are known, prefer the pre-selected one (Reconnect flow)
+    // when it is among them; otherwise fall back to the first.
     useEffect(() => {
-        const fetchInstances = async () => {
-            setLoadingInstances(true);
-            try {
-                // Fetch instances from the centralized API function
-                const fetchedInstances = await getEcoTaxaInstances();
-                setInstances(fetchedInstances);
+        if (instances.length === 0) return;
+        const preferred =
+            initialInstanceId != null && instances.some((i) => i.ecotaxa_instance_id === initialInstanceId)
+                ? initialInstanceId
+                : instances[0].ecotaxa_instance_id;
+        setEtInstance((current) => (current === "" || !instances.some((i) => i.ecotaxa_instance_id === current) ? preferred : current));
+    }, [instances, initialInstanceId]);
 
-                // Prefer the pre-selected instance (Reconnect flow) when it is
-                // among the fetched ones; otherwise fall back to the first.
-                if (fetchedInstances.length > 0) {
-                    const preferred =
-                        initialInstanceId != null &&
-                        fetchedInstances.some(i => i.ecotaxa_instance_id === initialInstanceId)
-                            ? initialInstanceId
-                            : fetchedInstances[0].ecotaxa_instance_id;
-                    setEtInstance(preferred);
-                }
-            } catch (error) {
-                console.error("Failed to fetch EcoTaxa instances", error);
-                setEtMessage({ type: 'error', text: "Failed to load EcoTaxa instances. Please try again later." });
-            } finally {
-                setLoadingInstances(false);
-            }
-        };
-
-        fetchInstances();
-    }, [initialInstanceId]);
+    useEffect(() => {
+        if (instancesFailed) {
+            setEtMessage({ type: 'error', text: "Failed to load EcoTaxa instances. Please try again later." });
+        }
+    }, [instancesFailed]);
 
     // --- HANDLERS ---
 
@@ -184,8 +172,10 @@ export const EcoTaxaLoginForm = ({
                 onChange={(e) => setEtInstance(Number(e.target.value))}
                 size="small"
                 disabled={loadingInstances}
-                InputProps={{
-                    endAdornment: loadingInstances ? <CircularProgress size={20} /> : null,
+                slotProps={{
+                    input: {
+                        endAdornment: loadingInstances ? <CircularProgress size={20} /> : null,
+                    },
                 }}
             >
                 {instances.map((instance) => (

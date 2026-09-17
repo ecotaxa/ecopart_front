@@ -1,23 +1,27 @@
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { AlertColor } from "@mui/material";
-import { GridRowSelectionModel } from "@mui/x-data-grid";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AlertColor } from "@mui/material";
+import type { GridRowSelectionModel } from "@mui/x-data-grid";
+
+import { extractErrorMessage } from "@/shared/utils/errorMessage";
+import { TASKS_QUERY_KEY } from "./useTasksTable";
 
 import {
     getProjectById,
     getImportableRawSamples,
     getImportableEcoTaxaSamples,
     getImportableCtdSamples,
-    ImportableRawSample,
-    ImportableEcoTaxaSample,
-    ImportableCtdSample,
+    type ImportableRawSample,
+    type ImportableEcoTaxaSample,
+    type ImportableCtdSample,
     importRawSamples,
     importEcoTaxaSamples,
     importProjectCtdSamples,
     previewSamplesQcGraphs,
-    SampleQcGraphs,
-    TaskLaunchResponse,
+    type SampleQcGraphs,
+    type TaskLaunchResponse,
 } from "../api/projects.api";
 
 // The preview endpoint rejects the whole batch when any name is not importable, with a message like
@@ -62,6 +66,10 @@ const describeQcPreviewError = (error: unknown): string => {
 };
 
 export const useProjectImportTab = (projectId: number) => {
+    const queryClient = useQueryClient();
+    // Every import queues a background task: tell the task grids (any page) to refresh.
+    const refreshTaskLists = () => queryClient.invalidateQueries({ queryKey: [...TASKS_QUERY_KEY] });
+
     // --- 1. LOCAL STATE ---
 
     const [rootFolderPath, setRootFolderPath] = useState<string>("Loading...");
@@ -92,7 +100,9 @@ export const useProjectImportTab = (projectId: number) => {
     });
 
     // Track whether the project has an EcoTaxa project linked
-    const [hasEcoTaxaProject, setHasEcoTaxaProject] = useState<boolean>(false);
+    // `null` until the project has loaded, so the "No EcoTaxa project linked"
+    // warning never flashes for a linked project while its data is still coming.
+    const [hasEcoTaxaProject, setHasEcoTaxaProject] = useState<boolean | null>(null);
 
     // Backup Options State 
     const [enableAutoBackup, setEnableAutoBackup] = useState(true);
@@ -127,61 +137,59 @@ export const useProjectImportTab = (projectId: number) => {
             setLoadingEcoTaxa(true);
             setLoadingCtd(true);
 
-            try {
-                const projectData = await getProjectById(projectId);
-                if (isMounted) setRootFolderPath(projectData.root_folder_path || "No path defined");
+            // The four lists are independent: load them in parallel, each one
+            // settling on its own so one failing endpoint doesn't blank the others.
+            const [projectResult, rawResult, ecoTaxaResult, ctdResult] = await Promise.allSettled([
+                getProjectById(projectId),
+                getImportableRawSamples(projectId),
+                getImportableEcoTaxaSamples(projectId),
+                getImportableCtdSamples(projectId),
+            ]);
+            if (!isMounted) return;
+
+            if (projectResult.status === "fulfilled") {
+                setRootFolderPath(projectResult.value.root_folder_path || "No path defined");
                 // Use ecotaxa_project_id to determine link status, not ecotaxa_project_name
                 // (name can be null even if project is linked)
-                if (isMounted) setHasEcoTaxaProject(projectData.ecotaxa_project_id != null);
-
-                try {
-                    const rawData = await getImportableRawSamples(projectId);
-                    if (isMounted) setRawSamples(rawData || []);
-                } catch (e) {
-                    console.error("Failed to load raw samples", e);
-                } finally {
-                    if (isMounted) setLoadingRaw(false);
-                }
-
-                try {
-                    const ecoTaxaData = await getImportableEcoTaxaSamples(projectId);
-                    if (isMounted) setEcoTaxaSamples(ecoTaxaData || []);
-                } catch (e) {
-                    console.error("Failed to load ecotaxa samples (Backend Error expected)", e);
-                } finally {
-                    if (isMounted) setLoadingEcoTaxa(false);
-                }
-
-                try {
-                    const ctdData = await getImportableCtdSamples(projectId);
-                    if (isMounted) setCtdSamples(ctdData || []);
-                } catch (e) {
-                    console.error("Failed to load CTD samples", e);
-                } finally {
-                    if (isMounted) setLoadingCtd(false);
-                }
-
-            } catch (error) {
-                console.error("Failed to initialize import tab:", error);
-                if (isMounted) {
-                    setRootFolderPath("Error loading data");
-                    setHasEcoTaxaProject(false);
-                    setRawSamples([]);
-                    setEcoTaxaSamples([]);
-                    setCtdSamples([]);
-                }
-            } finally {
-                if (isMounted) {
-                    setLoadingRaw(false);
-                    setLoadingEcoTaxa(false);
-                    setLoadingCtd(false);
-                }
+                setHasEcoTaxaProject(projectResult.value.ecotaxa_project_id != null);
+            } else {
+                console.error("Failed to initialize import tab:", projectResult.reason);
+                setRootFolderPath("Error loading data");
+                setHasEcoTaxaProject(false);
             }
+
+            if (rawResult.status === "fulfilled") {
+                setRawSamples(rawResult.value || []);
+            } else {
+                console.error("Failed to load raw samples", rawResult.reason);
+                setRawSamples([]);
+            }
+            setLoadingRaw(false);
+
+            if (ecoTaxaResult.status === "fulfilled") {
+                setEcoTaxaSamples(ecoTaxaResult.value || []);
+            } else {
+                console.error("Failed to load ecotaxa samples (Backend Error expected)", ecoTaxaResult.reason);
+                setEcoTaxaSamples([]);
+            }
+            setLoadingEcoTaxa(false);
+
+            if (ctdResult.status === "fulfilled") {
+                setCtdSamples(ctdResult.value || []);
+            } else {
+                console.error("Failed to load CTD samples", ctdResult.reason);
+                setCtdSamples([]);
+            }
+            setLoadingCtd(false);
         };
 
         fetchData();
         return () => { isMounted = false; };
     }, [projectId]);
+
+    // Identifies the latest QC preview request: a response belonging to an older
+    // request (modal closed and reopened with another selection) is ignored.
+    const qcPreviewRequestId = useRef(0);
 
     // --- 3. ACTIONS ---
 
@@ -254,12 +262,17 @@ export const useProjectImportTab = (projectId: number) => {
         setQcPreviewError(null);
         setIsQcModalOpen(true);
 
+        const requestId = ++qcPreviewRequestId.current;
+        const isStale = () => requestId !== qcPreviewRequestId.current;
+
         // Fetch the QC graph datasets so the operator can review quality before committing.
         setLoadingQcPreview(true);
         try {
             const previews = await previewSamplesQcGraphs(projectId, names);
+            if (isStale()) return;
             setQcPreviews(previews || []);
         } catch (error) {
+            if (isStale()) return;
             // The endpoint is all-or-nothing: if ANY requested name is not importable it rejects the
             // whole batch. Peel those out so the importable samples still get their QC cards, and show
             // the rest as removable error entries. Any other failure is surfaced as a global warning.
@@ -270,8 +283,10 @@ export const useProjectImportTab = (projectId: number) => {
                 if (importable.length > 0) {
                     try {
                         const previews = await previewSamplesQcGraphs(projectId, importable);
+                        if (isStale()) return;
                         setQcPreviews(previews || []);
                     } catch (retryError) {
+                        if (isStale()) return;
                         console.error("Failed to load QC preview (retry)", retryError);
                         setQcPreviewError(describeQcPreviewError(retryError));
                     }
@@ -281,7 +296,7 @@ export const useProjectImportTab = (projectId: number) => {
                 setQcPreviewError(describeQcPreviewError(error));
             }
         } finally {
-            setLoadingQcPreview(false);
+            if (!isStale()) setLoadingQcPreview(false);
         }
     };
 
@@ -345,13 +360,13 @@ export const useProjectImportTab = (projectId: number) => {
             setSelectedRawSamples({ type: "include", ids: new Set() });
 
             // Ask tasks list to refresh (some imports create tasks asynchronously)
-            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
+            void refreshTaskLists();
 
             const rawData = await getImportableRawSamples(projectId);
             setRawSamples(rawData || []);
         } catch (error) {
             console.error(error);
-            showSnackbar("Failed to import raw samples.", "error");
+            showSnackbar(extractErrorMessage(error, "Failed to import raw samples."), "error");
         } finally {
             setIsImporting(false);
         }
@@ -382,13 +397,13 @@ export const useProjectImportTab = (projectId: number) => {
             setSelectedEcoTaxaSamples({ type: "include", ids: new Set() });
 
             // Ask tasks list to refresh in case backend created an async task
-            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
+            void refreshTaskLists();
 
             const ecoData = await getImportableEcoTaxaSamples(projectId);
             setEcoTaxaSamples(ecoData || []);
         } catch (error) {
             console.error(error);
-            showSnackbar("Failed to import EcoTaxa samples.", "error");
+            showSnackbar(extractErrorMessage(error, "Failed to import EcoTaxa samples."), "error");
         } finally {
             setIsImporting(false);
         }
@@ -419,13 +434,13 @@ export const useProjectImportTab = (projectId: number) => {
 
             setSelectedCtdSamples({ type: "include", ids: new Set() });
 
-            try { window.dispatchEvent(new CustomEvent("ecopart:tasks:refresh")); } catch { /* ignore */ }
+            void refreshTaskLists();
 
             const ctdData = await getImportableCtdSamples(projectId);
             setCtdSamples(ctdData || []);
         } catch (error) {
             console.error(error);
-            showSnackbar("Failed to import CTD samples.", "error");
+            showSnackbar(extractErrorMessage(error, "Failed to import CTD samples."), "error");
         } finally {
             setIsImporting(false);
         }

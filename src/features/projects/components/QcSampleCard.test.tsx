@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { SampleQcGraphs, QcBinnedDepthProfile, QcAxisScale } from '../api/projects.api';
+import type { SampleQcGraphs, QcBinnedDepthProfile, QcAxisScale } from '../api/projects.api';
 import { QcSampleCard } from './QcSampleCard';
 
 const binned = (

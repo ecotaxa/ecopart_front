@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Box, Button, Snackbar, Alert, CircularProgress } from "@mui/material";
 
@@ -12,9 +12,9 @@ import { ProjectMetadataSection } from "./ProjectMetadataSection";
 import { ProjectPeopleSection } from "./ProjectPeopleSection";
 import { ImportSettingsSection } from "./ImportSettingsSection";
 import { EcoTaxaLinkSection } from "./EcoTaxaLinkSection";
-import { DataServerSection } from "./DataServerSection";
 
 import { useProjectMetadataTab } from "@/features/projects/hooks/useProjectMetadataTab";
+import { useProjectFormHandlers } from "@/features/projects/hooks/useProjectFormHandlers";
 
 interface ProjectMetadataTabProps {
     // The ID of the project we are currently viewing
@@ -30,6 +30,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
     // 1. Connect to the "Brain" (Hook)
     const {
         values,
+        errors,
         loading,
         saving,
         updateField,
@@ -38,7 +39,6 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         handleUnlinkEcoTaxaProject,
         handleSave,
         handleCancel,
-        isRemoteProject,
         lockedTitlePrefix,
         snackbar,
         closeSnackbar
@@ -46,6 +46,28 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
 
     const location = useLocation();
     const ecoTaxaLinkRef = useRef<HTMLDivElement>(null);
+
+    // One stable `onChange` per section (and one error slice each), so the
+    // memoized sections only re-render when their own values or errors change.
+    const on = useProjectFormHandlers(updateField);
+    const sectionErrors = useMemo(() => ({
+        instrument: { model: errors.instrumentModel, serialNumber: errors.instrumentSerialNumber },
+        metadata: {
+            title: errors.projectTitle,
+            acronym: errors.projectAcronym,
+            ship: errors.ship,
+            cruise: errors.cruise,
+            description: errors.projectDescription,
+        },
+        people: {
+            dataOwnerName: errors.dataOwnerName,
+            dataOwnerEmail: errors.dataOwnerEmail,
+            chiefScientistName: errors.chiefScientistName,
+            chiefScientistEmail: errors.chiefScientistEmail,
+            operatorName: errors.operatorName,
+            operatorEmail: errors.operatorEmail,
+        },
+    }), [errors]);
 
     // Scroll to the EcoTaxa link section when navigated here with the #ecotaxa-link anchor
     // (e.g. from the "LINK PROJECT" call-to-action on the Stats tab).
@@ -69,26 +91,30 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
     return (
         <SectionCard>
 
+                {/* No "Load metadata" button in edit mode: the folder metadata was applied at creation. */}
                 <RootFolderSection
                     value={values.rootFolderPath}
-                    onChange={(val) => updateField('rootFolderPath', val)}
-                    onLoadMetadata={() => { /* Not needed in edit mode */ }}
+                    onChange={on.rootFolderPath}
+                    error={errors.rootFolderPath}
                 />
 
                 <InstrumentMetadataSection
                     values={values.instrument}
-                    onChange={(data) => updateField('instrument', data)}
+                    onChange={on.instrument}
+                    errors={sectionErrors.instrument}
                 />
 
                 <ProjectMetadataSection
                     values={values.metadata}
-                    onChange={(data) => updateField('metadata', data)}
+                    onChange={on.metadata}
                     lockedTitlePrefix={lockedTitlePrefix}
+                    errors={sectionErrors.metadata}
                 />
 
                 <ProjectPeopleSection
                     values={values.people}
-                    onChange={(data) => updateField('people', data)}
+                    onChange={on.people}
+                    errors={sectionErrors.people}
                 />
 
 
@@ -96,14 +122,14 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                     <Grid size={{ xs: 12, md: 6 }}>
                         <ImportSettingsSection
                             values={values.importSettings}
-                            onChange={(data) => updateField('importSettings', data)}
+                            onChange={on.importSettings}
                         />
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6 }} id="ecotaxa-link" ref={ecoTaxaLinkRef}>
                         <EcoTaxaLinkSection
                             values={values.ecoTaxa}
-                            onChange={(data) => updateField('ecoTaxa', data)}
+                            onChange={on.ecoTaxa}
                             projectTitle={values.metadata.title}
                             linkedProject={linkedEcoTaxaProject}
                             unlinkWarning={ecoTaxaUnlinkWarning ? "You will still need to click the save button to validate the changes. All samples in this project will be marked as not imported in EcoTaxa and their import history will be cleared." : null}
@@ -113,12 +139,6 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                         />
                     </Grid>
                 </Grid>
-
-                <DataServerSection
-                    values={values.dataServer}
-                    onChange={(data) => updateField('dataServer', data)}
-                    isRemoteProject={isRemoteProject}
-                />
 
                 {/* Action Buttons (Save / Cancel) matching the bottom of the mockup */}
                 <Box sx={{ mt: 6, pt: 3, display: 'flex', gap: 2 }}>

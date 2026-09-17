@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 
 // The section fetches ship options on mount; stub it so the tests stay isolated.
 vi.mock('@/shared/api/referenceData.api', () => ({
@@ -9,6 +9,7 @@ vi.mock('@/shared/api/referenceData.api', () => ({
 import { getShips } from '@/shared/api/referenceData.api';
 import { ProjectMetadataSection } from './ProjectMetadataSection';
 import type { NewProjectFormValues } from '../types/newProject.types';
+import { renderWithRouter } from '@/test/utils';
 
 const makeMetadata = (
     overrides: Partial<NewProjectFormValues['metadata']> = {},
@@ -18,8 +19,6 @@ const makeMetadata = (
     ship: [],
     cruise: '',
     description: '',
-    filteredBeforeImport: false,
-    timeDurationCheck: true,
     ...overrides,
 });
 
@@ -35,7 +34,7 @@ describe('M. PROJECT METADATA SECTION (ProjectMetadataSection)', () => {
     // TC-M1: a loaded/locked title acts as a non-erasable prefix.
     it('TC-M1 - rejects title edits that remove the locked prefix', async () => {
         const onChange = vi.fn();
-        render(
+        renderWithRouter(
             <ProjectMetadataSection
                 values={makeMetadata({ title: LOCKED })}
                 onChange={onChange}
@@ -57,7 +56,7 @@ describe('M. PROJECT METADATA SECTION (ProjectMetadataSection)', () => {
     // TC-M2: text can still be appended after the locked prefix.
     it('TC-M2 - allows appending text after the locked prefix', async () => {
         const onChange = vi.fn();
-        render(
+        renderWithRouter(
             <ProjectMetadataSection
                 values={makeMetadata({ title: LOCKED })}
                 onChange={onChange}
@@ -76,7 +75,7 @@ describe('M. PROJECT METADATA SECTION (ProjectMetadataSection)', () => {
 
     // TC-M3: the field explains the locking behaviour via helper text.
     it('TC-M3 - shows the locked-title helper text when a prefix is set', async () => {
-        render(
+        renderWithRouter(
             <ProjectMetadataSection
                 values={makeMetadata({ title: LOCKED })}
                 onChange={vi.fn()}
@@ -90,7 +89,7 @@ describe('M. PROJECT METADATA SECTION (ProjectMetadataSection)', () => {
     // TC-M4: with no prefix the title is fully editable and shows no lock helper text.
     it('TC-M4 - keeps the title fully editable when no prefix is locked', async () => {
         const onChange = vi.fn();
-        render(<ProjectMetadataSection values={makeMetadata()} onChange={onChange} />);
+        renderWithRouter(<ProjectMetadataSection values={makeMetadata()} onChange={onChange} />);
 
         const input = await screen.findByLabelText(/Project title/i);
         await waitFor(() => expect(getShips).toHaveBeenCalled());

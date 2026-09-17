@@ -1,6 +1,5 @@
-﻿import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Mocks API
@@ -22,11 +21,12 @@ import {
     getImportableCtdSamples,
     importRawSamples,
     previewSamplesQcGraphs,
-    SampleQcGraphs,
+    type SampleQcGraphs,
 } from '../api/projects.api';
 
 import { useProjectImportTab } from '../hooks/useProjectImportTab';
 import { ProjectImportTab } from './ProjectImportTab';
+import { renderHookWithProviders, renderWithRouter } from '@/test/utils';
 
 const mockedGetProjectById = vi.mocked(getProjectById);
 const mockedGetImportableRawSamples = vi.mocked(getImportableRawSamples);
@@ -124,7 +124,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
 
     describe('Functional Tests', () => {
         it('TC-N1 - Raw import (pending) success + cleanup (Hook level)', async () => {
-            const { result } = renderHook(() => useProjectImportTab(77));
+            const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
             await waitFor(() => {
                 expect(result.current.loadingRaw).toBe(false);
@@ -169,7 +169,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         });
 
         it('TC-N1b - IMPORT & VALIDATE sends every reviewed sample as validated (Hook level)', async () => {
-            const { result } = renderHook(() => useProjectImportTab(77));
+            const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
             await waitFor(() => expect(result.current.loadingRaw).toBe(false));
 
@@ -195,7 +195,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         });
 
         it('TC-N1c - REMOVE FROM IMPORT drops a sample from the working set (Hook level)', async () => {
-            const { result } = renderHook(() => useProjectImportTab(77));
+            const { result } = renderHookWithProviders(() => useProjectImportTab(77));
 
             await waitFor(() => expect(result.current.loadingRaw).toBe(false));
 
@@ -234,7 +234,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
                 return names.map(mockQcGraphs);
             });
 
-            const { result } = renderHook(() => useProjectImportTab(77));
+            const { result } = renderHookWithProviders(() => useProjectImportTab(77));
             await waitFor(() => expect(result.current.loadingRaw).toBe(false));
 
             act(() => {
@@ -260,7 +260,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
 
         it('TC-N2 - Select All UVP Samples (UI level)', async () => {
             const user = userEvent.setup();
-            render(<ProjectImportTab projectId={77} />);
+            renderWithRouter(<ProjectImportTab projectId={77} />);
 
             // Wait for data grid to render
             const grid = await waitFor(
@@ -286,7 +286,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
 
         it('TC-N3a - QC modal renders one card per previewed sample with remove + footer actions', async () => {
             const user = userEvent.setup();
-            render(<ProjectImportTab projectId={77} />);
+            renderWithRouter(<ProjectImportTab projectId={77} />);
 
             // Both the UVP and (empty) CTD sections render an "IMPORT ALL" button; the UVP one is the
             // only enabled one here.
@@ -314,7 +314,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             });
 
             const user = userEvent.setup();
-            render(<ProjectImportTab projectId={77} />);
+            renderWithRouter(<ProjectImportTab projectId={77} />);
 
             const importAllButtons = await screen.findAllByRole('button', { name: /^IMPORT ALL$/i });
             const rawImportAll = importAllButtons.find((b) => !b.hasAttribute('disabled')) ?? importAllButtons[0];
@@ -336,7 +336,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             mockedPreviewSamplesQcGraphs.mockRejectedValue(new Error('Cannot preview sample QC graphs'));
 
             const user = userEvent.setup();
-            render(<ProjectImportTab projectId={77} />);
+            renderWithRouter(<ProjectImportTab projectId={77} />);
 
             const importAllButtons = await screen.findAllByRole('button', { name: /^IMPORT ALL$/i });
             const rawImportAll = importAllButtons.find((b) => !b.hasAttribute('disabled')) ?? importAllButtons[0];
@@ -357,7 +357,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             const restoreLayout = stubScrollableLayout(4000, 600);
             try {
                 const user = userEvent.setup();
-                render(<ProjectImportTab projectId={77} />);
+                renderWithRouter(<ProjectImportTab projectId={77} />);
 
                 const importAllButtons = await screen.findAllByRole('button', { name: /^IMPORT ALL$/i });
                 const rawImportAll = importAllButtons.find((b) => !b.hasAttribute('disabled')) ?? importAllButtons[0];
@@ -389,7 +389,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         }, 20000);
 
         it('TC-N3 - EcoTaxa Empty State Rendering', async () => {
-            render(<ProjectImportTab projectId={77} />);
+            renderWithRouter(<ProjectImportTab projectId={77} />);
 
             // Wait for the warning message to appear
             expect(await waitFor(
@@ -406,7 +406,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
     describe('Accessibility Tests', () => {
         it('TC-N4 - Keyboard Navigation (DataGrid)', async () => {
             const user = userEvent.setup();
-            render(<ProjectImportTab projectId={77} />);
+            renderWithRouter(<ProjectImportTab projectId={77} />);
 
             // Wait for data to load
             const grid = await waitFor(
@@ -432,7 +432,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
         });
 
         it('TC-N5 - Screen Reader Announcement for Empty States', async () => {
-            render(<ProjectImportTab projectId={77} />);
+            renderWithRouter(<ProjectImportTab projectId={77} />);
 
             // Wait for the warning message in the EcoTaxa section
             const emptyStateText = await waitFor(
@@ -441,8 +441,10 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             );
             expect(emptyStateText).toBeInTheDocument();
 
-            // Only the UVP grid should remain visible when EcoTaxa is empty
-            const grids = screen.queryAllByRole('grid');
+            // Only the UVP grid should remain visible when EcoTaxa is empty.
+            // (The warning and the grids land in the same render, but waiting for
+            // the grid keeps the assertion independent of the render timing.)
+            const grids = await screen.findAllByRole('grid');
             expect(grids).toHaveLength(1);
         }, 15000);
     });

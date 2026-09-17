@@ -12,9 +12,10 @@ vi.mock('../api/projects.api', () => ({
     getLastBackupDate: vi.fn(),
     exportProjectBackup: vi.fn(),
     runProjectBackup: vi.fn(),
+    getOneTask: vi.fn(),
 }));
 
-import { getProjectById, getLastBackupDate, exportProjectBackup, runProjectBackup } from '../api/projects.api';
+import { getProjectById, getLastBackupDate, exportProjectBackup, runProjectBackup, getOneTask } from '../api/projects.api';
 import { ProjectBackupTab } from './ProjectBackupTab';
 
 describe('II. BACKUP TAB (ProjectBackupTab)', () => {
@@ -48,7 +49,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
             renderWithRouter(<ProjectBackupTab projectId={78} />);
 
             expect(await waitFor(
-                () => screen.getByText('The project have never been backuped.'),
+                () => screen.getByText('This project has never been backed up.'),
                 { timeout: 10000 }
             )).toBeInTheDocument();
         });
@@ -85,13 +86,13 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
             expect(exportStartBtn).toHaveTextContent(/^START$/i);
         }, 25000);
 
-        it('TC-O3 - Backup Task Retry Logic', async () => {
+        it('TC-O3 - Backup Task Launch & UI Feedback', async () => {
             const user = userEvent.setup();
-            // First call (mount) returns null; subsequent calls (retry loop) return a date so the loop exits after the first retry.
-            vi.mocked(getLastBackupDate)
-                .mockResolvedValueOnce({ last_backup_date: null })
-                .mockResolvedValue({ last_backup_date: new Date().toISOString() });
+            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
             vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 99, task_status: 'PENDING', task_type: 'BACKUP' });
+            // The launched task is followed in the background; keep it running here so the
+            // "in progress" state stays visible (its completion is covered by the hook test TC-O8).
+            vi.mocked(getOneTask).mockResolvedValue({ task_id: 99, task_status: 'RUNNING' } as never);
 
             renderWithRouter(<ProjectBackupTab projectId={77} />);
 
@@ -111,6 +112,12 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
                 },
                 { timeout: 15000 }
             );
+
+            // While the task runs the tab says so and refuses a second launch; the
+            // "last backup" line is NOT replaced by an invented date.
+            expect(screen.getByText(/Backup task #99 in progress/i)).toBeInTheDocument();
+            expect(screen.getByText('This project has never been backed up.')).toBeInTheDocument();
+            expect(backupStartBtn).toBeDisabled();
         }, 25000);
     });
 

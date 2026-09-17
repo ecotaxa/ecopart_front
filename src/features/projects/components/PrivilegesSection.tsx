@@ -18,7 +18,7 @@ import Grid from "@mui/material/Grid";
 import CloseIcon from "@mui/icons-material/Close";
 import AddIcon from "@mui/icons-material/Add";
 
-import { NewProjectFormValues } from "../types/newProject.types";
+import type { NewProjectFormValues } from "../types/newProject.types";
 
 /**
  * Type representing a single row in our Privileges UI table.
@@ -35,16 +35,14 @@ interface PrivilegesSectionProps {
         email: string;
         deleted?: string | null;
     }>;
-    currentUserId: number | null;
     managerError?: string;
     contactError?: string;
 }
 
-export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
+const PrivilegesSectionImpl: React.FC<PrivilegesSectionProps> = ({
     values,
     onChange,
     availableUsers,
-    //currentUserId, // We keep this prop even if not used in handleAddRow anymore, it might be useful later
     managerError,
     contactError,
 }) => {
@@ -143,7 +141,9 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
 
             <Stack spacing={2}>
                 {values.map((row, index) => (
-                    <Grid container spacing={2} alignItems="center" key={index}>
+                    // A selected user identifies its row; only blank (just added) rows fall back to
+                    // their position, so removing a middle row does not shift the others' state.
+                    <Grid container spacing={2} alignItems="center" key={row.userId ? `user-${row.userId}` : `new-${index}`}>
                         {(() => {
                             const selectedUser = activeUsers.find(
                                 (user) => user.user_id.toString() === row.userId
@@ -224,6 +224,7 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
                                 checked={row.contact}
                                 onChange={(e) => handleUpdateRow(index, "contact", e.target.checked)}
                                 color="primary"
+                                slotProps={{ input: { "aria-label": "Set as project contact" } }}
                             />
                         </Grid>
 
@@ -256,3 +257,9 @@ export const PrivilegesSection: React.FC<PrivilegesSectionProps> = ({
         </Box>
     );
 };
+
+/**
+ * Memoized: the project form keeps every section's handlers stable, so typing
+ * in one section re-renders only that section instead of the whole form.
+ */
+export const PrivilegesSection = React.memo(PrivilegesSectionImpl);

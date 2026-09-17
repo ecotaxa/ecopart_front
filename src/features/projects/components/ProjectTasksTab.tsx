@@ -10,12 +10,11 @@ import DownloadIcon from "@mui/icons-material/Download";
 
 import { useNavigate } from "react-router-dom";
 
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { ecotaxaColors } from "@/theme";
+import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import SectionCard from "@/shared/components/SectionCard";
 
 import { useProjectTasksTab } from "../hooks/useProjectTasksTab";
-import { Task } from "../api/projects.api";
+import type { Task } from "../api/projects.api";
 import { buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
 
 interface ProjectTasksTabProps {
@@ -74,23 +73,6 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
             }
         }
     ];
-
-    const dataGridStyles = {
-        border: "none",
-        "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: "#ffffff",
-            borderBottom: "1px solid #e0e0e0",
-            color: "text.secondary",
-            fontWeight: "normal",
-        },
-        "& .MuiDataGrid-cell": { borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center" },
-        "& .MuiDataGrid-row": { cursor: "pointer" },
-        "& .MuiDataGrid-row:nth-of-type(even)": { backgroundColor: ecotaxaColors.stone[50] },
-        "& .MuiDataGrid-row.Mui-selected": {
-            backgroundColor: ecotaxaColors.secondblue[100],
-            "&:hover": { backgroundColor: ecotaxaColors.secondblue[200] }
-        },
-    };
 
     return (
         <>
@@ -158,7 +140,6 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={[5, 10, 25]}
                         autoHeight
-                        sx={dataGridStyles}
                     />
                 </Box>
             </SectionCard>

@@ -1,7 +1,8 @@
 services:
   web:
     image: 'ecotaxa/ecopart_front:latest'
-    env_file: .env
+    # No env_file: VITE_* variables are baked in at build time, the runtime
+    # container only serves static files.
     ports:
       - "3000:3000"
     restart: unless-stopped

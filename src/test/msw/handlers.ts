@@ -129,6 +129,12 @@ export const handlers = [
         return HttpResponse.json({ message: "Account deleted" }, { status: 200 });
     }),
 
+    // --- MOCK LOGOUT ---
+    http.post('*/auth/logout', () => {
+        isLoggedIn = false;
+        return HttpResponse.json({ message: 'Logged out' });
+    }),
+
     // --- MOCK REFRESH TOKEN ---
     // Prevent errors when the http interceptor tries to refresh on 401
     http.post('*/auth/refreshToken', async () => {

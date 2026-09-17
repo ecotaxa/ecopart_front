@@ -1,6 +1,5 @@
-import { ReactNode } from "react";
-import { Container, Box, Typography, Alert, ContainerProps } from "@mui/material";
-import MainLayout from "@/app/layouts/MainLayout";
+import type { ReactNode } from "react";
+import { Container, Box, Typography, Alert, type ContainerProps } from "@mui/material";
 
 interface AuthPageLayoutProps {
     title: string;
@@ -23,36 +22,34 @@ export const AuthPageLayout = ({
     maxWidth = "sm",
 }: AuthPageLayoutProps) => {
     return (
-        <MainLayout>
-            <Container maxWidth={maxWidth} sx={{ mt: 12, textAlign: "left" }}>
-                {/* Centralized Logo — dark ink on transparent, blends on the light page background */}
-                <Box
-                    component="img"
-                    src="/logo_ecopart_dark.png"
-                    alt="EcoPart"
-                    sx={{ height: 48, mb: 2 }}
-                />
+        <Container maxWidth={maxWidth} sx={{ mt: 12, textAlign: "left" }}>
+            {/* Centralized Logo — dark ink on transparent, blends on the light page background */}
+            <Box
+                component="img"
+                src="/logo_ecopart_dark.png"
+                alt="EcoPart"
+                sx={{ height: 48, mb: 2 }}
+            />
 
-                <Typography variant="h5" gutterBottom sx={{ mb: 4 }}>
-                    {title}
-                </Typography>
+            <Typography variant="h5" gutterBottom sx={{ mb: 4 }}>
+                {title}
+            </Typography>
 
-                {/* Display Success Message if present */}
-                {successMessage && (
-                    <Alert severity="success" sx={{ width: "100%", mb: 2 }}>
-                        {successMessage}
-                    </Alert>
-                )}
+            {/* Display Success Message if present */}
+            {successMessage && (
+                <Alert severity="success" sx={{ width: "100%", mb: 2 }}>
+                    {successMessage}
+                </Alert>
+            )}
 
-                {/* Display Error Message if present */}
-                {error && (
-                    <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
-                        {error}
-                    </Alert>
-                )}
+            {/* Display Error Message if present */}
+            {error && (
+                <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
+                    {error}
+                </Alert>
+            )}
 
-                {children}
-            </Container>
-        </MainLayout>
+            {children}
+        </Container>
     );
 };

@@ -1,39 +1,31 @@
+# ---- Build stage: compile the Vite app -------------------------------------
 FROM node:20-alpine AS builder
 
-# 1. Déclarer les arguments (ce que la CI va envoyer)
+# Backend URL baked into the bundle at build time (Vite reads VITE_* variables).
 ARG VITE_BACKEND_URL
-
-# 2. Les transformer en variables d'environnement pour que Vite les lise
 ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
 
-# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Install dependencies first so the layer is cached while sources change.
 COPY package.json package-lock.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy source files
+# Copy source files (see .dockerignore for what is excluded) and build.
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Production image, copy built assets and dependencies
+# ---- Runtime stage: static file server only ---------------------------------
+# The built bundle is plain static files: none of the app's npm dependencies
+# are needed at runtime, only `serve`.
 FROM node:20-alpine AS production
 
-# Set working directory
 WORKDIR /app
 
-# Copy only necessary files from builder
-COPY --from=builder /app/package.json /app/package-lock.json ./
-RUN npm ci --omit=dev && npm install -g serve@14.2.1
+RUN npm install -g serve@14.2.1
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-# Start the server
-CMD ["serve", "-s", "dist", "-l", "3000"] 
-# TODO: Verifier que le port 3000 est bien celui utilisé par serve, sinon adapter en fonction du port défini dans .env (VITE_PORT)
+# `-s` rewrites unknown paths to index.html so React Router deep links work.
+CMD ["serve", "-s", "dist", "-l", "3000"]

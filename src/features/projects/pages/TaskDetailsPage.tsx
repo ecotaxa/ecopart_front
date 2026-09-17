@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
     Box, Container, Typography, Button, Tabs, Tab, Paper, Grid,
@@ -13,11 +13,11 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DownloadIcon from "@mui/icons-material/Download";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
-import MainLayout from "@/app/layouts/MainLayout";
 import SectionCard from "@/shared/components/SectionCard";
 import { ecotaxaColors } from "@/theme";
-import { deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, Task } from "../api/projects.api";
-import { isDownloadableTask } from "../utils/taskColumns";
+import { deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task } from "../api/projects.api";
+import { formatTaskOwner, isDownloadableTask } from "../utils/taskColumns";
+import { confirmDialog } from "@/shared/confirm/confirm.store";
 
 export default function TaskDetailsPage() {
     const { id, taskId, tabName } = useParams<{ id?: string; taskId: string; tabName?: string }>();
@@ -56,26 +56,47 @@ export default function TaskDetailsPage() {
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
     const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
+    // Every load gets a generation number; a response is applied only if no
+    // newer load has started since (a later poll, another task id or tab, or
+    // unmount). A slow answer for the previous task can therefore never
+    // overwrite the task that is now open. Polls additionally skip a tick while
+    // a poll of the same task/tab is still pending, so they don't pile up.
+    const loadGeneration = useRef(0);
+    const pendingPollKey = useRef<string | null>(null);
+    useEffect(() => () => { loadGeneration.current += 1; }, []);
+
     // --- 2. DATA HYDRATION CALLBACK ---
     const loadTaskDetails = useCallback(async (showSpinner = false) => {
         if (parsedTaskId === null) return;
+        const pollKey = `${parsedTaskId}/${currentTab}`;
+        if (!showSpinner && pendingPollKey.current === pollKey) return;
+
+        const generation = ++loadGeneration.current;
+        const isCurrent = () => loadGeneration.current === generation;
+        pendingPollKey.current = pollKey;
         if (showSpinner) setIsLoading(true);
 
         try {
             const taskData = await getOneTask(parsedTaskId);
+            if (!isCurrent()) return;
             setTask(taskData);
 
             // Only fetch logs if we are on the log tab to preserve resources
             if (currentTab === 1) {
                 const logs = await getTaskLog(parsedTaskId);
+                if (!isCurrent()) return;
                 setLogContent(logs);
             }
             setError(null);
         } catch (err: unknown) {
+            if (!isCurrent()) return;
             console.error("[Task Details] Hydration error:", err);
             setError("Failed to synchronize task metrics from server.");
         } finally {
-            if (showSpinner) setIsLoading(false);
+            if (isCurrent()) {
+                pendingPollKey.current = null;
+                if (showSpinner) setIsLoading(false);
+            }
         }
     }, [parsedTaskId, currentTab]);
 
@@ -85,13 +106,12 @@ export default function TaskDetailsPage() {
     }, [loadTaskDetails]);
 
     // --- 3. ADAPTIVE REAL-TIME POLLING LOGIC ---
+    // Keyed on the processing flag (not on the task object) so the interval is
+    // set up once while the task runs instead of being recreated on every poll.
+    const status = task?.task_status?.toUpperCase();
+    const isProcessing = status === "RUNNING" || status === "PENDING";
+
     useEffect(() => {
-        if (!task) return;
-
-        // Check if task status implies background processing is active
-        const status = task.task_status?.toUpperCase();
-        const isProcessing = status === "RUNNING" || status === "PENDING";
-
         if (!isProcessing) return;
 
         // Polling loop every 2500ms
@@ -100,7 +120,7 @@ export default function TaskDetailsPage() {
         }, 2500);
 
         return () => clearInterval(intervalId);
-    }, [task, loadTaskDetails]);
+    }, [isProcessing, loadTaskDetails]);
 
     const handleDownloadFile = async () => {
         if (parsedTaskId === null) return;
@@ -117,11 +137,11 @@ export default function TaskDetailsPage() {
 
     const handleDeleteTask = async () => {
         if (parsedTaskId === null) return;
-        if (!window.confirm(
-            `Are you sure you want to delete task #${parsedTaskId}? ` +
-            `This removes the task and its logs. ` +
-            `It does not undo work the task already performed. This cannot be undone.`,
-        )) return;
+        if (!(await confirmDialog({
+            title: `Delete task #${parsedTaskId}`,
+            message: "This removes the task and its logs. It does not undo work the task already performed. This cannot be undone.",
+            confirmLabel: "Delete",
+        }))) return;
 
         setIsDeleting(true);
         try {
@@ -139,9 +159,7 @@ export default function TaskDetailsPage() {
     // global /tasks/:taskId route); only flag it when present but malformed.
     if (parsedTaskId === null || (id !== undefined && parsedProjectId === null)) {
         return (
-            <MainLayout>
-                <Container sx={{ mt: 4 }}><Alert severity="error">Malformed route identifiers.</Alert></Container>
-            </MainLayout>
+            <Container sx={{ mt: 4 }}><Alert severity="error">Malformed route identifiers.</Alert></Container>
         );
     }
 
@@ -166,138 +184,100 @@ export default function TaskDetailsPage() {
         return String(params);
     };
 
-    const formatTaskOwner = (owner: Task["task_owner"]): string => {
-        if (!owner) return "System";
-
-        if (typeof owner === "string") {
-            let cleaned = owner
-                .replace(/\bundefined\b/gi, "")
-                .replace(/\bnull\b/gi, "")
-                .replace(/\s+/g, " ")
-                .trim();
-
-            if (cleaned.startsWith("(") && cleaned.endsWith(")")) {
-                cleaned = cleaned.slice(1, -1).trim();
-            }
-
-            return cleaned || "System";
-        }
-
-        const ownerObject = owner as Record<string, unknown>;
-        const candidateParts = [
-            ownerObject.first_name,
-            ownerObject.last_name,
-            ownerObject.user_name,
-        ]
-            .filter((v): v is string => typeof v === "string")
-            .map((v) => v.trim())
-            .filter((v) => v && v.toLowerCase() !== "undefined" && v.toLowerCase() !== "null");
-
-        if (candidateParts.length > 0) {
-            const name = candidateParts.join(" ");
-            return ownerObject.email ? `${name} (${ownerObject.email})` : name;
-        }
-
-        if (ownerObject.email && typeof ownerObject.email === "string") {
-            return ownerObject.email;
-        }
-
-        return "System";
-    };
 
     return (
-        <MainLayout>
-            <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
-                {/* BACK NAVIGATION ACTION */}
-                <Button
-                    startIcon={<ArrowBackIcon />}
-                    onClick={() => navigate(backTo)}
-                    sx={{ mb: 3, fontWeight: "bold" }}
-                    color="inherit"
-                >
-                    Back to tasks list
-                </Button>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+            {/* BACK NAVIGATION ACTION */}
+            <Button
+                startIcon={<ArrowBackIcon />}
+                onClick={() => navigate(backTo)}
+                sx={{ mb: 3, fontWeight: "bold" }}
+                color="inherit"
+            >
+                Back to tasks list
+            </Button>
 
-                {isLoading && !task ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
-                ) : error && !task ? (
-                    <Alert severity="error">{error}</Alert>
-                ) : (
-                    task && (
-                        <Box>
-                            {/* PAGE LEVEL HEADER REGION */}
-                            <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <Typography variant="h4" fontWeight="bold">
-                                    {task.task_type} task [{task.task_id}]
-                                </Typography>
-                                <Stack direction="row" spacing={2}>
-                                    {isDownloadableTask(task) && (
-                                        <Button
-                                            variant="outlined"
-                                            color="primary"
-                                            size="small"
-                                            sx={{ fontWeight: "bold" }}
-                                            startIcon={<DownloadIcon />}
-                                            onClick={handleDownloadFile}
-                                            disabled={isDownloading}
-                                        >
-                                            {isDownloading ? "DOWNLOADING..." : "DOWNLOAD"}
-                                        </Button>
-                                    )}
-                                    <Button variant="outlined" color="error" size="small" sx={{ fontWeight: "bold" }} onClick={handleDeleteTask} disabled={isDeleting}>{isDeleting ? "DELETING..." : "DELETE"}</Button>
-                                </Stack>
-                            </Box>
+            {isLoading && !task ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
+            ) : error && !task ? (
+                <Alert severity="error">{error}</Alert>
+            ) : (
+                task && (
+                    <Box>
+                        {/* PAGE LEVEL HEADER REGION */}
+                        <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <Typography variant="h4" fontWeight="bold">
+                                {task.task_type} task [{task.task_id}]
+                            </Typography>
+                            <Stack direction="row" spacing={2}>
+                                {isDownloadableTask(task) && (
+                                    <Button
+                                        variant="outlined"
+                                        color="primary"
+                                        size="small"
+                                        sx={{ fontWeight: "bold" }}
+                                        startIcon={<DownloadIcon />}
+                                        onClick={handleDownloadFile}
+                                        disabled={isDownloading}
+                                    >
+                                        {isDownloading ? "DOWNLOADING..." : "DOWNLOAD"}
+                                    </Button>
+                                )}
+                                <Button variant="outlined" color="error" size="small" sx={{ fontWeight: "bold" }} onClick={handleDeleteTask} disabled={isDeleting}>{isDeleting ? "DELETING..." : "DELETE"}</Button>
+                            </Stack>
+                        </Box>
 
-                            {/* NAVIGATION TABS STRUCTURE */}
-                            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 4 }}>
-                                <Tabs value={currentTab} onChange={handleTabChange}>
-                                    <Tab icon={<AssignmentIcon />} iconPosition="start" label="GENERAL" />
-                                    <Tab icon={<TerminalIcon />} iconPosition="start" label="LOG FILE" />
-                                </Tabs>
-                            </Box>
+                        {/* NAVIGATION TABS STRUCTURE */}
+                        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 4 }}>
+                            <Tabs value={currentTab} onChange={handleTabChange}>
+                                <Tab icon={<AssignmentIcon />} iconPosition="start" label="GENERAL" />
+                                <Tab icon={<TerminalIcon />} iconPosition="start" label="LOG FILE" />
+                            </Tabs>
+                        </Box>
 
-                            {/* TAB CONTEXT DISPLAY PANEL */}
-                            {currentTab === 0 ? (
-                                <Box>
-                                    {/* PROGRESS LINE COMPONENT */}
-                                    <SectionCard sx={{ mb: 4, position: "relative" }}>
-                                        <Typography variant="h6" sx={{ mb: 2 }}>General</Typography>
-                                        <Box sx={{ display: "flex", alignItems: "center", gap: 3, mt: 3, mb: 2 }}>
-                                            <Box sx={{ width: "100%" }}>
-                                                <LinearProgress
-                                                    variant="determinate"
-                                                    value={task.task_progress_pct ?? 0}
-                                                    color={getProgressColor(task.task_status)}
-                                                    sx={{ height: 12, borderRadius: 2 }}
-                                                />
-                                            </Box>
-                                            <Typography variant="body1" fontWeight="bold" sx={{ minWidth: 45 }}>
-                                                {task.task_progress_pct ?? 0}%
-                                            </Typography>
+                        {/* TAB CONTEXT DISPLAY PANEL */}
+                        {currentTab === 0 ? (
+                            <Box>
+                                {/* PROGRESS LINE COMPONENT */}
+                                <SectionCard sx={{ mb: 4, position: "relative" }}>
+                                    <Typography variant="h6" sx={{ mb: 2 }}>General</Typography>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 3, mt: 3, mb: 2 }}>
+                                        <Box sx={{ width: "100%" }}>
+                                            <LinearProgress
+                                                variant="determinate"
+                                                value={task.task_progress_pct ?? 0}
+                                                color={getProgressColor(task.task_status)}
+                                                sx={{ height: 12, borderRadius: 2 }}
+                                            />
                                         </Box>
-                                    </SectionCard>
+                                        <Typography variant="body1" fontWeight="bold" sx={{ minWidth: 45 }}>
+                                            {task.task_progress_pct ?? 0}%
+                                        </Typography>
+                                    </Box>
+                                </SectionCard>
 
-                                    {/* SPECIFIC ATTRIBUTES META CONTROLS */}
-                                    <SectionCard sx={{ mb: 4 }}>
-                                        <Typography variant="h6" sx={{ mb: 3 }}>Task information</Typography>
-                                        <Box component="form" noValidate autoComplete="off">
-                                            <Grid container spacing={3}>
-                                                <Grid size={{ xs: 12, md: 6 }}>
-                                                    <TextField fullWidth label="ID" value={task.task_id} size="small" InputProps={{ readOnly: true }} />
-                                                </Grid>
-                                                <Grid size={{ xs: 12, md: 6 }}>
-                                                    <TextField fullWidth label="Status" value={task.task_status ?? "UNKNOWN"} size="small" InputProps={{ readOnly: true }} />
-                                                </Grid>
-                                                <Grid size={{ xs: 12, md: 6 }}>
-                                                    <TextField fullWidth label="Type" value={task.task_type ?? "Unknown"} size="small" InputProps={{ readOnly: true }} />
-                                                </Grid>
-                                                <Grid size={{ xs: 12, md: 6 }}>
-                                                    <TextField
-                                                        fullWidth
-                                                        label="Project ID"
-                                                        value={task.task_project_id ?? "Global scope"}
-                                                        size="small"
-                                                        InputProps={{
+                                {/* SPECIFIC ATTRIBUTES META CONTROLS */}
+                                <SectionCard sx={{ mb: 4 }}>
+                                    <Typography variant="h6" sx={{ mb: 3 }}>Task information</Typography>
+                                    <Box component="form" noValidate autoComplete="off">
+                                        <Grid container spacing={3}>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <TextField fullWidth label="ID" value={task.task_id} size="small" slotProps={{ input: { readOnly: true } }} />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <TextField fullWidth label="Status" value={task.task_status ?? "UNKNOWN"} size="small" slotProps={{ input: { readOnly: true } }} />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <TextField fullWidth label="Type" value={task.task_type ?? "Unknown"} size="small" slotProps={{ input: { readOnly: true } }} />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <TextField
+                                                    fullWidth
+                                                    label="Project ID"
+                                                    value={task.task_project_id ?? "Global scope"}
+                                                    size="small"
+                                                    slotProps={{
+                                                        input: {
                                                             readOnly: true,
                                                             endAdornment: task.task_project_id != null ? (
                                                                 <InputAdornment position="end">
@@ -313,71 +293,71 @@ export default function TaskDetailsPage() {
                                                                     </Tooltip>
                                                                 </InputAdornment>
                                                             ) : undefined,
-                                                        }}
-                                                    />
-                                                </Grid>
-                                                <Grid size={{ xs: 12 }}>
-                                                    <TextField fullWidth label="Message" value={task.task_progress_msg ?? "No report message available"} size="small" InputProps={{ readOnly: true }} />
-                                                </Grid>
-                                                <Grid size={{ xs: 12, md: 6 }}>
-                                                    <TextField fullWidth label="Owner" value={formatTaskOwner(task.task_owner)} size="small" InputProps={{ readOnly: true }} />
-                                                </Grid>
+                                                        },
+                                                    }}
+                                                />
                                             </Grid>
-                                        </Box>
-                                    </SectionCard>
+                                            <Grid size={{ xs: 12 }}>
+                                                <TextField fullWidth label="Message" value={task.task_progress_msg ?? "No report message available"} size="small" slotProps={{ input: { readOnly: true } }} />
+                                            </Grid>
+                                            <Grid size={{ xs: 12, md: 6 }}>
+                                                <TextField fullWidth label="Owner" value={formatTaskOwner(task.task_owner)} size="small" slotProps={{ input: { readOnly: true } }} />
+                                            </Grid>
+                                        </Grid>
+                                    </Box>
+                                </SectionCard>
 
-                                    {/* INPUT ARGUMENTS ARBORESCENCE TREE */}
-                                    <SectionCard>
-                                        <Typography variant="h6" sx={{ mb: 2 }}>Input parameters :</Typography>
-                                        <Box
-                                            sx={{
-                                                p: 3,
-                                                backgroundColor: ecotaxaColors.secondblue[50],
-                                                borderRadius: 1,
-                                                border: `1px solid ${ecotaxaColors.secondblue[100]}`,
-                                                fontFamily: "monospace",
-                                                fontSize: "0.85rem",
-                                                whiteSpace: "pre-wrap"
-                                            }}
-                                        >
-                                            {parseTaskParams(task.task_params)}
+                                {/* INPUT ARGUMENTS ARBORESCENCE TREE */}
+                                <SectionCard>
+                                    <Typography variant="h6" sx={{ mb: 2 }}>Input parameters :</Typography>
+                                    <Box
+                                        sx={{
+                                            p: 3,
+                                            backgroundColor: ecotaxaColors.secondblue[50],
+                                            borderRadius: 1,
+                                            border: `1px solid ${ecotaxaColors.secondblue[100]}`,
+                                            fontFamily: "monospace",
+                                            fontSize: "0.85rem",
+                                            whiteSpace: "pre-wrap"
+                                        }}
+                                    >
+                                        {parseTaskParams(task.task_params)}
+                                    </Box>
+                                </SectionCard>
+                            </Box>
+                        ) : (
+                            /* TEXT STREAM CONSOLE COMPONENT */
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    p: 3,
+                                    backgroundColor: "#1e1e1e",
+                                    color: "#d4d4d4",
+                                    fontFamily: "'Courier New', Courier, monospace",
+                                    fontSize: "0.9rem",
+                                    lineHeight: 1.6,
+                                    minHeight: "450px",
+                                    maxHeight: "650px",
+                                    overflowY: "auto",
+                                    boxShadow: "inset 0px 2px 8px rgba(0,0,0,0.8)"
+                                }}
+                            >
+                                {logContent ? (
+                                    logContent.split("\n").map((line, idx) => (
+                                        <Box key={idx} sx={{
+                                            color: line.includes("failed") || line.includes("error") ? ecotaxaColors.danger[400] : line.includes("successfully") || line.includes("done") ? ecotaxaColors.success[400] : "#d4d4d4"
+                                        }}>
+                                            {line}
                                         </Box>
-                                    </SectionCard>
-                                </Box>
-                            ) : (
-                                /* TEXT STREAM CONSOLE COMPONENT */
-                                <Paper
-                                    variant="outlined"
-                                    sx={{
-                                        p: 3,
-                                        backgroundColor: "#1e1e1e",
-                                        color: "#d4d4d4",
-                                        fontFamily: "'Courier New', Courier, monospace",
-                                        fontSize: "0.9rem",
-                                        lineHeight: 1.6,
-                                        minHeight: "450px",
-                                        maxHeight: "650px",
-                                        overflowY: "auto",
-                                        boxShadow: "inset 0px 2px 8px rgba(0,0,0,0.8)"
-                                    }}
-                                >
-                                    {logContent ? (
-                                        logContent.split("\n").map((line, idx) => (
-                                            <Box key={idx} sx={{
-                                                color: line.includes("failed") || line.includes("error") ? ecotaxaColors.danger[400] : line.includes("successfully") || line.includes("done") ? ecotaxaColors.success[400] : "#d4d4d4"
-                                            }}>
-                                                {line}
-                                            </Box>
-                                        ))
-                                    ) : (
-                                        <Box sx={{ color: "text.disabled", fontStyle: "italic" }}>No log messages captured yet by the kernel stream handler.</Box>
-                                    )}
-                                </Paper>
-                            )}
-                        </Box>
-                    )
-                )}
-            </Container>
-        </MainLayout>
+                                    ))
+                                ) : (
+                                    <Box sx={{ color: "text.disabled", fontStyle: "italic" }}>No log messages captured yet by the kernel stream handler.</Box>
+                                )}
+                            </Paper>
+                        )}
+                    </Box>
+                )
+            )}
+        </Container>
     );
 }

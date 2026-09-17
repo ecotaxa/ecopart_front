@@ -6,9 +6,9 @@ import {
 import Grid from "@mui/material/Grid";
 import CloseIcon from "@mui/icons-material/Close";
 
-import { CountriesWrapper, CountryOption } from "@/shared/country-wrapper";
+import { CountriesWrapper, type CountryOption } from "@/shared/country-wrapper";
 import { PasswordInput } from "@/shared/components/PasswordInput";
-import { getOrganisations } from "@/shared/api/referenceData.api";
+import { useOrganisations } from "@/shared/api/referenceData.hooks";
 import { registerUser } from "@/features/auth/api/register.api";
 import {
     isValidEmail, isValidPassword, passwordsMatch, isNonEmpty,
@@ -31,8 +31,7 @@ interface CreateUserModalProps {
  * (minus the terms checkbox, which is not relevant for an admin-created account).
  */
 export default function CreateUserModal({ open, onClose, onCreated }: CreateUserModalProps) {
-    const [organisationOptions, setOrganisationOptions] = useState<string[]>([]);
-    const [loadingOrganisations, setLoadingOrganisations] = useState(true);
+    const { data: organisationOptions = [], isPending: loadingOrganisations } = useOrganisations();
 
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -55,24 +54,6 @@ export default function CreateUserModal({ open, onClose, onCreated }: CreateUser
         setCountryCode(""); setUsage(""); setPassword(""); setConfirm("");
         setError(null); setSubmitting(false);
     }, [open]);
-
-    useEffect(() => {
-        let cancelled = false;
-        const fetchOrganisations = async () => {
-            setLoadingOrganisations(true);
-            try {
-                const fetched = await getOrganisations();
-                if (!cancelled) setOrganisationOptions(fetched);
-            } catch (err) {
-                console.error("Failed to fetch organisations:", err);
-                if (!cancelled) setOrganisationOptions([]);
-            } finally {
-                if (!cancelled) setLoadingOrganisations(false);
-            }
-        };
-        fetchOrganisations();
-        return () => { cancelled = true; };
-    }, []);
 
     const emailIsValid = isValidEmail(email);
     const passwordIsValid = isValidPassword(password);
@@ -173,14 +154,16 @@ export default function CreateUserModal({ open, onClose, onCreated }: CreateUser
                                 renderInput={(params) => (
                                     <TextField
                                         {...params} required label="Organisation"
-                                        InputProps={{
-                                            ...params.InputProps,
-                                            endAdornment: (
-                                                <>
-                                                    {loadingOrganisations ? <CircularProgress size={20} /> : null}
-                                                    {params.InputProps.endAdornment}
-                                                </>
-                                            ),
+                                        slotProps={{
+                                            input: {
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <>
+                                                        {loadingOrganisations ? <CircularProgress size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </>
+                                                ),
+                                            },
                                         }}
                                     />
                                 )}

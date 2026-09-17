@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
 
 vi.mock('../api/projects.api', () => ({
     searchProjectTasks: vi.fn(),
     deleteProjectTask: vi.fn(),
 }));
 
-import { searchProjectTasks, deleteProjectTask, Task, TaskSearchResponse } from '../api/projects.api';
-import { useTasksTable } from './useTasksTable';
+import { searchProjectTasks, deleteProjectTask, type Task, type TaskSearchResponse } from '../api/projects.api';
+import { TASKS_QUERY_KEY, useTasksTable } from './useTasksTable';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
+import { renderHookWithProviders } from '@/test/utils';
 
 const mockedSearchProjectTasks = vi.mocked(searchProjectTasks);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
@@ -46,7 +48,7 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R1: Initial Fetch & Pagination Info
     it('TC-R1: fetches tasks without a projectId and exposes pagination info', async () => {
-        const { result } = renderHook(() => useTasksTable());
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -61,7 +63,7 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R2: Default State
     it('TC-R2: initializes with default attribute, empty selection and pagination', async () => {
-        const { result } = renderHook(() => useTasksTable());
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -73,7 +75,7 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R3: Debounced Status Search resets page and builds LIKE filter
     it('TC-R3: builds a LIKE filter for task_status after debounce', async () => {
-        const { result } = renderHook(() => useTasksTable());
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -96,7 +98,7 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R4: task_id Exact Match & Numeric Guard
     it('TC-R4: uses an exact-match task_id filter and ignores non-numeric input', async () => {
-        const { result } = renderHook(() => useTasksTable());
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -131,7 +133,7 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R5: Pagination is 1-indexed towards the backend
     it('TC-R5: sends page+1 and the selected pageSize to the backend', async () => {
-        const { result } = renderHook(() => useTasksTable());
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -150,8 +152,8 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R6: Delete Success (batch + cleanup)
     it('TC-R6: deletes each selected task, resets selection and refetches', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-        const { result } = renderHook(() => useTasksTable());
+        const confirmSpy = answerConfirmDialogs(true);
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -178,8 +180,8 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R7: Delete Cancelled
     it('TC-R7: does not delete anything when the confirmation is declined', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-        const { result } = renderHook(() => useTasksTable());
+        const confirmSpy = answerConfirmDialogs(false);
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -200,11 +202,11 @@ describe('useTasksTable Hook (Unit)', () => {
 
     // TC-R8: Delete Error Handling
     it('TC-R8: attempts every delete, keeps only the failed task selected and refetches', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const confirmSpy = answerConfirmDialogs(true);
         // Only the first deletion (task 1) fails; task 2 still gets deleted.
         mockedDeleteProjectTask.mockRejectedValueOnce(new Error('boom'));
 
-        const { result } = renderHook(() => useTasksTable());
+        const { result } = renderHookWithProviders(() => useTasksTable());
         await waitFor(() => expect(result.current.loading).toBe(false));
 
         act(() => {
@@ -238,7 +240,7 @@ describe('useTasksTable Hook (Unit)', () => {
     it('TC-R9: exposes an error and empties data when the search fails', async () => {
         mockedSearchProjectTasks.mockRejectedValueOnce(new Error('network down'));
 
-        const { result } = renderHook(() => useTasksTable());
+        const { result } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.error).toBe('network down'));
         expect(result.current.tasks).toEqual([]);
@@ -247,14 +249,14 @@ describe('useTasksTable Hook (Unit)', () => {
     });
 
     // TC-R10: External Refresh Event
-    it('TC-R10: refetches when the "ecopart:tasks:refresh" event is dispatched', async () => {
-        const { result } = renderHook(() => useTasksTable());
+    it('TC-R10: refetches when the tasks query key is invalidated (e.g. after an import)', async () => {
+        const { result, queryClient } = renderHookWithProviders(() => useTasksTable());
 
         await waitFor(() => expect(result.current.loading).toBe(false));
         const callsBefore = mockedSearchProjectTasks.mock.calls.length;
 
-        act(() => {
-            window.dispatchEvent(new Event('ecopart:tasks:refresh'));
+        await act(async () => {
+            await queryClient.invalidateQueries({ queryKey: [...TASKS_QUERY_KEY] });
         });
 
         await waitFor(() => {

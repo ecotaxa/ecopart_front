@@ -1,4 +1,10 @@
 import { http, httpText, httpBlob } from "@/shared/api/http";
+import { queryClient } from "@/shared/api/queryClient";
+import type { SearchFilter, SearchInfo } from "@/shared/types/api";
+
+// The filter condition type lives in shared (the generic server-table hook
+// needs it); re-exported here so feature code keeps importing it from the API.
+export type { SearchFilter };
 
 /**
  * Minimal user representation returned inside project privileges.
@@ -58,17 +64,6 @@ export interface Project {
 }
 
 /**
- * Represents a single search filter condition.
- */
-export interface SearchFilter {
-    field: string;
-    operator: string;
-    // number[] / string[] carry the values for an `IN` operator (e.g. a set of
-    // user ids for the managers / members / granted_users / task_owner_id filters).
-    value: string | number | boolean | string[] | number[] | null;
-}
-
-/**
  * Parameters required to search projects (pagination + filters).
  */
 export interface ProjectSearchFilters {
@@ -82,70 +77,52 @@ export interface ProjectSearchFilters {
  * Normalized frontend response used everywhere in the UI.
  */
 export interface ProjectSearchResponse {
-    search_info: {
-        total: number;
-        page: number;
-        limit: number;
-    };
+    search_info: SearchInfo;
     projects: Project[];
 }
 
 /**
- * Raw backend response can differ depending on backend implementation.
- * We intentionally keep this flexible and normalize it afterwards.
+ * A list endpoint answer as the backend may phrase it: a bare array, or a
+ * paginated object whose list sits under one of a few keys (`projects`,
+ * `samples`, `results`, …) with the pagination either nested in `search_info`
+ * or flat. Not every backend list is documented with the same shape (the
+ * EcoTaxa sample list schema is referenced but undefined in the OpenAPI spec,
+ * `GET /ctd_samples` answers a bare array), so every list goes through one
+ * normaliser instead of each caller guessing.
  */
-type RawProjectSearchResponse = {
-    search_info?: {
-        total?: number;
-        page?: number;
-        limit?: number;
-    };
-    projects?: Project[];
-    results?: Project[];
-    rows?: Project[];
-    data?: Project[];
+type RawList<T> = T[] | ({
+    search_info?: Partial<SearchInfo>;
     total?: number;
     page?: number;
     limit?: number;
-};
+} & { [listKey: string]: unknown });
+
+/** The keys a backend list object may use for its items, in lookup order. */
+const PROJECT_LIST_KEYS = ["projects", "results", "rows", "data"] as const;
+const SAMPLE_LIST_KEYS = ["samples", "ecotaxa_samples", "items", "results", "rows", "data"] as const;
 
 /**
- * Normalize any backend response shape into one stable frontend contract.
- * This prevents the page and hook from depending on backend-specific structures.
+ * Normalize a list response into `{ search_info, items }` — one stable
+ * frontend contract whatever the backend's phrasing (see `RawList`).
  */
-function normalizeProjectSearchResponse(
-    raw: RawProjectSearchResponse
-): ProjectSearchResponse {
-    const projects =
-        raw.projects ??
-        raw.results ??
-        raw.rows ??
-        raw.data ??
-        [];
+function normalizeList<T>(raw: RawList<T>, listKeys: readonly string[]): { search_info: SearchInfo; items: T[] } {
+    if (Array.isArray(raw)) {
+        return {
+            search_info: { total: raw.length, page: 1, limit: raw.length > 0 ? raw.length : 10 },
+            items: raw,
+        };
+    }
 
-    const total =
-        raw.search_info?.total ??
-        raw.total ??
-        projects.length;
-
-    const page =
-        raw.search_info?.page ??
-        raw.page ??
-        1;
-
-    // We default to 10 if no limit is provided by the backend to keep pagination mathematically sound.
-    const limit =
-        raw.search_info?.limit ??
-        raw.limit ??
-        (projects.length > 0 ? projects.length : 10);
+    const items = (listKeys.map((key) => raw[key]).find(Array.isArray) as T[] | undefined) ?? [];
 
     return {
         search_info: {
-            total,
-            page,
-            limit,
+            total: raw.search_info?.total ?? raw.total ?? items.length,
+            page: raw.search_info?.page ?? raw.page ?? 1,
+            // Default to 10 if no limit is provided by the backend to keep pagination mathematically sound.
+            limit: raw.search_info?.limit ?? raw.limit ?? (items.length > 0 ? items.length : 10),
         },
-        projects,
+        items,
     };
 }
 
@@ -166,7 +143,7 @@ export async function searchProjects(
 
     // In Express, req.query corresponds to URL parameters (?page=1&limit=10)
     // And req.body corresponds to the JSON array of filters.
-    const rawResponse = await http<RawProjectSearchResponse>(
+    const rawResponse = await http<RawList<Project>>(
         `/projects/searches?${query.toString()}`,
         {
             method: "POST",
@@ -174,7 +151,8 @@ export async function searchProjects(
         }
     );
 
-    return normalizeProjectSearchResponse(rawResponse);
+    const { search_info, items } = normalizeList(rawResponse, PROJECT_LIST_KEYS);
+    return { search_info, projects: items };
 }
 
 /**
@@ -246,8 +224,13 @@ export interface PublicProjectUpdateModel {
     managers?: MinimalUserModel[];
     contact?: MinimalUserModel;
 
+    // EcoTaxa link: the backend validation accepts the same creation flags on
+    // update (re-link to an existing project, or create a fresh one on save).
     ecotaxa_project_id?: number | null;
+    ecotaxa_project_name?: string | null;
     ecotaxa_instance_id?: number | null;
+    ecotaxa_account_id?: number | null;
+    new_ecotaxa_project?: boolean;
 }
 
 // ============================================================================
@@ -286,13 +269,24 @@ export async function countProjectsForUser(
     return response.search_info.total;
 }
 
+/** React Query key of every project-related query (lists and details). */
+export const PROJECTS_ROOT_QUERY_KEY = ["projects"] as const;
+
+/** React Query key of one project's detail. */
+export const projectQueryKey = (projectId: number) => [...PROJECTS_ROOT_QUERY_KEY, "detail", projectId] as const;
+
 /**
- * Fetches a single project by ID using the search endpoint logic.
+ * How long a fetched project is served from the cache. The details page and
+ * its tabs all need the same project within a second of each other: one
+ * request instead of three.
+ */
+const PROJECT_STALE_MS = 15_000;
+
+/**
+ * Fetches a single project by ID using the search endpoint logic (uncached).
  * Endpoint: POST /projects/searches
  */
-export async function getProjectById(
-    projectId: number
-): Promise<Project> {
+export async function fetchProjectById(projectId: number): Promise<Project> {
     const response = await searchProjects({
         page: 1,
         limit: 1,
@@ -307,6 +301,20 @@ export async function getProjectById(
 }
 
 /**
+ * Fetches a single project by ID through the React Query cache: concurrent
+ * callers share one request and a project fetched less than `PROJECT_STALE_MS`
+ * ago is returned as is. Mutations (`updateProject`, `deleteProject`)
+ * invalidate it. `useProject` is the hook form for components.
+ */
+export async function getProjectById(projectId: number): Promise<Project> {
+    return queryClient.fetchQuery({
+        queryKey: projectQueryKey(projectId),
+        queryFn: () => fetchProjectById(projectId),
+        staleTime: PROJECT_STALE_MS,
+    });
+}
+
+/**
  * Updates an existing project.
  * Endpoint: PATCH /projects/:id
  */
@@ -314,10 +322,13 @@ export async function updateProject(
     projectId: number,
     payload: PublicProjectUpdateModel
 ): Promise<Project> {
-    return http<Project>(`/projects/${projectId}`, {
+    const updated = await http<Project>(`/projects/${projectId}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
     });
+    // Lists and the cached detail are stale now.
+    void queryClient.invalidateQueries({ queryKey: [...PROJECTS_ROOT_QUERY_KEY] });
+    return updated;
 }
 
 /**
@@ -329,6 +340,8 @@ export async function deleteProject(projectId: number): Promise<void> {
     await http<unknown>(`/projects/${projectId}/`, {
         method: "DELETE",
     });
+    queryClient.removeQueries({ queryKey: projectQueryKey(projectId) });
+    void queryClient.invalidateQueries({ queryKey: [...PROJECTS_ROOT_QUERY_KEY] });
 }
 
 
@@ -406,7 +419,7 @@ export async function getLastBackupDate(
     });
 }
 
-// MENTOR FIX: Nouvelle interface pour capturer la réponse du Backend (Le système de Tâches)
+/** The task record returned when the backend queues a background job. */
 export interface TaskLaunchResponse {
     task_id: number;
     task_status: string;
@@ -414,12 +427,8 @@ export interface TaskLaunchResponse {
     task_progress_msg?: string;
 }
 
-export interface LastBackupDateResponse {
-    last_backup_date: string | null;
-}
-
 /**
- * Triggers an export of the backuped raw project.
+ * Triggers an export of the backed-up raw project.
  */
 export async function exportProjectBackup(
     projectId: number,
@@ -638,76 +647,15 @@ export interface EcoTaxaSampleData {
 //   Align the response interface with the Swagger documentation.
 // The backend returns the array under the key "samples", not "items".
 export interface SampleSearchResponse {
-    search_info: { total: number; page: number; limit: number };
+    search_info: SearchInfo;
     samples: SampleData[];
 }
 
 export interface EcoTaxaSampleSearchResponse {
-    search_info: { total: number; page: number; limit: number };
+    search_info: SearchInfo;
     samples: EcoTaxaSampleData[];
 }
 
-/** Common meta fields a paginated sample list may carry (all optional/defensive). */
-type RawPaginatedMeta = {
-    search_info?: { total?: number; page?: number; limit?: number };
-    total?: number;
-    page?: number;
-    limit?: number;
-};
-
-/**
- * Normalize a defensively-typed sample list (bare array OR paginated object) into
- * the canonical `{ search_info, samples }` shape. `pickSamples` resolves the
- * samples array from the object branch (each endpoint keys it differently).
- */
-function normalizeSampleSearchResponse<T, R extends RawPaginatedMeta>(
-    raw: T[] | R,
-    pickSamples: (obj: R) => T[],
-): { search_info: { total: number; page: number; limit: number }; samples: T[] } {
-    if (Array.isArray(raw)) {
-        return {
-            search_info: { total: raw.length, page: 1, limit: raw.length > 0 ? raw.length : 10 },
-            samples: raw,
-        };
-    }
-
-    const samples = pickSamples(raw);
-
-    return {
-        search_info: {
-            total: raw.search_info?.total ?? raw.total ?? samples.length,
-            page: raw.search_info?.page ?? raw.page ?? 1,
-            limit: raw.search_info?.limit ?? raw.limit ?? (samples.length > 0 ? samples.length : 10),
-        },
-        samples,
-    };
-}
-
-/**
- * The EcoTaxa list endpoint is not fully described in the backend OpenAPI spec
- * (the EcoTaxaSampleListResponse schema is referenced but undefined), so we stay
- * defensive: accept a bare array, or a paginated object keyed by samples /
- * ecotaxa_samples / items / etc.
- */
-type RawEcoTaxaSampleSearchResponse = EcoTaxaSampleData[] | {
-    search_info?: { total?: number; page?: number; limit?: number };
-    samples?: EcoTaxaSampleData[];
-    ecotaxa_samples?: EcoTaxaSampleData[];
-    items?: EcoTaxaSampleData[];
-    results?: EcoTaxaSampleData[];
-    rows?: EcoTaxaSampleData[];
-    data?: EcoTaxaSampleData[];
-    total?: number;
-    page?: number;
-    limit?: number;
-};
-
-function normalizeEcoTaxaSampleSearchResponse(raw: RawEcoTaxaSampleSearchResponse): EcoTaxaSampleSearchResponse {
-    return normalizeSampleSearchResponse(
-        raw,
-        (obj) => obj.samples ?? obj.ecotaxa_samples ?? obj.items ?? obj.results ?? obj.rows ?? obj.data ?? [],
-    );
-}
 
 /**
  * Search/List already imported UVP samples for a project.
@@ -721,9 +669,37 @@ export async function searchProjectSamples(projectId: number, params: ProjectSea
 
     if (params.sort_by) query.set("sort_by", params.sort_by);
 
-    return http<SampleSearchResponse>(`/projects/${projectId}/samples/searches?${query.toString()}`, {
+    const rawResponse = await http<RawList<SampleData>>(`/projects/${projectId}/samples/searches?${query.toString()}`, {
         method: "POST",
         body: JSON.stringify(params.filters ?? []),
+    });
+
+    const { search_info, items } = normalizeList(rawResponse, SAMPLE_LIST_KEYS);
+    return { search_info, samples: items };
+}
+
+/**
+ * Fill in `nbr_sample` for a page of projects.
+ *
+ * The project-search endpoint does not return a sample count, so we ask the
+ * samples search endpoint for `search_info.total` (limit=1, one lightweight
+ * request per row). A failed request leaves `nbr_sample` undefined so the grid
+ * shows "—" (unknown) rather than a misleading "0".
+ *
+ * NOTE: this is an N+1 the backend should eventually fold into the project
+ * search response; keep page sizes reasonable until it does.
+ */
+export async function enrichProjectsWithSampleCounts(projects: Project[]): Promise<Project[]> {
+    if (projects.length === 0) return projects;
+
+    const results = await Promise.allSettled(
+        projects.map((project) => searchProjectSamples(project.project_id, { page: 1, limit: 1, filters: [] })),
+    );
+
+    return projects.map((project, index) => {
+        const result = results[index];
+        const total = result.status === "fulfilled" ? result.value.search_info?.total : undefined;
+        return typeof total === "number" ? { ...project, nbr_sample: total } : project;
     });
 }
 
@@ -743,11 +719,12 @@ export async function searchProjectEcoTaxaSamples(projectId: number, params: Pro
 
     if (params.sort_by) query.set("sort_by", params.sort_by);
 
-    const rawResponse = await http<RawEcoTaxaSampleSearchResponse>(`/projects/${projectId}/ecotaxa_samples?${query.toString()}`, {
+    const rawResponse = await http<RawList<EcoTaxaSampleData>>(`/projects/${projectId}/ecotaxa_samples?${query.toString()}`, {
         method: "GET",
     });
 
-    return normalizeEcoTaxaSampleSearchResponse(rawResponse);
+    const { search_info, items } = normalizeList(rawResponse, SAMPLE_LIST_KEYS);
+    return { search_info, samples: items };
 }
 
 /**
@@ -793,46 +770,16 @@ export interface ImportableCtdSample {
 }
 
 export interface CtdSampleSearchResponse {
-    search_info: { total: number; page: number; limit: number };
+    search_info: SearchInfo;
     samples: CtdSampleData[];
 }
 
-// The backend may return either a bare array of samples OR a paginated
-// { search_info, samples } object depending on its version — accept both.
-type RawCtdSampleSearchResponse = CtdSampleData[] | {
-    search_info?: { total?: number; page?: number; limit?: number };
-    samples?: CtdSampleData[];
-    items?: CtdSampleData[];
-    results?: CtdSampleData[];
-    rows?: CtdSampleData[];
-    data?: CtdSampleData[];
-    total?: number;
-    page?: number;
-    limit?: number;
-};
-
-type RawCtdImportableResponse = string[] | ImportableCtdSample[] | {
-    samples?: string[] | ImportableCtdSample[];
-    items?: string[] | ImportableCtdSample[];
-    results?: string[] | ImportableCtdSample[];
-    rows?: string[] | ImportableCtdSample[];
-    data?: string[] | ImportableCtdSample[];
-};
-
-function normalizeCtdSampleSearchResponse(raw: RawCtdSampleSearchResponse): CtdSampleSearchResponse {
-    return normalizeSampleSearchResponse(
-        raw,
-        (obj) => obj.samples ?? obj.items ?? obj.results ?? obj.rows ?? obj.data ?? [],
-    );
-}
-
-function normalizeImportableCtdSamples(raw: RawCtdImportableResponse): ImportableCtdSample[] {
-    let rawSamples: (string | ImportableCtdSample)[] = [];
-    if (Array.isArray(raw)) {
-        rawSamples = raw;
-    } else {
-        rawSamples = raw?.samples ?? raw?.items ?? raw?.results ?? raw?.rows ?? raw?.data ?? [];
-    }
+/**
+ * `GET /ctd_samples/can_be_imported` may answer bare names or sample objects;
+ * names are promoted to objects with the "ctd" extension.
+ */
+function normalizeImportableCtdSamples(raw: RawList<string | ImportableCtdSample>): ImportableCtdSample[] {
+    const rawSamples = normalizeList(raw, SAMPLE_LIST_KEYS).items;
 
     if (rawSamples.length === 0) {
         return [];
@@ -857,11 +804,12 @@ export async function searchProjectCtdSamples(projectId: number, params: Project
 
     if (params.sort_by) query.set("sort_by", params.sort_by);
 
-    const rawResponse = await http<RawCtdSampleSearchResponse>(`/projects/${projectId}/ctd_samples?${query.toString()}`, {
+    const rawResponse = await http<RawList<CtdSampleData>>(`/projects/${projectId}/ctd_samples?${query.toString()}`, {
         method: "GET",
     });
 
-    return normalizeCtdSampleSearchResponse(rawResponse);
+    const { search_info, items } = normalizeList(rawResponse, SAMPLE_LIST_KEYS);
+    return { search_info, samples: items };
 }
 
 /**
@@ -869,7 +817,7 @@ export async function searchProjectCtdSamples(projectId: number, params: Project
  * Endpoint: GET /projects/:project_id/ctd_samples/can_be_imported
  */
 export async function getImportableCtdSamples(projectId: number): Promise<ImportableCtdSample[]> {
-    const rawResponse = await http<RawCtdImportableResponse>(`/projects/${projectId}/ctd_samples/can_be_imported`, {
+    const rawResponse = await http<RawList<string | ImportableCtdSample>>(`/projects/${projectId}/ctd_samples/can_be_imported`, {
         method: "GET",
     });
 

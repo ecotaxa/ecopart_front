@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Routes, Route } from 'react-router-dom';
+import { Link, Routes, Route } from 'react-router-dom';
 
 vi.mock('../api/projects.api', () => ({
     getOneTask: vi.fn(),
@@ -11,9 +11,10 @@ vi.mock('../api/projects.api', () => ({
     isExportTask: vi.fn(() => false),
 }));
 
-import { getOneTask, getTaskLog, deleteProjectTask, Task } from '../api/projects.api';
+import { getOneTask, getTaskLog, deleteProjectTask, type Task } from '../api/projects.api';
 import TaskDetailsPage from './TaskDetailsPage';
 import { renderWithRouter } from '@/test/utils';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 const mockedGetOneTask = vi.mocked(getOneTask);
 const mockedGetTaskLog = vi.mocked(getTaskLog);
@@ -128,7 +129,7 @@ describe('TaskDetailsPage (Functional)', () => {
     // TC-S5: Delete Success + Navigation
     it('TC-S5: deletes the task and navigates back to the tasks list', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         renderDetail();
         await screen.findByText('IMPORT task [42]');
 
@@ -141,7 +142,7 @@ describe('TaskDetailsPage (Functional)', () => {
     // TC-S6: Delete Error keeps the user on the page
     it('TC-S6: stays on the detail page and re-enables DELETE when deletion fails', async () => {
         const user = userEvent.setup();
-        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        answerConfirmDialogs(true);
         mockedDeleteProjectTask.mockRejectedValueOnce(new Error('boom'));
         renderDetail();
         await screen.findByText('IMPORT task [42]');
@@ -177,6 +178,35 @@ describe('TaskDetailsPage (Functional)', () => {
         // Advance one 2500ms interval and flush the poll's promise.
         await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
         expect(mockedGetOneTask).toHaveBeenCalledTimes(2);
+    });
+
+    // TC-S8c: A slow answer for the previous task must not overwrite the task now open
+    it('TC-S8c: ignores a late response for a task the user has already left', async () => {
+        let resolveTask42!: (task: Task) => void;
+        mockedGetOneTask.mockImplementation((taskId) =>
+            taskId === 42
+                ? new Promise<Task>((resolve) => { resolveTask42 = resolve; })
+                : Promise.resolve(makeTask({ task_id: 43 })),
+        );
+        const user = userEvent.setup();
+        renderWithRouter(
+            <>
+                <Link to="/projects/77/tasks/43">open task 43</Link>
+                <Routes>
+                    <Route path="/projects/:id/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
+                </Routes>
+            </>,
+            { route: '/projects/77/tasks/42' },
+        );
+
+        // Task 42 is still loading when the user opens task 43.
+        await user.click(screen.getByRole('link', { name: 'open task 43' }));
+        expect(await screen.findByText(/IMPORT task \[43\]/)).toBeInTheDocument();
+
+        // The answer for task 42 arrives afterwards and must be ignored.
+        await act(async () => { resolveTask42(makeTask({ task_id: 42 })); });
+        expect(screen.getByText(/IMPORT task \[43\]/)).toBeInTheDocument();
+        expect(screen.queryByText(/IMPORT task \[42\]/)).not.toBeInTheDocument();
     });
 
     // TC-S8b: No polling once the task is DONE

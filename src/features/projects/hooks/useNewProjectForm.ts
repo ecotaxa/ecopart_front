@@ -1,250 +1,49 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertColor } from "@mui/material";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { AlertColor } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-import { NewProjectFormValues } from "../types/newProject.types";
-import { PublicProjectRequestCreationModel, createProject, getImportFolderMetadata } from "../api/projects.api";
-import { fetchActiveUsers, UserSearchResponse } from "@/features/auth/api/users.api";
+import type { NewProjectFormValues } from "../types/newProject.types";
+import { type PublicProjectRequestCreationModel, createProject, getImportFolderMetadata } from "../api/projects.api";
+import { fetchActiveUsers, type UserSearchResponse } from "@/features/auth/api/users.api";
 import { useAuthStore } from "@/features/auth/store/auth.store";
-
+import { extractErrorMessage } from "@/shared/utils/errorMessage";
+import {
+    type ProjectFormErrors,
+    buildPrivilegesPayload,
+    createEmptyProjectFormValues,
+    mapBackendErrorToFieldErrors,
+    parsePositiveInt,
+    toNullableInt,
+    validateProjectForm,
+} from "../utils/projectForm";
 
 /**
  * Field-level errors used to display inline validation messages directly under inputs.
  * This is intentionally flat because it is easier to pass down to presentational components.
  */
-export interface NewProjectFormErrors {
-    rootFolderPath?: string;
+export type NewProjectFormErrors = ProjectFormErrors;
 
-    instrumentModel?: string;
-    instrumentSerialNumber?: string;
-
-    projectTitle?: string;
-    projectAcronym?: string;
-    ship?: string;
-    cruise?: string;
-    projectDescription?: string;
-
-    dataOwnerName?: string;
-    dataOwnerEmail?: string;
-    chiefScientistName?: string;
-    chiefScientistEmail?: string;
-    operatorName?: string;
-    operatorEmail?: string;
-
-    ecoTaxaInstance?: string;
-    ecoTaxaAccount?: string;
-    ecoTaxaProject?: string;
-
-    privilegesManager?: string;
-    privilegesContact?: string;
-
-    privateMonths?: string;
-    visibleMonths?: string;
-    publicMonths?: string;
-}
-
-/**
- * Backend validation item shape commonly returned by express-validator style APIs.
- */
-interface BackendValidationItem {
-    msg?: string;
-}
-
-/**
- * Backend error response shape.
- */
-interface BackendErrorResponse {
-    errors?: Array<string | BackendValidationItem>;
-    message?: string;
-}
-
-/**
- * Type guard for a plain object.
- */
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-    return typeof value === "object" && value !== null;
+/** The error keys each form section owns — editing a section clears them. */
+const SECTION_ERROR_KEYS: Record<keyof NewProjectFormValues, (keyof ProjectFormErrors)[]> = {
+    rootFolderPath: ["rootFolderPath"],
+    instrument: ["instrumentModel", "instrumentSerialNumber"],
+    metadata: ["projectTitle", "projectAcronym", "ship", "cruise", "projectDescription"],
+    people: ["dataOwnerName", "dataOwnerEmail", "chiefScientistName", "chiefScientistEmail", "operatorName", "operatorEmail"],
+    importSettings: [],
+    ecoTaxa: ["ecoTaxaInstance", "ecoTaxaAccount", "ecoTaxaProject"],
+    privileges: ["privilegesManager", "privilegesContact"],
+    privacy: ["privateMonths", "visibleMonths", "publicMonths"],
 };
 
-/**
- * Type guard for backend error payloads.
- */
-const isBackendErrorResponse = (value: unknown): value is BackendErrorResponse => {
-    if (!isRecord(value)) return false;
-
-    const maybeErrors = value["errors"];
-    const maybeMessage = value["message"];
-
-    const errorsOk =
-        maybeErrors === undefined ||
-        (Array.isArray(maybeErrors) &&
-            maybeErrors.every(
-                (item) =>
-                    typeof item === "string" ||
-                    (isRecord(item) && (item["msg"] === undefined || typeof item["msg"] === "string"))
-            ));
-
-    const messageOk = maybeMessage === undefined || typeof maybeMessage === "string";
-
-    return errorsOk && messageOk;
-};
-
-/**
- * Safely extract a readable error message from any thrown value.
- */
-const extractErrorMessage = (error: unknown): string => {
-    // Add early return if error is undefined or null
-    if (!error) return "An unexpected error occurred.";
-    if (typeof error === "string") return error;
-
-    if (error instanceof Error && error.message.trim()) {
-        return error.message;
-    }
-
-    if (isBackendErrorResponse(error)) {
-        if (Array.isArray(error.errors) && error.errors.length > 0) {
-            const firstError = error.errors[0];
-
-            if (typeof firstError === "string") {
-                return firstError;
-            }
-
-            if (typeof firstError.msg === "string" && firstError.msg.trim()) {
-                return firstError.msg;
-            }
-        }
-
-        if (typeof error.message === "string" && error.message.trim()) {
-            return error.message;
-        }
-    }
-
-    return "An unexpected error occurred while creating the project.";
-};
-
-/**
- * Maps a backend error message to the most relevant inline field error(s).
- * This lets us keep the raw backend message while also placing it near the correct UI area.
- */
-const mapBackendErrorToFieldErrors = (message: string): Partial<NewProjectFormErrors> => {
-    const lowered = message.toLowerCase();
-
-    if (lowered.includes("manager")) {
-        return { privilegesManager: message };
-    }
-
-    if (lowered.includes("contact")) {
-        return { privilegesContact: message };
-    }
-
-    if (lowered.includes("ship")) {
-        return { ship: message };
-    }
-
-    if (lowered.includes("ecotaxa") && lowered.includes("project")) {
-        return { ecoTaxaProject: message };
-    }
-
-    if (lowered.includes("already linked")) {
-        return { ecoTaxaProject: message };
-    }
-
-    if (lowered.includes("privacy") || lowered.includes("delay")) {
-        return {
-            privateMonths: message,
-            visibleMonths: message,
-            publicMonths: message,
-        };
-    }
-
-    return {};
-};
-
-/**
- * Parse a positive integer from a string.
- * If the value is invalid or below 1, fallback to 1.
- */
-const parsePositiveInt = (value: string | number): number => {
-    // Safely handle if the value is already a number
-    const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
-
-    if (Number.isNaN(parsed) || parsed < 1) {
-        return 1;
-    }
-
-    return parsed;
-};
-
-/**
- * Parse a numeric select value to nullable integer.
- * Empty string returns null.
- */
-const toNullableInt = (value: string | number | null | undefined): number | null => {
-    if (value === undefined || value === null || value === "") {
-        return null;
-    }
-    const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value;
-    return Number.isNaN(parsed) ? null : parsed;
-};
+/** Delay before leaving the page after a successful creation, so the success toast is readable. */
+const REDIRECT_DELAY_MS = 1500;
 
 export const useNewProjectForm = () => {
     // --------------------------------------------------
     // 1. INITIAL STATE
     // --------------------------------------------------
-    const [values, setValues] = useState<NewProjectFormValues>({
-        rootFolderPath: "",
-        instrument: {
-            model: "",
-            serialNumber: "",
-        },
-        metadata: {
-            title: "",
-            acronym: "",
-            ship: [],
-            cruise: "",
-            description: "",
-            filteredBeforeImport: false,
-            timeDurationCheck: true,
-        },
-        people: {
-            dataOwnerName: "",
-            dataOwnerEmail: "",
-            dataOwnerId: null as number | null,
-            chiefScientistName: "",
-            chiefScientistEmail: "",
-            chiefScientistId: null as number | null,
-            operatorName: "",
-            operatorEmail: "",
-            operatorId: null as number | null,
-        },
-        importSettings: {
-            overrideDepthOffset: 0,
-            enableDescentFilter: true,
-        },
-        ecoTaxa: {
-            instance: "",
-            account: "",
-            project: "",
-            createNewProject: true,
-        },
-        privileges: [],
+    const [values, setValues] = useState<NewProjectFormValues>(createEmptyProjectFormValues);
 
-        // Update default privacy duration delays (in months)
-        privacy: {
-            privateMonths: 2,   // Default delay until visible
-            visibleMonths: 24,  // Default delay until public
-            publicMonths: 36,   // Default delay until open
-        },
-
-        dataServer: {
-            host: "",
-            username: "",
-            password: "",
-            directory: "",
-            vectorReference: "",
-        },
-    });
-
-    // Initialise le hook de navigation
     const navigate = useNavigate();
 
     /**
@@ -258,7 +57,6 @@ export const useNewProjectForm = () => {
     // prefix in the Project title field: the user may only append text after it.
     const [lockedTitlePrefix, setLockedTitlePrefix] = useState("");
     const [pendingMetadataPrivilegeIds, setPendingMetadataPrivilegeIds] = useState<number[] | null>(null);
-    const isRemoteProject = values.instrument.model.toLowerCase().includes("remote");
 
     // Current authenticated user used for privilege auto-fill
     const currentUser = useAuthStore((state) => state.user);
@@ -274,10 +72,21 @@ export const useNewProjectForm = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRedirecting, setIsRedirecting] = useState(false);
 
+    // The post-creation redirect timer, cleared if the page unmounts first.
+    const redirectTimer = useRef<number | null>(null);
+    useEffect(() => () => {
+        if (redirectTimer.current !== null) window.clearTimeout(redirectTimer.current);
+    }, []);
+
     // Helper function to easily trigger a notification
-    const showSnackbar = (message: string, severity: AlertColor = "info") => {
+    const showSnackbar = useCallback((message: string, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });
-    };
+    }, []);
+
+    // Function to close the notification (used by the UI)
+    const closeSnackbar = useCallback(() => {
+        setSnackbar((prev) => ({ ...prev, open: false }));
+    }, []);
 
     const appendMetadataUsersToPrivileges = useCallback((metadataUserIds: number[]) => {
         if (metadataUserIds.length === 0) {
@@ -343,31 +152,30 @@ export const useNewProjectForm = () => {
         ].filter((id): id is number => typeof id === "number" && id > 0);
     };
 
-    // Function to close the notification (used by the UI)
-    const closeSnackbar = () => {
-        setSnackbar((prev) => ({ ...prev, open: false }));
-    };
-
     // --------------------------------------------------
     // 2. FETCH USERS ON MOUNT
     // --------------------------------------------------
     useEffect(() => {
+        let cancelled = false;
+
         const loadUsers = async () => {
             try {
                 const response = await fetchActiveUsers();
-                if (response && response.users) {
+                if (!cancelled && response && response.users) {
                     setAvailableUsers(response.users);
                 }
             } catch (error) {
+                if (cancelled) return;
                 console.error("Failed to fetch users", error);
                 showSnackbar("Failed to load users from the server.", "error");
             } finally {
-                setAvailableUsersLoaded(true);
+                if (!cancelled) setAvailableUsersLoaded(true);
             }
         };
 
         loadUsers();
-    }, []);
+        return () => { cancelled = true; };
+    }, [showSnackbar]);
 
     useEffect(() => {
         if (!availableUsersLoaded || pendingMetadataPrivilegeIds === null) {
@@ -381,7 +189,9 @@ export const useNewProjectForm = () => {
     // --------------------------------------------------
     // 3. DYNAMIC FIELD UPDATER
     // --------------------------------------------------
-    const updateField = <T extends keyof NewProjectFormValues>(
+    // Stable identity (only state setters inside) so child sections can safely
+    // depend on it without re-running their effects on every parent render.
+    const updateField = useCallback(<T extends keyof NewProjectFormValues>(
         section: T,
         data: Partial<NewProjectFormValues[T]> | NewProjectFormValues[T]
     ) => {
@@ -405,55 +215,15 @@ export const useNewProjectForm = () => {
         });
 
         // Clear related errors when the user edits the corresponding section.
-        setErrors((prev) => {
-            const next = { ...prev };
-
-            if (section === "rootFolderPath") {
-                delete next.rootFolderPath;
-            }
-
-            if (section === "instrument") {
-                delete next.instrumentModel;
-                delete next.instrumentSerialNumber;
-            }
-
-            if (section === "metadata") {
-                delete next.projectTitle;
-                delete next.projectAcronym;
-                delete next.ship;
-                delete next.cruise;
-                delete next.projectDescription;
-            }
-
-            if (section === "people") {
-                delete next.dataOwnerName;
-                delete next.dataOwnerEmail;
-                delete next.chiefScientistName;
-                delete next.chiefScientistEmail;
-                delete next.operatorName;
-                delete next.operatorEmail;
-            }
-
-            if (section === "ecoTaxa") {
-                delete next.ecoTaxaInstance;
-                delete next.ecoTaxaAccount;
-                delete next.ecoTaxaProject;
-            }
-
-            if (section === "privileges") {
-                delete next.privilegesManager;
-                delete next.privilegesContact;
-            }
-
-            if (section === "privacy") {
-                delete next.privateMonths;
-                delete next.visibleMonths;
-                delete next.publicMonths;
-            }
-
-            return next;
-        });
-    };
+        const keysToClear = SECTION_ERROR_KEYS[section];
+        if (keysToClear.length > 0) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                for (const key of keysToClear) delete next[key];
+                return next;
+            });
+        }
+    }, []);
 
     // --------------------------------------------------
     // 4. METADATA PARSER
@@ -524,83 +294,7 @@ export const useNewProjectForm = () => {
     // 5. VALIDATION LOGIC
     // --------------------------------------------------
     const validateForm = (): boolean => {
-        const nextErrors: NewProjectFormErrors = {};
-
-        // We trim() strings to prevent users from bypassing validation with whitespace.
-        if (!values.rootFolderPath.trim()) nextErrors.rootFolderPath = "Root folder path is required.";
-
-        if (!values.instrument.model.trim()) nextErrors.instrumentModel = "Instrument model is required.";
-        if (!values.instrument.serialNumber.trim()) nextErrors.instrumentSerialNumber = "Instrument serial number is required.";
-
-        if (!values.metadata.title.trim()) nextErrors.projectTitle = "Project title is required.";
-        if (!values.metadata.acronym.trim()) nextErrors.projectAcronym = "Project acronym is required.";
-        if (values.metadata.ship.length === 0) nextErrors.ship = "At least one ship must be selected.";
-        if (!values.metadata.cruise.trim()) nextErrors.cruise = "Cruise is required.";
-        if (!values.metadata.description.trim()) nextErrors.projectDescription = "Project description is required.";
-
-        // Simple email regex for client-side validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        // Data Owner validation
-        if (!values.people.dataOwnerName.trim()) {
-            nextErrors.dataOwnerName = "Data owner name is required.";
-        } else if (emailRegex.test(values.people.dataOwnerName.trim())) {
-            // Warn if name field looks like an email (user likely swapped fields)
-            nextErrors.dataOwnerName = "This looks like an email address. Please enter a name.";
-        }
-        if (!values.people.dataOwnerEmail.trim()) {
-            nextErrors.dataOwnerEmail = "Data owner email is required.";
-        } else if (!emailRegex.test(values.people.dataOwnerEmail.trim())) {
-            nextErrors.dataOwnerEmail = "Please enter a valid email address.";
-        }
-
-        // Chief Scientist validation
-        if (!values.people.chiefScientistName.trim()) {
-            nextErrors.chiefScientistName = "Chief scientist name is required.";
-        } else if (emailRegex.test(values.people.chiefScientistName.trim())) {
-            nextErrors.chiefScientistName = "This looks like an email address. Please enter a name.";
-        }
-        if (!values.people.chiefScientistEmail.trim()) {
-            nextErrors.chiefScientistEmail = "Chief scientist email is required.";
-        } else if (!emailRegex.test(values.people.chiefScientistEmail.trim())) {
-            nextErrors.chiefScientistEmail = "Please enter a valid email address.";
-        }
-
-        // Operator validation
-        if (!values.people.operatorName.trim()) {
-            nextErrors.operatorName = "Operator name is required.";
-        } else if (emailRegex.test(values.people.operatorName.trim())) {
-            nextErrors.operatorName = "This looks like an email address. Please enter a name.";
-        }
-        if (!values.people.operatorEmail.trim()) {
-            nextErrors.operatorEmail = "Operator email is required.";
-        } else if (!emailRegex.test(values.people.operatorEmail.trim())) {
-            nextErrors.operatorEmail = "Please enter a valid email address.";
-        }
-
-        // EcoTaxa project is required only if we are NOT creating a new project.
-        // if (!values.ecoTaxa.createNewProject && !values.ecoTaxa.project.trim()) {
-        //     nextErrors.ecoTaxaProject = "EcoTaxa project is required.";
-        // }
-
-        // Privileges rules
-        const hasManager = values.privileges.some((row) => row.role === "Manager");
-        if (!hasManager) {
-            nextErrors.privilegesManager = "At least one user must be a manager.";
-        }
-
-        const selectedContact = values.privileges.find((row) => row.contact === true);
-        if (!selectedContact) {
-            nextErrors.privilegesContact = "A contact is required.";
-        } else if (!selectedContact.userId.trim()) {
-            nextErrors.privilegesContact = "The contact must be linked to a valid user.";
-        }
-
-        // Delays must be at least 1 month
-        if (values.privacy.privateMonths < 1) nextErrors.privateMonths = "Delay must be at least 1 month.";
-        if (values.privacy.visibleMonths < 1) nextErrors.visibleMonths = "Delay must be at least 1 month.";
-        if (values.privacy.publicMonths < 1) nextErrors.publicMonths = "Delay must be at least 1 month.";
-
+        const nextErrors = validateProjectForm(values);
         setErrors(nextErrors);
 
         const firstError = Object.values(nextErrors)[0];
@@ -616,23 +310,18 @@ export const useNewProjectForm = () => {
     // 6. SUBMIT HANDLER
     // --------------------------------------------------
     const handleSubmit = async () => {
+        if (isSubmitting || isRedirecting) return;
         setIsSubmitting(true);
         try {
             if (!validateForm()) {
-                setIsSubmitting(false);
                 return;
             }
 
-            const selectedContact = values.privileges.find((row) => row.contact === true);
-            if (!selectedContact) {
+            const { contact, managers, members } = buildPrivilegesPayload(values.privileges);
+            if (!contact) {
+                // Unreachable after validateForm(), kept as a type guard.
                 return;
             }
-
-            // Safely parse integers to prevent sending NaN to backend which causes 500 errors
-            const safeParseInt = (val: string, fallback: number = 1): number => {
-                const parsed = Number.parseInt(val, 10);
-                return Number.isNaN(parsed) ? fallback : parsed;
-            };
 
             // 1. Data Mapping: Transform Frontend state to Backend payload format
             // We build the object incrementally to avoid sending undefined values
@@ -656,54 +345,44 @@ export const useNewProjectForm = () => {
                 instrument_model: values.instrument.model,
                 serial_number: values.instrument.serialNumber.trim(),
 
-                override_depth_offset: typeof values.importSettings.overrideDepthOffset === 'string' ? parseFloat(values.importSettings.overrideDepthOffset) : values.importSettings.overrideDepthOffset,
+                override_depth_offset: values.importSettings.overrideDepthOffset,
                 enable_descent_filter: values.importSettings.enableDescentFilter,
 
                 privacy_duration: parsePositiveInt(values.privacy.privateMonths),
                 visible_duration: parsePositiveInt(values.privacy.visibleMonths),
                 public_duration: parsePositiveInt(values.privacy.publicMonths),
 
-                // Strict privilege formatting matching your successful Postman structure
-                contact: { user_id: safeParseInt(selectedContact.userId) },
-                managers: values.privileges
-                    .filter((row) => row.role === "Manager" && row.userId.trim() !== "")
-                    .map((row) => ({ user_id: safeParseInt(row.userId) })),
-                members: values.privileges
-                    .filter((row) => row.role === "Member" && row.userId.trim() !== "")
-                    .map((row) => ({ user_id: safeParseInt(row.userId) })),
+                contact,
+                managers,
+                members,
             };
 
-            // Only add ecotaxa fields if they actually exist to avoid sending nulls 
+            // Only add ecotaxa fields if they actually exist to avoid sending nulls
             // if the backend DB doesn't like them during creation.
             const instanceId = toNullableInt(values.ecoTaxa.instance);
             const accountId = toNullableInt(values.ecoTaxa.account);
 
             if (values.ecoTaxa.createNewProject) {
                 payload.new_ecotaxa_project = true;
-                if (instanceId) payload.ecotaxa_instance_id = instanceId;
-                if (accountId) payload.ecotaxa_account_id = accountId;
             } else {
                 const projectId = toNullableInt(values.ecoTaxa.project);
                 if (projectId) payload.ecotaxa_project_id = projectId;
-                if (instanceId) payload.ecotaxa_instance_id = instanceId;
-                if (accountId) payload.ecotaxa_account_id = accountId;
             }
-
-            // DEBUG: Log exactly what we are sending
-            console.log("[NewProject] Payload being sent:", JSON.stringify(payload, null, 2));
+            if (instanceId) payload.ecotaxa_instance_id = instanceId;
+            if (accountId) payload.ecotaxa_account_id = accountId;
 
             const createdProject = await createProject(payload as PublicProjectRequestCreationModel);
 
             setIsRedirecting(true);
             showSnackbar("Project successfully created! Redirecting...", "success");
 
-            setTimeout(() => {
+            redirectTimer.current = window.setTimeout(() => {
                 navigate(`/projects/${createdProject.project_id}/import`);
-            }, 1500);
+            }, REDIRECT_DELAY_MS);
         } catch (error: unknown) {
             console.error("API Error during project creation:", error);
 
-            const errorMessage = extractErrorMessage(error);
+            const errorMessage = extractErrorMessage(error, "An unexpected error occurred while creating the project.");
             const mappedErrors = mapBackendErrorToFieldErrors(errorMessage);
 
             setErrors((prev) => ({
@@ -725,7 +404,6 @@ export const useNewProjectForm = () => {
         handleLoadMetadata,
         availableUsers,
         currentUser,
-        isRemoteProject,
         lockedTitlePrefix,
         snackbar,
         closeSnackbar,
