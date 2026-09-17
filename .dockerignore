@@ -1,0 +1,15 @@
+# Only the sources needed by `npm ci && npm run build` go into the build context.
+node_modules
+dist
+coverage
+.git
+.github
+.vscode
+.claude
+*.env
+.env*
+*.log
+*.md
+.vitest-target.json
+Dockerfile
+docker-compose.yml

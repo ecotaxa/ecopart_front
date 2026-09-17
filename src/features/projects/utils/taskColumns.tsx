@@ -2,9 +2,9 @@ import { Stack, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
-import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
-import { isExportTask, Task } from "../api/projects.api";
+import { isExportTask, type Task } from "../api/projects.api";
 
 /**
  * Shared task-grid formatting + columns.

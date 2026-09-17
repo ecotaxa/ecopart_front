@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-import { QcProfileChart, QcChartSeries } from './QcProfileChart';
+import { QcProfileChart, type QcChartSeries } from './QcProfileChart';
 
 // Depth (y) is irrelevant to the branch logic under test; only the x values (the plotted value)
 // decide log/linear and which points survive, so we spread depth linearly.

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 
 import {
     EXPORT_TASK_TYPE_LABELS,
-    SearchFilter,
+    type SearchFilter,
     searchProjects,
     searchProjectTasks,
 } from "@/features/projects/api/projects.api";

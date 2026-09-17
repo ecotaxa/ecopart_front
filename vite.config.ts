@@ -16,6 +16,25 @@ export default defineConfig(({ mode }) => {
             },
         },
 
+        build: {
+            rollupOptions: {
+                output: {
+                    // Split the heavy vendor libraries into their own long-lived chunks so a
+                    // release of app code does not invalidate them in the browser cache, and
+                    // the per-route chunks (React.lazy in app/router.tsx) stay small.
+                    manualChunks: {
+                        react: ["react", "react-dom", "react-router-dom"],
+                        mui: ["@mui/material", "@mui/icons-material", "@emotion/react", "@emotion/styled"],
+                        // The grid is used by most list screens, the charts only by the admin
+                        // statistics and the QC preview: keep them apart so a page pulls only
+                        // what it renders.
+                        "mui-x-grid": ["@mui/x-data-grid"],
+                        "mui-x-charts": ["@mui/x-charts"],
+                    },
+                },
+            },
+        },
+
         server: {
             proxy: {
                 "/auth": {

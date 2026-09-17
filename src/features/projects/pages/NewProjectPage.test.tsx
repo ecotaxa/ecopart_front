@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
-import userEvent, { UserEvent } from '@testing-library/user-event';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 

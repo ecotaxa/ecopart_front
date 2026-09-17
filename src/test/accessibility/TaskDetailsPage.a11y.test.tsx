@@ -11,7 +11,7 @@ vi.mock('@/features/projects/api/projects.api', () => ({
     isExportTask: vi.fn(() => false),
 }));
 
-import { getOneTask, getTaskLog, deleteProjectTask, Task } from '@/features/projects/api/projects.api';
+import { getOneTask, getTaskLog, deleteProjectTask, type Task } from '@/features/projects/api/projects.api';
 import TaskDetailsPage from '@/features/projects/pages/TaskDetailsPage';
 import { renderWithRouter } from '@/test/utils';
 

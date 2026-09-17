@@ -3,7 +3,7 @@ import {
     FormControlLabel, Checkbox, Radio, RadioGroup, Snackbar, CircularProgress,
 } from "@mui/material";
 
-import {
+import type {
     AnnouncementSeverity,
     Announcement,
 } from "../store/announcement.store";

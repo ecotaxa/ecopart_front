@@ -3,7 +3,7 @@ import { Box, Typography } from "@mui/material";
 import { ScatterChart, scatterClasses } from "@mui/x-charts/ScatterChart";
 import { useXScale, useYScale } from "@mui/x-charts/hooks";
 
-import { QcAxisScale } from "../api/projects.api";
+import type { QcAxisScale } from "../api/projects.api";
 import { useQcChartMetrics } from "./qcChartLayout";
 
 /**
