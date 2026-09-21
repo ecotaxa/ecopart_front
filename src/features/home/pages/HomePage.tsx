@@ -2,7 +2,7 @@ import { Box, Container, Stack, Typography } from "@mui/material";
 import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import WorkspacesIcon from "@mui/icons-material/Workspaces";
 import HubIcon from "@mui/icons-material/Hub";
-import ParticleField from "../components/ParticleField";
+import ParticleField from "@/shared/components/ParticleField";
 
 /** Short, truthful entry points that mirror the app's real sections. */
 const HIGHLIGHTS = [

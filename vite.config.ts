@@ -97,6 +97,12 @@ export default defineConfig(({ mode }) => {
                     }
                 },
 
+                // Backend Swagger UI, linked from the About page ("API access").
+                "/api-docs": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                },
+
                 // Add the file_system route so Vite routes it to Node.js
                 "/file_system": {
                     target: backendUrl,

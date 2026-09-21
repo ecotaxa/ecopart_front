@@ -3,7 +3,7 @@ import { useTheme } from "@mui/material/styles";
 import { ecotaxaColors } from "@/theme";
 
 /**
- * Interactive "particle cloud" for the landing hero.
+ * Interactive "particle cloud" for the landing and About heroes.
  *
  * Draws a field of slowly drifting, plankton-like particles (a nod to EcoPart's
  * marine-particle imaging domain) onto a full-bleed <canvas>. Nearby particles
@@ -13,6 +13,8 @@ import { ecotaxaColors } from "@/theme";
  * experiences, tuned to the teal EcoPart palette.
  *
  * Implementation notes:
+ *  - Fills its nearest positioned ancestor and ignores pointer events, so it
+ *    goes first inside a `position: relative` hero, under the copy.
  *  - Pure canvas 2D + requestAnimationFrame, no dependencies.
  *  - Particle count scales with viewport area (capped for perf).
  *  - Honours `prefers-reduced-motion`: renders a single calm static frame,
@@ -51,7 +53,16 @@ function toRgb(hex: string): string {
     return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
 }
 
-export default function ParticleField() {
+interface ParticleFieldProps {
+    /**
+     * Surface the field is drawn over. On a dark hero the brand teal links and
+     * near particles would sink into the background, so `dark` switches to the
+     * light end of the teal scale with white foreground particles.
+     */
+    tone?: "light" | "dark";
+}
+
+export default function ParticleField({ tone = "light" }: ParticleFieldProps) {
     const theme = useTheme();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -64,12 +75,19 @@ export default function ParticleField() {
     // particles use a light airy teal, the closest ones the solid brand teal,
     // and the network links the brand teal too.
     const themeColors = useMemo(
-        () => ({
-            particle: toRgb(ecotaxaColors.secondblue[300]), // #6ec8cf distant, light
-            particleAlt: toRgb(theme.palette.primary.main), // #207171 close
-            link: toRgb(theme.palette.primary.main), // #207171 links
-        }),
-        [theme.palette.primary.main],
+        () =>
+            tone === "dark"
+                ? {
+                      particle: toRgb(ecotaxaColors.secondblue[200]), // #a6e4ea distant
+                      particleAlt: toRgb(theme.palette.common.white), // close
+                      link: toRgb(ecotaxaColors.secondblue[200]), // links
+                  }
+                : {
+                      particle: toRgb(ecotaxaColors.secondblue[300]), // #6ec8cf distant, light
+                      particleAlt: toRgb(theme.palette.primary.main), // #207171 close
+                      link: toRgb(theme.palette.primary.main), // #207171 links
+                  },
+        [tone, theme.palette.primary.main, theme.palette.common.white],
     );
     const colors = useRef(themeColors);
     useEffect(() => {
