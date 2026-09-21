@@ -492,7 +492,6 @@ The **test** runner (label `ecopart-test`) lives on a different machine and was 
   * Automated accessibility checks (axe) on top of the keyboard-navigation tests
   * E2E tests (Playwright)
 * features to come: 
-  * about
   * explore
   * export
   * login

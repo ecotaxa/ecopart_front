@@ -11,6 +11,7 @@ import MainLayout from "@/app/layouts/MainLayout";
 // Every page is its own chunk, loaded on first navigation, so the initial bundle
 // only carries the shell (router, theme, auth bootstrap) instead of every screen.
 const HomePage = lazy(() => import("@/features/home/pages/HomePage"));
+const AboutPage = lazy(() => import("@/features/about/pages/AboutPage"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));
 const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPasswordPage"));
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
         errorElement: <RouteErrorPage />,
         children: [
             { path: "/", element: page(<HomePage />) },
+            { path: "/about", element: page(<AboutPage />) },
             {
                 path: "/login",
                 element: page(
@@ -87,7 +89,7 @@ export const router = createBrowserRouter([
                     </AdminRoute>
                 ),
             },
-            // Header entries whose feature is not built yet.
+            // Header entry whose feature is not built yet.
             {
                 path: "/explore",
                 element: page(
@@ -96,10 +98,6 @@ export const router = createBrowserRouter([
                         description="Browse and visualise particle data across projects. This section is coming soon."
                     />
                 ),
-            },
-            {
-                path: "/about",
-                element: page(<ComingSoonPage title="About EcoPart" description="Learn more about the EcoPart platform. This section is coming soon." />),
             },
             { path: "*", element: page(<NotFoundPage />) },
         ],
