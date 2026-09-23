@@ -17,6 +17,9 @@ const BASE = {
     legendSlot: 28,
     xAxisHeight: 56,
     yAxisWidth: 64,
+    // Room above the plot for the top depth tick label (0 m, since depth is reversed). MUI blanks a
+    // right-anchored Y tick label whose measured height exceeds the space above its tick.
+    plotTop: 24,
 } as const;
 
 /** MUI's default `typography.fontSize`; the yardstick for how enlarged the current theme's text is. */
@@ -30,6 +33,7 @@ export interface QcChartMetrics {
     legendSlot: number;
     xAxisHeight: number;
     yAxisWidth: number;
+    plotTop: number;
 }
 
 /** The chart slot/axis sizes for the current theme's text size. */
@@ -40,5 +44,6 @@ export const useQcChartMetrics = (): QcChartMetrics => {
         legendSlot: Math.round(BASE.legendSlot * scale),
         xAxisHeight: Math.round(BASE.xAxisHeight * scale),
         yAxisWidth: Math.round(BASE.yAxisWidth * scale),
+        plotTop: Math.round(BASE.plotTop * scale),
     };
 };

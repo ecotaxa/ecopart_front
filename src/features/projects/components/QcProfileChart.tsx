@@ -109,6 +109,13 @@ export const QcProfileChart: React.FC<QcProfileChartProps> = ({
 
     const hasData = scatterSeries.length > 0;
 
+    // Anchor both linear axes at 0 so the origin is labelled on each of them: left to MUI, the
+    // domain starts at the data minimum and 0 only shows on an axis whose data happens to reach it.
+    // Skipped when an axis has negative values (a fixed min would clip them) and on a log X axis.
+    const allPoints = scatterSeries.flatMap((s) => s.data);
+    const xMin = scaleType === "linear" && allPoints.every((p) => p.x >= 0) ? 0 : undefined;
+    const yMin = allPoints.every((p) => p.y >= 0) ? 0 : undefined;
+
     return (
         <Box>
             <Typography
@@ -163,13 +170,13 @@ export const QcProfileChart: React.FC<QcProfileChartProps> = ({
                     // (empty text under every tick). These sizes keep both visible.
                     // Being identical on every chart, they also line up the plot
                     // bottoms and the x-axis titles across a row.
-                    xAxis={[{ label: xLabel, scaleType, height: metrics.xAxisHeight }]}
-                    yAxis={[{ label: yLabel, reverse: true, width: metrics.yAxisWidth }]}
+                    xAxis={[{ label: xLabel, scaleType, min: xMin, height: metrics.xAxisHeight }]}
+                    yAxis={[{ label: yLabel, reverse: true, min: yMin, width: metrics.yAxisWidth }]}
                     // The legend is drawn above, outside the chart (see the legend slot).
                     hideLegend
                     disableVoronoi
                     grid={{ horizontal: true, vertical: true }}
-                    margin={{ top: 8, right: 12, bottom: 8, left: 8 }}
+                    margin={{ top: metrics.plotTop, right: 12, bottom: 8, left: 8 }}
                 >
                     {variant === "line" && <ProfilePolylines series={scatterSeries} />}
                 </ScatterChart>
