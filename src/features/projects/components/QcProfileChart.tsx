@@ -7,9 +7,9 @@ import type { QcAxisScale } from "../api/projects.api";
 import { useQcChartMetrics } from "./qcChartLayout";
 
 /**
- * A single plotted series. `y` is always DEPTH in metres (the shared vertical axis of every QC
- * profile); `x` is the value being profiled — image index for the pressure graph, imaged volume or
- * particle counts for the binned graphs.
+ * A single plotted series. `y` is the shared vertical axis of every QC profile — DEPTH in metres, or
+ * TIME in hours for a time-series sample; `x` is the value being profiled — image index for the
+ * pressure graph, imaged volume or particle counts for the binned graphs.
  */
 export interface QcChartSeries {
     label: string;
@@ -22,7 +22,7 @@ interface QcProfileChartProps {
     series: QcChartSeries[];
     xLabel: string;
     yLabel?: string;
-    /** X-axis rendering; depth (Y) is always linear and reversed (shallow on top). */
+    /** X-axis rendering; the vertical axis (depth or time) is always linear and reversed (0 on top). */
     xScale?: QcAxisScale;
     /** Height of the plot itself; the title and legend slots sit on top of it. */
     height?: number;
@@ -62,7 +62,8 @@ const ProfilePolylines: React.FC<{ series: PlottedSeries[] }> = ({ series }) => 
     return (
         <g>
             {series.map((s) => {
-                // Sort by depth so the line follows the water column rather than the input order.
+                // Sort along the vertical axis so the line follows the water column (or the
+                // timeline) rather than the input order.
                 const d = [...s.data]
                     .sort((a, b) => a.y - b.y)
                     .map((p) => [xScale(p.x), yScale(p.y)] as const)
@@ -78,7 +79,8 @@ const ProfilePolylines: React.FC<{ series: PlottedSeries[] }> = ({ series }) => 
 
 /**
  * Vertical oceanographic profile rendered with MUI X ScatterChart: depth on a reversed Y axis
- * (shallow at the top, like a real water column) and the measured value on X. Scatter (rather than
+ * (shallow at the top, like a real water column) — or time, same orientation, for a time-series
+ * sample — and the measured value on X. Scatter (rather than
  * a line) is used because MUI X line charts can't run vertically and the profiles are non-monotonic
  * in depth; with hundreds of closely spaced points the markers read as a continuous curve.
  */

@@ -23,12 +23,15 @@ const GRID_SPACING_MD = 8;
  */
 const AFTER_CHART_MARGIN_SX = { pl: { md: 4 } };
 
-/** Map a backend binned profile into chart series (x = value, y = depth). */
+/** Map a backend binned profile into chart series (x = value, y = depth or time, per the profile's axis). */
 const toSeries = (profile: QcBinnedDepthProfile): QcChartSeries[] =>
     profile.series.map((s, i) => ({
         label: s.label,
         color: PIXEL_COLORS[i % PIXEL_COLORS.length],
-        points: s.points.map((p) => ({ x: p.value, y: p.depth_m })),
+        points: s.points.flatMap((p) => {
+            const y = profile.axis === "time" ? p.time_h : p.depth_m;
+            return y === undefined ? [] : [{ x: p.value, y }];
+        }),
     }));
 
 interface QcSampleCardProps {
@@ -41,10 +44,17 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
     const { image_filtering: filtering, image_depth_profile: depthProfile } = sample;
     const chartMetrics = useQcChartMetrics();
 
+    // Time series are profiled against time (hours) instead of depth, on all four graphs.
+    const isTime = sample.vertical_axis === "time";
+    const yLabel = isTime ? "time (h)" : "depth (m)";
+
     // Graph 1 shows every image, but splits them by `is_selected`: images kept by the
     // first/last + descent filters are blue, the discarded ones red (as in the mockup).
     // Both are plotted so the operator can see what the filtering removed.
-    const pressurePoints = depthProfile.points.map((p) => ({ x: p.image_index, y: p.depth_m, kept: p.is_selected }));
+    const pressurePoints = depthProfile.points.flatMap((p) => {
+        const y = isTime ? p.time_h : p.depth_m;
+        return y === null || y === undefined ? [] : [{ x: p.image_index, y, kept: p.is_selected }];
+    });
     const pressureSeries: QcChartSeries[] = [
         {
             label: "kept images",
@@ -66,7 +76,7 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
     const profileCharts = [
         {
             key: "imaged-volume",
-            title: "Vertical profile of imaged volume",
+            title: isTime ? "Imaged volume versus time" : "Vertical profile of imaged volume",
             series: toSeries(sample.imaged_volume_profile),
             xLabel: "imaged volume (L)",
             xScale: sample.imaged_volume_profile.suggested_scale,
@@ -74,7 +84,9 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
         },
         ...(sample.black_profile ? [{
             key: "black",
-            title: "Vertical profile of black for 1, 2 and 3 pixels versus pressure",
+            title: isTime
+                ? "Black for 1, 2 and 3 pixels versus time"
+                : "Vertical profile of black for 1, 2 and 3 pixels versus pressure",
             series: toSeries(sample.black_profile),
             xLabel: "count",
             xScale: sample.black_profile.suggested_scale,
@@ -82,7 +94,9 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
         }] : []),
         {
             key: "particle-lpm",
-            title: "Vertical profile of particle (LPM) for 1, 2 and 3 pixels versus pressure",
+            title: isTime
+                ? "Particle (LPM) for 1, 2 and 3 pixels versus time"
+                : "Vertical profile of particle (LPM) for 1, 2 and 3 pixels versus pressure",
             series: toSeries(sample.particle_lpm_profile),
             xLabel: "count",
             xScale: sample.particle_lpm_profile.suggested_scale,
@@ -123,10 +137,10 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
             <Grid container columnSpacing={{ xs: 4, md: GRID_SPACING_MD }} rowSpacing={{ xs: 4, md: GRID_SPACING_MD }}>
                 <Grid size={{ xs: 12, md: chartCols }}>
                     <QcProfileChart
-                        title="Vertical profile of the pressure of each image"
+                        title={isTime ? "Time of each image" : "Vertical profile of the pressure of each image"}
                         series={pressureSeries}
                         xLabel="image index"
-                        yLabel="depth (m)"
+                        yLabel={yLabel}
                         height={CHART_HEIGHT}
                         // Alone in its row: no legend slot to reserve, so the graph sits higher.
                         reserveLegendSlot={false}
@@ -173,6 +187,7 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
                             title={c.title}
                             series={c.series}
                             xLabel={c.xLabel}
+                            yLabel={yLabel}
                             xScale={c.xScale}
                             height={CHART_HEIGHT}
                             showLegend={c.showLegend}

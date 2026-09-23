@@ -165,6 +165,58 @@ describe('components/QcSampleCard', () => {
         }
     });
 
+    it('TC-AB20: a time-series sample is profiled against time (h) on every graph', () => {
+        const timeBinned = (series: { label: string; unit: string; values: number[] }[]): QcBinnedDepthProfile => ({
+            axis: 'time',
+            bin_size_h: 1,
+            suggested_scale: 'linear',
+            series: series.map((s) => ({
+                label: s.label,
+                unit: s.unit,
+                points: s.values.map((value, i) => ({ time_h: i * 4 + 0.5, value })),
+            })),
+        });
+        const timeSeries = makeSample({
+            sample_name: 'UVPCRS002_2024_03_03',
+            instrument_model: 'UVP6LP',
+            vertical_axis: 'time',
+            time_origin_utc_date_time: '2024-03-03T00:00:00.000Z',
+            image_depth_profile: {
+                points: [
+                    { image_index: 0, image_id: '20240303-000001-1', depth_m: 150, time_h: 0.0003, is_selected: true },
+                    { image_index: 1, image_id: '20240303-040030-1', depth_m: 150, time_h: 4.0083, is_selected: true },
+                ],
+                filter_first_image: '0',
+                filter_last_image: '1',
+                total_images: 2,
+                selected_images: 2,
+            },
+            imaged_volume_profile: timeBinned([{ label: 'imaged volume', unit: 'L', values: [25.5, 25.5] }]),
+            particle_lpm_profile: timeBinned([{ label: '1 px', unit: 'count', values: [3, 2] }]),
+            black_profile: timeBinned([{ label: '1 px', unit: 'count', values: [1, 1] }]),
+        });
+        const { container } = render(<QcSampleCard sample={timeSeries} onRemove={() => {}} />);
+
+        expect(screen.getByText('Time of each image')).toBeInTheDocument();
+        expect(screen.getByText('Imaged volume versus time')).toBeInTheDocument();
+        expect(screen.getByText(/Black for 1, 2 and 3 pixels versus time/)).toBeInTheDocument();
+        expect(screen.getByText(/Particle \(LPM\) for 1, 2 and 3 pixels versus time/)).toBeInTheDocument();
+        // One vertical-axis title per graph, and no depth left anywhere.
+        expect(screen.getAllByText('time (h)')).toHaveLength(4);
+        expect(screen.queryByText('depth (m)')).not.toBeInTheDocument();
+        // The points are positioned by time_h, so every graph actually draws.
+        expect(container.querySelectorAll('svg').length).toBeGreaterThanOrEqual(4);
+        expect(screen.queryByText('No data')).not.toBeInTheDocument();
+    });
+
+    it('TC-AB21: a depth sample, or a backend that sends no vertical_axis, keeps the depth (m) axis', () => {
+        render(<QcSampleCard sample={makeSample()} onRemove={() => {}} />);
+
+        // Graph 1, imaged volume and particle graphs (no black profile in this fixture).
+        expect(screen.getAllByText('depth (m)')).toHaveLength(3);
+        expect(screen.queryByText('time (h)')).not.toBeInTheDocument();
+    });
+
     describe('Accessibility Tests', () => {
         it('TC-AB13: metadata fields are label-associated and read-only (not disabled)', () => {
             render(<QcSampleCard sample={makeSample()} onRemove={() => {}} />);
