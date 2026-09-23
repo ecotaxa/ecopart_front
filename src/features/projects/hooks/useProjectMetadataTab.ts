@@ -3,7 +3,7 @@ import type { AlertColor } from "@mui/material";
 
 // Reuse the exact same types we use for creation to keep our Dumb Components happy
 import type { NewProjectFormValues } from "../types/newProject.types";
-import { getProjectById, updateProject, type PublicProjectUpdateModel } from "../api/projects.api";
+import { getProjectById, updateProject, type Project, type PublicProjectUpdateModel } from "../api/projects.api";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import {
     type ProjectFormErrors,
@@ -18,6 +18,16 @@ interface EcoTaxaLinkedProject {
     projectName: string;
     instanceId: number | null;
 }
+
+/** The EcoTaxa project a backend project is linked to, or `null` when it has none. */
+const toLinkedEcoTaxaProject = (project: Project): EcoTaxaLinkedProject | null =>
+    project.ecotaxa_project_id
+        ? {
+            projectId: project.ecotaxa_project_id,
+            projectName: project.ecotaxa_project_name || `EcoTaxa project ${project.ecotaxa_project_id}`,
+            instanceId: project.ecotaxa_instance_id ?? null,
+        }
+        : null;
 
 export const useProjectMetadataTab = (projectId: number) => {
     // --------------------------------------------------
@@ -68,16 +78,7 @@ export const useProjectMetadataTab = (projectId: number) => {
                 setValues(mapProjectToFormValues(projectData));
                 setErrors({});
 
-                if (projectData.ecotaxa_project_id) {
-                    setLinkedEcoTaxaProject({
-                        projectId: projectData.ecotaxa_project_id,
-                        projectName: projectData.ecotaxa_project_name || `EcoTaxa project ${projectData.ecotaxa_project_id}`,
-                        instanceId: projectData.ecotaxa_instance_id ?? null,
-                    });
-                } else {
-                    setLinkedEcoTaxaProject(null);
-                }
-
+                setLinkedEcoTaxaProject(toLinkedEcoTaxaProject(projectData));
                 setEcoTaxaUnlinkWarning(false);
             } catch (error) {
                 if (cancelled) return;
@@ -179,41 +180,41 @@ export const useProjectMetadataTab = (projectId: number) => {
             };
 
             // --- ECOTAXA HANDLING ---
-            // Unlink is represented by clearing only the EcoTaxa project reference.
-            const ecoTaxaInstanceId = toNullableInt(values.ecoTaxa.instance);
+            // The backend reads any EcoTaxa field as a link request (it requires an
+            // EcoTaxa account and rejects an EcoTaxa project that is already linked,
+            // this one included), so they are only sent when the link changes. A
+            // project that stays linked sends none of them. The account is never
+            // loaded from the backend, so a selected account means the user set up
+            // a new link (or a creation) on a project that has none.
             const ecoTaxaAccountId = toNullableInt(values.ecoTaxa.account);
             const ecoTaxaProjectId = toNullableInt(values.ecoTaxa.project);
-            const hasEcoTaxaValues = ecoTaxaInstanceId !== null || ecoTaxaAccountId !== null || ecoTaxaProjectId !== null;
+            const isNewEcoTaxaLink = !linkedEcoTaxaProject && ecoTaxaAccountId !== null;
 
-            if (ecoTaxaUnlinkWarning && linkedEcoTaxaProject === null && !hasEcoTaxaValues) {
-                payload.ecotaxa_project_id = null;
-            } else if (linkedEcoTaxaProject || hasEcoTaxaValues) {
-                payload.ecotaxa_instance_id = ecoTaxaInstanceId;
-                payload.ecotaxa_account_id = ecoTaxaAccountId;
-
-                if (ecoTaxaProjectId !== null) {
-                    payload.ecotaxa_project_id = ecoTaxaProjectId;
-                    // Only set name if we actually have it from the linked project
-                    // Don't fall back to values.ecoTaxa.project which is an ID, not a name
-                    payload.ecotaxa_project_name = linkedEcoTaxaProject?.projectName || null;
+            if (isNewEcoTaxaLink) {
+                if (!values.ecoTaxa.createNewProject && ecoTaxaProjectId === null) {
+                    // A null project id would be read as an unlink request.
+                    showSnackbar("Select the EcoTaxa project to link, or choose to create a new one.", "warning");
+                    return;
                 }
-
-                payload.new_ecotaxa_project = linkedEcoTaxaProject ? false : values.ecoTaxa.createNewProject;
+                payload.ecotaxa_instance_id = toNullableInt(values.ecoTaxa.instance);
+                payload.ecotaxa_account_id = ecoTaxaAccountId;
+                if (values.ecoTaxa.createNewProject) {
+                    payload.new_ecotaxa_project = true;
+                } else {
+                    payload.ecotaxa_project_id = ecoTaxaProjectId;
+                }
+            } else if (ecoTaxaUnlinkWarning) {
+                // Unlink is represented by clearing only the EcoTaxa project reference.
+                payload.ecotaxa_project_id = null;
             }
 
-            await updateProject(projectId, payload);
+            const updatedProject = await updateProject(projectId, payload);
 
-            if (linkedEcoTaxaProject && ecoTaxaProjectId !== null) {
-                setLinkedEcoTaxaProject({
-                    projectId: ecoTaxaProjectId,
-                    projectName: payload.ecotaxa_project_name || linkedEcoTaxaProject.projectName,
-                    instanceId: ecoTaxaInstanceId,
-                });
-            } else if (ecoTaxaUnlinkWarning && !hasEcoTaxaValues) {
+            if (isNewEcoTaxaLink) {
+                // The backend resolves the linked (or freshly created) EcoTaxa project.
+                setLinkedEcoTaxaProject(toLinkedEcoTaxaProject(updatedProject));
+            } else if (ecoTaxaUnlinkWarning) {
                 setLinkedEcoTaxaProject(null);
-                // After a successful unlink+save, prepare the form to allow creating a new EcoTaxa project
-                // and show the toggle checked when the user returns to the UI.
-                updateField("ecoTaxa", { createNewProject: true });
             }
 
             setEcoTaxaUnlinkWarning(false);

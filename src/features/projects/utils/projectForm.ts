@@ -272,8 +272,9 @@ export const mapProjectToFormValues = (project: Project): NewProjectFormValues =
         // The backend does not return the account id: left empty for the user to pick.
         account: "",
         project: project.ecotaxa_project_id?.toString() || "",
-        // Default to creating a new EcoTaxa project when none is linked.
-        createNewProject: !project.ecotaxa_project_id,
+        // Unchecked on an existing project: creating an EcoTaxa project is an explicit
+        // choice here (only the New Project form checks it by default).
+        createNewProject: false,
     },
     privileges: mapProjectPrivileges(project),
     privacy: mapProjectPrivacy(project),

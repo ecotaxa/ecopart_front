@@ -169,6 +169,71 @@ describe('ProjectMetadataTab (Functional)', () => {
         expect(capturedPatchBody).not.toHaveProperty('new_ecotaxa_project');
     }, 15000);
 
+    // TC-J6: the backend reads any EcoTaxa field as a link request (account required,
+    // "already linked" check), so a plain metadata save on a linked project must not
+    // re-send the current link.
+    it('TC-J6: saves a new root folder path on a linked project without re-sending the EcoTaxa link', async () => {
+        const user = userEvent.setup({ delay: null });
+        let capturedPatchBody: Record<string, unknown> | null = null;
+
+        server.use(
+            http.post('*/projects/searches*', () => {
+                return HttpResponse.json({
+                    search_info: { total: 1, page: 1, limit: 1 },
+                    projects: [linkedMockProjectData]
+                });
+            }),
+            http.patch('*/projects/102', async ({ request }) => {
+                capturedPatchBody = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({ ...linkedMockProjectData, root_folder_path: '/data/moved' }, { status: 200 });
+            })
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={102} />);
+
+        const pathInput = await screen.findByLabelText(/Root folder path/i);
+        await user.clear(pathInput);
+        await user.type(pathInput, '/data/moved');
+        await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
+
+        expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
+        expect(capturedPatchBody).toMatchObject({ root_folder_path: '/data/moved' });
+        for (const key of ['ecotaxa_project_id', 'ecotaxa_instance_id', 'ecotaxa_account_id', 'ecotaxa_project_name', 'new_ecotaxa_project']) {
+            expect(capturedPatchBody).not.toHaveProperty(key);
+        }
+    }, 15000);
+
+    // TC-J7: an EcoTaxa instance left on an unlinked project (no account picked) is not a link request.
+    it('TC-J7: sends no EcoTaxa field when an unlinked project only carries an instance', async () => {
+        const user = userEvent.setup({ delay: null });
+        let capturedPatchBody: Record<string, unknown> | null = null;
+
+        server.use(
+            http.post('*/projects/searches*', () => {
+                return HttpResponse.json({
+                    search_info: { total: 1, page: 1, limit: 1 },
+                    projects: [{ ...mockProjectData, ecotaxa_instance_id: 1 }]
+                });
+            }),
+            http.patch('*/projects/101', async ({ request }) => {
+                capturedPatchBody = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({}, { status: 200 });
+            })
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} />);
+
+        await screen.findByDisplayValue('Existing Project');
+        // Unlike the New Project form, creating an EcoTaxa project is opt-in here.
+        expect(screen.getByRole('switch', { name: /Create a new EcoTaxa project/i })).not.toBeChecked();
+        await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
+
+        expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
+        for (const key of ['ecotaxa_project_id', 'ecotaxa_instance_id', 'ecotaxa_account_id', 'new_ecotaxa_project']) {
+            expect(capturedPatchBody).not.toHaveProperty(key);
+        }
+    }, 15000);
+
     // TC-J5: the title loaded from the backend is locked as a non-erasable prefix.
     it('TC-J5: locks the loaded project title so it cannot be erased', async () => {
         const user = userEvent.setup({ delay: null });
