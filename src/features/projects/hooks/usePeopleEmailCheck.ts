@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 
 import { findUsersByEmails } from "@/features/auth/api/users.api";
 import { isValidEmail } from "@/shared/utils/validation";
@@ -8,8 +8,26 @@ type People = NewProjectFormValues["people"];
 type PersonIdKey = "dataOwnerId" | "chiefScientistId" | "operatorId";
 type PersonEmailKey = "dataOwnerEmail" | "chiefScientistEmail" | "operatorEmail";
 
+/** One "lookup in progress" flag per person, so each icon answers for its own field. */
+export interface PeopleCheckState {
+    dataOwner: boolean;
+    chiefScientist: boolean;
+    operator: boolean;
+}
+
 /** Wait for the user to stop typing before hitting the users search. */
 const CHECK_DEBOUNCE_MS = 400;
+
+/**
+ * A person is "checking" only while the exact email its field currently shows
+ * is part of the request in flight. Derived (never stored), so an email that
+ * was cleared, fixed or already resolved simply stops matching instead of
+ * leaving a spinner behind.
+ */
+const isChecking = (id: People[PersonIdKey], email: string, emailsInFlight: string[]): boolean => {
+    const trimmed = email.trim();
+    return id === undefined && isValidEmail(trimmed) && emailsInFlight.includes(trimmed.toLowerCase());
+};
 
 /**
  * Resolve the project people emails to EcoPart accounts so the People section
@@ -22,13 +40,14 @@ const CHECK_DEBOUNCE_MS = 400;
  * already known (from the import-folder metadata) are left untouched. Emails
  * that are not well-formed are skipped: no request, no icon.
  *
- * Returns whether a lookup is in flight so the section can show a spinner.
+ * Returns, per person, whether their own email is being looked up right now.
  */
 export const usePeopleEmailCheck = (
     people: People,
     setValues: Dispatch<SetStateAction<NewProjectFormValues>>,
-): boolean => {
-    const [checking, setChecking] = useState(false);
+): PeopleCheckState => {
+    // The emails of the request currently in flight (lowercased, empty when idle).
+    const [emailsInFlight, setEmailsInFlight] = useState<string[]>([]);
 
     const { dataOwnerEmail, chiefScientistEmail, operatorEmail, dataOwnerId, chiefScientistId, operatorId } = people;
 
@@ -45,9 +64,10 @@ export const usePeopleEmailCheck = (
         // Any edit re-runs this effect: the previous timer / response is dropped.
         let cancelled = false;
         const timer = window.setTimeout(async () => {
-            setChecking(true);
+            const emails = pending.map((person) => person.email);
+            setEmailsInFlight(emails.map((email) => email.toLowerCase()));
             try {
-                const users = await findUsersByEmails(pending.map((person) => person.email));
+                const users = await findUsersByEmails(emails);
                 if (cancelled) return;
 
                 const idByEmail = new Map(users.map((user) => [user.email.toLowerCase(), user.user_id]));
@@ -64,7 +84,7 @@ export const usePeopleEmailCheck = (
                 // Leave the ids unresolved (no icon); the next edit retries.
                 if (!cancelled) console.error("Failed to check project people accounts", error);
             } finally {
-                if (!cancelled) setChecking(false);
+                if (!cancelled) setEmailsInFlight([]);
             }
         }, CHECK_DEBOUNCE_MS);
 
@@ -74,5 +94,9 @@ export const usePeopleEmailCheck = (
         };
     }, [dataOwnerEmail, chiefScientistEmail, operatorEmail, dataOwnerId, chiefScientistId, operatorId, setValues]);
 
-    return checking;
+    return useMemo(() => ({
+        dataOwner: isChecking(dataOwnerId, dataOwnerEmail, emailsInFlight),
+        chiefScientist: isChecking(chiefScientistId, chiefScientistEmail, emailsInFlight),
+        operator: isChecking(operatorId, operatorEmail, emailsInFlight),
+    }), [dataOwnerEmail, chiefScientistEmail, operatorEmail, dataOwnerId, chiefScientistId, operatorId, emailsInFlight]);
 };

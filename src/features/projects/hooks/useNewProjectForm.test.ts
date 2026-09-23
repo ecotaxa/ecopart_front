@@ -256,7 +256,7 @@ describe('useNewProjectForm Hook (Unit)', () => {
         await waitFor(() => expect(result.current.values.people.dataOwnerId).toBe(7));
         // No account behind the operator email → explicitly "not registered".
         expect(result.current.values.people.operatorId).toBeNull();
-        expect(result.current.checkingPeople).toBe(false);
+        expect(result.current.checkingPeople).toEqual({ dataOwner: false, chiefScientist: false, operator: false });
     });
 
     // TC-L8: a miss from the import-folder metadata is re-checked by the front
@@ -288,6 +288,56 @@ describe('useNewProjectForm Hook (Unit)', () => {
         // The backend id is trusted; the miss is resolved by the front lookup.
         expect(result.current.values.people.operatorId).toBe(3);
         await waitFor(() => expect(result.current.values.people.dataOwnerId).toBe(7));
+    });
+
+    // TC-L9: the "checking" flag is per person, so a malformed email — which is
+    // never looked up — must not spin while another person's lookup runs.
+    it('TC-L9: should only report the person whose email is actually being looked up', async () => {
+        let releaseLookup: () => void = () => { };
+        const lookupBlocked = new Promise<void>((resolve) => { releaseLookup = resolve; });
+        server.use(
+            http.post('*/users/searches*', async () => {
+                await lookupBlocked;
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 1 }, users: [] });
+            }),
+        );
+        const { result } = renderHook(() => useNewProjectForm());
+
+        act(() => {
+            result.current.updateField('people', {
+                dataOwnerEmail: 'jane@smith.com', dataOwnerId: undefined,
+                chiefScientistEmail: 'not-an-email', chiefScientistId: undefined,
+            });
+        });
+
+        await waitFor(() => expect(result.current.checkingPeople.dataOwner).toBe(true));
+        expect(result.current.checkingPeople.chiefScientist).toBe(false);
+        expect(result.current.checkingPeople.operator).toBe(false);
+
+        await act(async () => { releaseLookup(); });
+        await waitFor(() => expect(result.current.checkingPeople.dataOwner).toBe(false));
+    });
+
+    // TC-L10: clearing the email mid-lookup must not leave a spinner behind.
+    it('TC-L10: should stop reporting a lookup once its email is cleared', async () => {
+        server.use(
+            http.post('*/users/searches*', async () => {
+                await new Promise(() => { }); // never resolves: the lookup stays in flight
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 1 }, users: [] });
+            }),
+        );
+        const { result } = renderHook(() => useNewProjectForm());
+
+        act(() => {
+            result.current.updateField('people', { dataOwnerEmail: 'jane@smith.com', dataOwnerId: undefined });
+        });
+        await waitFor(() => expect(result.current.checkingPeople.dataOwner).toBe(true));
+
+        act(() => {
+            result.current.updateField('people', { dataOwnerEmail: '', dataOwnerId: undefined });
+        });
+
+        expect(result.current.checkingPeople).toEqual({ dataOwner: false, chiefScientist: false, operator: false });
     });
 
 });

@@ -6,6 +6,7 @@ import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 
 import type { NewProjectFormValues } from "../types/newProject.types";
+import type { PeopleCheckState } from "../hooks/usePeopleEmailCheck";
 
 interface ProjectPeopleSectionProps {
     values: NewProjectFormValues["people"];
@@ -18,9 +19,11 @@ interface ProjectPeopleSectionProps {
         operatorName?: string;
         operatorEmail?: string;
     };
-    /** True while the emails are being looked up in the EcoPart accounts (usePeopleEmailCheck). */
-    checking?: boolean;
+    /** Per person, whether their own email is being looked up right now (usePeopleEmailCheck). */
+    checking?: PeopleCheckState;
 }
+
+const NOT_CHECKING: PeopleCheckState = { dataOwner: false, chiefScientist: false, operator: false };
 
 interface VerificationIconProps {
     // undefined = not resolved yet, null = no account, number = confirmed account.
@@ -34,8 +37,8 @@ const VerificationIcon: React.FC<VerificationIconProps> = ({ userId, emailValue,
     if (!emailValue.trim()) return null;
 
     if (userId === undefined) {
-        // Unresolved: a spinner while the lookup runs, nothing otherwise
-        // (malformed email, or the lookup failed).
+        // Unresolved: a spinner while this very email is being looked up, nothing
+        // otherwise (malformed email — never looked up — or a failed lookup).
         return checking ? (
             <Tooltip title="Checking the Ecopart accounts…">
                 <CircularProgress size={18} />
@@ -62,7 +65,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
     values,
     onChange,
     errors,
-    checking = false,
+    checking = NOT_CHECKING,
 }) => {
     return (
         <Box sx={{ mb: 4 }}>
@@ -101,7 +104,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                             input: {
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} checking={checking} />
+                                        <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} checking={checking.dataOwner} />
                                     </InputAdornment>
                                 ),
                             },
@@ -137,7 +140,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                             input: {
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} checking={checking} />
+                                        <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} checking={checking.chiefScientist} />
                                     </InputAdornment>
                                 ),
                             },
@@ -173,7 +176,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                             input: {
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} checking={checking} />
+                                        <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} checking={checking.operator} />
                                     </InputAdornment>
                                 ),
                             },
