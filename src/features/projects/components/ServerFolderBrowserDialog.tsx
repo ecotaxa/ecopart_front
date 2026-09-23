@@ -74,7 +74,9 @@ const FolderTreeItem: React.FC<FolderTreeItemProps> = ({ nodePath, nodeName, sel
                     primary={nodeName}
                     primaryTypographyProps={{ fontWeight: isSelected ? 'bold' : 'normal', noWrap: true }}
                 />
-                {loadingChildren ? <CircularProgress size={16} sx={{ ml: 1 }} /> : open ? <ExpandLess /> : <ExpandMore />}
+                {/* color="inherit": the row is selected (teal, darker on hover) while its children load,
+                    so a primary spinner would be invisible; inheriting follows the row text like the chevrons. */}
+                {loadingChildren ? <CircularProgress size={16} color="inherit" sx={{ ml: 1 }} /> : open ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>
 
             <Collapse in={open} timeout="auto" unmountOnExit>
