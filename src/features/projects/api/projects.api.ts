@@ -490,15 +490,20 @@ export interface ImportSamplesPayload {
 
 // --- Pre-import QC graphs preview ---------------------------------------------------------------
 // Mirrors the backend SampleQcGraphsResponseModel (ecopart_back sample-qc-graph.ts). The Y axis of
-// every profile is DEPTH in metres; graph 1 is one point per image, graphs 2/3 are binned by depth.
+// every profile is `vertical_axis`: DEPTH in metres for depth samples, TIME in hours (since
+// `time_origin_utc_date_time`) for time series. Graph 1 is one point per image, graphs 2/3 are
+// binned (1 m / 1 h) over the selected images only. The time fields are optional: an older backend
+// only sends depth, which is what their absence means.
 
 export type QcAxisScale = "linear" | "log";
+export type QcVerticalAxis = "depth" | "time";
 
 export interface QcImageDepthPoint {
     image_index: number;
     image_id: string;
     depth_m: number;
-    is_selected: boolean; // within the kept [first_image .. last_image] range
+    time_h?: number | null; // hours since time_origin_utc_date_time; null when the image time is unreadable
+    is_selected: boolean; // inside [first_image .. last_image] AND kept by the descent filter
 }
 
 export interface QcImageDepthProfile {
@@ -510,7 +515,8 @@ export interface QcImageDepthProfile {
 }
 
 export interface QcDepthBinPoint {
-    depth_m: number;
+    depth_m?: number; // bin centre on a depth profile
+    time_h?: number;  // bin centre on a time profile
     value: number;
 }
 
@@ -521,7 +527,9 @@ export interface QcDepthProfileSeries {
 }
 
 export interface QcBinnedDepthProfile {
-    bin_size_m: number;
+    axis?: QcVerticalAxis; // absent = depth
+    bin_size_m?: number;   // depth profiles
+    bin_size_h?: number;   // time profiles
     suggested_scale: QcAxisScale;
     series: QcDepthProfileSeries[];
 }
@@ -538,9 +546,11 @@ export interface SampleQcGraphs {
     sample_name: string;
     instrument_model: string;
     depth_unit: "m";
+    vertical_axis?: QcVerticalAxis;       // absent = depth
+    time_origin_utc_date_time?: string | null; // UTC hour time_h counts from
     visual_qc_status_label: string;       // "NOT_IMPORTED" for a preview
     image_depth_profile: QcImageDepthProfile;      // graph 1
-    imaged_volume_profile: QcBinnedDepthProfile;   // graph 2 (1 series, unit "L")
+    imaged_volume_profile: QcBinnedDepthProfile;   // graph 2 (1 series, unit "L", lit images only)
     particle_lpm_profile: QcBinnedDepthProfile;    // graph 3 — light ON, 3 series 1/2/3 px
     black_profile: QcBinnedDepthProfile | null;    // graph 3 — light OFF, 3 series; null on UVP5
     image_filtering: QcImageFilteringMetadata;
