@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Divider, TextField, Typography, InputAdornment, Tooltip } from "@mui/material";
+import { Box, Divider, TextField, Typography, InputAdornment, Tooltip, CircularProgress } from "@mui/material";
 import Grid from "@mui/material/Grid";
 // Imported icons matching your request (Verified Shield vs Unverified Person)
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
@@ -18,16 +18,30 @@ interface ProjectPeopleSectionProps {
         operatorName?: string;
         operatorEmail?: string;
     };
+    /** True while the emails are being looked up in the EcoPart accounts (usePeopleEmailCheck). */
+    checking?: boolean;
 }
 
 interface VerificationIconProps {
+    // undefined = not resolved yet, null = no account, number = confirmed account.
     userId?: number | null;
     emailValue: string;
+    checking: boolean;
 }
 
-const VerificationIcon: React.FC<VerificationIconProps> = ({ userId, emailValue }) => {
+const VerificationIcon: React.FC<VerificationIconProps> = ({ userId, emailValue, checking }) => {
     // If the email field is empty, don't show any icon
     if (!emailValue.trim()) return null;
+
+    if (userId === undefined) {
+        // Unresolved: a spinner while the lookup runs, nothing otherwise
+        // (malformed email, or the lookup failed).
+        return checking ? (
+            <Tooltip title="Checking the Ecopart accounts…">
+                <CircularProgress size={18} />
+            </Tooltip>
+        ) : null;
+    }
 
     if (userId) {
         return (
@@ -48,6 +62,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
     values,
     onChange,
     errors,
+    checking = false,
 }) => {
     return (
         <Box sx={{ mb: 4 }}>
@@ -77,8 +92,8 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         required
                         label="Data owner email"
                         value={values.dataOwnerEmail}
-                        // A different email is no longer the verified EcoPart account: drop the resolved id.
-                        onChange={(e) => onChange({ dataOwnerEmail: e.target.value, dataOwnerId: null })}
+                        // A different email is no longer the verified EcoPart account: back to "unresolved" so it gets looked up again.
+                        onChange={(e) => onChange({ dataOwnerEmail: e.target.value, dataOwnerId: undefined })}
                         size="small"
                         error={Boolean(errors?.dataOwnerEmail)}
                         helperText={errors?.dataOwnerEmail}
@@ -86,7 +101,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                             input: {
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} />
+                                        <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} checking={checking} />
                                     </InputAdornment>
                                 ),
                             },
@@ -114,7 +129,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         required
                         label="Chief scientist email"
                         value={values.chiefScientistEmail}
-                        onChange={(e) => onChange({ chiefScientistEmail: e.target.value, chiefScientistId: null })}
+                        onChange={(e) => onChange({ chiefScientistEmail: e.target.value, chiefScientistId: undefined })}
                         size="small"
                         error={Boolean(errors?.chiefScientistEmail)}
                         helperText={errors?.chiefScientistEmail}
@@ -122,7 +137,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                             input: {
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} />
+                                        <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} checking={checking} />
                                     </InputAdornment>
                                 ),
                             },
@@ -150,7 +165,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         required
                         label="Operator email"
                         value={values.operatorEmail}
-                        onChange={(e) => onChange({ operatorEmail: e.target.value, operatorId: null })}
+                        onChange={(e) => onChange({ operatorEmail: e.target.value, operatorId: undefined })}
                         size="small"
                         error={Boolean(errors?.operatorEmail)}
                         helperText={errors?.operatorEmail}
@@ -158,7 +173,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                             input: {
                                 endAdornment: (
                                     <InputAdornment position="end">
-                                        <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} />
+                                        <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} checking={checking} />
                                     </InputAdornment>
                                 ),
                             },

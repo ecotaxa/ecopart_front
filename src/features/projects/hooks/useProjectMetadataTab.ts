@@ -12,6 +12,7 @@ import {
     toNullableInt,
     validateProjectForm,
 } from "../utils/projectForm";
+import { usePeopleEmailCheck } from "./usePeopleEmailCheck";
 
 interface EcoTaxaLinkedProject {
     projectId: number;
@@ -35,6 +36,10 @@ export const useProjectMetadataTab = (projectId: number) => {
 
     // We initialize with empty values, they will be populated by the API
     const [values, setValues] = useState<NewProjectFormValues>(createEmptyProjectFormValues);
+
+    // The backend project carries no account id for the people: resolve the
+    // loaded (and later edited) emails so the section can show the icons.
+    const checkingPeople = usePeopleEmailCheck(values.people, setValues);
 
     // Notification State
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
@@ -237,6 +242,7 @@ export const useProjectMetadataTab = (projectId: number) => {
         loading,
         saving,
         lockedTitlePrefix,
+        checkingPeople,
         updateField,
         linkedEcoTaxaProject,
         ecoTaxaUnlinkWarning,

@@ -184,4 +184,33 @@ describe('ProjectMetadataTab (Functional)', () => {
         await user.clear(titleInput);
         expect(screen.getByDisplayValue('Existing Project')).toBeInTheDocument();
     }, 15000);
+
+    // TC-J6: the backend project carries no account ids for the people, so the
+    // tab resolves the loaded emails through the users search.
+    it('TC-J6: checks the people emails against the EcoPart accounts and shows the confirmed / unknown icons', async () => {
+        let receivedFilters: unknown = null;
+        server.use(
+            http.post('*/users/searches*', async ({ request }) => {
+                receivedFilters = await request.json();
+                return HttpResponse.json({
+                    search_info: { total: 1, page: 1, limit: 3 },
+                    // Only the data owner has an account (and the match is case-insensitive).
+                    users: [{ user_id: 42, first_name: 'John', last_name: 'Test', email: 'john@test.com' }],
+                });
+            }),
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} />);
+        await screen.findByDisplayValue('Existing Project');
+
+        // One `email IN (...)` lookup for the three loaded emails.
+        expect(await screen.findByTestId('VerifiedUserIcon')).toBeInTheDocument();
+        expect(receivedFilters).toEqual([
+            { field: 'email', operator: 'IN', value: ['john@test.com', 'bob@test.com', 'jane@test.com'] },
+        ]);
+
+        // Data owner confirmed, chief scientist + operator unknown (need to register).
+        expect(screen.getAllByTestId('VerifiedUserIcon')).toHaveLength(1);
+        expect(screen.getAllByTestId('PersonOffIcon')).toHaveLength(2);
+    }, 15000);
 });
