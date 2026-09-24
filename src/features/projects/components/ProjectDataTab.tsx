@@ -16,7 +16,7 @@ const uvpDeleteInfoContent = (
     <Box>
         <Typography variant="caption" component="p">
             DELETE removes the selected UVP samples and their imported particle and image data from
-            this EcoPart project. You are asked to confirm first. Samples still present in the source
+            this EcoPart project, as well as the associated EcoTaxa samples. You are asked to confirm first. Samples still present in the source
             folder can be imported again from the Import tab.
         </Typography>
     </Box>

@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { createElement, useCallback, useMemo, useState } from "react";
 
 import { useServerTable } from "@/shared/hooks/useServerTable";
+import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
     PROJECTS_ROOT_QUERY_KEY,
@@ -73,7 +74,8 @@ export const useProjectsTable = () => {
         action: deleteProject,
         confirm: {
             title: "Delete projects",
-            message: "This also removes their samples and any linked EcoTaxa project. This cannot be undone.",
+            message: createElement(ConfirmWarningMessage, null,
+                "This also deletes their samples and any linked EcoTaxa project. This cannot be undone."),
             confirmLabel: "Delete",
         },
         successMessage: "Project(s) deleted.",

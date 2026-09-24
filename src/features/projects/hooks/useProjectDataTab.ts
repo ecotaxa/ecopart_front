@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { createElement, useState, useEffect, useCallback, useRef } from "react";
 import type { AlertColor } from "@mui/material";
 import type { GridRowSelectionModel, GridPaginationModel } from "@mui/x-data-grid";
 
@@ -16,6 +16,7 @@ import {
 } from "../api/projects.api";
 import { getEcoTaxaInstances } from "@/shared/api/ecotaxa.api";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
+import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 
 export const useProjectDataTab = (projectId: number) => {
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
@@ -252,8 +253,9 @@ export const useProjectDataTab = (projectId: number) => {
 
         if (!(await confirmDialog({
             title: "Delete UVP samples",
-            message: `This removes ${selectedIds.length} sample(s) and their imported particle and image data from this project. ` +
-                `Samples still present in the source folder can be imported again. This cannot be undone.`,
+            message: createElement(ConfirmWarningMessage, null,
+                `This deletes ${selectedIds.length} sample(s) and their imported particle and image data from this project, ` +
+                `as well as the associated EcoTaxa sample(s). This cannot be undone.`),
             confirmLabel: "Delete",
         }))) return;
 
