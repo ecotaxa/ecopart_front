@@ -1,6 +1,7 @@
-import { useCallback } from "react";
+import { createElement, useCallback } from "react";
 
 import { useServerTable } from "@/shared/hooks/useServerTable";
+import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import {
     PROJECTS_ROOT_QUERY_KEY,
     deleteProject,
@@ -53,7 +54,8 @@ export const useAdminProjectsTable = (extraFilters: SearchFilter[] = NO_EXTRA_FI
         action: deleteProject,
         confirm: {
             title: "Delete projects",
-            message: "This also removes their samples and any linked EcoTaxa project. This cannot be undone.",
+            message: createElement(ConfirmWarningMessage, null,
+                "This also deletes their samples and any linked EcoTaxa project. This cannot be undone."),
             confirmLabel: "Delete",
         },
         successMessage: "Project(s) deleted.",

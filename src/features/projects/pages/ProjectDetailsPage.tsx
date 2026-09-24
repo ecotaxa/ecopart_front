@@ -26,6 +26,7 @@ import { ProjectStatsTab } from "../components/ProjectStatsTab";
 import { deleteProject } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
+import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -109,7 +110,11 @@ export default function ProjectDetailsPage() {
     const handleDeleteProject = async () => {
         if (!(await confirmDialog({
             title: `Delete "${projectTitle}"`,
-            message: "This also removes its samples and any linked EcoTaxa project. This cannot be undone.",
+            message: (
+                <ConfirmWarningMessage>
+                    This also deletes its samples and any linked EcoTaxa project. This cannot be undone.
+                </ConfirmWarningMessage>
+            ),
             confirmLabel: "Delete",
         }))) return;
 
