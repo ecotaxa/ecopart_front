@@ -255,7 +255,7 @@ export const useProjectDataTab = (projectId: number) => {
             title: "Delete UVP samples",
             message: createElement(ConfirmWarningMessage, null,
                 `This deletes ${selectedIds.length} sample(s) and their imported particle and image data from this project, ` +
-                `as well as the associated EcoTaxa sample(s).`),
+                `as well as the associated EcoTaxa sample(s). This cannot be undone.`),
             confirmLabel: "Delete",
         }))) return;
 
