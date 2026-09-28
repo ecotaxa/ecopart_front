@@ -636,6 +636,21 @@ export interface SampleData {
     comment?: string;
     ctd_imported?: boolean;
     visual_qc_status_label?: string;
+
+    // EcoTaxa link (backend PublicSampleModel).
+    ecotaxa_sample_imported?: boolean;
+    ecotaxa_sample_id?: number | null;
+
+    // CTD link (backend PublicSampleModel).
+    ctd_original_file_name?: string | null;
+    ctd_imported_file_name?: string | null;
+    ctd_import_utc_date_time?: string | null;
+    ctd_importator_name?: string | null;
+    ctd_importator_email?: string | null;
+    // Not returned by the backend yet: the column list read from the CTD file header
+    // and the id of the task that imported it (drives the "Open import task" button).
+    ctd_description?: string | null;
+    ctd_import_task_id?: number | null;
 }
 
 /**
@@ -686,6 +701,22 @@ export async function searchProjectSamples(projectId: number, params: ProjectSea
 
     const { search_info, items } = normalizeList(rawResponse, SAMPLE_LIST_KEYS);
     return { search_info, samples: items };
+}
+
+/**
+ * One UVP sample of a project.
+ * The backend has no GET /samples/:sample_id route, so this goes through the
+ * search endpoint filtered on the id. Rejects when the sample does not exist.
+ */
+export async function getProjectSample(projectId: number, sampleId: number): Promise<SampleData> {
+    const { samples } = await searchProjectSamples(projectId, {
+        page: 1,
+        limit: 1,
+        filters: [{ field: "sample_id", operator: "=", value: sampleId }],
+    });
+    const sample = samples[0];
+    if (!sample) throw new Error(`Sample ${sampleId} not found in project ${projectId}.`);
+    return sample;
 }
 
 /**
