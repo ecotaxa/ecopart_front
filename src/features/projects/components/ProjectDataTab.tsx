@@ -1,6 +1,7 @@
 import React from "react";
+import { Link as RouterLink } from "react-router-dom";
 import {
-    Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, LinearProgress
+    Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, LinearProgress, Link
 } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
@@ -89,7 +90,14 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
     // --- DATAGRID COLUMNS DEFINITIONS ---
 
     const uvpSamplesColumns: GridColDef<SampleData>[] = [
-        { field: "sample_name", headerName: "Sample name", flex: 1.5, minWidth: 150 },
+        {
+            field: "sample_name", headerName: "Sample name", flex: 1.5, minWidth: 150,
+            renderCell: (params: GridRenderCellParams<SampleData>) => (
+                <Link component={RouterLink} to={`/projects/${projectId}/samples/${params.row.sample_id}`} underline="hover">
+                    {params.row.sample_name}
+                </Link>
+            ),
+        },
         {
             field: "sampling_utc_date_time",
             headerName: "Date",

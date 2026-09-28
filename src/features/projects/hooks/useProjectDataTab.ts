@@ -15,6 +15,7 @@ import {
     type CtdSampleData,
 } from "../api/projects.api";
 import { getEcoTaxaInstances } from "@/shared/api/ecotaxa.api";
+import { buildEcoTaxaSampleUrl as buildSampleUrl } from "../utils/ecotaxaLinks";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 
@@ -233,11 +234,8 @@ export const useProjectDataTab = (projectId: number) => {
 
     // Builds the EcoTaxa gallery URL for one sample (instance + project + sample
     // filter). Returns null when the project is not linked to EcoTaxa yet.
-    const buildEcoTaxaSampleUrl = (sample: EcoTaxaSampleData): string | null => {
-        if (!ecoTaxaInstanceUrl || ecoTaxaProjectId == null) return null;
-        const base = ecoTaxaInstanceUrl.replace(/\/+$/, "");
-        return `${base}/prj/${ecoTaxaProjectId}?samples=${sample.ecotaxa_sample_id}`;
-    };
+    const buildEcoTaxaSampleUrl = (sample: EcoTaxaSampleData): string | null =>
+        buildSampleUrl(ecoTaxaInstanceUrl, ecoTaxaProjectId, sample.ecotaxa_sample_id);
 
     const showSnackbar = (message: string, severity: AlertColor = "info") => {
         setSnackbar({ open: true, message, severity });

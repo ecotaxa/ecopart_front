@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../api/projects.api', () => ({
     searchProjectSamples: vi.fn(),
@@ -26,6 +27,9 @@ import { getEcoTaxaInstances } from '@/shared/api/ecotaxa.api';
 import type { EcoTaxaInstance } from '@/features/userProfile/api/profile.api';
 import { ProjectDataTab } from './ProjectDataTab';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
+
+// Sample names link to the sample page, so the tab needs a router around it.
+const renderTab = () => render(<MemoryRouter><ProjectDataTab projectId={77} /></MemoryRouter>);
 
 const makeProject = (overrides: Partial<Project> = {}): Project => ({
     project_id: 77,
@@ -146,7 +150,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                     ],
                 },);
 
-            render(<ProjectDataTab projectId={77} />);
+            renderTab();
 
             // Wait for the DataGrid to render with initial data
             const grid = await waitFor(
@@ -177,10 +181,17 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             });
         }, 15000);
 
+        it('TC-P1b - links each UVP sample name to its sample page', async () => {
+            renderTab();
+            await waitForGridText('UVP-1');
+
+            expect(screen.getByRole('link', { name: 'UVP-1' })).toHaveAttribute('href', '/projects/77/samples/1');
+        }, 15000);
+
         it('TC-P2 - Delete UVP Samples Flow', async () => {
             const user = userEvent.setup();
             vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
-            render(<ProjectDataTab projectId={77} />);
+            renderTab();
 
             // Wait for data to load
             await waitForGridText('UVP-1');
@@ -210,7 +221,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
         }, 15000);
 
         it('TC-P3 - QC Status Icons Mapping', async () => {
-            render(<ProjectDataTab projectId={77} />);
+            renderTab();
 
             // Wait for data to load
             await waitForGridText('UVP-1');
@@ -226,7 +237,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
         it('TC-P3b - shows an error state (not "No rows") when the EcoTaxa fetch fails', async () => {
             vi.mocked(searchProjectEcoTaxaSamples).mockRejectedValueOnce(new Error('Cannot get samples'));
 
-            render(<ProjectDataTab projectId={77} />);
+            renderTab();
 
             // The EcoTaxa section surfaces the real backend error instead of a silent "No rows".
             expect(
@@ -238,7 +249,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
     describe('Accessibility Tests', () => {
         it('TC-P4 - Tooltips A11y on Icons', async () => {
             const user = userEvent.setup();
-            render(<ProjectDataTab projectId={77} />);
+            renderTab();
 
             // Wait for data to load
             await waitForGridText('UVP-1');
@@ -261,7 +272,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
 
         it('TC-P5 - Action Bar Focus Management', async () => {
             const user = userEvent.setup();
-            render(<ProjectDataTab projectId={77} />);
+            renderTab();
 
             // Wait for data to load
             await waitFor(
@@ -288,7 +299,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
 
         it('TC-P6 - Select all activates UVP actions', async () => {
             const user = userEvent.setup();
-            render(<ProjectDataTab projectId={77} />);
+            renderTab();
 
             await waitForGridText('UVP-1');
 
@@ -323,7 +334,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
             try {
-                render(<ProjectDataTab projectId={77} />);
+                renderTab();
 
                 // Ensure the deep-link effect resolved the instance before clicking.
                 await waitFor(() => expect(getEcoTaxaInstances).toHaveBeenCalled());
@@ -352,7 +363,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
             try {
-                render(<ProjectDataTab projectId={77} />);
+                renderTab();
 
                 await waitFor(() => expect(getProjectById).toHaveBeenCalled());
                 await user.click(await screen.findByText('ETX-1'));

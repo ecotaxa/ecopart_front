@@ -23,6 +23,7 @@ const ProjectsPage = lazy(() => import("@/features/projects/pages/ProjectsPage")
 const NewProjectPage = lazy(() => import("@/features/projects/pages/NewProjectPage"));
 const ProjectDetailsPage = lazy(() => import("@/features/projects/pages/ProjectDetailsPage"));
 const TaskDetailsPage = lazy(() => import("@/features/projects/pages/TaskDetailsPage"));
+const SampleDetailsPage = lazy(() => import("@/features/projects/pages/SampleDetailsPage"));
 const TasksPage = lazy(() => import("@/features/projects/pages/TasksPage"));
 const AdminPage = lazy(() => import("@/features/admin/pages/AdminPage"));
 const NotFoundPage = lazy(() => import("@/features/errors/pages/NotFoundPage"));
@@ -75,6 +76,7 @@ export const router = createBrowserRouter([
             { path: "/new-project", element: protectedPage(<NewProjectPage />) },
             { path: "/projects/:id/:tabName?", element: protectedPage(<ProjectDetailsPage />) },
             { path: "/projects/:id/tasks/:taskId/:tabName?", element: protectedPage(<TaskDetailsPage />) },
+            { path: "/projects/:id/samples/:sampleId/:tabName?", element: protectedPage(<SampleDetailsPage />) },
             { path: "/tasks", element: protectedPage(<TasksPage />) },
             {
                 // Global task detail (opened from the /tasks list, no project context).
