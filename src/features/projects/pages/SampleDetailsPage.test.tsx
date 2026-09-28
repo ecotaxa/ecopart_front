@@ -51,6 +51,11 @@ describe('SampleDetailsPage', () => {
         expect(screen.getByText(/Malformed route identifiers/i)).toBeInTheDocument();
     });
 
+    it('rejects a sample id with a numeric prefix instead of loading that prefix', () => {
+        renderPage('/projects/555/samples/9abc');
+        expect(screen.getByText(/Malformed route identifiers/i)).toBeInTheDocument();
+    });
+
     it('shows the context of the sample, with the EcoTaxa link filtered on the sample', async () => {
         mockApi({ ecotaxa_sample_imported: true, ecotaxa_sample_id: 4242 });
         renderPage();

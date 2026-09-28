@@ -24,10 +24,9 @@ const TABS = [
     { slug: "quality-checks", label: "QUALITY CHECKS", icon: <CheckCircleIcon /> },
 ] as const;
 
-const parseId = (value?: string): number | null => {
-    const parsed = value ? Number.parseInt(value, 10) : Number.NaN;
-    return Number.isNaN(parsed) ? null : parsed;
-};
+// The whole segment must be digits: parseInt alone would read "9abc" as sample 9.
+const parseId = (value?: string): number | null =>
+    value !== undefined && /^\d+$/.test(value) ? Number(value) : null;
 
 export default function SampleDetailsPage() {
     const { id, sampleId, tabName } = useParams<{ id: string; sampleId: string; tabName?: string }>();
