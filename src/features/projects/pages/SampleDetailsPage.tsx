@@ -147,7 +147,14 @@ export default function SampleDetailsPage() {
                         </Box>
 
                         {currentTab === 0 && <SampleContextTab project={project} sample={sample} />}
-                        {currentTab === 1 && <SampleMetadataTab project={project} sample={sample} />}
+                        {currentTab === 1 && (
+                            <SampleMetadataTab
+                                projectId={projectId}
+                                project={project}
+                                sample={sample}
+                                onSampleUpdated={(updated) => queryClient.setQueryData(sampleQueryKey, updated)}
+                            />
+                        )}
                         {currentTab === 2 && renderComingSoonTab("Instrument")}
                         {currentTab === 3 && renderComingSoonTab("Quality checks")}
                     </>

@@ -1,7 +1,9 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Project, SampleData } from "../api/projects.api";
+import { selectSampleCoordinates } from "../api/projects.api";
 import type { LocationMapProps } from "@/shared/components/map";
 import { SampleMetadataTab } from "./SampleMetadataTab";
 
@@ -12,6 +14,11 @@ vi.mock("@/shared/components/map", () => ({
             {locations.map((location) => <li key={location.id}>{location.id}</li>)}
         </ul>
     ),
+}));
+
+vi.mock("../api/projects.api", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../api/projects.api")>()),
+    selectSampleCoordinates: vi.fn(),
 }));
 
 const sample: SampleData = {
@@ -32,11 +39,28 @@ const sample: SampleData = {
     instrument_operator_email: "operator@example.org",
     ctd_latitude: null,
     ctd_longitude: null,
+    use_ctd_coordinates: false,
 };
 
+const sampleWithCtd: SampleData = { ...sample, ctd_latitude: -22.45717, ctd_longitude: -43.15433 };
+
+const renderTab = (props: { sample?: SampleData; project?: Project; onSampleUpdated?: (s: SampleData) => void } = {}) =>
+    render(
+        <SampleMetadataTab
+            projectId={7}
+            project={props.project}
+            sample={props.sample ?? sample}
+            onSampleUpdated={props.onSampleUpdated ?? vi.fn()}
+        />,
+    );
+
 describe("SampleMetadataTab", () => {
+    beforeEach(() => {
+        vi.mocked(selectSampleCoordinates).mockReset();
+    });
+
     it("shows the imported metadata in read-only fields", () => {
-        render(<SampleMetadataTab project={undefined} sample={sample} />);
+        renderTab();
 
         const sampleIdField = screen.getByLabelText("Sample ID");
         expect(sampleIdField).toHaveValue("tara_093_00_a");
@@ -52,33 +76,74 @@ describe("SampleMetadataTab", () => {
 
     it("takes the operator name from the project when it is the same operator", () => {
         const project = { operator_name: "Jane Doe", operator_email: "Operator@Example.org " } as Project;
-        const { unmount } = render(<SampleMetadataTab project={project} sample={sample} />);
+        const { unmount } = renderTab({ project });
         expect(screen.getByLabelText("Name")).toHaveValue("Jane Doe");
         unmount();
 
-        render(<SampleMetadataTab project={{ ...project, operator_email: "other@example.org" }} sample={sample} />);
+        renderTab({ project: { ...project, operator_email: "other@example.org" } });
         expect(screen.getByLabelText("Name")).toHaveValue("—");
     });
 
-    it("uses the metadata location and greys out the CTD one until the backend provides it", () => {
-        render(<SampleMetadataTab project={undefined} sample={sample} />);
+    it("uses the metadata location and disables the CTD one when the sample has no CTD coordinates", () => {
+        renderTab();
 
         expect(screen.getByRole("radio", { name: "Location from imported metadata" })).toBeChecked();
         const ctdRadio = screen.getByRole("radio", { name: "Location from imported CTD file" });
         expect(ctdRadio).not.toBeChecked();
         expect(ctdRadio).toBeDisabled();
-        expect(screen.getByText("Not available yet")).toBeInTheDocument();
+        expect(screen.getByText("No CTD file imported for this sample")).toBeInTheDocument();
         expect(screen.getAllByLabelText("Latitude")[0]).toHaveValue("-33.45717");
 
         expect(screen.getByTestId("location-map")).toHaveTextContent("metadata");
         expect(screen.getByTestId("location-map")).not.toHaveTextContent("ctd");
     });
 
-    it("puts the CTD location on the map once it is available", () => {
-        render(<SampleMetadataTab project={undefined} sample={{ ...sample, ctd_latitude: -22.45717, ctd_longitude: -43.15433 }} />);
+    it("tells when the imported CTD file has no position (e.g. UVP5)", () => {
+        renderTab({ sample: { ...sample, ctd_imported: true } });
 
-        expect(screen.getByRole("radio", { name: "Location from imported CTD file" })).toBeEnabled();
+        expect(screen.getByRole("radio", { name: "Location from imported CTD file" })).toBeDisabled();
+        expect(screen.getByText("The imported CTD file has no position")).toBeInTheDocument();
+    });
+
+    it("puts the CTD location on the map and checks it when it is the selected one", () => {
+        renderTab({ sample: { ...sampleWithCtd, use_ctd_coordinates: true } });
+
+        expect(screen.getByRole("radio", { name: "Location from imported CTD file" })).toBeChecked();
+        expect(screen.getByRole("radio", { name: "Location from imported metadata" })).not.toBeChecked();
         expect(screen.getAllByLabelText("Latitude")[1]).toHaveValue("-22.45717");
         expect(screen.getByTestId("location-map")).toHaveTextContent("ctd");
+    });
+
+    it("selects the CTD location through the backend and hands back the updated sample", async () => {
+        const updated = { ...sampleWithCtd, use_ctd_coordinates: true };
+        vi.mocked(selectSampleCoordinates).mockResolvedValue(updated);
+        const onSampleUpdated = vi.fn();
+        renderTab({ sample: sampleWithCtd, onSampleUpdated });
+
+        // A click anywhere on the option card selects it.
+        await userEvent.click(screen.getByText("Location from imported CTD file"));
+
+        expect(selectSampleCoordinates).toHaveBeenCalledExactlyOnceWith(7, 1, true);
+        await waitFor(() => expect(onSampleUpdated).toHaveBeenCalledWith(updated));
+    });
+
+    it("does not call the backend when the selected location is clicked again", async () => {
+        renderTab({ sample: sampleWithCtd });
+
+        await userEvent.click(screen.getByRole("radio", { name: "Location from imported metadata" }));
+
+        expect(selectSampleCoordinates).not.toHaveBeenCalled();
+    });
+
+    it("shows the backend error when the update fails", async () => {
+        vi.mocked(selectSampleCoordinates).mockRejectedValue(new Error("Logged user cannot update samples in this project"));
+        const onSampleUpdated = vi.fn();
+        renderTab({ sample: { ...sampleWithCtd, use_ctd_coordinates: true }, onSampleUpdated });
+
+        await userEvent.click(screen.getByRole("radio", { name: "Location from imported metadata" }));
+
+        expect(await screen.findByText(/Logged user cannot update samples in this project/)).toBeInTheDocument();
+        expect(selectSampleCoordinates).toHaveBeenCalledWith(7, 1, false);
+        expect(onSampleUpdated).not.toHaveBeenCalled();
     });
 });
