@@ -661,11 +661,14 @@ export interface SampleData {
     ctd_import_utc_date_time?: string | null;
     ctd_importator_name?: string | null;
     ctd_importator_email?: string | null;
-    // Location read from the CTD file: the columns exist but the backend does not fill them yet.
+    // Start position read at CTD import from the file LAT/LON columns (null without a
+    // CTD file or when it has no position, e.g. UVP5), and which location is the sample's position:
+    // false = latitude/longitude (default), true = ctd_latitude/ctd_longitude.
     ctd_latitude?: number | null;
     ctd_longitude?: number | null;
-    // Not returned by the backend yet: the column list read from the CTD file header
-    // and the id of the task that imported it (drives the "Open import task" button).
+    use_ctd_coordinates?: boolean;
+    // The column list read from the CTD file header, and the id of the task that
+    // imported it (drives the "Open import task" button).
     ctd_description?: string | null;
     ctd_import_task_id?: number | null;
 }
@@ -734,6 +737,23 @@ export async function getProjectSample(projectId: number, sampleId: number): Pro
     const sample = samples[0];
     if (!sample) throw new Error(`Sample ${sampleId} not found in project ${projectId}.`);
     return sample;
+}
+
+/**
+ * Selects which location is the sample's position: the imported metadata one
+ * (false) or the one read from the imported CTD file (true, needs ctd_latitude
+ * and ctd_longitude). Allowed for admins and project members.
+ * Endpoint: PATCH /projects/:project_id/samples/:sample_id/coordinates
+ */
+export async function selectSampleCoordinates(
+    projectId: number,
+    sampleId: number,
+    useCtdCoordinates: boolean,
+): Promise<SampleData> {
+    return http<SampleData>(`/projects/${projectId}/samples/${sampleId}/coordinates`, {
+        method: "PATCH",
+        body: JSON.stringify({ use_ctd_coordinates: useCtdCoordinates }),
+    });
 }
 
 /**

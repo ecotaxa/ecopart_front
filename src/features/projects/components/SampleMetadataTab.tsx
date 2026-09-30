@@ -1,18 +1,23 @@
-import { useMemo } from "react";
-import { Box, Divider, Grid, Paper, Radio, Typography } from "@mui/material";
+import { useMemo, useState, type ChangeEvent } from "react";
+import {
+    Alert, Box, CircularProgress, Divider, Grid, Paper, Radio, RadioGroup, Typography,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 
 import SectionCard from "@/shared/components/SectionCard";
 import { LocationMap, type MapLocation } from "@/shared/components/map";
-import type { Project, SampleData } from "../api/projects.api";
+import { selectSampleCoordinates, type Project, type SampleData } from "../api/projects.api";
 import { formatUtcDateTime } from "../utils/sampleFormat";
 import { ReadOnlyField, SubsectionHeader } from "./SampleDetailFields";
 
 const METADATA_LOCATION_COLOR = "#e91e63";
 const CTD_LOCATION_COLOR = "#ff9800";
 
+type LocationSource = "metadata" | "ctd";
+
 interface LocationOptionProps {
+    value: LocationSource;
     title: string;
     source: string;
     color: string;
@@ -20,12 +25,23 @@ interface LocationOptionProps {
     longitude?: number | null;
     selected: boolean;
     available: boolean;
+    /** Why the option cannot be selected, shown in place of the source. */
+    unavailableReason?: string;
+    disabled: boolean;
 }
 
-/** One location source; the radio only shows which one the sample uses, it cannot be changed here. */
-function LocationOption({ title, source, color, latitude, longitude, selected, available }: LocationOptionProps) {
+/**
+ * One location source, inside the location RadioGroup. The whole card is a
+ * <label>, so a click anywhere on it selects its radio.
+ */
+function LocationOption({
+    value, title, source, color, latitude, longitude, selected, available,
+    unavailableReason = "No location available", disabled,
+}: LocationOptionProps) {
+    const isDisabled = disabled || !available;
     return (
         <Paper
+            component="label"
             variant="outlined"
             sx={(theme) => ({
                 display: "flex",
@@ -34,21 +50,18 @@ function LocationOption({ title, source, color, latitude, longitude, selected, a
                 p: 1.5,
                 pl: 1,
                 borderRadius: 1,
+                cursor: isDisabled || selected ? "default" : "pointer",
                 opacity: available ? 1 : 0.6,
-                ...(selected && {
-                    borderColor: theme.palette.primary.main,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.06),
-                }),
+                transition: theme.transitions.create(["border-color", "background-color"]),
+                ...(selected
+                    ? {
+                        borderColor: theme.palette.primary.main,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.06),
+                    }
+                    : !isDisabled && { "&:hover": { borderColor: theme.palette.text.primary } }),
             })}
         >
-            <Radio
-                checked={selected}
-                disabled={!available}
-                disableRipple
-                tabIndex={-1}
-                slotProps={{ input: { readOnly: true, "aria-label": title } }}
-                sx={{ pointerEvents: "none" }}
-            />
+            <Radio value={value} disabled={isDisabled} slotProps={{ input: { "aria-label": title } }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                     <LocationOnIcon sx={{ fontSize: 18, color }} />
@@ -60,7 +73,7 @@ function LocationOption({ title, source, color, latitude, longitude, selected, a
                     component="div"
                     sx={{ mb: 1.5 }}
                 >
-                    {available ? source : "Not available yet"}
+                    {available ? source : unavailableReason}
                 </Typography>
                 <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6 }}>
@@ -89,15 +102,36 @@ const findOperatorName = (project: Project | undefined, operatorEmail?: string |
 };
 
 interface SampleMetadataTabProps {
+    projectId: number;
     project: Project | undefined;
     sample: SampleData;
+    /** Called with the sample returned by the backend after the location source changed. */
+    onSampleUpdated: (sample: SampleData) => void;
 }
 
-export function SampleMetadataTab({ project, sample }: SampleMetadataTabProps) {
+export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated }: SampleMetadataTabProps) {
     const operatorName = findOperatorName(project, sample.instrument_operator_email);
     const hasMetadataLocation = hasCoordinates(sample.latitude, sample.longitude);
-    // The backend does not fill the CTD location yet: the option stays greyed out until it does.
+    // The backend only accepts the CTD location once both CTD coordinates are known.
     const hasCtdLocation = hasCoordinates(sample.ctd_latitude, sample.ctd_longitude);
+    const selectedSource: LocationSource = sample.use_ctd_coordinates ? "ctd" : "metadata";
+
+    const [isSavingSource, setIsSavingSource] = useState(false);
+    const [sourceError, setSourceError] = useState<string | null>(null);
+
+    const handleSourceChange = async (_event: ChangeEvent<HTMLInputElement>, value: string) => {
+        if (isSavingSource || value === selectedSource) return;
+        setIsSavingSource(true);
+        setSourceError(null);
+        try {
+            onSampleUpdated(await selectSampleCoordinates(projectId, sample.sample_id, value === "ctd"));
+        } catch (err) {
+            console.error("[Sample Metadata] Location source update failed", err);
+            setSourceError(err instanceof Error ? err.message : "Unknown error while updating the location.");
+        } finally {
+            setIsSavingSource(false);
+        }
+    };
 
     const mapLocations = useMemo<MapLocation[]>(() => {
         const locations: MapLocation[] = [];
@@ -174,27 +208,51 @@ export function SampleMetadataTab({ project, sample }: SampleMetadataTabProps) {
 
                 {/* LOCATION */}
                 <Box>
-                    <SubsectionHeader title="Location" />
+                    <SubsectionHeader
+                        title="Location"
+                        action={isSavingSource ? <CircularProgress size={20} aria-label="Saving location" /> : undefined}
+                    />
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         <LocationMap locations={mapLocations} height={280} />
-                        <LocationOption
-                            title="Location from imported metadata"
-                            source="From local imported data"
-                            color={METADATA_LOCATION_COLOR}
-                            latitude={sample.latitude}
-                            longitude={sample.longitude}
-                            selected={hasMetadataLocation}
-                            available={hasMetadataLocation}
-                        />
-                        <LocationOption
-                            title="Location from imported CTD file"
-                            source="From the imported CTD file"
-                            color={CTD_LOCATION_COLOR}
-                            latitude={sample.ctd_latitude}
-                            longitude={sample.ctd_longitude}
-                            selected={false}
-                            available={hasCtdLocation}
-                        />
+                        <RadioGroup
+                            aria-label="Sample position"
+                            value={selectedSource}
+                            onChange={handleSourceChange}
+                            sx={{ gap: 2 }}
+                        >
+                            <LocationOption
+                                value="metadata"
+                                title="Location from imported metadata"
+                                source="From local imported data"
+                                color={METADATA_LOCATION_COLOR}
+                                latitude={sample.latitude}
+                                longitude={sample.longitude}
+                                selected={selectedSource === "metadata"}
+                                available
+                                disabled={isSavingSource}
+                            />
+                            <LocationOption
+                                value="ctd"
+                                title="Location from imported CTD file"
+                                source="From the imported CTD file"
+                                color={CTD_LOCATION_COLOR}
+                                latitude={sample.ctd_latitude}
+                                longitude={sample.ctd_longitude}
+                                selected={selectedSource === "ctd"}
+                                available={hasCtdLocation}
+                                unavailableReason={
+                                    sample.ctd_imported
+                                        ? "The imported CTD file has no position"
+                                        : "No CTD file imported for this sample"
+                                }
+                                disabled={isSavingSource}
+                            />
+                        </RadioGroup>
+                        {sourceError && (
+                            <Alert severity="error" onClose={() => setSourceError(null)}>
+                                Failed to update the sample position: {sourceError}
+                            </Alert>
+                        )}
                     </Box>
                 </Box>
 
