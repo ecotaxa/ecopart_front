@@ -637,6 +637,20 @@ export interface SampleData {
     ctd_imported?: boolean;
     visual_qc_status_label?: string;
 
+    // Imported metadata (backend PublicSampleModel).
+    instrument_serial_number?: string | null;
+    max_pressure?: number | null;
+    station_id?: string | null;
+    instrument_settings_integration_time?: number | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    wind_direction?: number | null;
+    wind_speed?: number | null;
+    sea_state?: string | null;
+    nebulousness?: number | null;
+    bottom_depth?: number | null;
+    instrument_operator_email?: string | null;
+
     // EcoTaxa link (backend PublicSampleModel).
     ecotaxa_sample_imported?: boolean;
     ecotaxa_sample_id?: number | null;
@@ -647,6 +661,9 @@ export interface SampleData {
     ctd_import_utc_date_time?: string | null;
     ctd_importator_name?: string | null;
     ctd_importator_email?: string | null;
+    // Location read from the CTD file: the columns exist but the backend does not fill them yet.
+    ctd_latitude?: number | null;
+    ctd_longitude?: number | null;
     // Not returned by the backend yet: the column list read from the CTD file header
     // and the id of the task that imported it (drives the "Open import task" button).
     ctd_description?: string | null;

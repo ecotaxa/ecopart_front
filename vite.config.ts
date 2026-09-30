@@ -16,6 +16,13 @@ export default defineConfig(({ mode }) => {
             },
         },
 
+        // The map is lazy-loaded: without this, the dev server discovers react-map-gl on
+        // the first map render and re-bundles its deps on the fly, which leaves the page
+        // with two React copies ("dispatcher is null").
+        optimizeDeps: {
+            include: ["react-map-gl/maplibre", "maplibre-gl"],
+        },
+
         build: {
             rollupOptions: {
                 output: {

@@ -16,6 +16,7 @@ import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage
 import { deleteProjectSample, getProjectSample } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
 import { SampleContextTab } from "../components/SampleContextTab";
+import { SampleMetadataTab } from "../components/SampleMetadataTab";
 
 const TABS = [
     { slug: "context", label: "CONTEXT", icon: <CloudIcon /> },
@@ -146,7 +147,7 @@ export default function SampleDetailsPage() {
                         </Box>
 
                         {currentTab === 0 && <SampleContextTab project={project} sample={sample} />}
-                        {currentTab === 1 && renderComingSoonTab("Metadata")}
+                        {currentTab === 1 && <SampleMetadataTab project={project} sample={sample} />}
                         {currentTab === 2 && renderComingSoonTab("Instrument")}
                         {currentTab === 3 && renderComingSoonTab("Quality checks")}
                     </>
