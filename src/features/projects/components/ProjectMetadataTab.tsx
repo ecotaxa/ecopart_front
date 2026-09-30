@@ -40,6 +40,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         handleSave,
         handleCancel,
         lockedTitlePrefix,
+        checkingPeople,
         snackbar,
         closeSnackbar
     } = useProjectMetadataTab(projectId);
@@ -115,6 +116,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                     values={values.people}
                     onChange={on.people}
                     errors={sectionErrors.people}
+                    checking={checkingPeople}
                 />
 
 

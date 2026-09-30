@@ -18,13 +18,13 @@ export const createEmptyProjectFormValues = (): NewProjectFormValues => ({
     people: {
         dataOwnerName: "",
         dataOwnerEmail: "",
-        dataOwnerId: null,
+        dataOwnerId: undefined,
         chiefScientistName: "",
         chiefScientistEmail: "",
-        chiefScientistId: null,
+        chiefScientistId: undefined,
         operatorName: "",
         operatorEmail: "",
-        operatorId: null,
+        operatorId: undefined,
     },
     importSettings: { overrideDepthOffset: 0, enableDescentFilter: true },
     ecoTaxa: { instance: "", account: "", project: "", createNewProject: true },
@@ -252,16 +252,18 @@ export const mapProjectToFormValues = (project: Project): NewProjectFormValues =
         cruise: project.cruise || "",
         description: project.project_description || "",
     },
+    // The backend returns no account id for the people: left unresolved so the
+    // Metadata tab looks the emails up (usePeopleEmailCheck).
     people: {
         dataOwnerName: project.data_owner_name || "",
         dataOwnerEmail: project.data_owner_email || "",
-        dataOwnerId: null,
+        dataOwnerId: undefined,
         chiefScientistName: project.chief_scientist_name || "",
         chiefScientistEmail: project.chief_scientist_email || "",
-        chiefScientistId: null,
+        chiefScientistId: undefined,
         operatorName: project.operator_name || "",
         operatorEmail: project.operator_email || "",
-        operatorId: null,
+        operatorId: undefined,
     },
     importSettings: {
         overrideDepthOffset: project.override_depth_offset ?? 0,

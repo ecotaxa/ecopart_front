@@ -16,6 +16,7 @@ import {
     toNullableInt,
     validateProjectForm,
 } from "../utils/projectForm";
+import { usePeopleEmailCheck } from "./usePeopleEmailCheck";
 
 /**
  * Field-level errors used to display inline validation messages directly under inputs.
@@ -43,6 +44,9 @@ export const useNewProjectForm = () => {
     // 1. INITIAL STATE
     // --------------------------------------------------
     const [values, setValues] = useState<NewProjectFormValues>(createEmptyProjectFormValues);
+
+    // Resolve typed / loaded emails to EcoPart accounts for the People section icons.
+    const checkingPeople = usePeopleEmailCheck(values.people, setValues);
 
     const navigate = useNavigate();
 
@@ -266,18 +270,21 @@ export const useNewProjectForm = () => {
                 ship: apiMetadata.ship ? [apiMetadata.ship] : [],
             });
 
+            // The backend resolves each email to an account id while reading the
+            // folder. A miss is left unresolved (undefined) so usePeopleEmailCheck
+            // retries it case-insensitively before showing "not registered".
             updateField("people", {
                 dataOwnerName: apiMetadata.data_owner?.name || "",
                 dataOwnerEmail: apiMetadata.data_owner?.email || "",
-                dataOwnerId: apiMetadata.data_owner?.ecopart_user_id || null,
+                dataOwnerId: apiMetadata.data_owner?.ecopart_user_id || undefined,
 
                 operatorName: apiMetadata.operator?.name || "",
                 operatorEmail: apiMetadata.operator?.email || "",
-                operatorId: apiMetadata.operator?.ecopart_user_id || null,
+                operatorId: apiMetadata.operator?.ecopart_user_id || undefined,
 
                 chiefScientistName: apiMetadata.chief_scientist?.name || "",
                 chiefScientistEmail: apiMetadata.chief_scientist?.email || "",
-                chiefScientistId: apiMetadata.chief_scientist?.ecopart_user_id || null,
+                chiefScientistId: apiMetadata.chief_scientist?.ecopart_user_id || undefined,
             });
 
             queueOrAppendMetadataUsersToPrivileges(extractMetadataUserIds(apiMetadata));
@@ -405,6 +412,7 @@ export const useNewProjectForm = () => {
         availableUsers,
         currentUser,
         lockedTitlePrefix,
+        checkingPeople,
         snackbar,
         closeSnackbar,
         isSubmitting,
