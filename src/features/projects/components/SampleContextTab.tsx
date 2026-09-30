@@ -1,48 +1,16 @@
-import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Button, Divider, Grid, TextField, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Divider, Grid, Tooltip, Typography } from "@mui/material";
 
 import SectionCard from "@/shared/components/SectionCard";
 import { useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
 import type { Project, SampleData } from "../api/projects.api";
 import { buildEcoTaxaSampleUrl } from "../utils/ecotaxaLinks";
+import { formatUtcDateTime } from "../utils/sampleFormat";
+import { ReadOnlyField, SubsectionHeader } from "./SampleDetailFields";
 
 interface SampleContextTabProps {
     project: Project | undefined;
     sample: SampleData;
-}
-
-/** "2022-12-05T15:14:44.000Z" -> "UTC  2022-12-05 15:14:44"; empty when missing or unparsable. */
-const formatUtcDateTime = (value?: string | null): string => {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return `UTC  ${date.toISOString().slice(0, 19).replace("T", " ")}`;
-};
-
-/** Read-only field; an empty value shows a dash so the grid keeps its shape. */
-function ReadOnlyField({ label, value, multiline = false }: { label: string; value: ReactNode; multiline?: boolean }) {
-    const display = value === null || value === undefined || value === "" ? "—" : String(value);
-    return (
-        <TextField
-            fullWidth
-            size="small"
-            label={label}
-            value={display}
-            multiline={multiline}
-            minRows={multiline ? 4 : undefined}
-            slotProps={{ input: { readOnly: true }, inputLabel: { shrink: true } }}
-        />
-    );
-}
-
-function SubsectionHeader({ title, action }: { title: string; action?: ReactNode }) {
-    return (
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, minHeight: 36 }}>
-            <Typography variant="subtitle1">{title}</Typography>
-            {action}
-        </Box>
-    );
 }
 
 export function SampleContextTab({ project, sample }: SampleContextTabProps) {
