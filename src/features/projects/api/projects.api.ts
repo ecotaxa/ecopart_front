@@ -651,6 +651,35 @@ export interface SampleData {
     bottom_depth?: number | null;
     instrument_operator_email?: string | null;
 
+    // Instrument settings read at import (backend PublicSampleModel).
+    // Calibration
+    instrument_settings_aa?: number | null;
+    instrument_settings_exp?: number | null;
+    instrument_settings_image_volume_l?: number | null;
+    instrument_settings_pixel_size_mm?: number | null;
+    // Acquisition. shutter_speed is the UVP5SD code, exposure the shutter in µs (UVP5HD/UVP6).
+    instrument_settings_acq_shutter_speed?: number | null;
+    instrument_settings_acq_gain?: number | null;
+    instrument_settings_acq_threshold?: number | null;
+    instrument_settings_acq_exposure?: number | null;
+    instrument_settings_acq_erase_border?: number | null;
+    instrument_settings_acq_description?: string | null;
+    instrument_settings_acq_task_type?: number | null;
+    instrument_settings_acq_choice?: number | null;
+    instrument_settings_acq_disk_type?: number | null;
+    instrument_settings_acq_vignette_roi_enlargement_ratio?: number | null;
+    instrument_settings_acq_x_size?: number | null;
+    instrument_settings_acq_y_size?: number | null;
+    instrument_settings_particule_minimum_area_pixels?: number | null;
+    instrument_settings_vignette_minimum_area_pixels?: number | null;
+    instrument_settings_acq_pressure_gain?: number | null;
+    instrument_settings_depth_offset_m?: number | null;
+    // Processing
+    instrument_settings_images_post_process?: string | null;
+    instrument_settings_process_datetime?: string | null;
+    instrument_settings_process_vignette_resize_factor?: number | null;
+    instrument_settings_process_gamma?: number | null;
+
     // EcoTaxa link (backend PublicSampleModel).
     ecotaxa_sample_imported?: boolean;
     ecotaxa_sample_id?: number | null;
