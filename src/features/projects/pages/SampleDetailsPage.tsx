@@ -17,6 +17,7 @@ import { deleteProjectSample, getProjectSample } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
 import { SampleContextTab } from "../components/SampleContextTab";
 import { SampleMetadataTab } from "../components/SampleMetadataTab";
+import { SampleInstrumentTab } from "../components/SampleInstrumentTab";
 
 const TABS = [
     { slug: "context", label: "CONTEXT", icon: <CloudIcon /> },
@@ -155,7 +156,7 @@ export default function SampleDetailsPage() {
                                 onSampleUpdated={(updated) => queryClient.setQueryData(sampleQueryKey, updated)}
                             />
                         )}
-                        {currentTab === 2 && renderComingSoonTab("Instrument")}
+                        {currentTab === 2 && <SampleInstrumentTab sample={sample} />}
                         {currentTab === 3 && renderComingSoonTab("Quality checks")}
                     </>
                 )}
