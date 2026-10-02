@@ -5,6 +5,7 @@ import CloudIcon from "@mui/icons-material/Cloud";
 import { useProfilePage } from "../hooks/useProfilePage";
 import { EcopartAccountTab } from "../components/EcopartAccountTab";
 import { EcoTaxaAccountsTab } from "../components/EcoTaxaAccountsTab";
+import { pageContainerSx, pageTabsSx } from "@/shared/layout/pageLayout";
 
 /**
  * Settings page (`/settings/:userId?/:tabName?`): the EcoPart account (profile,
@@ -24,7 +25,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <Container maxWidth="sm" sx={{ mt: 4, mb: 8, textAlign: "left" }}>
+        <Container maxWidth="sm" sx={{ ...pageContainerSx, textAlign: "left" }}>
 
             <Typography variant="h4" sx={{ mb: 2 }}>Settings</Typography>
 
@@ -32,7 +33,7 @@ export default function ProfilePage() {
                 <Alert severity="error" sx={{ mb: 3 }}>{loadError}</Alert>
             )}
 
-            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+            <Box sx={pageTabsSx}>
                 <Tabs value={tabValue} onChange={handleTabChange}>
                     <Tab icon={<PersonIcon />} iconPosition="start" label="ECOPART ACCOUNT" />
                     <Tab icon={<CloudIcon />} iconPosition="start" label="ECOTAXA ACCOUNTS" />

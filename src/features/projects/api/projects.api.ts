@@ -636,6 +636,12 @@ export interface SampleData {
     comment?: string;
     ctd_imported?: boolean;
     visual_qc_status_label?: string;
+    // Visual-QC decision (backend PublicSampleModel). The validator is
+    // "first last (email)" and only means something once the date is set.
+    visual_qc_validation_utc_date_time?: string | null;
+    visual_qc_validator_user?: string | null;
+    visual_qc_validator_email?: string | null;
+    visual_qc_comment?: string | null;
 
     // Imported metadata (backend PublicSampleModel).
     instrument_serial_number?: string | null;
@@ -786,6 +792,33 @@ export async function selectSampleCoordinates(
 }
 
 /**
+ * The import QC graphs of an imported sample, computed on demand from its raw files.
+ * Endpoint: GET /projects/:project_id/samples/:sample_id/qc-graphs
+ */
+export async function getSampleQcGraphs(projectId: number, sampleId: number): Promise<SampleQcGraphs> {
+    return http<SampleQcGraphs>(`/projects/${projectId}/samples/${sampleId}/qc-graphs`, {
+        method: "GET",
+    });
+}
+
+/**
+ * Records the visual-QC decision on a sample (who and when are set by the backend).
+ * Allowed for admins and project members.
+ * Endpoint: PATCH /projects/:project_id/samples/:sample_id/visual-qc
+ */
+export async function setSampleVisualQc(
+    projectId: number,
+    sampleId: number,
+    status: "VALIDATED" | "REJECTED",
+    comment?: string,
+): Promise<SampleData> {
+    return http<SampleData>(`/projects/${projectId}/samples/${sampleId}/visual-qc`, {
+        method: "PATCH",
+        body: JSON.stringify({ visual_qc_status_label: status, comment }),
+    });
+}
+
+/**
  * Fill in `nbr_sample` for a page of projects.
  *
  * The project-search endpoint does not return a sample count, so we ask the
@@ -832,6 +865,17 @@ export async function searchProjectEcoTaxaSamples(projectId: number, params: Pro
 
     const { search_info, items } = normalizeList(rawResponse, SAMPLE_LIST_KEYS);
     return { search_info, samples: items };
+}
+
+/**
+ * The EcoTaxa classification counts of one sample, or null when it is not in
+ * the list (not imported in EcoTaxa).
+ * The backend list cannot be filtered, so this reads the whole project list,
+ * whose counts are fetched live from EcoTaxa in a single call.
+ */
+export async function getEcoTaxaSampleStats(projectId: number, sampleId: number): Promise<EcoTaxaSampleData | null> {
+    const { samples } = await searchProjectEcoTaxaSamples(projectId, { page: 1, limit: 10000, filters: [] });
+    return samples.find((s) => s.sample_id === sampleId) ?? null;
 }
 
 /**

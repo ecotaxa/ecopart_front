@@ -19,6 +19,7 @@ import AdminTasksTab from "../components/AdminTasksTab";
 import AdminUsersTab from "../components/AdminUsersTab";
 import AdminProjectsTab from "../components/AdminProjectsTab";
 import AdminUpdatesTab from "../components/AdminUpdatesTab";
+import { pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 
 /**
  * AdminPage — the EcoPart administration console (route `/admin`, admins only).
@@ -54,15 +55,15 @@ export default function AdminPage() {
     const currentSlug = tabDefinitions[currentTab]?.slug;
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
-            <Box sx={{ mb: 4 }}>
+        <Container maxWidth="lg" sx={pageContainerSx}>
+            <Box sx={pageHeaderSx}>
                 <Typography variant="h4" gutterBottom>
                     EcoPart administration
                 </Typography>
             </Box>
 
             {/* TABS NAVIGATION */}
-            <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+            <Box sx={pageTabsSx}>
                 <Tabs
                     value={currentTab}
                     onChange={handleTabChange}

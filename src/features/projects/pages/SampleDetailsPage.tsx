@@ -10,7 +10,6 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import ImageIcon from "@mui/icons-material/Image";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
-import SectionCard from "@/shared/components/SectionCard";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import { deleteProjectSample, getProjectSample } from "../api/projects.api";
@@ -18,6 +17,8 @@ import { useProject } from "../hooks/useProject";
 import { SampleContextTab } from "../components/SampleContextTab";
 import { SampleMetadataTab } from "../components/SampleMetadataTab";
 import { SampleInstrumentTab } from "../components/SampleInstrumentTab";
+import { SampleQualityChecksTab } from "../components/SampleQualityChecksTab";
+import { pageBackButtonSx, pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 
 const TABS = [
     { slug: "context", label: "CONTEXT", icon: <CloudIcon /> },
@@ -92,24 +93,18 @@ export default function SampleDetailsPage() {
         }
     };
 
-    const renderComingSoonTab = (label: string) => (
-        <SectionCard sx={{ textAlign: "center" }}>
-            <Typography variant="h6" color="text.secondary">
-                {label} Tab (Coming Soon)
-            </Typography>
-        </SectionCard>
-    );
-
     return (
         <>
             <Container
                 maxWidth={false}
-                sx={{ maxWidth: { xs: "100%", md: "900px", lg: "1100px" }, mx: "auto", mt: 4, mb: 8 }}
+                // At least 17% of the screen free on each side from tablets up; capped so very wide
+                // screens get even more. Phones keep the default gutter, 66% of them would be unreadable.
+                sx={{ width: { xs: "100%", md: "66%" }, maxWidth: { md: "1100px" }, mx: "auto", ...pageContainerSx }}
             >
                 <Button
                     startIcon={<ArrowBackIcon />}
                     onClick={() => navigate(samplesListPath)}
-                    sx={{ mb: 2 }}
+                    sx={pageBackButtonSx}
                     color="inherit"
                     size="small"
                 >
@@ -124,22 +119,18 @@ export default function SampleDetailsPage() {
                     </Alert>
                 ) : (
                     <>
-                        <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                            <Box>
-                                <Typography variant="h4" gutterBottom>
-                                    Sample name
-                                </Typography>
-                                <Typography variant="h5" color="text.secondary">
-                                    {sample.sample_name}
-                                </Typography>
-                            </Box>
+                        <Box sx={{ ...pageHeaderSx, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <Typography variant="h4" sx={{ wordBreak: "break-word" }}>
+                                Sample name:{" "}
+                                <Box component="span" sx={{ color: "text.secondary" }}>{sample.sample_name}</Box>
+                            </Typography>
 
                             <Button variant="outlined" color="error" onClick={handleDeleteSample} disabled={isDeleting}>
                                 {isDeleting ? "DELETING..." : "DELETE"}
                             </Button>
                         </Box>
 
-                        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+                        <Box sx={pageTabsSx}>
                             <Tabs value={currentTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
                                 {TABS.map((tab, index) => (
                                     <Tab key={tab.slug} value={index} icon={tab.icon} iconPosition="start" label={tab.label} />
@@ -157,7 +148,13 @@ export default function SampleDetailsPage() {
                             />
                         )}
                         {currentTab === 2 && <SampleInstrumentTab sample={sample} />}
-                        {currentTab === 3 && renderComingSoonTab("Quality checks")}
+                        {currentTab === 3 && (
+                            <SampleQualityChecksTab
+                                projectId={projectId}
+                                sample={sample}
+                                onSampleUpdated={(updated) => queryClient.setQueryData(sampleQueryKey, updated)}
+                            />
+                        )}
                     </>
                 )}
             </Container>

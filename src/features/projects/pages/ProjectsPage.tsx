@@ -37,6 +37,7 @@ import type { MinimalUserModel, Project } from "../api/projects.api";
 import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
+import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
 
 /**
  * ProjectsPage Component
@@ -286,8 +287,8 @@ export default function ProjectsPage() {
     // ---------------------------------------------------------------------------
     return (
         <>
-            <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
-                <Box sx={{ mb: 4, textAlign: "center" }}>
+            <Container maxWidth="lg" sx={pageContainerSx}>
+                <Box sx={{ ...pageHeaderSx, textAlign: "center" }}>
                     <Typography variant="h4" gutterBottom>
                         My projects
                     </Typography>

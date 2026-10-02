@@ -50,6 +50,8 @@ export const createEcopartTheme = (textScale = 1) =>
 
 export const theme = createEcopartTheme();
 
+export { compactScreen } from "./components";
+
 // Re-exported so brand colour scales are reachable from `sx` props where MUI's
 // semantic palette is not enough (gradients, hover tints, …).
 export { ecotaxaColors };

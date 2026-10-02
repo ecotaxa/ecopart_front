@@ -13,6 +13,7 @@ import { EcoTaxaLinkSection } from "../components/EcoTaxaLinkSection";
 import { PrivilegesSection } from "../components/PrivilegesSection";
 import { DataPrivacySection } from "../components/DataPrivacySection";
 import { RootFolderSection } from "../components/RootFolderSection";
+import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
 
 export default function NewProjectPage() {
     const {
@@ -71,8 +72,8 @@ export default function NewProjectPage() {
 
     return (
         <>
-            <Container maxWidth="md" sx={{ mt: 4, mb: 8 }}>
-                <Box sx={{ mb: 4, textAlign: "center" }}>
+            <Container maxWidth="md" sx={pageContainerSx}>
+                <Box sx={{ ...pageHeaderSx, textAlign: "center" }}>
                     <Typography variant="h4" gutterBottom>
                         New project
                     </Typography>

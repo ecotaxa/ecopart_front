@@ -7,6 +7,13 @@ import { ecotaxaColors } from "./palette";
 const { secondblue, stone } = ecotaxaColors;
 
 /**
+ * Laptop screens under 16" (up to a 15.6" 1920px panel at 125% scaling, i.e. 1536 CSS px): the
+ * header, tabs and page headings are tightened there so the content starts higher.
+ * Usable as an `sx` key: `{ [compactScreen]: { mb: 2 } }`.
+ */
+export const compactScreen = "@media (max-width: 1599.95px)";
+
+/**
  * MUI component overrides reproducing EcoTaxa's UI signature — but tuned to
  * EcoPart's teal-led variant: a teal gradient header (EcoTaxa uses marine
  * blue), soft-shadowed rounded buttons with the Dosis label font, teal-focused
@@ -79,6 +86,15 @@ export const components: Components<Theme> = {
                     borderColor: secondblue[400],
                     borderWidth: 2,
                 },
+            },
+        },
+    },
+
+    // Icon tabs are 72px tall by default; 48px like text-only tabs on compact screens.
+    MuiTab: {
+        styleOverrides: {
+            root: {
+                [compactScreen]: { minHeight: 48 },
             },
         },
     },

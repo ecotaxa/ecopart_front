@@ -6,13 +6,13 @@ import { alpha } from "@mui/material/styles";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 
 import SectionCard from "@/shared/components/SectionCard";
-import { LocationMap, type MapLocation } from "@/shared/components/map";
+import { LocationMap } from "@/shared/components/map";
 import { selectSampleCoordinates, type Project, type SampleData } from "../api/projects.api";
 import { formatUtcDateTime } from "../utils/sampleFormat";
+import {
+    buildSampleMapLocations, CTD_LOCATION_COLOR, hasCoordinates, METADATA_LOCATION_COLOR,
+} from "../utils/sampleLocations";
 import { ReadOnlyField, SubsectionHeader } from "./SampleDetailFields";
-
-const METADATA_LOCATION_COLOR = "#e91e63";
-const CTD_LOCATION_COLOR = "#ff9800";
 
 type LocationSource = "metadata" | "ctd";
 
@@ -88,9 +88,6 @@ function LocationOption({
     );
 }
 
-const hasCoordinates = (latitude?: number | null, longitude?: number | null) =>
-    latitude != null && longitude != null;
-
 /**
  * The sample only stores the operator email; the name comes from the project
  * operator when it is the same person.
@@ -111,7 +108,6 @@ interface SampleMetadataTabProps {
 
 export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated }: SampleMetadataTabProps) {
     const operatorName = findOperatorName(project, sample.instrument_operator_email);
-    const hasMetadataLocation = hasCoordinates(sample.latitude, sample.longitude);
     // The backend only accepts the CTD location once both CTD coordinates are known.
     const hasCtdLocation = hasCoordinates(sample.ctd_latitude, sample.ctd_longitude);
     const selectedSource: LocationSource = sample.use_ctd_coordinates ? "ctd" : "metadata";
@@ -133,28 +129,11 @@ export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated 
         }
     };
 
-    const mapLocations = useMemo<MapLocation[]>(() => {
-        const locations: MapLocation[] = [];
-        if (hasMetadataLocation) {
-            locations.push({
-                id: "metadata",
-                label: "Location from imported metadata",
-                latitude: sample.latitude as number,
-                longitude: sample.longitude as number,
-                color: METADATA_LOCATION_COLOR,
-            });
-        }
-        if (hasCtdLocation) {
-            locations.push({
-                id: "ctd",
-                label: "Location from imported CTD file",
-                latitude: sample.ctd_latitude as number,
-                longitude: sample.ctd_longitude as number,
-                color: CTD_LOCATION_COLOR,
-            });
-        }
-        return locations;
-    }, [hasMetadataLocation, hasCtdLocation, sample.latitude, sample.longitude, sample.ctd_latitude, sample.ctd_longitude]);
+    const { latitude, longitude, ctd_latitude, ctd_longitude } = sample;
+    const mapLocations = useMemo(
+        () => buildSampleMapLocations({ latitude, longitude, ctd_latitude, ctd_longitude }),
+        [latitude, longitude, ctd_latitude, ctd_longitude],
+    );
 
     return (
         <SectionCard sx={{ p: 0 }}>
