@@ -15,7 +15,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CloudIcon from "@mui/icons-material/Cloud";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import { ecotaxaColors } from "@/theme";
+import { compactScreen, ecotaxaColors } from "@/theme";
 import { queryClient } from "@/shared/api/queryClient";
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
@@ -56,7 +56,7 @@ export default function TopBar() {
 
     return (
         <AppBar position="static">
-            <Toolbar sx={{ justifyContent: "space-between" }}>
+            <Toolbar sx={{ justifyContent: "space-between", [compactScreen]: { minHeight: 52 } }}>
                 {/* Logo */}
                 <Box
                     component={RouterLink}
@@ -80,13 +80,14 @@ export default function TopBar() {
                             height: "100%",
                             maxHeight: "64px", // default MUI AppBar height
                             objectFit: "contain",
+                            [compactScreen]: { maxHeight: "44px" },
                         }}
                     />
                 </Box>
 
 
                 {/* Navigation */}
-                <Stack direction="row" spacing={3}>
+                <Stack direction="row" sx={{ gap: 3, [compactScreen]: { gap: 2 } }}>
                     <NavLink to="/about" label="About" />
                     <NavLink to="/explore" label="Explore" />
                     <NavLink to="https://ecotaxa.obs-vlfr.fr/" label="EcoTaxa" />
@@ -113,12 +114,12 @@ export default function TopBar() {
                             onClick={handleOpen}
                             sx={{ cursor: "pointer", color: "common.white" }}
                         >
-                            <Typography>
+                            <Typography sx={{ [compactScreen]: { fontSize: "0.9rem" } }}>
                                 {user.first_name} {user.last_name}
                             </Typography>
 
                             <IconButton size="large" sx={{ color: "common.white" }} aria-label="Open account menu">
-                                <AccountCircleIcon fontSize="large" />
+                                <AccountCircleIcon fontSize="large" sx={{ [compactScreen]: { fontSize: 28 } }} />
                             </IconButton>
                         </Stack>
 
@@ -223,6 +224,7 @@ function NavLink({ to, label }: { to: string; label: string }) {
                 color: "common.white",
                 fontWeight: 500,
                 pb: 0.5,
+                [compactScreen]: { fontSize: "0.9rem" },
                 borderBottom: "2px solid",
                 borderColor: active ? "common.white" : "transparent",
                 transition: "color 0.2s ease-in-out, border-color 0.2s ease-in-out",

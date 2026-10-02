@@ -13,6 +13,7 @@ import SectionCard from "@/shared/components/SectionCard";
 import { useTasksTable } from "../hooks/useTasksTable";
 import type { Task } from "../api/projects.api";
 import { buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
+import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
 
 /**
  * TasksPage — global Tasks list (TopBar "Tasks" link, route `/tasks`).
@@ -75,8 +76,8 @@ export default function TasksPage() {
     ];
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
-            <Box sx={{ mb: 4, textAlign: "center" }}>
+        <Container maxWidth="lg" sx={pageContainerSx}>
+            <Box sx={{ ...pageHeaderSx, textAlign: "center" }}>
                 <Typography variant="h4" gutterBottom>My tasks</Typography>
             </Box>
 

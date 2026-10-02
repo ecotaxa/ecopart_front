@@ -18,6 +18,7 @@ import { ecotaxaColors } from "@/theme";
 import { deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task } from "../api/projects.api";
 import { formatTaskOwner, isDownloadableTask } from "../utils/taskColumns";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
+import { pageBackButtonSx, pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 
 export default function TaskDetailsPage() {
     const { id, taskId, tabName } = useParams<{ id?: string; taskId: string; tabName?: string }>();
@@ -186,12 +187,12 @@ export default function TaskDetailsPage() {
 
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+        <Container maxWidth="lg" sx={pageContainerSx}>
             {/* BACK NAVIGATION ACTION */}
             <Button
                 startIcon={<ArrowBackIcon />}
                 onClick={() => navigate(backTo)}
-                sx={{ mb: 3, fontWeight: "bold" }}
+                sx={{ ...pageBackButtonSx, mb: 3, fontWeight: "bold" }}
                 color="inherit"
             >
                 Back to tasks list
@@ -205,7 +206,7 @@ export default function TaskDetailsPage() {
                 task && (
                     <Box>
                         {/* PAGE LEVEL HEADER REGION */}
-                        <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <Box sx={{ ...pageHeaderSx, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <Typography variant="h4" fontWeight="bold">
                                 {task.task_type} task [{task.task_id}]
                             </Typography>
@@ -228,7 +229,7 @@ export default function TaskDetailsPage() {
                         </Box>
 
                         {/* NAVIGATION TABS STRUCTURE */}
-                        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 4 }}>
+                        <Box sx={{ ...pageTabsSx, mb: 4 }}>
                             <Tabs value={currentTab} onChange={handleTabChange}>
                                 <Tab icon={<AssignmentIcon />} iconPosition="start" label="GENERAL" />
                                 <Tab icon={<TerminalIcon />} iconPosition="start" label="LOG FILE" />

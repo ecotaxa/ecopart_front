@@ -34,13 +34,11 @@ const toSeries = (profile: QcBinnedDepthProfile): QcChartSeries[] =>
         }),
     }));
 
-interface QcSampleCardProps {
-    sample: SampleQcGraphs;
-    onRemove: (sampleName: string) => void;
-    removeDisabled?: boolean;
-}
-
-export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, removeDisabled }) => {
+/**
+ * The four QC graphs of a sample with its image-selection metadata, without any frame: shared by the
+ * pre-import review card and the Quality checks tab of an imported sample.
+ */
+export const QcSampleGraphs: React.FC<{ sample: SampleQcGraphs }> = ({ sample }) => {
     const { image_filtering: filtering, image_depth_profile: depthProfile } = sample;
     const chartMetrics = useQcChartMetrics();
 
@@ -113,20 +111,7 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
     const chartCols = profileCharts.length <= 2 ? 6 : 4;
 
     return (
-        <SectionCard sx={{ mb: 3 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="subtitle2" fontWeight="bold">Sample : {sample.sample_name}</Typography>
-                <Button
-                    onClick={() => onRemove(sample.sample_name)}
-                    disabled={removeDisabled}
-                    color="error"
-                    sx={{ fontWeight: "bold" }}
-                    size="small"
-                >
-                    REMOVE FROM IMPORT
-                </Button>
-            </Box>
-
+        <>
             {/*
               * ONE grid for the whole card. Every graph is a cell of the same 12-column track, so
               * they are all exactly `chartCols` wide and cannot drift apart — which is what a second
@@ -198,6 +183,30 @@ export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, re
                     </Grid>
                 ))}
             </Grid>
-        </SectionCard>
+        </>
     );
 };
+
+interface QcSampleCardProps {
+    sample: SampleQcGraphs;
+    onRemove: (sampleName: string) => void;
+    removeDisabled?: boolean;
+}
+
+export const QcSampleCard: React.FC<QcSampleCardProps> = ({ sample, onRemove, removeDisabled }) => (
+    <SectionCard sx={{ mb: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="subtitle2" fontWeight="bold">Sample : {sample.sample_name}</Typography>
+            <Button
+                onClick={() => onRemove(sample.sample_name)}
+                disabled={removeDisabled}
+                color="error"
+                sx={{ fontWeight: "bold" }}
+                size="small"
+            >
+                REMOVE FROM IMPORT
+            </Button>
+        </Box>
+        <QcSampleGraphs sample={sample} />
+    </SectionCard>
+);

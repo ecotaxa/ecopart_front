@@ -38,6 +38,7 @@ import LockIcon from "@mui/icons-material/Lock";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import BackupIcon from "@mui/icons-material/Backup";
 import { ProjectDataTab } from "../components/ProjectDataTab";
+import { pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 
 export default function ProjectDetailsPage() {
     const { id, tabName } = useParams<{ id: string; tabName?: string }>();
@@ -151,13 +152,12 @@ export default function ProjectDetailsPage() {
                         lg: '1100px' // Your value between md and lg
                     },
                     mx: 'auto', // Center the container when maxWidth is false
-                    mt: 4,
-                    mb: 8
+                    ...pageContainerSx,
                 }}
             >
 
                 {/* TOP HEADER SECTION (Matches Mockup) */}
-                <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Box sx={{ ...pageHeaderSx, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <Box>
                         <Typography variant="h4" gutterBottom>
                             Project
@@ -194,7 +194,7 @@ export default function ProjectDetailsPage() {
                 </Box>
 
                 {/* TABS NAVIGATION */}
-                <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+                <Box sx={pageTabsSx}>
                     <Tabs
                         value={currentTab}
                         onChange={handleTabChange}
