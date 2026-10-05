@@ -53,6 +53,8 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: github.event_name == 'push' && env.CODECOV_TOKEN != ''
+        # A Codecov outage must not fail the checks: the tests already passed above.
+        continue-on-error: true
         uses: codecov/codecov-action@v4
         with:
           token: ${{ env.CODECOV_TOKEN }}
