@@ -37,6 +37,8 @@ jobs:
       # Upload coverage reports to Codecov
       - name: Upload coverage to Codecov
         if: env.CODECOV_TOKEN != ''
+        # A Codecov outage must not block the release: the tests already passed above.
+        continue-on-error: true
         uses: codecov/codecov-action@v4
         with:
           token: ${{ env.CODECOV_TOKEN }}
