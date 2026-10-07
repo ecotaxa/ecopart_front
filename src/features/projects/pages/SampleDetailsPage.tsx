@@ -10,6 +10,7 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import ImageIcon from "@mui/icons-material/Image";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import { deleteProjectSample, getProjectSample } from "../api/projects.api";
@@ -44,6 +45,12 @@ export default function SampleDetailsPage() {
     const currentTab = tabIndex >= 0 ? tabIndex : 0;
 
     const { data: project } = useProject(projectId);
+    const currentUser = useAuthStore((state) => state.user);
+    // DELETE is a manager-only action server-side, so only a manager (or an admin) gets the button.
+    const canDelete =
+        currentUser?.is_admin === true ||
+        (currentUser != null &&
+            (project?.managers ?? []).some((manager) => Number(manager.user_id) === Number(currentUser.user_id)));
     const sampleQueryKey = ["projects", projectId, "samples", parsedSampleId] as const;
     const { data: sample, isLoading, error } = useQuery({
         queryKey: sampleQueryKey,
@@ -125,9 +132,11 @@ export default function SampleDetailsPage() {
                                 <Box component="span" sx={{ color: "text.secondary" }}>{sample.sample_name}</Box>
                             </Typography>
 
-                            <Button variant="outlined" color="error" onClick={handleDeleteSample} disabled={isDeleting}>
-                                {isDeleting ? "DELETING..." : "DELETE"}
-                            </Button>
+                            {canDelete && (
+                                <Button variant="outlined" color="error" onClick={handleDeleteSample} disabled={isDeleting}>
+                                    {isDeleting ? "DELETING..." : "DELETE"}
+                                </Button>
+                            )}
                         </Box>
 
                         <Box sx={pageTabsSx}>

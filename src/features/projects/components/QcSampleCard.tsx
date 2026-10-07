@@ -5,6 +5,7 @@ import Grid from "@mui/material/Grid";
 import { ecotaxaColors } from "@/theme";
 import SectionCard from "@/shared/components/SectionCard";
 import type { QcBinnedDepthProfile, SampleQcGraphs } from "../api/projects.api";
+import { formatUtcDateTime } from "../utils/sampleFormat";
 import { type QcChartSeries, QcProfileChart } from "./QcProfileChart";
 import { useQcChartMetrics } from "./qcChartLayout";
 
@@ -45,6 +46,8 @@ export const QcSampleGraphs: React.FC<{ sample: SampleQcGraphs }> = ({ sample })
     // Time series are profiled against time (hours) instead of depth, on all four graphs.
     const isTime = sample.vertical_axis === "time";
     const yLabel = isTime ? "time (h)" : "depth (m)";
+    // The axis title stays short; the hour the time counts from is given once, above the graphs.
+    const timeOrigin = isTime ? formatUtcDateTime(sample.time_origin_utc_date_time, { withPrefix: false }) : "";
 
     // Graph 1 shows every image, but splits them by `is_selected`: images kept by the
     // first/last + descent filters are blue, the discarded ones red (as in the mockup).
@@ -112,6 +115,11 @@ export const QcSampleGraphs: React.FC<{ sample: SampleQcGraphs }> = ({ sample })
 
     return (
         <>
+            {timeOrigin && (
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                    Time axis: hours since {timeOrigin} UTC
+                </Typography>
+            )}
             {/*
               * ONE grid for the whole card. Every graph is a cell of the same 12-column track, so
               * they are all exactly `chartCols` wide and cannot drift apart — which is what a second

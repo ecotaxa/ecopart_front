@@ -759,19 +759,14 @@ export async function searchProjectSamples(projectId: number, params: ProjectSea
 }
 
 /**
- * One UVP sample of a project.
- * The backend has no GET /samples/:sample_id route, so this goes through the
- * search endpoint filtered on the id. Rejects when the sample does not exist.
+ * One UVP sample of a project. Allowed for admins and project members; 404 when
+ * the sample does not exist or belongs to another project.
+ * Endpoint: GET /projects/:project_id/samples/:sample_id
  */
 export async function getProjectSample(projectId: number, sampleId: number): Promise<SampleData> {
-    const { samples } = await searchProjectSamples(projectId, {
-        page: 1,
-        limit: 1,
-        filters: [{ field: "sample_id", operator: "=", value: sampleId }],
+    return http<SampleData>(`/projects/${projectId}/samples/${sampleId}`, {
+        method: "GET",
     });
-    const sample = samples[0];
-    if (!sample) throw new Error(`Sample ${sampleId} not found in project ${projectId}.`);
-    return sample;
 }
 
 /**

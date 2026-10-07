@@ -9,7 +9,7 @@ import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 import type { SampleData } from '../api/projects.api';
 
-const mockApi = (sample: Partial<SampleData>) => {
+const mockApi = (sample: Partial<SampleData>, managerIds: number[] = []) => {
     server.use(
         http.post('*/projects/searches', () => HttpResponse.json({
             search_info: { total: 1, page: 1, limit: 1 },
@@ -22,12 +22,12 @@ const mockApi = (sample: Partial<SampleData>) => {
                 ecotaxa_project_id: 636,
                 ecotaxa_project_name: 'uvp5_sn000_tara2011',
                 ecotaxa_instance_id: 1,
+                managers: managerIds.map((user_id) => ({ user_id })),
             }],
         })),
-        http.post('*/projects/555/samples/searches', () => HttpResponse.json({
-            search_info: { total: 1, page: 1, limit: 1 },
-            samples: [{ sample_id: 9, sample_name: 'tara_093_00_a', filename: '20110311194210', ...sample }],
-        })),
+        http.get('*/projects/555/samples/9', () => HttpResponse.json(
+            { sample_id: 9, sample_name: 'tara_093_00_a', filename: '20110311194210', ...sample },
+        )),
         http.get('*/ecotaxa_instances', () => HttpResponse.json([
             { ecotaxa_instance_id: 1, ecotaxa_instance_name: 'FR', ecotaxa_instance_description: '', ecotaxa_instance_url: 'https://ecotaxa.obs-vlfr.fr/' },
         ])),
@@ -91,5 +91,20 @@ describe('SampleDetailsPage', () => {
         expect(await screen.findByText(/No CTD file is linked/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Open import task/i })).toBeDisabled();
         expect(screen.getByRole('button', { name: /Open sample in EcoTaxa/i })).toBeDisabled();
+    });
+
+    it('offers DELETE to a project manager', async () => {
+        mockApi({}, [1]);
+        renderPage();
+
+        expect(await screen.findByRole('button', { name: 'DELETE' })).toBeInTheDocument();
+    });
+
+    it('hides DELETE from a user who is not a manager, as the backend would refuse it', async () => {
+        mockApi({}, [2]);
+        renderPage();
+
+        expect(await screen.findByLabelText('EcoPart project name')).toHaveValue('uvp5_sn000_tara2011');
+        expect(screen.queryByRole('button', { name: 'DELETE' })).not.toBeInTheDocument();
     });
 });
