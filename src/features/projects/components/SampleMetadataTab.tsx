@@ -168,7 +168,7 @@ export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated 
                             <ReadOnlyField label="Optional id (ARGO, Glider)" value={null} />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                            <ReadOnlyField label="Max pressure" value={sample.max_pressure} />
+                            <ReadOnlyField label="Max pressure" value={sample.max_pressure} prefix="dbar" />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
                             <ReadOnlyField
@@ -178,9 +178,6 @@ export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated 
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
                             <ReadOnlyField label="Station ID" value={sample.station_id} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <ReadOnlyField label="Sampling date" value={formatUtcDateTime(sample.sampling_utc_date_time)} />
                         </Grid>
                     </Grid>
                 </Box>
@@ -252,7 +249,7 @@ export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated 
                             <ReadOnlyField label="Nebulousness (0-8)" value={sample.nebulousness} />
                         </Grid>
                         <Grid size={{ xs: 12, md: 6 }}>
-                            <ReadOnlyField label="Bottom depth" value={sample.bottom_depth} />
+                            <ReadOnlyField label="Bottom depth" value={sample.bottom_depth} prefix="m" />
                         </Grid>
                     </Grid>
                 </Box>

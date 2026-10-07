@@ -89,7 +89,7 @@ export function SampleInstrumentTab({ sample }: { sample: SampleData }) {
                         <FieldCell><ReadOnlyField label="Gain" value={sample.instrument_settings_acq_gain} /></FieldCell>
                         <FieldCell>
                             {/* Not stored by the backend yet. */}
-                            <ReadOnlyField label="Transfert" value={null} />
+                            <ReadOnlyField label="Transfer" value={null} />
                         </FieldCell>
                         <FieldCell>
                             <ReadOnlyField label="Threshold" value={sample.instrument_settings_acq_threshold} />
@@ -121,7 +121,7 @@ export function SampleInstrumentTab({ sample }: { sample: SampleData }) {
                         </FieldCell>
                         <FieldCell>
                             <ReadOnlyField
-                                label="Ratio"
+                                label="Vignette ROI enlargement ratio"
                                 value={sample.instrument_settings_acq_vignette_roi_enlargement_ratio}
                             />
                         </FieldCell>
@@ -177,7 +177,7 @@ export function SampleInstrumentTab({ sample }: { sample: SampleData }) {
                         </FieldCell>
                         <FieldCell>
                             <ReadOnlyField
-                                label="Ratio"
+                                label="Vignette resize ratio"
                                 value={sample.instrument_settings_process_vignette_resize_factor}
                             />
                         </FieldCell>

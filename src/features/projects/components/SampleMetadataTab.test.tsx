@@ -66,7 +66,6 @@ describe("SampleMetadataTab", () => {
         expect(sampleIdField).toHaveValue("tara_093_00_a");
         expect(sampleIdField).toHaveAttribute("readonly");
         expect(screen.getByLabelText("UTC date & time")).toHaveValue("2011-03-11 19:42:10");
-        expect(screen.getByLabelText("Sampling date")).toHaveValue("UTC  2011-03-11 19:42:10");
         expect(screen.getByLabelText("Wind direction (0-360)")).toHaveValue("270");
         expect(screen.getByText("Deg")).toBeInTheDocument();
         expect(screen.getByLabelText("Email")).toHaveValue("operator@example.org");

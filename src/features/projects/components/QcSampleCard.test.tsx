@@ -203,6 +203,8 @@ describe('components/QcSampleCard', () => {
         expect(screen.getByText(/Particle \(LPM\) for 1, 2 and 3 pixels versus time/)).toBeInTheDocument();
         // One vertical-axis title per graph, and no depth left anywhere.
         expect(screen.getAllByText('time (h)')).toHaveLength(4);
+        // The hour time_h counts from is spelled out once.
+        expect(screen.getByText('Time axis: hours since 2024-03-03 00:00:00 UTC')).toBeInTheDocument();
         expect(screen.queryByText('depth (m)')).not.toBeInTheDocument();
         // The points are positioned by time_h, so every graph actually draws.
         expect(container.querySelectorAll('svg').length).toBeGreaterThanOrEqual(4);

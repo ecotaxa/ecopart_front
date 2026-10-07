@@ -114,6 +114,10 @@ function QcGraphsSection({ projectId, sample }: { projectId: number; sample: Sam
     const { data: graphs, isLoading, error } = useQuery({
         queryKey: ["projects", projectId, "samples", sample.sample_id, "qc-graphs"],
         queryFn: () => getSampleQcGraphs(projectId, sample.sample_id),
+        // Computed from the raw files, which no longer change once imported: no need to recompute
+        // each time the tab is shown again, nor to retry a computation that already failed.
+        staleTime: Infinity,
+        retry: false,
     });
 
     return (
@@ -234,6 +238,8 @@ function TaxonomyRow({ label, count, total, color }: TaxonomyRowProps) {
     );
 }
 
+const ECOTAXA_STATS_STALE_MS = 5 * 60_000;
+
 const isClassificationComplete = (stats: EcoTaxaSampleData) =>
     stats.nb_objects > 0 && stats.nb_validated === stats.nb_objects;
 
@@ -243,6 +249,8 @@ function TaxonomySection({ projectId, sample }: { projectId: number; sample: Sam
         queryKey: ["projects", projectId, "samples", sample.sample_id, "ecotaxa-stats"],
         queryFn: () => getEcoTaxaSampleStats(projectId, sample.sample_id),
         enabled: isInEcoTaxa,
+        // Reads the whole project list live from EcoTaxa: reuse it while switching tabs.
+        staleTime: ECOTAXA_STATS_STALE_MS,
     });
 
     const completion = stats && (isClassificationComplete(stats) ? (
