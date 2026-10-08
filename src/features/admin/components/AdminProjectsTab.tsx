@@ -15,6 +15,7 @@ import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-dat
 
 import type { MinimalUserModel, Project, SearchFilter } from "@/features/projects/api/projects.api";
 import { useAdminProjectsTable } from "../hooks/useAdminProjectsTable";
+import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import { parseUserIdsParam } from "../utils/userFilterParams";
 
 /** Comma-separated user names for a privilege array; "—" when empty. */
@@ -310,7 +311,7 @@ export default function AdminProjectsTab() {
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}
-                        pageSizeOptions={[5, 10, 25]}
+                        pageSizeOptions={buildPageSizeOptions()}
                         autoHeight
                     />
                 </Box>

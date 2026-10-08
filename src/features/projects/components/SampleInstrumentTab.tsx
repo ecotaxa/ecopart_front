@@ -186,6 +186,25 @@ export function SampleInstrumentTab({ sample }: { sample: SampleData }) {
                         </FieldCell>
                     </Grid>
                 </Box>
+
+                {/* IMAGES */}
+                <Box>
+                    <SubsectionHeader title="Images" />
+                    <Grid container spacing={2}>
+                        <FieldCell>
+                            <ReadOnlyField label="Filter first image" value={sample.filter_first_image} />
+                        </FieldCell>
+                        <FieldCell>
+                            <ReadOnlyField label="Filter last image" value={sample.filter_last_image} />
+                        </FieldCell>
+                        <FieldCell>
+                            <ReadOnlyField label="Number of vignettes" value={sample.nb_vignettes} />
+                        </FieldCell>
+                        <FieldCell>
+                            <ReadOnlyField label="Number of black images" value={sample.nb_black} />
+                        </FieldCell>
+                    </Grid>
+                </Box>
             </Box>
         </SectionCard>
     );
