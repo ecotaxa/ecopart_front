@@ -167,5 +167,9 @@ export const FEATURES: Feature[] = [
     },
 ];
 
-/** People credited in the page footer. */
-export const DEVELOPERS = ["Julie Coustenoble", "Brahim Lamjarad"];
+/** People credited in the page footer, one line per role. */
+export const CREDITS = [
+    { role: "Specified by", people: ["Marc Picheral", "Camille Catalano"] },
+    { role: "Developed by", people: ["Julie Coustenoble", "Brahim Lamjarad"] },
+    { role: "Data manager", people: ["Victoria Bancel"] },
+];

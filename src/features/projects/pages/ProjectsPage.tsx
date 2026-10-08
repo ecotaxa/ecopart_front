@@ -448,7 +448,7 @@ export default function ProjectsPage() {
                             rowSelectionModel={rowSelectionModel}
                             onRowSelectionModelChange={setRowSelectionModel}
                             loading={loading}
-                            pageSizeOptions={buildPageSizeOptions(totalRows)}
+                            pageSizeOptions={buildPageSizeOptions()}
                             disableRowSelectionOnClick
                             onRowClick={handleRowClick}
                             sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}

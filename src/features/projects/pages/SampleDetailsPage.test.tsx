@@ -75,21 +75,26 @@ describe('SampleDetailsPage', () => {
             ctd_import_utc_date_time: '2022-12-05T15:14:44.000Z',
             ctd_description: '01=Oxygen [ml/l]\n02=Ph',
             ctd_import_task_id: 31,
+            ctd_file_extension: 'ctd',
+            ecotaxa_sample_task_id: 30,
         });
         renderPage();
 
         expect(await screen.findByLabelText('Original file name')).toHaveValue('tara_sbe_9c_110311_01');
         expect(screen.getByLabelText('Import date')).toHaveValue('UTC  2022-12-05 15:14:44');
         expect(screen.getByLabelText('Imported CTD description')).toHaveValue('01=Oxygen [ml/l]\n02=Ph');
-        expect(screen.getByRole('button', { name: /Open import task/i })).toBeEnabled();
+        expect(screen.getByLabelText('File extension')).toHaveValue('ctd');
+        expect(screen.getByRole('button', { name: /Open CTD import task/i })).toBeEnabled();
+        expect(screen.getByRole('button', { name: /Open EcoTaxa import task/i })).toBeEnabled();
     });
 
-    it('disables both actions when the sample is neither in EcoTaxa nor linked to a CTD', async () => {
+    it('disables every action when the sample is neither in EcoTaxa nor linked to a CTD', async () => {
         mockApi({ ecotaxa_sample_imported: false, ctd_imported: false });
         renderPage();
 
         expect(await screen.findByText(/No CTD file is linked/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Open import task/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /Open CTD import task/i })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /Open EcoTaxa import task/i })).toBeDisabled();
         expect(screen.getByRole('button', { name: /Open sample in EcoTaxa/i })).toBeDisabled();
     });
 

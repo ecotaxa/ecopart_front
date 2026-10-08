@@ -3,6 +3,7 @@ import ScatterPlotIcon from "@mui/icons-material/ScatterPlot";
 import WorkspacesIcon from "@mui/icons-material/Workspaces";
 import HubIcon from "@mui/icons-material/Hub";
 import ParticleField from "@/shared/components/ParticleField";
+import { fullHeightBelowAppBarSx, layoutBleedSx } from "@/shared/layout/pageLayout";
 
 /** Short, truthful entry points that mirror the app's real sections. */
 const HIGHLIGHTS = [
@@ -31,21 +32,23 @@ export default function HomePage() {
         <>
             {/* Full-bleed hero: break out of MainLayout's padding so the
                 interactive particle field runs edge-to-edge under the TopBar. */}
+            {/* An sx array, not object spreads: both shared styles carry a compact-screen media
+                query, and a spread would let the second one overwrite the first. */}
             <Box
-                sx={{
-                    position: "relative",
-                    mx: -3,
-                    mt: -3,
-                    mb: -3,
-                    minHeight: "calc(100vh - 64px)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    // Subtle teal atmosphere behind the particles.
-                    background: (t) =>
-                        `radial-gradient(120% 120% at 50% 0%, ${t.palette.primary.light}14 0%, ${t.palette.background.default} 60%)`,
-                }}
+                sx={[
+                    layoutBleedSx,
+                    fullHeightBelowAppBarSx,
+                    {
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        overflow: "hidden",
+                        // Subtle teal atmosphere behind the particles.
+                        background: (t) =>
+                            `radial-gradient(120% 120% at 50% 0%, ${t.palette.primary.light}14 0%, ${t.palette.background.default} 60%)`,
+                    },
+                ]}
             >
                 <ParticleField />
 

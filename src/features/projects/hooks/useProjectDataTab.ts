@@ -18,6 +18,7 @@ import { getEcoTaxaInstances } from "@/shared/api/ecotaxa.api";
 import { buildEcoTaxaSampleUrl as buildSampleUrl } from "../utils/ecotaxaLinks";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
+import { toRequestLimit } from "@/shared/utils/pageSizeOptions";
 
 export const useProjectDataTab = (projectId: number) => {
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
@@ -118,7 +119,7 @@ export const useProjectDataTab = (projectId: number) => {
         try {
             const response = await searchProjectSamples(projectId, {
                 page: uvpPaginationModel.page + 1,
-                limit: uvpPaginationModel.pageSize,
+                limit: toRequestLimit(uvpPaginationModel.pageSize),
                 filters: [],
             });
             if (!isLatest()) return;
@@ -143,7 +144,7 @@ export const useProjectDataTab = (projectId: number) => {
         try {
             const response = await searchProjectEcoTaxaSamples(projectId, {
                 page: ecoTaxaPaginationModel.page + 1,
-                limit: ecoTaxaPaginationModel.pageSize,
+                limit: toRequestLimit(ecoTaxaPaginationModel.pageSize),
                 filters: [],
             });
             if (!isLatest()) return;
