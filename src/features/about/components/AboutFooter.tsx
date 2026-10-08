@@ -1,7 +1,7 @@
 import { Box, Container, Link, Stack, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-import { ABOUT_LINKS, DEVELOPERS } from "../content";
+import { ABOUT_LINKS, CREDITS } from "../content";
 
 /** Closing band: hosting disclaimer, contact address and credits. */
 export default function AboutFooter() {
@@ -26,9 +26,13 @@ export default function AboutFooter() {
                         A question:{" "}
                         <Link href={`mailto:${ABOUT_LINKS.contactEmail}`}>{ABOUT_LINKS.contactEmail}</Link>
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Developed by: {DEVELOPERS.join(" & ")}
-                    </Typography>
+                    <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
+                        {CREDITS.map(({ role, people }) => (
+                            <Typography key={role} variant="body2" color="text.secondary">
+                                {role}: {people.join(" & ")}
+                            </Typography>
+                        ))}
+                    </Box>
                 </Stack>
             </Container>
         </Box>

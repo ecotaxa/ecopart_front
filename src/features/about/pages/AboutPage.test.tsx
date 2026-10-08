@@ -35,6 +35,14 @@ describe("AboutPage", () => {
         expect(screen.getByRole("link", { name: "Explore data" })).toHaveAttribute("href", "/explore");
     });
 
+    it("credits who specified, developed and manages the data of EcoPart", () => {
+        renderWithRouter(<AboutPage />, { route: "/about" });
+
+        expect(screen.getByText("Specified by: Marc Picheral & Camille Catalano")).toBeInTheDocument();
+        expect(screen.getByText("Developed by: Julie Coustenoble & Brahim Lamjarad")).toBeInTheDocument();
+        expect(screen.getByText("Data manager: Victoria Bancel")).toBeInTheDocument();
+    });
+
     it("shows one logo per partner, named for screen readers", () => {
         renderWithRouter(<AboutPage />, { route: "/about" });
 

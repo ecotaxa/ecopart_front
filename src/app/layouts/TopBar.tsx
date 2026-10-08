@@ -16,6 +16,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import CloudIcon from "@mui/icons-material/Cloud";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { compactScreen, ecotaxaColors } from "@/theme";
+import { COMPACT_APP_BAR_HEIGHT } from "@/shared/layout/pageLayout";
 import { queryClient } from "@/shared/api/queryClient";
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
@@ -56,7 +57,7 @@ export default function TopBar() {
 
     return (
         <AppBar position="static">
-            <Toolbar sx={{ justifyContent: "space-between", [compactScreen]: { minHeight: 52 } }}>
+            <Toolbar sx={{ justifyContent: "space-between", [compactScreen]: { minHeight: COMPACT_APP_BAR_HEIGHT } }}>
                 {/* Logo */}
                 <Box
                     component={RouterLink}
@@ -223,10 +224,13 @@ function NavLink({ to, label }: { to: string; label: string }) {
                 textDecoration: "none",
                 color: "common.white",
                 fontWeight: 500,
-                pb: 0.5,
+                // Same padding and (transparent) border on top as the underline below, so the
+                // label sits on the toolbar's vertical centre like the logo and the account menu.
+                py: 0.5,
                 [compactScreen]: { fontSize: "0.9rem" },
+                borderTop: "2px solid transparent",
                 borderBottom: "2px solid",
-                borderColor: active ? "common.white" : "transparent",
+                borderBottomColor: active ? "common.white" : "transparent",
                 transition: "color 0.2s ease-in-out, border-color 0.2s ease-in-out",
                 "&:hover": {
                     color: active ? "common.white" : ecotaxaColors.secondblue[200],

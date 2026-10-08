@@ -1,5 +1,6 @@
 import { Box, Typography } from "@mui/material";
 
+import { layoutBleedSx } from "@/shared/layout/pageLayout";
 import AboutHero from "../components/AboutHero";
 import AboutSection from "../components/AboutSection";
 import ImageTextSection from "../components/ImageTextSection";
@@ -16,7 +17,7 @@ export default function AboutPage() {
     return (
         // Break out of MainLayout's padding (same trick as HomePage) so every
         // band and the hero run edge to edge under the TopBar.
-        <Box sx={{ mx: -3, mt: -3, mb: -3 }}>
+        <Box sx={layoutBleedSx}>
             <AboutHero />
 
             <AboutSection>
