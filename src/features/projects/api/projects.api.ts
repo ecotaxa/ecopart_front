@@ -630,6 +630,7 @@ export async function importEcoTaxaSamples(projectId: number, payload: ImportEco
 export interface SampleData {
     sample_id: number;
     sample_name: string;
+    sample_creation_utc_date_time?: string;
     sampling_utc_date_time?: string;
     filename?: string;
     sample_type_label?: string;
@@ -685,12 +686,26 @@ export interface SampleData {
     instrument_settings_process_datetime?: string | null;
     instrument_settings_process_vignette_resize_factor?: number | null;
     instrument_settings_process_gamma?: number | null;
+    // Image range kept by the profile filter, and the image counts.
+    filter_first_image?: string | null;
+    filter_last_image?: string | null;
+    nb_vignettes?: number | null;
+    nb_black?: number | null;
 
     // EcoTaxa link (backend PublicSampleModel).
     ecotaxa_sample_imported?: boolean;
     ecotaxa_sample_id?: number | null;
+    ecotaxa_import_status_label?: string | null;
+    ecotaxa_sample_import_utc_date_time?: string | null;
+    ecotaxa_sample_tsv_file_name?: string | null;
+    ecotaxa_sample_local_folder_tsv_path?: string | null;
+    ecotaxa_sample_nb_images?: number | null;
+    // The task that imported the sample in EcoTaxa (drives its "Open import task" button).
+    ecotaxa_sample_task_id?: number | null;
 
     // CTD link (backend PublicSampleModel).
+    ctd_station_id?: string | null;
+    ctd_file_extension?: string | null;
     ctd_original_file_name?: string | null;
     ctd_imported_file_name?: string | null;
     ctd_import_utc_date_time?: string | null;

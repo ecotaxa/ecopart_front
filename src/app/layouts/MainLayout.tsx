@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Box } from "@mui/material";
 import { Outlet } from "react-router-dom";
 
-import { compactScreen } from "@/theme";
+import { layoutPaddingSx } from "@/shared/layout/pageLayout";
 import TopBar from "./TopBar";
 import GlobalAnnouncementBanner from "./GlobalAnnouncementBanner";
 
@@ -18,7 +18,7 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
         <Box>
             <TopBar />
             <GlobalAnnouncementBanner />
-            <Box sx={{ p: 3, [compactScreen]: { p: 1.5 } }}>{children ?? <Outlet />}</Box>
+            <Box sx={layoutPaddingSx}>{children ?? <Outlet />}</Box>
         </Box>
     );
 }

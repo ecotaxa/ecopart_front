@@ -336,7 +336,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 rowSelectionModel={selectedRawSamples}
                                 onRowSelectionModelChange={(newSelection) => setSelectedRawSamples(newSelection)}
                                 initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                                pageSizeOptions={buildPageSizeOptions(rawSamples.length)}
+                                pageSizeOptions={buildPageSizeOptions()}
                                 autoHeight
                             />
                         </Box>
@@ -381,7 +381,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 rowSelectionModel={selectedCtdSamples}
                                 onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
                                 initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                                pageSizeOptions={buildPageSizeOptions(ctdSamples.length)}
+                                pageSizeOptions={buildPageSizeOptions()}
                                 autoHeight
                             />
                         </Box>
@@ -459,7 +459,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                     rowSelectionModel={selectedEcoTaxaSamples}
                                     onRowSelectionModelChange={(newSelection) => setSelectedEcoTaxaSamples(newSelection)}
                                     initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-                                    pageSizeOptions={buildPageSizeOptions(ecoTaxaSamples.length)}
+                                    pageSizeOptions={buildPageSizeOptions()}
                                     autoHeight
                                 />
                             </Box>

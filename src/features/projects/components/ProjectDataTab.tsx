@@ -76,7 +76,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         ecoTaxaSamples, loadingEcoTaxa, totalEcoTaxaRows, ecoTaxaPaginationModel, setEcoTaxaPaginationModel,
         selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount,
 
-        ctdSamples, loadingCtd, totalCtdRows, ctdPaginationModel, setCtdPaginationModel,
+        ctdSamples, loadingCtd, ctdPaginationModel, setCtdPaginationModel,
         selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount,
 
         uvpError, ecoTaxaError, ctdError,
@@ -228,7 +228,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rowCount={totalUvpRows}
                             paginationModel={uvpPaginationModel}
                             onPaginationModelChange={setUvpPaginationModel}
-                            pageSizeOptions={buildPageSizeOptions(totalUvpRows)}
+                            pageSizeOptions={buildPageSizeOptions()}
                             autoHeight
                         />
                     </Box>
@@ -273,7 +273,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
                             paginationModel={ctdPaginationModel}
                             onPaginationModelChange={setCtdPaginationModel}
-                            pageSizeOptions={buildPageSizeOptions(totalCtdRows)}
+                            pageSizeOptions={buildPageSizeOptions()}
                             autoHeight
                         />
                     </Box>
@@ -330,7 +330,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                             rowCount={totalEcoTaxaRows}
                             paginationModel={ecoTaxaPaginationModel}
                             onPaginationModelChange={setEcoTaxaPaginationModel}
-                            pageSizeOptions={buildPageSizeOptions(totalEcoTaxaRows)}
+                            pageSizeOptions={buildPageSizeOptions()}
                             autoHeight
                             sx={{ '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}
                         />

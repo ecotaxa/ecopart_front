@@ -6,6 +6,7 @@ import type { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-gri
 import type { SearchFilter } from "@/shared/types/api";
 import { confirmDialog, type ConfirmOptions } from "@/shared/confirm/confirm.store";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
+import { toRequestLimit } from "@/shared/utils/pageSizeOptions";
 import { useDebounce } from "./useDebounce";
 
 /** One page of rows as the backend returns it. */
@@ -124,7 +125,7 @@ export function useServerTable<Row>({
     // --- Fetch --------------------------------------------------------------
     const pageParams: ServerTableFetchParams = useMemo(() => ({
         page: paginationModel.page + 1,
-        limit: paginationModel.pageSize,
+        limit: toRequestLimit(paginationModel.pageSize),
         filters,
     }), [paginationModel.page, paginationModel.pageSize, filters]);
 
