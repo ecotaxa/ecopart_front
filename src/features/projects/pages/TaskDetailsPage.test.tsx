@@ -7,11 +7,14 @@ vi.mock('../api/projects.api', () => ({
     getOneTask: vi.fn(),
     getTaskLog: vi.fn(),
     deleteProjectTask: vi.fn(),
+    cancelTask: vi.fn(),
     downloadTaskFile: vi.fn(),
     isExportTask: vi.fn(() => false),
 }));
 
-import { getOneTask, getTaskLog, deleteProjectTask, type Task } from '../api/projects.api';
+import { getOneTask, getTaskLog, deleteProjectTask, cancelTask, type Task } from '../api/projects.api';
+import { useAuthStore } from '@/features/auth';
+import type { User } from '@/features/auth/types/user';
 import TaskDetailsPage from './TaskDetailsPage';
 import { renderWithRouter } from '@/test/utils';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
@@ -19,6 +22,10 @@ import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 const mockedGetOneTask = vi.mocked(getOneTask);
 const mockedGetTaskLog = vi.mocked(getTaskLog);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
+const mockedCancelTask = vi.mocked(cancelTask);
+
+const loginAs = (user_id: number, is_admin = false) =>
+    useAuthStore.setState({ user: { user_id, is_admin } as User, isAuthenticated: true });
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_id: 42,
@@ -220,5 +227,90 @@ describe('TaskDetailsPage (Functional)', () => {
         // Even after several intervals, a non-processing task is never re-polled.
         await act(async () => { await vi.advanceTimersByTimeAsync(8000); });
         expect(mockedGetOneTask).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('TaskDetailsPage cancellation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockedGetTaskLog.mockResolvedValue('');
+        loginAs(1);
+    });
+
+    afterEach(() => {
+        useAuthStore.setState({ user: null, isAuthenticated: false });
+    });
+
+    it('lets the owner cancel a running task and shows that it is stopping', async () => {
+        const user = userEvent.setup();
+        const confirm = answerConfirmDialogs(true);
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status: 'RUNNING', task_progress_pct: 40 }));
+        mockedCancelTask.mockResolvedValue(makeTask({ task_status: 'CANCELLING', task_progress_pct: 40 }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('button', { name: /CANCEL TASK/i }));
+
+        await waitFor(() => expect(mockedCancelTask).toHaveBeenCalledWith(42));
+        expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Cancel task #42' }));
+        expect(await screen.findByText(/Cancellation requested/i)).toBeInTheDocument();
+        expect(screen.getByDisplayValue('CANCELLING')).toBeInTheDocument();
+        // A cancelling task can no longer be cancelled
+        expect(screen.queryByRole('button', { name: /CANCEL TASK/i })).not.toBeInTheDocument();
+    });
+
+    it('does nothing when the confirmation is declined', async () => {
+        const user = userEvent.setup();
+        answerConfirmDialogs(false);
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status: 'PENDING' }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('button', { name: /CANCEL TASK/i }));
+
+        expect(mockedCancelTask).not.toHaveBeenCalled();
+    });
+
+    it('lets an admin cancel the task of another user', async () => {
+        loginAs(99, true);
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status: 'RUNNING' }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        expect(screen.getByRole('button', { name: /CANCEL TASK/i })).toBeInTheDocument();
+    });
+
+    it('offers no cancellation to a user who neither owns the task nor is an admin', async () => {
+        loginAs(99);
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status: 'RUNNING' }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        expect(screen.queryByRole('button', { name: /CANCEL TASK/i })).not.toBeInTheDocument();
+    });
+
+    it.each(['DONE', 'ERROR', 'CANCELLED', 'CANCELLING'])('offers no cancellation for a %s task', async (task_status) => {
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        expect(screen.queryByRole('button', { name: /CANCEL TASK/i })).not.toBeInTheDocument();
+    });
+
+    it('shows the server message when the task ended before the request (409)', async () => {
+        const user = userEvent.setup();
+        answerConfirmDialogs(true);
+        mockedGetOneTask
+            .mockResolvedValueOnce(makeTask({ task_status: 'RUNNING' }))
+            .mockResolvedValue(makeTask({ task_status: 'DONE' }));
+        mockedCancelTask.mockRejectedValueOnce(new Error('Task cannot be cancelled'));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('button', { name: /CANCEL TASK/i }));
+
+        expect(await screen.findByText('Task cannot be cancelled')).toBeInTheDocument();
+        // The page re-reads the task and shows its real, final status
+        expect(await screen.findByDisplayValue('DONE')).toBeInTheDocument();
     });
 });

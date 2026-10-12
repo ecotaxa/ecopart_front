@@ -28,6 +28,7 @@ import {
     getProjectById,
     updateProject,
     getOneTask,
+    cancelTask,
     type SearchFilter,
 } from './projects.api';
 
@@ -425,5 +426,31 @@ describe('Task helpers (V)', () => {
 
         const log = await getTaskLog(42);
         expect(log).toBe('line 1\nimport done successfully');
+    });
+});
+
+describe('cancelTask', () => {
+    it('POSTs to the cancel route and returns the task as the server left it', async () => {
+        let method = '';
+        let path = '';
+        server.use(
+            http.post('*/tasks/:id/cancel', ({ request }) => {
+                method = request.method;
+                path = new URL(request.url).pathname;
+                return HttpResponse.json({ ...TASK, task_status: 'CANCELLING' });
+            }),
+        );
+
+        await expect(cancelTask(9)).resolves.toEqual({ ...TASK, task_status: 'CANCELLING' });
+        expect(method).toBe('POST');
+        expect(path).toBe('/tasks/9/cancel');
+    });
+
+    it('surfaces the server message of a refused cancellation (409)', async () => {
+        server.use(
+            http.post('*/tasks/:id/cancel', () => HttpResponse.json({ errors: ['Task cannot be cancelled'] }, { status: 409 })),
+        );
+
+        await expect(cancelTask(9)).rejects.toThrow('Task cannot be cancelled');
     });
 });

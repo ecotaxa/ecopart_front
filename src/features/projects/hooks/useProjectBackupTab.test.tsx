@@ -110,4 +110,44 @@ describe('hooks/useProjectBackupTab', () => {
         // Only the initial load asked for the date: a failed task never refreshes it.
         expect(getLastBackupDate).toHaveBeenCalledTimes(1);
     }, 20000);
+
+    it('TC-O10: a cancelled backup task stops the follow-up with a warning and leaves lastBackupDate unchanged', async () => {
+        vi.mocked(getProjectById).mockResolvedValue(mockProject);
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+        vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 101, task_status: 'PENDING', task_type: 'BACKUP' });
+        vi.mocked(getOneTask).mockResolvedValue({ task_id: 101, task_status: 'CANCELLED' } as never);
+
+        const { result } = renderHook(() => useProjectBackupTab(77));
+        await waitFor(() => expect(result.current.isLoadingMetadata).toBe(false));
+
+        await act(async () => {
+            await result.current.handleStartBackup();
+        });
+
+        await waitFor(() => expect(result.current.runningBackupTaskId).toBeNull(), { timeout: 10000 });
+        expect(result.current.snackbar.severity).toBe('warning');
+        expect(getLastBackupDate).toHaveBeenCalledTimes(1);
+    }, 20000);
+
+    it('TC-O11: a backup refused because another backup task is running (409) shows the server message and follows nothing', async () => {
+        vi.mocked(getProjectById).mockResolvedValue(mockProject);
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+        vi.mocked(runProjectBackup).mockRejectedValue(new Error('A backup task is already running for this project'));
+
+        const { result } = renderHook(() => useProjectBackupTab(77));
+        await waitFor(() => expect(result.current.isLoadingMetadata).toBe(false));
+
+        await act(async () => {
+            await result.current.handleStartBackup();
+        });
+
+        expect(result.current.snackbar).toEqual(expect.objectContaining({
+            open: true,
+            severity: 'error',
+            message: 'A backup task is already running for this project',
+        }));
+        expect(result.current.runningBackupTaskId).toBeNull();
+        expect(getOneTask).not.toHaveBeenCalled();
+    });
 });
+

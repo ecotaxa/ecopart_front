@@ -15,9 +15,11 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import SectionCard from "@/shared/components/SectionCard";
 import { ecotaxaColors } from "@/theme";
-import { deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task } from "../api/projects.api";
-import { formatTaskOwner, isDownloadableTask } from "../utils/taskColumns";
+import { cancelTask, deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task } from "../api/projects.api";
+import { formatTaskOwner, isActiveTask, isCancellableTask, isDownloadableTask } from "../utils/taskColumns";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
+import { useAuthStore } from "@/features/auth";
+import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import { pageBackButtonSx, pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 
 export default function TaskDetailsPage() {
@@ -56,6 +58,10 @@ export default function TaskDetailsPage() {
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
     const [isDownloading, setIsDownloading] = useState<boolean>(false);
+    const [isCancelling, setIsCancelling] = useState<boolean>(false);
+    // Kept apart from `error`, which every successful poll clears.
+    const [cancelError, setCancelError] = useState<string | null>(null);
+    const currentUser = useAuthStore((s) => s.user);
 
     // Every load gets a generation number; a response is applied only if no
     // newer load has started since (a later poll, another task id or tab, or
@@ -109,8 +115,8 @@ export default function TaskDetailsPage() {
     // --- 3. ADAPTIVE REAL-TIME POLLING LOGIC ---
     // Keyed on the processing flag (not on the task object) so the interval is
     // set up once while the task runs instead of being recreated on every poll.
-    const status = task?.task_status?.toUpperCase();
-    const isProcessing = status === "RUNNING" || status === "PENDING";
+    // A CANCELLING task is still running until its next checkpoint, so it is polled too.
+    const isProcessing = task !== null && isActiveTask(task);
 
     useEffect(() => {
         if (!isProcessing) return;
@@ -133,6 +139,32 @@ export default function TaskDetailsPage() {
             setError(err instanceof Error ? err.message : "Failed to download the export file.");
         } finally {
             setIsDownloading(false);
+        }
+    };
+
+    // The backend lets the task owner or an admin cancel a PENDING or RUNNING task.
+    const canCancel = task !== null && isCancellableTask(task) && currentUser !== null
+        && (currentUser.is_admin || currentUser.user_id === task.task_owner_id);
+
+    const handleCancelTask = async () => {
+        if (parsedTaskId === null) return;
+        if (!(await confirmDialog({
+            title: `Cancel task #${parsedTaskId}`,
+            message: "The task stops at its next step and removes what it produced so far. A step that is already running finishes first, and a task that completes before that point still ends DONE.",
+            confirmLabel: "Cancel task",
+        }))) return;
+
+        setIsCancelling(true);
+        setCancelError(null);
+        try {
+            setTask(await cancelTask(parsedTaskId));
+        } catch (err) {
+            console.error("[Task Details] Cancel failed:", err);
+            setCancelError(extractErrorMessage(err, "Failed to cancel the task."));
+            // The task may have finished meanwhile (409): show its real state.
+            loadTaskDetails(false);
+        } finally {
+            setIsCancelling(false);
         }
     };
 
@@ -169,6 +201,7 @@ export default function TaskDetailsPage() {
         const upper = status?.toUpperCase();
         if (upper === "DONE" || upper === "COMPLETED") return "success";
         if (upper === "ERROR" || upper === "FAILED") return "error";
+        if (upper === "CANCELLING" || upper === "CANCELLED") return "warning";
         return "primary";
     };
 
@@ -224,9 +257,23 @@ export default function TaskDetailsPage() {
                                         {isDownloading ? "DOWNLOADING..." : "DOWNLOAD"}
                                     </Button>
                                 )}
+                                {canCancel && (
+                                    <Button variant="outlined" color="warning" size="small" sx={{ fontWeight: "bold" }} onClick={handleCancelTask} disabled={isCancelling}>
+                                        {isCancelling ? "CANCELLING..." : "CANCEL TASK"}
+                                    </Button>
+                                )}
                                 <Button variant="outlined" color="error" size="small" sx={{ fontWeight: "bold" }} onClick={handleDeleteTask} disabled={isDeleting}>{isDeleting ? "DELETING..." : "DELETE"}</Button>
                             </Stack>
                         </Box>
+
+                        {cancelError && (
+                            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setCancelError(null)}>{cancelError}</Alert>
+                        )}
+                        {task.task_status?.toUpperCase() === "CANCELLING" && (
+                            <Alert severity="warning" sx={{ mb: 3 }}>
+                                Cancellation requested: the task stops at its next step and removes what it produced so far.
+                            </Alert>
+                        )}
 
                         {/* NAVIGATION TABS STRUCTURE */}
                         <Box sx={{ ...pageTabsSx, mb: 4 }}>

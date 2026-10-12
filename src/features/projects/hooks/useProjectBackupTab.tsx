@@ -12,8 +12,10 @@ const BACKUP_TASK_MAX_POLL_MS = 10 * 60 * 1000;
 
 const isTerminalStatus = (status: string | undefined) => {
     const upper = (status ?? "").toUpperCase();
-    return upper === "DONE" || upper === "COMPLETED" || upper === "ERROR" || upper === "FAILED";
+    return upper === "DONE" || upper === "COMPLETED" || upper === "ERROR" || upper === "FAILED" || upper === "CANCELLED";
 };
+
+const isCancelledStatus = (status: string | undefined) => (status ?? "").toUpperCase() === "CANCELLED";
 
 const isFailedStatus = (status: string | undefined) => {
     const upper = (status ?? "").toUpperCase();
@@ -129,7 +131,9 @@ export const useProjectBackupTab = (projectId: number) => {
                 if (cancelled) return;
 
                 if (isTerminalStatus(task.task_status)) {
-                    if (isFailedStatus(task.task_status)) {
+                    if (isCancelledStatus(task.task_status)) {
+                        showSnackbar(<>Backup task {taskLink(taskId)} was cancelled.</>, "warning");
+                    } else if (isFailedStatus(task.task_status)) {
                         showSnackbar(<>Backup task {taskLink(taskId)} failed{task.task_error ? `: ${task.task_error}` : "."}</>, "error");
                     } else {
                         const backupData = await getLastBackupDate(projectId);

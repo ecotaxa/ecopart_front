@@ -2,6 +2,7 @@ import { Stack, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
+import BlockIcon from "@mui/icons-material/Block";
 import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 
 import { isExportTask, type Task } from "../api/projects.api";
@@ -72,6 +73,21 @@ export const formatTaskStatus = (task: Task): string => {
 };
 
 /**
+ * True while the task's work may still be running: PENDING, RUNNING, or
+ * CANCELLING (a cancellation was requested and the task has not stopped yet).
+ */
+export const isActiveTask = (task: Task): boolean => {
+    const status = formatTaskStatus(task);
+    return status === "PENDING" || status === "RUNNING" || status === "CANCELLING";
+};
+
+/** True when a cancellation can still be requested (the backend answers 409 otherwise). */
+export const isCancellableTask = (task: Task): boolean => {
+    const status = formatTaskStatus(task);
+    return status === "PENDING" || status === "RUNNING";
+};
+
+/**
  * True when a task exposes a downloadable export archive: it must be an export
  * task AND have finished, since the ZIP only exists once the task is done.
  */
@@ -98,6 +114,15 @@ export const renderTaskStatusCell = (params: GridRenderCellParams<Task>) => {
         return (
             <Stack direction="row" spacing={0.5} alignItems="center">
                 <PriorityHighIcon color="error" fontSize="small" />
+                <Typography variant="body2">{status}</Typography>
+            </Stack>
+        );
+    }
+
+    if (status === "CANCELLED") {
+        return (
+            <Stack direction="row" spacing={0.5} alignItems="center">
+                <BlockIcon color="action" fontSize="small" />
                 <Typography variant="body2">{status}</Typography>
             </Stack>
         );

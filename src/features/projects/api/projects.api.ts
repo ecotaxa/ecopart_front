@@ -1033,13 +1033,11 @@ export interface Task {
     task_creation_utc_date_time: string;
     task_start_utc_date_time?: string | null;
     task_end_utc_date_time?: string | null;
-    task_log_file_path?: string;
     task_progress_pct: number;
     task_progress_msg?: string;
     task_params?: Record<string, unknown>;
     task_result?: string | null;
     task_error?: string | null;
-    task_step?: string | null;
 }
 
 export interface TaskSearchResponse {
@@ -1138,6 +1136,18 @@ export async function downloadTaskFile(taskId: number): Promise<void> {
 export async function getOneTask(taskId: number): Promise<Task> {
     return http<Task>(`/tasks/${taskId}/`, {
         method: "GET",
+    });
+}
+
+/**
+ * Requests the cancellation of a task (its owner or an admin). A PENDING task is
+ * returned CANCELLED; a RUNNING one is returned CANCELLING and becomes CANCELLED
+ * once its work reaches its next checkpoint. A finished task answers 409.
+ * Route: POST /tasks/:task_id/cancel
+ */
+export async function cancelTask(taskId: number): Promise<Task> {
+    return http<Task>(`/tasks/${taskId}/cancel`, {
+        method: "POST",
     });
 }
 
