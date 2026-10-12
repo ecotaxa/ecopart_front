@@ -25,13 +25,13 @@ import {
 } from "../api/projects.api";
 
 // The preview endpoint rejects the whole batch when any name is not importable, with a message like
-// "Samples not importable: a, b". Extract those names (restricted to the ones we actually requested,
-// so an unexpected message shape can't inject arbitrary entries).
+// "Samples not importable: a (reason), b (reason)". Extract those names (restricted to the ones we
+// actually requested, so an unexpected message shape can't inject arbitrary entries).
 const parseNotImportableSamples = (error: unknown, requested: string[]): string[] => {
     const message = error instanceof Error ? error.message : String(error);
     const match = /not importable:\s*(.+)/i.exec(message);
     if (!match) return [];
-    const listed = match[1].split(",").map((s) => s.trim()).filter(Boolean);
+    const listed = match[1].split(",").map((s) => s.replace(/\s*\([^)]*\)\s*$/, "").trim()).filter(Boolean);
     return requested.filter((name) => listed.includes(name));
 };
 

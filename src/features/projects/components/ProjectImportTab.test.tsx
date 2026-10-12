@@ -230,7 +230,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             // The batch endpoint rejects the whole request when any name is not importable; the good
             // names must be re-fetched.
             mockedPreviewSamplesQcGraphs.mockImplementation(async (_projectId, names) => {
-                if (names.includes('raw-2')) throw new Error('Samples not importable: raw-2');
+                if (names.includes('raw-2')) throw new Error('Samples not importable: raw-2 (already imported in this project)');
                 return names.map(mockQcGraphs);
             });
 
