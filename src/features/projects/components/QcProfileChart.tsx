@@ -165,6 +165,11 @@ export const QcProfileChart: React.FC<QcProfileChartProps> = ({
                     // In line mode the markers stay in the DOM (they carry the hover/tooltip target
                     // and the axis domains) but are painted transparent, so only the curve shows.
                     sx={variant === "line" ? { [`.${scatterClasses.marker}`]: { opacity: 0 } } : undefined}
+                    // Points are drawn in batches of <path> rather than one <circle> each: a sample can
+                    // carry thousands of them, and the QC dialog shows many samples at once. The line
+                    // variant keeps one element per marker, the class that hides them being ignored
+                    // by the batch renderer (and a binned profile has few points anyway).
+                    renderer={variant === "points" ? "svg-batch" : "svg-single"}
                     // `height`/`width` reserve room for the axis TITLE *plus* a line
                     // of tick labels. Without an explicit size MUI can auto-size the
                     // axis too small, and since these axes carry a title it then has

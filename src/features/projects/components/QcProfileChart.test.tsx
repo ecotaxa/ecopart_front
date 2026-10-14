@@ -84,6 +84,26 @@ describe('components/QcProfileChart', () => {
         expect(xTickLabels.some((el) => (el.textContent ?? '').trim() !== '')).toBe(true);
     });
 
+    it('TC-AB19: variant="points" draws the points in batched paths, not one <circle> per point', () => {
+        // Graph 1 can carry thousands of points per sample and the QC dialog shows many samples:
+        // one SVG element per point is what made it lag.
+        const xs = Array.from({ length: 3000 }, (_, i) => i);
+        const { container } = render(
+            <QcProfileChart title="Points" series={[seriesFrom('a', '#123456', xs)]} xLabel="value" />
+        );
+        const marks = Array.from(container.querySelectorAll('path[fill="#123456"]'));
+        expect(container.querySelectorAll('circle')).toHaveLength(0);
+        expect(marks.length).toBeGreaterThan(0);
+        expect(marks.length).toBeLessThan(10);
+    });
+
+    it('TC-AB20: variant="line" keeps one marker element per point (hidden by its class)', () => {
+        const { container } = render(
+            <QcProfileChart title="Line" series={[seriesFrom('a', '#123456', [1, 2, 3])]} xLabel="value" variant="line" />
+        );
+        expect(container.querySelectorAll('circle')).toHaveLength(3);
+    });
+
     it('TC-AB16: variant="line" draws one polyline per series instead of visible markers', () => {
         // MUI X has no vertical LineChart, so the curve is a hand-built <path> rendered from the
         // chart scales. If that regressed, the graph would silently fall back to a dot cloud.

@@ -125,10 +125,10 @@ describe('components/QcSampleCard', () => {
         });
         const { container } = render(<QcSampleCard sample={mixed} onRemove={() => {}} />);
 
-        // The pressure chart is the first one on the card; each series becomes one <g> of marks.
+        // The pressure chart is the first one on the card; its points are batched into filled <path>s.
         const pressureChart = container.querySelectorAll('svg')[0];
         const fills = new Set(
-            Array.from(pressureChart.querySelectorAll('circle, path[data-highlighted]'))
+            Array.from(pressureChart.querySelectorAll('circle, path[fill]:not([fill="none"])'))
                 .map((el) => (el.getAttribute('fill') ?? '').toLowerCase())
         );
         expect(fills.has('#3180b6')).toBe(true); // mainblue[500] — kept
