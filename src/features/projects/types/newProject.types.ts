@@ -17,8 +17,10 @@ export interface NewProjectFormValues {
     people: {
         dataOwnerName: string;
         dataOwnerEmail: string;
-        // EcoPart user id resolved from the email by the import-folder metadata
-        // (null when the email is not a known EcoPart account).
+        // EcoPart user id behind the email: `undefined` = not resolved yet
+        // (looked up by usePeopleEmailCheck), `null` = no active account uses
+        // this email, a number = confirmed account (from the import-folder
+        // metadata or the lookup).
         dataOwnerId?: number | null;
         chiefScientistName: string;
         chiefScientistEmail: string;

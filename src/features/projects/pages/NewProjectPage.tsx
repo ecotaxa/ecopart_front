@@ -25,6 +25,7 @@ export default function NewProjectPage() {
         availableUsers,
         currentUser,
         lockedTitlePrefix,
+        checkingPeople,
         snackbar,
         closeSnackbar,
         isSubmitting,
@@ -104,6 +105,7 @@ export default function NewProjectPage() {
                         values={values.people}
                         onChange={on.people}
                         errors={sectionErrors.people}
+                        checking={checkingPeople}
                     />
 
                     <Grid container spacing={4}>

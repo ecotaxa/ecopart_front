@@ -83,3 +83,21 @@ export async function getUserById(userId: number): Promise<AdminUser | null> {
     });
     return response.users?.[0] ?? null;
 }
+
+/**
+ * Resolve emails to EcoPart accounts (project people verification icons).
+ * One `email IN (...)` search; emails are lowercased because the backend
+ * normalizes them at registration. Deleted / unconfirmed accounts (only
+ * visible to an admin caller) are dropped so "found" always means "usable".
+ */
+export async function findUsersByEmails(emails: string[]): Promise<AdminUser[]> {
+    const unique = Array.from(new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean)));
+    if (unique.length === 0) return [];
+
+    const response = await searchUsers({
+        page: 1,
+        limit: unique.length,
+        filters: [{ field: "email", operator: "IN", value: unique }],
+    });
+    return (response.users ?? []).filter((user) => !user.deleted && user.valid_email !== false);
+}
