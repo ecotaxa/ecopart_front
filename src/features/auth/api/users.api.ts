@@ -62,12 +62,31 @@ export async function searchUsers(params: UserSearchParams): Promise<UserSearchR
     });
 }
 
+/** Page size used when walking the whole users list. */
+const ALL_USERS_PAGE_SIZE = 100;
+
 /**
- * Fetch all active users from the backend (privileges dropdowns).
+ * Fetch every user from the backend (privileges dropdowns). The search route is
+ * paginated, so all pages are fetched: stopping at the first one hid every user
+ * past it, and an already-granted user then showed up as an empty "Select user".
+ * Deleted / anonymised users are filtered out by the caller.
  */
 export async function fetchActiveUsers(): Promise<UserSearchResponse> {
-    // We only want valid, non-deleted users (handled by backend or we enforce it)
-    return searchUsers({ page: 1, limit: 100, filters: [] });
+    const first = await searchUsers({ page: 1, limit: ALL_USERS_PAGE_SIZE, filters: [] });
+    const total = first.search_info?.total ?? first.users.length;
+    const pages = Math.ceil(total / ALL_USERS_PAGE_SIZE);
+    if (pages <= 1) return first;
+
+    const rest = await Promise.all(
+        Array.from({ length: pages - 1 }, (_, i) =>
+            searchUsers({ page: i + 2, limit: ALL_USERS_PAGE_SIZE, filters: [] })
+        )
+    );
+
+    return {
+        search_info: { ...first.search_info, page: 1, limit: total, pages: 1 },
+        users: [first, ...rest].flatMap((response) => response.users),
+    };
 }
 
 /**
