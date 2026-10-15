@@ -30,7 +30,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
         selectedTasks, setSelectedTasks, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
-        isActionRunning, canDeleteSelection,
+        isActionRunning, canDeleteTasks, canDeleteSelection,
         handleDeleteTasks,
         downloadingTaskId, handleDownloadTaskFile,
         snackbar, closeSnackbar
@@ -109,19 +109,21 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         {selectionCount} items selected
                     </Typography>
                     <Stack direction="row" spacing={2}>
-                        <Tooltip title={selectionCount > 0 && !canDeleteSelection ? ACTIVE_TASK_DELETE_HINT : ""}>
-                            <span>
-                                <Button
-                                    variant="text" color="inherit"
-                                    disabled={!canDeleteSelection || isActionRunning}
-                                    onClick={handleDeleteTasks}
-                                    startIcon={<CloseIcon />}
-                                    sx={{ fontWeight: "bold" }}
-                                >
-                                    DELETE
-                                </Button>
-                            </span>
-                        </Tooltip>
+                        {canDeleteTasks && (
+                            <Tooltip title={selectionCount > 0 && !canDeleteSelection ? ACTIVE_TASK_DELETE_HINT : ""}>
+                                <span>
+                                    <Button
+                                        variant="text" color="inherit"
+                                        disabled={!canDeleteSelection || isActionRunning}
+                                        onClick={handleDeleteTasks}
+                                        startIcon={<CloseIcon />}
+                                        sx={{ fontWeight: "bold" }}
+                                    >
+                                        DELETE
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        )}
                     </Stack>
                 </Box>
 

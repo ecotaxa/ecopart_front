@@ -21,6 +21,7 @@ interface ImportSettingsSectionProps {
     values: NewProjectFormValues['importSettings'];
     // Accepts partial updates to merge into the main state
     onChange: (data: Partial<NewProjectFormValues['importSettings']>) => void;
+    readOnly?: boolean;
 }
 
 /** A complete decimal number ("-1", "0.5", "12.") — the only drafts worth propagating while typing. */
@@ -32,7 +33,8 @@ const COMPLETE_DECIMAL = /^-?\d+(\.\d*)?$/;
  */
 const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
     values,
-    onChange
+    onChange,
+    readOnly = false,
 }) => {
     // The offset is edited through a text draft: parsing `e.target.value` on every
     // keystroke would turn "1." or "-" into 0 and make decimals impossible to type.
@@ -86,9 +88,10 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
                             label="Override depth offset"
                             value={draft}
                             onChange={handleOffsetChange}
-                            onBlur={handleOffsetBlur}
+                            onBlur={readOnly ? undefined : handleOffsetBlur}
                             size="small"
                             slotProps={{
+                                input: { readOnly },
                                 htmlInput: {
                                     // A text input with a decimal keypad: `type="number"` would
                                     // blank the value on partial input ("1.", "-") in most browsers.
@@ -103,6 +106,7 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
                                     checked={values.enableDescentFilter}
                                     onChange={(e) => onChange({ enableDescentFilter: e.target.checked })}
                                     color="primary"
+                                    disabled={readOnly}
                                 />
                             }
                             label="Enable descent filter"

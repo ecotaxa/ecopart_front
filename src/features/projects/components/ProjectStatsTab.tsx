@@ -45,27 +45,35 @@ const StatsInfoRow: React.FC<StatsInfoRowProps> = ({ icon, title, description, a
 interface ProjectStatsTabProps {
     /** Whether the project already has an EcoTaxa project linked (hides the link call-to-action). */
     ecoTaxaLinked: boolean;
-    onImportData: () => void;
-    onLinkProject: () => void;
+    /** Omitted when the user may not import: the import card is hidden. */
+    onImportData?: () => void;
+    /** Omitted when the user may not manage the project: the EcoTaxa link card is hidden. */
+    onLinkProject?: () => void;
+    /** Shown above the cards, e.g. why the project data is hidden. */
+    notice?: React.ReactNode;
 }
 
 /**
  * Empty-state cards of the STATS tab: the two things a fresh project needs
- * before statistics mean anything. The EcoTaxa card only shows while the
- * project is still unlinked.
+ * before statistics mean anything, each offered only to who can act on it. The
+ * EcoTaxa card only shows while the project is still unlinked.
  */
-export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ ecoTaxaLinked, onImportData, onLinkProject }) => {
+export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ ecoTaxaLinked, onImportData, onLinkProject, notice }) => {
+    const showLinkCard = !ecoTaxaLinked && onLinkProject !== undefined;
     return (
         <SectionCard>
             <Stack spacing={2}>
-                <StatsInfoRow
-                    icon={<DownloadIcon />}
-                    title="Import data to get started."
-                    description="You can import UVP data, and particles data in the import tab of your project."
-                    actionLabel="IMPORT DATA"
-                    onAction={onImportData}
-                />
-                {!ecoTaxaLinked && (
+                {notice}
+                {onImportData && (
+                    <StatsInfoRow
+                        icon={<DownloadIcon />}
+                        title="Import data to get started."
+                        description="You can import UVP data, and particles data in the import tab of your project."
+                        actionLabel="IMPORT DATA"
+                        onAction={onImportData}
+                    />
+                )}
+                {showLinkCard && (
                     <StatsInfoRow
                         icon={<CloudIcon />}
                         title="Your project is not linked to an EcoTaxa project. Please link it to an existing or new EcoTaxa project."
@@ -73,6 +81,11 @@ export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ ecoTaxaLinked,
                         actionLabel="LINK PROJECT"
                         onAction={onLinkProject}
                     />
+                )}
+                {!notice && !onImportData && !showLinkCard && (
+                    <Typography variant="body2" color="text.secondary">
+                        No statistics to show for this project yet.
+                    </Typography>
                 )}
             </Stack>
         </SectionCard>

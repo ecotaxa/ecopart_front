@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import ProjectsPage from './ProjectsPage';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsAdmin, loginAsUser } from '@/test/helpers/auth.helpers';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 // Helper to mock the complex POST search request
@@ -262,4 +262,63 @@ describe('ProjectsPage (Functional)', () => {
         expect(requestedSortValues.every((value) => value === 'desc(project_id)')).toBe(true);
     }, 15000);
 
+
+    // TC-G8: every row shows the privacy status computed by the backend, and the role of the user on it
+    it('TC-G8: shows a Privacy chip and the Privilege of the user on each project', async () => {
+        mockProjectsResponse([
+            { ...MOCK_PROJECT_1, privacy_status: 'open' },
+            { ...MOCK_PROJECT_2, privacy_status: 'visible' },
+            // An old backend without privacy_status: read as private.
+            { ...MOCK_PROJECT_2, project_id: 303, project_title: 'Other Project', members: [], managers: [{ user_id: 2 }] },
+        ]);
+
+        renderWithRouter(<ProjectsPage />, { route: '/projects' });
+
+        expect(await screen.findByText('Other Project')).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: 'Privacy' })).toBeInTheDocument();
+        expect(screen.getByText('Public+')).toBeInTheDocument();
+        expect(screen.getByText('Visible')).toBeInTheDocument();
+        expect(screen.getByText('Private')).toBeInTheDocument();
+        expect(screen.getByText('Manager')).toBeInTheDocument();
+        expect(screen.getByText('Member')).toBeInTheDocument();
+    });
+
+    // TC-G8b: an admin holds every privilege, and may delete any selected project
+    it('TC-G8b: labels an admin as Admin and lets them delete any project', async () => {
+        const user = userEvent.setup();
+        loginAsAdmin();
+        mockProjectsResponse([{ ...MOCK_PROJECT_2, managers: [{ user_id: 2 }], members: [] }]);
+
+        renderWithRouter(<ProjectsPage />, { route: '/projects' });
+
+        await screen.findByText('Coastal Monitoring');
+        expect(screen.getByText('Admin')).toBeInTheDocument();
+
+        await user.click(screen.getAllByLabelText(/Select row/i)[0]);
+        expect(screen.getByRole('button', { name: /DELETE/i })).toBeEnabled();
+    }, 15000);
+
+    // TC-G9: the "All projects" scope lists every project, not only the user's
+    it('TC-G9: drops the for_managing filter in the "All projects" scope', async () => {
+        const user = userEvent.setup();
+        const sentFilters: unknown[] = [];
+        server.use(
+            http.post('*/projects/searches', async ({ request }) => {
+                sentFilters.push(await request.json());
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 10 }, projects: [] });
+            })
+        );
+
+        renderWithRouter(<ProjectsPage />, { route: '/projects' });
+
+        await waitFor(() => expect(sentFilters).toContainEqual([{ field: 'for_managing', operator: '=', value: true }]));
+        expect(screen.getByText('Projects in which you have privilege')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'All My Projects' }));
+        await user.click(screen.getByRole('menuitem', { name: 'All projects' }));
+
+        expect(screen.getByRole('button', { name: 'All projects' })).toBeInTheDocument();
+        expect(screen.getByText(/Every project; data access depends on the privacy status and your privilege/i)).toBeInTheDocument();
+        await waitFor(() => expect(sentFilters).toContainEqual([]));
+    }, 15000);
 });

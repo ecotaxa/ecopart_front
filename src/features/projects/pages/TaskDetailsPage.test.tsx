@@ -13,19 +13,15 @@ vi.mock('../api/projects.api', () => ({
 }));
 
 import { getOneTask, getTaskLog, deleteProjectTask, cancelTask, type Task } from '../api/projects.api';
-import { useAuthStore } from '@/features/auth';
-import type { User } from '@/features/auth/types/user';
 import TaskDetailsPage from './TaskDetailsPage';
 import { renderWithRouter } from '@/test/utils';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
+import { loginAs, loginAsAdmin, logoutUser } from '@/test/helpers/auth.helpers';
 
 const mockedGetOneTask = vi.mocked(getOneTask);
 const mockedGetTaskLog = vi.mocked(getTaskLog);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
 const mockedCancelTask = vi.mocked(cancelTask);
-
-const loginAs = (user_id: number, is_admin = false) =>
-    useAuthStore.setState({ user: { user_id, is_admin } as User, isAuthenticated: true });
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_id: 42,
@@ -63,6 +59,7 @@ describe('TaskDetailsPage (Functional)', () => {
     afterEach(() => {
         vi.restoreAllMocks();
         vi.useRealTimers();
+        logoutUser();
     });
 
     // TC-S1: Malformed Route
@@ -136,6 +133,8 @@ describe('TaskDetailsPage (Functional)', () => {
     // TC-S5: Delete Success + Navigation
     it('TC-S5: deletes the task and navigates back to the tasks list', async () => {
         const user = userEvent.setup();
+        // Deleting a task is admin-only server-side.
+        loginAsAdmin();
         answerConfirmDialogs(true);
         renderDetail();
         await screen.findByText('IMPORT task [42]');
@@ -149,6 +148,7 @@ describe('TaskDetailsPage (Functional)', () => {
     // TC-S6: Delete Error keeps the user on the page
     it('TC-S6: stays on the detail page and re-enables DELETE when deletion fails', async () => {
         const user = userEvent.setup();
+        loginAsAdmin();
         answerConfirmDialogs(true);
         mockedDeleteProjectTask.mockRejectedValueOnce(new Error('boom'));
         renderDetail();
@@ -160,6 +160,15 @@ describe('TaskDetailsPage (Functional)', () => {
         // No navigation happened; header still present and the button is usable again.
         expect(screen.getByText('IMPORT task [42]')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByRole('button', { name: /^DELETE$/i })).toBeEnabled());
+    });
+
+    // TC-S10: only an admin may delete a task, not even its owner
+    it('TC-S10: does not offer DELETE on a finished task to its owner who is not an admin', async () => {
+        loginAs(1);
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        expect(screen.queryByRole('button', { name: /^DELETE$/i })).not.toBeInTheDocument();
     });
 
     // TC-S7: Load Error
@@ -238,7 +247,7 @@ describe('TaskDetailsPage cancellation', () => {
     });
 
     afterEach(() => {
-        useAuthStore.setState({ user: null, isAuthenticated: false });
+        logoutUser();
     });
 
     it('lets the owner cancel a running task and shows that it is stopping', async () => {
@@ -305,6 +314,8 @@ describe('TaskDetailsPage cancellation', () => {
         ['ERROR', false, true],
         ['CANCELLED', false, true],
     ])('%s task: cancel offered %s, delete offered %s (never both)', async (task_status, cancel, del) => {
+        // The owner is also an admin here, the only role offered both actions.
+        loginAs(1, true);
         mockedGetOneTask.mockResolvedValue(makeTask({ task_status }));
         renderDetail();
         await screen.findByText('IMPORT task [42]');

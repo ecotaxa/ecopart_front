@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw';
 
 import { server } from '@/test/msw/server';
 import { queryClient } from '@/shared/api/queryClient';
+import { isNotFound } from '@/shared/api/http';
 import {
     searchProjectTasks,
     deleteProjectTask,
@@ -302,6 +303,8 @@ describe('Projects API helpers (W)', () => {
         );
         queryClient.clear();
         await expect(getProjectById(77)).rejects.toThrow('Project with ID 77 not found.');
+        // ...as a 404, so the pages tell it apart from a refusal.
+        expect(isNotFound(await getProjectById(77).catch((err: unknown) => err))).toBe(true);
 
         // A second call within the stale window is served from the cache (no request).
         server.use(

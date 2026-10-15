@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import {
     Alert,
     Box,
+    Chip,
+    CircularProgress,
     Container,
     Typography,
     Button,
@@ -13,7 +15,6 @@ import {
     Tooltip,
 } from "@mui/material";
 import SectionCard from "@/shared/components/SectionCard";
-import { useAuthStore } from "@/features/auth/store/auth.store";
 
 // Import your tabs
 import { ProjectMetadataTab } from "../components/ProjectMetadataTab";
@@ -25,6 +26,9 @@ import { ProjectTasksTab } from "../components/ProjectTasksTab";
 import { ProjectStatsTab } from "../components/ProjectStatsTab";
 import { deleteProject } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
+import { useProjectAccess } from "../hooks/useProjectAccess";
+import { privacyLabel, type ProjectAction } from "../utils/projectAccess";
+import { ProjectLoadError, ProjectPrivacyNotice } from "../components/ProjectAccessStates";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 
@@ -40,30 +44,32 @@ import BackupIcon from "@mui/icons-material/Backup";
 import { ProjectDataTab } from "../components/ProjectDataTab";
 import { pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 
+/** Every tab, in display order, with the action that unlocks it. */
+const TAB_DEFINITIONS: ReadonlyArray<{ slug: string; label: string; icon: React.ReactElement; requires: ProjectAction }> = [
+    { slug: "stats", label: "STATS", icon: <BarChartIcon />, requires: "see" },
+    { slug: "metadata", label: "METADATA", icon: <TextSnippetIcon />, requires: "see" },
+    { slug: "data", label: "DATA", icon: <CloudIcon />, requires: "figures" },
+    { slug: "import", label: "IMPORT", icon: <DownloadIcon />, requires: "import" },
+    { slug: "update", label: "UPDATE", icon: <SyncIcon />, requires: "import" },
+    { slug: "security", label: "SECURITY", icon: <LockIcon />, requires: "manage" },
+    { slug: "tasks", label: "TASKS", icon: <AssignmentIcon />, requires: "import" },
+    { slug: "backup", label: "BACKUP", icon: <BackupIcon />, requires: "import" },
+];
+
+const DEFAULT_TAB = "metadata";
+
+/** The tab asked for through `location.state.activeTab`: a slug, or (legacy) an index in TAB_DEFINITIONS. */
+const slugFromNavigationState = (state: unknown): string | undefined => {
+    const activeTab = (state as { activeTab?: unknown } | null)?.activeTab;
+    if (typeof activeTab === "string") return activeTab;
+    if (typeof activeTab === "number" && Number.isInteger(activeTab)) return TAB_DEFINITIONS[activeTab]?.slug;
+    return undefined;
+};
+
 export default function ProjectDetailsPage() {
     const { id, tabName } = useParams<{ id: string; tabName?: string }>();
     const navigate = useNavigate();
     const location = useLocation();
-    const currentUser = useAuthStore((state) => state.user);
-
-    const tabDefinitions = useMemo(() => ([
-        { slug: "stats", label: "STATS" },
-        { slug: "metadata", label: "METADATA" },
-        { slug: "data", label: "DATA" },
-        { slug: "import", label: "IMPORT" },
-        { slug: "update", label: "UPDATE" },
-        { slug: "security", label: "SECURITY" },
-        { slug: "tasks", label: "TASKS" },
-        { slug: "backup", label: "BACKUP" },
-    ]), []);
-
-    const clampTabIndex = (value: unknown, fallback: number) => {
-        if (typeof value !== "number" || !Number.isInteger(value)) {
-            return fallback;
-        }
-
-        return Math.min(Math.max(value, 0), tabDefinitions.length - 1);
-    };
 
     // Parse the route param once.
     // If parsing fails, we keep null so TypeScript and runtime are both explicit.
@@ -72,22 +78,17 @@ export default function ProjectDetailsPage() {
 
     // The project itself comes from the shared React Query cache: the tabs below
     // read the same entry, so the page and its active tab cost one request.
-    const { data: project } = useProject(projectId);
+    const { data: project, error: projectError, isPending: isProjectPending } = useProject(projectId);
+    const access = useProjectAccess(project);
     const projectTitle = project?.project_title?.trim() ? project.project_title : "Project Details";
-    // Managers of the loaded project: DELETE is a manager-only action server-side,
-    // so we only offer the button to a manager (or an admin).
-    const managerIds = useMemo(
-        () => (project?.managers ?? []).map((manager) => Number(manager.user_id)).filter((userId) => !Number.isNaN(userId)),
-        [project],
-    );
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
-    const defaultTabIndex = clampTabIndex(location.state?.activeTab, 1);
-    const tabIndexFromSlug = tabName
-        ? tabDefinitions.findIndex((tab) => tab.slug === tabName)
-        : defaultTabIndex;
-    const currentTab = tabIndexFromSlug >= 0 ? tabIndexFromSlug : defaultTabIndex;
+    // Tabs are addressed by slug, so hiding one never shifts the others. A tab the
+    // user may not open (deep link, stale navigation state) falls back to METADATA.
+    const visibleTabs = TAB_DEFINITIONS.filter((tab) => access.can[tab.requires]);
+    const requestedTab = tabName ?? slugFromNavigationState(location.state) ?? DEFAULT_TAB;
+    const currentTab = visibleTabs.some((tab) => tab.slug === requestedTab) ? requestedTab : DEFAULT_TAB;
 
     if (projectId === null) {
         return (
@@ -99,14 +100,25 @@ export default function ProjectDetailsPage() {
         );
     }
 
-    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-        const nextSlug = tabDefinitions[newValue]?.slug ?? "metadata";
-        navigate(`/projects/${projectId}/${nextSlug}`);
+    if (projectError) {
+        return (
+            <Container maxWidth="md" sx={pageContainerSx}>
+                <Stack spacing={3} alignItems="flex-start">
+                    <ProjectLoadError error={projectError} />
+                    <Button variant="outlined" onClick={() => navigate("/projects")}>
+                        BACK TO PROJECTS
+                    </Button>
+                </Stack>
+            </Container>
+        );
+    }
+
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: string) => {
+        navigate(`/projects/${projectId}/${newValue}`);
     };
 
-    const canDelete =
-        currentUser?.is_admin === true ||
-        (currentUser != null && managerIds.includes(Number(currentUser.user_id)));
+    // Shown to a user without privilege while the project is private.
+    const hiddenDataNotice = project && !access.can.figures ? <ProjectPrivacyNotice project={project} /> : undefined;
 
     const handleDeleteProject = async () => {
         if (!(await confirmDialog({
@@ -162,13 +174,20 @@ export default function ProjectDetailsPage() {
                         <Typography variant="h4" gutterBottom>
                             Project
                         </Typography>
-                        <Typography variant="h5" color="text.secondary">
-                            {projectTitle}
-                        </Typography>
+                        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+                            <Typography variant="h5" color="text.secondary">
+                                {projectTitle}
+                            </Typography>
+                            {project && (
+                                <Tooltip title="Privacy status: who can see the project data">
+                                    <Chip label={privacyLabel(access.privacy)} size="small" variant="outlined" />
+                                </Tooltip>
+                            )}
+                        </Stack>
                     </Box>
 
                     <Stack direction="row" spacing={2} alignItems="center">
-                        {canDelete && (
+                        {access.can.manage && (
                             <Tooltip title="Permanently delete this project, its samples and any linked EcoTaxa project">
                                 <span>
                                     <Button
@@ -193,46 +212,59 @@ export default function ProjectDetailsPage() {
                     </Stack>
                 </Box>
 
-                {/* TABS NAVIGATION */}
-                <Box sx={pageTabsSx}>
-                    <Tabs
-                        value={currentTab}
-                        onChange={handleTabChange}
-                        variant="scrollable"
-                        scrollButtons="auto"
-                    >
-                        <Tab value={0} icon={<BarChartIcon />} iconPosition="start" label="STATS" />
-                        <Tab value={1} icon={<TextSnippetIcon />} iconPosition="start" label="METADATA" />
-                        <Tab value={2} icon={<CloudIcon />} iconPosition="start" label="DATA" />
-                        <Tab value={3} icon={<DownloadIcon />} iconPosition="start" label="IMPORT" />
-                        <Tab value={4} icon={<SyncIcon />} iconPosition="start" label="UPDATE" />
-                        <Tab value={5} icon={<LockIcon />} iconPosition="start" label="SECURITY" />
-                        <Tab value={6} icon={<AssignmentIcon />} iconPosition="start" label="TASKS" />
-                        <Tab value={7} icon={<BackupIcon />} iconPosition="start" label="BACKUP" />
-                    </Tabs>
-                </Box>
+                {isProjectPending ? (
+                    // The tabs depend on the user's access to the project: none until it is known.
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+                        <CircularProgress aria-label="Loading project" />
+                    </Box>
+                ) : (
+                    <>
+                        {/* TABS NAVIGATION */}
+                        <Box sx={pageTabsSx}>
+                            <Tabs
+                                value={currentTab}
+                                onChange={handleTabChange}
+                                variant="scrollable"
+                                scrollButtons="auto"
+                            >
+                                {visibleTabs.map((tab) => (
+                                    <Tab key={tab.slug} value={tab.slug} icon={tab.icon} iconPosition="start" label={tab.label} />
+                                ))}
+                            </Tabs>
+                        </Box>
 
-                {/* TAB CONTENT RENDERER */}
-                {/* We removed the <Paper> wrapper here because ProjectMetadataTab handles its own <Paper> and constraints */}
-                <Box sx={{ minHeight: 400, borderRadius: 2 }}>
+                        {/* TAB CONTENT RENDERER */}
+                        {/* We removed the <Paper> wrapper here because ProjectMetadataTab handles its own <Paper> and constraints */}
+                        <Box sx={{ minHeight: 400, borderRadius: 2 }}>
 
-                    {currentTab === 0 && (
-                        <ProjectStatsTab
-                            ecoTaxaLinked={project?.ecotaxa_project_id != null}
-                            onImportData={() => navigate(`/projects/${projectId}/import`)}
-                            onLinkProject={() => navigate(`/projects/${projectId}/metadata#ecotaxa-link`)}
-                        />
-                    )}
+                            {currentTab === "stats" && (
+                                <ProjectStatsTab
+                                    ecoTaxaLinked={project?.ecotaxa_project_id != null}
+                                    onImportData={access.can.import ? () => navigate(`/projects/${projectId}/import`) : undefined}
+                                    onLinkProject={access.can.manage ? () => navigate(`/projects/${projectId}/metadata#ecotaxa-link`) : undefined}
+                                    notice={hiddenDataNotice}
+                                />
+                            )}
 
-                    {currentTab === 1 && <ProjectMetadataTab projectId={projectId} />}
+                            {currentTab === "metadata" && <ProjectMetadataTab projectId={projectId} readOnly={!access.can.manage} />}
 
-                    {currentTab === 2 && <ProjectDataTab projectId={projectId} />}
-                    {currentTab === 3 && <ProjectImportTab projectId={projectId} />}
-                    {currentTab === 4 && renderComingSoonTab("Update")}
-                    {currentTab === 5 && <ProjectSecurityTab projectId={projectId} />}
-                    {currentTab === 6 && <ProjectTasksTab projectId={projectId} />}
-                    {currentTab === 7 && <ProjectBackupTab projectId={projectId} />}
-                </Box>
+                            {currentTab === "data" && (
+                                <ProjectDataTab
+                                    projectId={projectId}
+                                    canSeeFigures={access.can.figures}
+                                    canImport={access.can.import}
+                                    canManage={access.can.manage}
+                                    hiddenDataNotice={hiddenDataNotice}
+                                />
+                            )}
+                            {currentTab === "import" && <ProjectImportTab projectId={projectId} />}
+                            {currentTab === "update" && renderComingSoonTab("Update")}
+                            {currentTab === "security" && <ProjectSecurityTab projectId={projectId} privacyStatus={access.privacy} />}
+                            {currentTab === "tasks" && <ProjectTasksTab projectId={projectId} />}
+                            {currentTab === "backup" && <ProjectBackupTab projectId={projectId} />}
+                        </Box>
+                    </>
+                )}
             </Container>
 
             <Snackbar

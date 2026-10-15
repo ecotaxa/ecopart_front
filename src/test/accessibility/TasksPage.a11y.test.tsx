@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw';
 import TasksPage from '@/features/projects/pages/TasksPage';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsAdmin, loginAsUser } from '@/test/helpers/auth.helpers';
 import type { Task } from '@/features/projects/api/projects.api';
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
@@ -70,6 +70,8 @@ describe('TasksPage (Accessibility)', () => {
     // TC-Q12: Action Bar Focus / Disabled Buttons
     it('TC-Q12: disables the action buttons until a task is selected', async () => {
         const user = userEvent.setup({ delay: null });
+        // DELETE is only offered to an admin.
+        loginAsAdmin();
         // A finished task: an unfinished one keeps DELETE disabled even once selected.
         mockTasks([makeTask({ task_id: 1, task_type: 'IMPORT', task_status: 'DONE' })]);
 

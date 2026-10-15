@@ -26,18 +26,51 @@ async function refreshToken() {
 }
 
 /**
- * Extract a human-readable error message from a failed response body, falling
- * back to a generic `HTTP Error: <status>` when the body is missing or not the
- * expected JSON error shape.
+ * A failed API call: the HTTP status plus every message of the backend body
+ * (`{ message }` or `{ errors: [...] }`). `message` is the first of them, or a
+ * generic `HTTP Error: <status>` when the body carries none.
  */
-async function extractErrorMessage(response: Response): Promise<string> {
-    try {
-        const message = messageFromApiError(await response.json());
-        if (message) return message;
-    } catch {
-        // Body was not valid JSON, keep generic message
+export class ApiError extends Error {
+    readonly status: number;
+    readonly messages: string[];
+
+    constructor(status: number, messages: string[]) {
+        super(messages[0] ?? `HTTP Error: ${status}`);
+        this.name = "ApiError";
+        this.status = status;
+        this.messages = messages;
     }
-    return `HTTP Error: ${response.status}`;
+}
+
+/** The backend refused the call for the current user (401 after the refresh retry, or 403). */
+export const isAccessDenied = (error: unknown): boolean =>
+    error instanceof ApiError && (error.status === 401 || error.status === 403);
+
+/** The requested resource does not exist (404). */
+export const isNotFound = (error: unknown): boolean =>
+    error instanceof ApiError && error.status === 404;
+
+/** Every usable message of an error body, the one `messageFromApiError` picks first. */
+function messagesFromBody(body: unknown): string[] {
+    const first = messageFromApiError(body);
+    if (!first) return [];
+    const errors = (body as { errors?: unknown }).errors;
+    const others = Array.isArray(errors)
+        ? errors
+            .map((entry) => messageFromApiError({ errors: [entry] }))
+            .filter((message): message is string => message !== null && message !== first)
+        : [];
+    return [first, ...others];
+}
+
+async function toApiError(response: Response): Promise<ApiError> {
+    let body: unknown = null;
+    try {
+        body = await response.json();
+    } catch {
+        // Body was not valid JSON, keep the generic message
+    }
+    return new ApiError(response.status, messagesFromBody(body));
 }
 
 /**
@@ -96,7 +129,7 @@ export async function http<T>(
     });
 
     if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
+        throw await toApiError(response);
     }
 
     return readJson<T>(response);
@@ -109,7 +142,7 @@ export async function httpText(
     const response = await fetchWithRefresh(input, init);
 
     if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
+        throw await toApiError(response);
     }
 
     return response.text();
@@ -152,7 +185,7 @@ export async function httpBlob(
     const response = await fetchWithRefresh(input, init);
 
     if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
+        throw await toApiError(response);
     }
 
     return {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
     Box,
     Container,
@@ -33,8 +33,9 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { useNavigate } from "react-router-dom";
 import SectionCard from "@/shared/components/SectionCard";
-import type { MinimalUserModel, Project } from "../api/projects.api";
+import type { Project } from "../api/projects.api";
 import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
+import { getProjectAccess, getProjectRole, privacyLabel, roleLabel, toPrivacyStatus } from "../utils/projectAccess";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
@@ -84,19 +85,6 @@ export default function ProjectsPage() {
     const openFilter = Boolean(filterAnchorEl);
 
     // ---------------------------------------------------------------------------
-    // Debug Helpers
-    // ---------------------------------------------------------------------------
-    const normalizedCurrentUserId = useMemo(() => {
-        if (!currentUser?.user_id && currentUser?.user_id !== 0) {
-            return null;
-        }
-
-        const parsed = Number(currentUser.user_id);
-        return Number.isNaN(parsed) ? null : parsed;
-    }, [currentUser]);
-
-
-    // ---------------------------------------------------------------------------
     // Event Handlers
     // ---------------------------------------------------------------------------
     const handleFilterClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -123,65 +111,19 @@ export default function ProjectsPage() {
         navigate(`/projects/${params.row.project_id}/metadata`);
     };
 
-    // ---------------------------------------------------------------------------
-    // Helper Functions
-    // ---------------------------------------------------------------------------
-
-    const hasCurrentUser = (
-        users: MinimalUserModel[] | undefined,
-        currentUserId: number | null
-    ): boolean => {
-        if (!Array.isArray(users) || currentUserId === null) {
-            return false;
-        }
-
-        return users.some((user) => {
-            const normalizedUserId = Number(user.user_id);
-            return !Number.isNaN(normalizedUserId) && normalizedUserId === currentUserId;
-        });
-    };
-
-    const getCurrentUserPrivilege = (project: Project): string | null => {
-        if (normalizedCurrentUserId === null) {
-            return null;
-        }
-
-        const isManager = hasCurrentUser(project.managers, normalizedCurrentUserId);
-        if (isManager) return "Manager";
-
-        const isMember = hasCurrentUser(project.members, normalizedCurrentUserId);
-        if (isMember) return "Member";
-
-        const normalizedContactUserId =
-            project.contact && project.contact.user_id !== undefined
-                ? Number(project.contact.user_id)
-                : null;
-
-        if (
-            normalizedContactUserId !== null &&
-            !Number.isNaN(normalizedContactUserId) &&
-            normalizedContactUserId === normalizedCurrentUserId
-        ) {
-            return "Contact";
-        }
-
-        return null;
-    };
-
     const selectedProjectIds =
         rowSelectionModel.type === "exclude" ? [] : Array.from(rowSelectionModel.ids).map(Number);
 
     // Deleting a project is a manager-only action server-side (admins aside), so
     // DELETE stays disabled while the selection holds a project the current user
-    // only reads as member or contact. Selected ids whose row is no longer loaded
-    // (picked on an earlier page) are left for the server to accept or reject.
+    // may not manage. Selected ids whose row is no longer loaded (picked on an
+    // earlier page) are left for the server to accept or reject.
     const canDeleteSelection =
         selectedProjectIds.length > 0 &&
-        (currentUser?.is_admin === true ||
-            selectedProjectIds.every((projectId) => {
-                const project = projects.find((candidate) => candidate.project_id === projectId);
-                return !project || getCurrentUserPrivilege(project) === "Manager";
-            }));
+        selectedProjectIds.every((projectId) => {
+            const project = projects.find((candidate) => candidate.project_id === projectId);
+            return !project || getProjectAccess(project, currentUser).can.manage;
+        });
 
     // ---------------------------------------------------------------------------
     // DataGrid Columns Configuration
@@ -238,7 +180,7 @@ export default function ProjectsPage() {
             headerName: "Privilege",
             width: 120,
             renderCell: (params: GridRenderCellParams<Project>) => {
-                const privilege = getCurrentUserPrivilege(params.row);
+                const privilege = roleLabel(getProjectRole(params.row, currentUser));
                 return privilege ? (
                     <Chip
                         label={privilege}
@@ -254,6 +196,14 @@ export default function ProjectsPage() {
                     </Typography>
                 );
             },
+        },
+        {
+            field: "privacy_status",
+            headerName: "Privacy",
+            width: 110,
+            renderCell: (params: GridRenderCellParams<Project>) => (
+                <Chip label={privacyLabel(toPrivacyStatus(params.row.privacy_status))} size="small" variant="outlined" />
+            ),
         },
         {
             field: "qc_state",
@@ -307,7 +257,9 @@ export default function ProjectsPage() {
                     {/* HEADER + FILTER CONTROLS */}
                     <Box sx={{ p: 3, borderBottom: "1px solid", borderColor: "divider" }}>
                         <Typography variant="body2" color="text.secondary">
-                            Projects in which you have privilege
+                            {selectedFilter === "Everything"
+                                ? "Every project; data access depends on the privacy status and your privilege"
+                                : "Projects in which you have privilege"}
                         </Typography>
 
                         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
@@ -358,13 +310,15 @@ export default function ProjectsPage() {
                             <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick} sx={{ whiteSpace: 'nowrap' }}>
                                 {selectedFilter === "All" ? "All My Projects" :
                                     selectedFilter === "Manager" ? "My Managed Projects" :
-                                        `Filter: ${selectedFilter}`}
+                                        selectedFilter === "Everything" ? "All projects" :
+                                            `Filter: ${selectedFilter}`}
                             </Button>
 
                             <Menu anchorEl={filterAnchorEl} open={openFilter} onClose={() => handleFilterClose()}>
                                 <MenuItem onClick={() => handleFilterClose("All")}>All My Projects</MenuItem>
                                 <MenuItem onClick={() => handleFilterClose("Manager")}>My Managed Projects</MenuItem>
                                 <MenuItem onClick={() => handleFilterClose("Validated")}>Validated QC</MenuItem>
+                                <MenuItem onClick={() => handleFilterClose("Everything")}>All projects</MenuItem>
                             </Menu>
 
                             <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/new-project")} sx={{ whiteSpace: 'nowrap' }}>

@@ -12,6 +12,7 @@ vi.mock('@/features/projects/api/projects.api', () => ({
 import { searchProjectTasks, deleteProjectTask, type Task } from '@/features/projects/api/projects.api';
 import { ProjectTasksTab } from '@/features/projects/components/ProjectTasksTab';
 import { renderWithRouter } from '@/test/utils';
+import { loginAsAdmin, logoutUser } from '@/test/helpers/auth.helpers';
 
 const mockedSearchProjectTasks = vi.mocked(searchProjectTasks);
 
@@ -38,10 +39,13 @@ describe('ProjectTasksTab (Accessibility)', () => {
             tasks: [makeTask({ task_id: 1, task_status: 'DONE' })],
         });
         vi.mocked(deleteProjectTask).mockResolvedValue({ message: 'deleted' });
+        // DELETE is only offered to an admin.
+        loginAsAdmin();
     });
 
     afterEach(() => {
         vi.restoreAllMocks();
+        logoutUser();
     });
 
     // TC-T8: Action buttons disabled until a task is selected, then focusable

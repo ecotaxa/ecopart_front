@@ -3,7 +3,6 @@ import { Link as RouterLink } from "react-router-dom";
 import {
     Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, LinearProgress, Link
 } from "@mui/material";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -39,7 +38,7 @@ const ecoTaxaDeleteInfoContent = (
             external system, not only from EcoPart. You are asked to confirm first.
         </Typography>
         <Typography variant="caption" component="p">
-            OPEN IN ECOTAXA opens the selected samples in EcoTaxa.
+            Click a sample to open it in EcoTaxa.
         </Typography>
     </Box>
 );
@@ -50,6 +49,14 @@ import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 
 interface ProjectDataTabProps {
     projectId: number;
+    // Gates from useProjectAccess. The defaults (full access) keep the tab usable on its own.
+    /** Samples may be listed at all; otherwise `hiddenDataNotice` is shown instead. */
+    canSeeFigures?: boolean;
+    /** The EcoTaxa and CTD lists are shown (members, managers, admins). */
+    canImport?: boolean;
+    /** The DELETE actions are offered (managers, admins). */
+    canManage?: boolean;
+    hiddenDataNotice?: React.ReactNode;
 }
 
 // Helper function to format YYYYMMDDHHMMSS strings into readable dates
@@ -68,7 +75,26 @@ const formatCompactDate = (dateString?: string) => {
     return dateString;
 };
 
-export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => {
+export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ canSeeFigures = true, hiddenDataNotice, ...props }) => {
+    if (!canSeeFigures) {
+        return (
+            <SectionCard>
+                {hiddenDataNotice ?? (
+                    <Typography variant="body2" color="text.secondary">
+                        The samples of this project are not visible yet.
+                    </Typography>
+                )}
+            </SectionCard>
+        );
+    }
+    return <ProjectDataTabContent {...props} />;
+};
+
+const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" | "hiddenDataNotice">> = ({
+    projectId,
+    canImport = true,
+    canManage = true,
+}) => {
     const {
         uvpSamples, loadingUvp, totalUvpRows, uvpPaginationModel, setUvpPaginationModel,
         selectedUvpSamples, setSelectedUvpSamples, uvpSelectionCount,
@@ -85,7 +111,7 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
         handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples,
         buildEcoTaxaSampleUrl,
         snackbar, closeSnackbar
-    } = useProjectDataTab(projectId);
+    } = useProjectDataTab(projectId, { withLinkedSamples: canImport });
 
     // --- DATAGRID COLUMNS DEFINITIONS ---
 
@@ -192,16 +218,18 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                 <Box sx={{ mb: 2 }}>
                     <Typography variant="h6">
                         UVP samples
-                        <InfoTooltip title={uvpDeleteInfoContent} />
+                        {canManage && <InfoTooltip title={uvpDeleteInfoContent} />}
                     </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="body2" fontWeight="bold">{uvpSelectionCount} items selected</Typography>
                     <Stack direction="row" spacing={2}>
-                        <Button variant="text" color="inherit" disabled={uvpSelectionCount === 0 || isActionRunning} onClick={handleDeleteUvpSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                            DELETE
-                        </Button>
+                        {canManage && (
+                            <Button variant="text" color="inherit" disabled={uvpSelectionCount === 0 || isActionRunning} onClick={handleDeleteUvpSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                                DELETE
+                            </Button>
+                        )}
                     </Stack>
                 </Box>
 
@@ -235,108 +263,114 @@ export const ProjectDataTab: React.FC<ProjectDataTabProps> = ({ projectId }) => 
                 )}
             </Box>
 
-            <Divider sx={{ my: 4 }} />
+            {/* The EcoTaxa and CTD lists are member-level: a user without privilege gets the UVP samples only. */}
+            {canImport && (
+                <>
+                    <Divider sx={{ my: 4 }} />
 
-            {/* CTD SAMPLES SECTION */}
-            <Box sx={{ mb: 6 }}>
-                <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6">
-                        Links with CTD samples
-                        <InfoTooltip title={ctdDeleteInfoContent} />
-                    </Typography>
-                </Box>
+                    {/* CTD SAMPLES SECTION */}
+                    <Box sx={{ mb: 6 }}>
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="h6">
+                                Links with CTD samples
+                                {canManage && <InfoTooltip title={ctdDeleteInfoContent} />}
+                            </Typography>
+                        </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="body2" fontWeight="bold">{ctdSelectionCount} items selected</Typography>
-                    <Button variant="text" color="inherit" disabled={ctdSelectionCount === 0 || isActionRunning} startIcon={<CloseIcon />} onClick={handleDeleteCtdSamples} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                        DELETE
-                    </Button>
-                </Box>
-                {ctdSamples.length === 0 ? (
-                    renderEmptyState(
-                        loadingCtd ? "Loading CTD samples..."
-                            : ctdError ? `Failed to load CTD samples (${ctdError})`
-                                : "No CTD samples imported.",
-                        !loadingCtd && !!ctdError
-                    )
-                ) : (
-                    <Box sx={{ width: '100%', mb: 1 }}>
-                        <DataGrid<CtdSampleData>
-                            rows={ctdSamples}
-                            columns={ctdSamplesColumns}
-                            getRowId={(row) => row.sample_name}
-                            checkboxSelection
-                            disableRowSelectionExcludeModel
-                            disableRowSelectionOnClick
-                            loading={loadingCtd}
-                            rowSelectionModel={selectedCtdSamples}
-                            onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
-                            paginationModel={ctdPaginationModel}
-                            onPaginationModelChange={setCtdPaginationModel}
-                            pageSizeOptions={buildPageSizeOptions()}
-                            autoHeight
-                        />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant="body2" fontWeight="bold">{ctdSelectionCount} items selected</Typography>
+                            {canManage && (
+                                <Button variant="text" color="inherit" disabled={ctdSelectionCount === 0 || isActionRunning} startIcon={<CloseIcon />} onClick={handleDeleteCtdSamples} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                                    DELETE
+                                </Button>
+                            )}
+                        </Box>
+                        {ctdSamples.length === 0 ? (
+                            renderEmptyState(
+                                loadingCtd ? "Loading CTD samples..."
+                                    : ctdError ? `Failed to load CTD samples (${ctdError})`
+                                        : "No CTD samples imported.",
+                                !loadingCtd && !!ctdError
+                            )
+                        ) : (
+                            <Box sx={{ width: '100%', mb: 1 }}>
+                                <DataGrid<CtdSampleData>
+                                    rows={ctdSamples}
+                                    columns={ctdSamplesColumns}
+                                    getRowId={(row) => row.sample_name}
+                                    checkboxSelection
+                                    disableRowSelectionExcludeModel
+                                    disableRowSelectionOnClick
+                                    loading={loadingCtd}
+                                    rowSelectionModel={selectedCtdSamples}
+                                    onRowSelectionModelChange={(newSelection) => setSelectedCtdSamples(newSelection)}
+                                    paginationModel={ctdPaginationModel}
+                                    onPaginationModelChange={setCtdPaginationModel}
+                                    pageSizeOptions={buildPageSizeOptions()}
+                                    autoHeight
+                                />
+                            </Box>
+                        )}
                     </Box>
-                )}
-            </Box>
 
-            <Divider sx={{ my: 4 }} />
+                    <Divider sx={{ my: 4 }} />
 
-            {/* ECOTAXA SAMPLES SECTION */}
-            <Box sx={{ mb: 4 }}>
-                <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6">
-                        Links with EcoTaxa samples
-                        <InfoTooltip title={ecoTaxaDeleteInfoContent} />
-                    </Typography>
-                </Box>
+                    {/* ECOTAXA SAMPLES SECTION */}
+                    <Box sx={{ mb: 4 }}>
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="h6">
+                                Links with EcoTaxa samples
+                                <InfoTooltip title={ecoTaxaDeleteInfoContent} />
+                            </Typography>
+                        </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="body2" fontWeight="bold">{ecoTaxaSelectionCount} items selected</Typography>
-                    <Stack direction="row" spacing={2}>
-                        <Button variant="text" color="inherit" disabled={ecoTaxaSelectionCount === 0} startIcon={<OpenInNewIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                            OPEN IN ECOTAXA
-                        </Button>
-                        <Button variant="text" color="inherit" disabled={ecoTaxaSelectionCount === 0 || isActionRunning} onClick={handleDeleteEcoTaxaSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
-                            DELETE FROM ECOTAXA
-                        </Button>
-                    </Stack>
-                </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant="body2" fontWeight="bold">{ecoTaxaSelectionCount} items selected</Typography>
+                            <Stack direction="row" spacing={2}>
+                                {canManage && (
+                                    <Button variant="text" color="inherit" disabled={ecoTaxaSelectionCount === 0 || isActionRunning} onClick={handleDeleteEcoTaxaSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                                        DELETE FROM ECOTAXA
+                                    </Button>
+                                )}
+                            </Stack>
+                        </Box>
 
-                {ecoTaxaSamples.length === 0 ? (
-                    renderEmptyState(
-                        loadingEcoTaxa ? "Loading EcoTaxa samples..."
-                            : ecoTaxaError ? `Failed to load EcoTaxa samples (${ecoTaxaError})`
-                                : "No samples imported into ecotaxa.",
-                        !loadingEcoTaxa && !!ecoTaxaError
-                    )
-                ) : (
-                    <Box sx={{ width: '100%', mb: 1 }}>
-                        <DataGrid<EcoTaxaSampleData>
-                            rows={ecoTaxaSamples}
-                            columns={ecoTaxaSamplesColumns}
-                            getRowId={(row) => row.sample_name} // Backend expects sample_name array for deletion
-                            onRowClick={(params) => {
-                                const url = buildEcoTaxaSampleUrl(params.row);
-                                if (url) window.open(url, "_blank", "noopener,noreferrer");
-                            }}
-                            checkboxSelection
-                            disableRowSelectionExcludeModel
-                            disableRowSelectionOnClick
-                            loading={loadingEcoTaxa}
-                            rowSelectionModel={selectedEcoTaxaSamples}
-                            onRowSelectionModelChange={(newSelection) => setSelectedEcoTaxaSamples(newSelection)}
-                            paginationMode="server"
-                            rowCount={totalEcoTaxaRows}
-                            paginationModel={ecoTaxaPaginationModel}
-                            onPaginationModelChange={setEcoTaxaPaginationModel}
-                            pageSizeOptions={buildPageSizeOptions()}
-                            autoHeight
-                            sx={{ '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}
-                        />
+                        {ecoTaxaSamples.length === 0 ? (
+                            renderEmptyState(
+                                loadingEcoTaxa ? "Loading EcoTaxa samples..."
+                                    : ecoTaxaError ? `Failed to load EcoTaxa samples (${ecoTaxaError})`
+                                        : "No samples imported into ecotaxa.",
+                                !loadingEcoTaxa && !!ecoTaxaError
+                            )
+                        ) : (
+                            <Box sx={{ width: '100%', mb: 1 }}>
+                                <DataGrid<EcoTaxaSampleData>
+                                    rows={ecoTaxaSamples}
+                                    columns={ecoTaxaSamplesColumns}
+                                    getRowId={(row) => row.sample_name} // Backend expects sample_name array for deletion
+                                    onRowClick={(params) => {
+                                        const url = buildEcoTaxaSampleUrl(params.row);
+                                        if (url) window.open(url, "_blank", "noopener,noreferrer");
+                                    }}
+                                    checkboxSelection
+                                    disableRowSelectionExcludeModel
+                                    disableRowSelectionOnClick
+                                    loading={loadingEcoTaxa}
+                                    rowSelectionModel={selectedEcoTaxaSamples}
+                                    onRowSelectionModelChange={(newSelection) => setSelectedEcoTaxaSamples(newSelection)}
+                                    paginationMode="server"
+                                    rowCount={totalEcoTaxaRows}
+                                    paginationModel={ecoTaxaPaginationModel}
+                                    onPaginationModelChange={setEcoTaxaPaginationModel}
+                                    pageSizeOptions={buildPageSizeOptions()}
+                                    autoHeight
+                                    sx={{ '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}
+                                />
+                            </Box>
+                        )}
                     </Box>
-                )}
-            </Box>
+                </>
+            )}
 
             <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={closeSnackbar} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
                 <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>

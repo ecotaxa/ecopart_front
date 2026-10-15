@@ -365,4 +365,19 @@ describe('AdminProjectsTab', () => {
 
         expect(await screen.findByText(/Failed to load projects/i)).toBeInTheDocument();
     });
+
+    // TC-AG17: the admin grid shows the privacy status sent by the backend
+    it('TC-AG17: shows a Privacy chip per project (a missing status reads as private)', async () => {
+        mockProjectsSearch([
+            makeProject({ project_id: 473, privacy_status: 'public' }),
+            makeProject({ project_id: 411, project_title: 'uvp5_sn209_bval57' }),
+        ], 2);
+
+        renderProjectsTab();
+
+        expect(await screen.findByText('uvp5_sn209_bval57')).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: 'Privacy' })).toBeInTheDocument();
+        expect(screen.getByText('Public')).toBeInTheDocument();
+        expect(screen.getByText('Private')).toBeInTheDocument();
+    });
 });

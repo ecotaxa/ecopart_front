@@ -1,33 +1,46 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
 import SampleDetailsPage from './SampleDetailsPage';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsRole, loginAsUser } from '@/test/helpers/auth.helpers';
+import { makeProjectFixture, type ProjectFixtureOptions } from '@/test/helpers/project.fixtures';
 import type { SampleData } from '../api/projects.api';
 
-const mockApi = (sample: Partial<SampleData>, managerIds: number[] = []) => {
+/** Every request the page sent, as "METHOD path", to prove what it did not ask for. */
+let requests: string[] = [];
+
+/**
+ * Mock project 555, its sample 9 and the endpoints the sample tabs read. `access`
+ * carries the privileges (`loginAsRole(...)`) and the privacy status; the
+ * default is a project visible to anyone.
+ */
+const mockApi = (sample: Partial<SampleData>, access: ProjectFixtureOptions = {}) => {
+    const project = makeProjectFixture({
+        project_id: 555,
+        project_title: 'uvp5_sn000_tara2011',
+        project_acronym: 'tara',
+        root_folder_path: '/data/tara',
+        ecotaxa_project_id: 636,
+        ecotaxa_project_name: 'uvp5_sn000_tara2011',
+        ecotaxa_instance_id: 1,
+        privacy_status: 'visible',
+        ...access,
+    });
     server.use(
         http.post('*/projects/searches', () => HttpResponse.json({
             search_info: { total: 1, page: 1, limit: 1 },
-            projects: [{
-                project_id: 555,
-                project_title: 'uvp5_sn000_tara2011',
-                project_acronym: 'tara',
-                instrument_model: 'UVP5HD',
-                root_folder_path: '/data/tara',
-                ecotaxa_project_id: 636,
-                ecotaxa_project_name: 'uvp5_sn000_tara2011',
-                ecotaxa_instance_id: 1,
-                managers: managerIds.map((user_id) => ({ user_id })),
-            }],
+            projects: [project],
         })),
         http.get('*/projects/555/samples/9', () => HttpResponse.json(
             { sample_id: 9, sample_name: 'tara_093_00_a', filename: '20110311194210', ...sample },
         )),
+        http.get('*/projects/555/samples/9/qc-graphs', () => HttpResponse.json({ errors: ['Not computed in tests'] }, { status: 500 })),
+        http.get('*/projects/555/ecotaxa_samples', () => HttpResponse.json({ search_info: { total: 0, page: 1, limit: 10 }, ecotaxa_samples: [] })),
         http.get('*/ecotaxa_instances', () => HttpResponse.json([
             { ecotaxa_instance_id: 1, ecotaxa_instance_name: 'FR', ecotaxa_instance_description: '', ecotaxa_instance_url: 'https://ecotaxa.obs-vlfr.fr/' },
         ])),
@@ -44,6 +57,11 @@ const renderPage = (route = '/projects/555/samples/9') => renderWithRouter(
 describe('SampleDetailsPage', () => {
     beforeEach(() => {
         loginAsUser();
+        requests = [];
+        server.events.removeAllListeners('request:start');
+        server.events.on('request:start', ({ request }) => {
+            requests.push(`${request.method} ${new URL(request.url).pathname}`);
+        });
     });
 
     it('rejects a malformed sample id', () => {
@@ -57,7 +75,7 @@ describe('SampleDetailsPage', () => {
     });
 
     it('shows the context of the sample, with the EcoTaxa link filtered on the sample', async () => {
-        mockApi({ ecotaxa_sample_imported: true, ecotaxa_sample_id: 4242 });
+        mockApi({ ecotaxa_sample_imported: true, ecotaxa_sample_id: 4242 }, { ...loginAsRole('user'), privacy_status: 'visible' });
         renderPage();
 
         expect(await screen.findByText('tara_093_00_a')).toBeInTheDocument();
@@ -77,7 +95,7 @@ describe('SampleDetailsPage', () => {
             ctd_import_task_id: 31,
             ctd_file_extension: 'ctd',
             ecotaxa_sample_task_id: 30,
-        });
+        }, { ...loginAsRole('member') });
         renderPage();
 
         expect(await screen.findByLabelText('Original file name')).toHaveValue('tara_sbe_9c_110311_01');
@@ -89,7 +107,7 @@ describe('SampleDetailsPage', () => {
     });
 
     it('disables every action when the sample is neither in EcoTaxa nor linked to a CTD', async () => {
-        mockApi({ ecotaxa_sample_imported: false, ctd_imported: false });
+        mockApi({ ecotaxa_sample_imported: false, ctd_imported: false }, { ...loginAsRole('member') });
         renderPage();
 
         expect(await screen.findByText(/No CTD file is linked/i)).toBeInTheDocument();
@@ -99,17 +117,88 @@ describe('SampleDetailsPage', () => {
     });
 
     it('offers DELETE to a project manager', async () => {
-        mockApi({}, [1]);
+        mockApi({}, { ...loginAsRole('manager') });
         renderPage();
 
         expect(await screen.findByRole('button', { name: 'DELETE' })).toBeInTheDocument();
     });
 
     it('hides DELETE from a user who is not a manager, as the backend would refuse it', async () => {
-        mockApi({}, [2]);
+        mockApi({}, { ...loginAsRole('member') });
         renderPage();
 
         expect(await screen.findByLabelText('EcoPart project name')).toHaveValue('uvp5_sn000_tara2011');
         expect(screen.queryByRole('button', { name: 'DELETE' })).not.toBeInTheDocument();
+    });
+
+    // TC-AM1: the samples of a private project are hidden from a user without privilege
+    it('TC-AM1: shows the privacy notice to a user on a private project, without requesting the sample', async () => {
+        mockApi({}, { ...loginAsRole('user'), privacy_status: 'private' });
+        renderPage();
+
+        expect(await screen.findByText(/Data hidden until the project becomes visible/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Failed to load the sample/i)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'DELETE' })).not.toBeInTheDocument();
+        expect(requests).not.toContain('GET /projects/555/samples/9');
+    });
+
+    // TC-AM2: a user on a visible project reads the sample but acts on nothing
+    it('TC-AM2: gives a user on a visible project a read-only sample (no task, position or QC action)', async () => {
+        const user = userEvent.setup({ delay: null });
+        mockApi(
+            { ecotaxa_sample_imported: true, ecotaxa_sample_id: 4242, ecotaxa_sample_task_id: 30, ctd_import_task_id: 31, visual_qc_status_label: 'PENDING' },
+            { ...loginAsRole('user'), privacy_status: 'visible' },
+        );
+        renderPage();
+
+        expect(await screen.findByRole('link', { name: /Open sample in EcoTaxa/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Open EcoTaxa import task/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Open CTD import task/i })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: /METADATA/i }));
+        expect(await screen.findByRole('radio', { name: 'Location from imported metadata' })).toBeDisabled();
+
+        await user.click(screen.getByRole('tab', { name: /QUALITY CHECKS/i }));
+        expect(await screen.findByText(/only shown to the project members/i)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Validate QC/i })).not.toBeInTheDocument();
+        expect(requests).not.toContain('GET /projects/555/ecotaxa_samples');
+    });
+
+    // TC-AM3: a member validates the QC and changes the position source
+    it('TC-AM3: offers QC validation and the position choice to a member', async () => {
+        const user = userEvent.setup({ delay: null });
+        mockApi({ visual_qc_status_label: 'PENDING' }, { ...loginAsRole('member'), privacy_status: 'private' });
+        renderPage('/projects/555/samples/9/quality-checks');
+
+        expect(await screen.findByRole('button', { name: /Validate QC/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'DELETE' })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: /METADATA/i }));
+        expect(await screen.findByRole('radio', { name: 'Location from imported metadata' })).toBeEnabled();
+    });
+
+    // TC-AM4: an unknown project, or an unknown sample, is a "not found" state
+    it('TC-AM4: tells a missing project apart from a missing sample', async () => {
+        server.use(
+            http.post('*/projects/searches', () => HttpResponse.json({ search_info: { total: 0, page: 1, limit: 1 }, projects: [] })),
+            http.get('*/projects/555/samples/9', () => HttpResponse.json({ errors: ['Cannot find sample'] }, { status: 404 })),
+        );
+        const { unmount } = renderPage();
+        expect(await screen.findByText('Project not found')).toBeInTheDocument();
+        unmount();
+
+        mockApi({}, { ...loginAsRole('member') });
+        server.use(http.get('*/projects/555/samples/9', () => HttpResponse.json({ errors: ['Cannot find sample'] }, { status: 404 })));
+        renderPage();
+        expect(await screen.findByText(/This sample does not exist/i)).toBeInTheDocument();
+    });
+
+    // TC-AM5: a refusal on the sample itself (401 after the refresh retry, or 403) says so
+    it('TC-AM5: shows an access message when the backend refuses the sample', async () => {
+        mockApi({}, { ...loginAsRole('user'), privacy_status: 'visible' });
+        server.use(http.get('*/projects/555/samples/9', () => HttpResponse.json({ errors: ['Logged user cannot get this sample'] }, { status: 403 })));
+        renderPage();
+
+        expect(await screen.findByText(/not allowed to see this sample/i)).toBeInTheDocument();
     });
 });

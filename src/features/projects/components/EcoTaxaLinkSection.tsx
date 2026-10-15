@@ -54,6 +54,11 @@ interface EcoTaxaLinkSectionProps {
         account?: string;
         project?: string;
     };
+    /**
+     * Show the link without any way to change it: no edit fields, no UNLINK, no
+     * account shortcut, and the viewer's own EcoTaxa accounts are not fetched.
+     */
+    readOnly?: boolean;
 }
 
 const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
@@ -66,6 +71,7 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
     showCreateNewProjectToggle = true,
     autoSelectLinkedAccount = true,
     errors,
+    readOnly = false,
 }) => {
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
@@ -74,9 +80,9 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
     // Both lists come from the shared React Query cache: fetched once per user /
     // session and shared with the profile page and the data tab, never refetched
     // because this form re-rendered.
-    const { data: accounts = [], isPending: loadingAccounts } = useEcoTaxaAccounts(userId);
+    const { data: accounts = [], isPending: loadingAccounts } = useEcoTaxaAccounts(readOnly ? undefined : userId);
     const { data: instances = [] } = useEcoTaxaInstances();
-    const loadingData = userId != null && loadingAccounts;
+    const loadingData = !readOnly && userId != null && loadingAccounts;
 
     const availableInstanceIds = new Set(accounts.map((account) => account.ecotaxa_account_instance_id.toString()));
     const safeInstanceValue = values.instance && availableInstanceIds.has(values.instance) ? values.instance : "";
@@ -271,15 +277,17 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
                     Link to EcoTaxa
                     <InfoTooltip title={ecoTaxaLinkInfoContent} />
                 </Typography>
-                <Button
-                    variant="text"
-                    size="small"
-                    onClick={() => {
-                        navigate(userId != null ? `/settings/${userId}/ecotaxa_account` : "/settings/ecotaxa_account");
-                    }}
-                >
-                    ADD AN ECOTAXA ACCOUNT →
-                </Button>
+                {!readOnly && (
+                    <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => {
+                            navigate(userId != null ? `/settings/${userId}/ecotaxa_account` : "/settings/ecotaxa_account");
+                        }}
+                    >
+                        ADD AN ECOTAXA ACCOUNT →
+                    </Button>
+                )}
             </Box>
             <Divider sx={{ mb: 3 }} />
 
@@ -310,12 +318,16 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
                             }}
                         />
 
-                        {onUnlink && (
+                        {onUnlink && !readOnly && (
                             <Button variant="outlined" color="error" onClick={onUnlink} sx={{ alignSelf: "stretch" }}>
                                 UNLINK ECOTAXA PROJECT
                             </Button>
                         )}
                     </>
+                ) : readOnly ? (
+                    <Typography variant="body2" color="text.secondary">
+                        This project is not linked to an EcoTaxa project.
+                    </Typography>
                 ) : (
                     renderEditFields()
                 )}

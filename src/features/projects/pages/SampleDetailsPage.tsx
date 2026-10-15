@@ -10,11 +10,13 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import ImageIcon from "@mui/icons-material/Image";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
-import { useAuthStore } from "@/features/auth/store/auth.store";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
+import { isAccessDenied, isNotFound } from "@/shared/api/http";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import { deleteProjectSample, getProjectSample } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
+import { useProjectAccess } from "../hooks/useProjectAccess";
+import { ProjectLoadError, ProjectPrivacyNotice } from "../components/ProjectAccessStates";
 import { SampleContextTab } from "../components/SampleContextTab";
 import { SampleMetadataTab } from "../components/SampleMetadataTab";
 import { SampleInstrumentTab } from "../components/SampleInstrumentTab";
@@ -44,18 +46,17 @@ export default function SampleDetailsPage() {
     const tabIndex = TABS.findIndex((tab) => tab.slug === tabName);
     const currentTab = tabIndex >= 0 ? tabIndex : 0;
 
-    const { data: project } = useProject(projectId);
-    const currentUser = useAuthStore((state) => state.user);
-    // DELETE is a manager-only action server-side, so only a manager (or an admin) gets the button.
-    const canDelete =
-        currentUser?.is_admin === true ||
-        (currentUser != null &&
-            (project?.managers ?? []).some((manager) => Number(manager.user_id) === Number(currentUser.user_id)));
+    const { data: project, error: projectError, isPending: isProjectPending } = useProject(projectId);
+    const access = useProjectAccess(project);
+    // The sample is only asked for once the project says it may be seen: a user who
+    // may not see its samples gets the privacy notice instead of a refused request.
+    // Coming from the project page, the project is already cached.
+    const isHiddenByPrivacy = project !== undefined && !access.can.figures;
     const sampleQueryKey = ["projects", projectId, "samples", parsedSampleId] as const;
     const { data: sample, isLoading, error } = useQuery({
         queryKey: sampleQueryKey,
         queryFn: () => getProjectSample(projectId as number, parsedSampleId as number),
-        enabled: hasValidIds,
+        enabled: hasValidIds && project !== undefined && access.can.figures,
     });
 
     const [isDeleting, setIsDeleting] = useState(false);
@@ -118,8 +119,16 @@ export default function SampleDetailsPage() {
                     Back to project
                 </Button>
 
-                {isLoading ? (
+                {projectError ? (
+                    <ProjectLoadError error={projectError} />
+                ) : isHiddenByPrivacy ? (
+                    <ProjectPrivacyNotice project={project} />
+                ) : isLoading || isProjectPending ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
+                ) : isNotFound(error) ? (
+                    <Alert severity="warning">This sample does not exist or has been deleted.</Alert>
+                ) : isAccessDenied(error) ? (
+                    <Alert severity="error">Your account is not allowed to see this sample.</Alert>
                 ) : error || !sample ? (
                     <Alert severity="error">
                         Failed to load the sample{error instanceof Error ? ` (${error.message})` : ""}.
@@ -132,7 +141,7 @@ export default function SampleDetailsPage() {
                                 <Box component="span" sx={{ color: "text.secondary" }}>{sample.sample_name}</Box>
                             </Typography>
 
-                            {canDelete && (
+                            {access.can.manage && (
                                 <Button variant="outlined" color="error" onClick={handleDeleteSample} disabled={isDeleting}>
                                     {isDeleting ? "DELETING..." : "DELETE"}
                                 </Button>
@@ -147,13 +156,14 @@ export default function SampleDetailsPage() {
                             </Tabs>
                         </Box>
 
-                        {currentTab === 0 && <SampleContextTab project={project} sample={sample} />}
+                        {currentTab === 0 && <SampleContextTab project={project} sample={sample} canOpenTasks={access.can.import} />}
                         {currentTab === 1 && (
                             <SampleMetadataTab
                                 projectId={projectId}
                                 project={project}
                                 sample={sample}
                                 onSampleUpdated={(updated) => queryClient.setQueryData(sampleQueryKey, updated)}
+                                readOnly={!access.can.import}
                             />
                         )}
                         {currentTab === 2 && <SampleInstrumentTab sample={sample} />}
@@ -162,6 +172,8 @@ export default function SampleDetailsPage() {
                                 projectId={projectId}
                                 sample={sample}
                                 onSampleUpdated={(updated) => queryClient.setQueryData(sampleQueryKey, updated)}
+                                canValidateQc={access.can.import}
+                                canSeeEcoTaxaStats={access.can.import}
                             />
                         )}
                     </>

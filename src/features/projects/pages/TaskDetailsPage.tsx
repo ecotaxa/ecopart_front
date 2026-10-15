@@ -263,8 +263,8 @@ export default function TaskDetailsPage() {
                                     </Button>
                                 )}
                                 {/* Cancel while it runs, delete once it has stopped: never both.
-                                    A CANCELLING task offers neither until it stops. */}
-                                {isDeletableTask(task) && (
+                                    A CANCELLING task offers neither until it stops. Only an admin may delete. */}
+                                {isDeletableTask(task) && currentUser?.is_admin === true && (
                                     <Button variant="outlined" color="error" size="small" sx={{ fontWeight: "bold" }} onClick={handleDeleteTask} disabled={isDeleting}>{isDeleting ? "DELETING..." : "DELETE"}</Button>
                                 )}
                             </Stack>

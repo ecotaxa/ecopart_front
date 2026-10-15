@@ -104,9 +104,11 @@ interface SampleMetadataTabProps {
     sample: SampleData;
     /** Called with the sample returned by the backend after the location source changed. */
     onSampleUpdated: (sample: SampleData) => void;
+    /** The location source cannot be changed (coordinates are member-level). */
+    readOnly?: boolean;
 }
 
-export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated }: SampleMetadataTabProps) {
+export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated, readOnly = false }: SampleMetadataTabProps) {
     const operatorName = findOperatorName(project, sample.instrument_operator_email);
     // The backend only accepts the CTD location once both CTD coordinates are known.
     const hasCtdLocation = hasCoordinates(sample.ctd_latitude, sample.ctd_longitude);
@@ -205,7 +207,7 @@ export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated 
                                 longitude={sample.longitude}
                                 selected={selectedSource === "metadata"}
                                 available
-                                disabled={isSavingSource}
+                                disabled={isSavingSource || readOnly}
                             />
                             <LocationOption
                                 value="ctd"
@@ -221,7 +223,7 @@ export function SampleMetadataTab({ projectId, project, sample, onSampleUpdated 
                                         ? "The imported CTD file has no position"
                                         : "No CTD file imported for this sample"
                                 }
-                                disabled={isSavingSource}
+                                disabled={isSavingSource || readOnly}
                             />
                         </RadioGroup>
                         {sourceError && (

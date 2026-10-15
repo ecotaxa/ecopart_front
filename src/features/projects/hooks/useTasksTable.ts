@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { useServerTable } from "@/shared/hooks/useServerTable";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 import { deleteProjectTask, downloadTaskFile, type SearchFilter, searchProjectTasks, type Task } from "../api/projects.api";
 import { isDeletableTask } from "../utils/taskColumns";
 
@@ -62,10 +63,13 @@ export const useTasksTable = (
 
     const { runBulkAction, showSnackbar, rows, selectedIds } = table;
 
+    // The backend only lets an admin delete a task.
+    const canDeleteTasks = useAuthStore((state) => state.user?.is_admin === true);
+
     // A task still running (or being cancelled) is cancelled, not deleted, so
     // DELETE stays disabled while the selection holds one. Selected ids whose row
     // is no longer loaded are left for the server to accept or reject.
-    const canDeleteSelection = selectedIds.length > 0 && selectedIds.every((taskId) => {
+    const canDeleteSelection = canDeleteTasks && selectedIds.length > 0 && selectedIds.every((taskId) => {
         const task = rows.find((row) => row.task_id === taskId);
         return !task || isDeletableTask(task);
     });
@@ -114,6 +118,7 @@ export const useTasksTable = (
         searchAttribute: table.searchAttribute,
         setSearchAttribute: table.setSearchAttribute,
         isActionRunning: table.isActionRunning,
+        canDeleteTasks,
         canDeleteSelection,
         handleDeleteTasks,
         downloadingTaskId,

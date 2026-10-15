@@ -28,6 +28,8 @@ const mockProjectData = {
     enable_descent_filter: true,
     ecotaxa_instance_id: null,
     ecotaxa_project_id: null,
+    // The logged-in user manages the project: the save tests edit it.
+    managers: [{ user_id: 1 }],
 };
 
 const linkedMockProjectData = {
@@ -277,5 +279,56 @@ describe('ProjectMetadataTab (Functional)', () => {
         // Data owner confirmed, chief scientist + operator unknown (need to register).
         expect(screen.getAllByTestId('VerifiedUserIcon')).toHaveLength(1);
         expect(screen.getAllByTestId('PersonOffIcon')).toHaveLength(2);
+    }, 15000);
+
+    // TC-J8: a viewer who may not manage the project reads the same form, frozen.
+    it('TC-J8: renders read-only, without save, folder browser, unlink or EcoTaxa account shortcut', async () => {
+        const accountRequests: string[] = [];
+        server.use(
+            http.post('*/projects/searches*', () => HttpResponse.json({
+                search_info: { total: 1, page: 1, limit: 1 },
+                projects: [{ ...linkedMockProjectData, managers: [{ user_id: 2 }] }],
+            })),
+            http.get('*/users/:id/ecotaxa_account', ({ request }) => {
+                accountRequests.push(request.url);
+                return HttpResponse.json({ ecotaxa_accounts: [] });
+            }),
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={102} readOnly />);
+
+        const titleInput = await screen.findByDisplayValue('Linked Project');
+        expect(titleInput).toHaveAttribute('readonly');
+        expect(screen.getByLabelText(/Project acronym/i)).toHaveAttribute('readonly');
+        expect(screen.getByLabelText(/Data owner email/i)).toHaveAttribute('readonly');
+        expect(screen.getByLabelText(/Root folder path/i)).toHaveAttribute('readonly');
+        expect(screen.getByRole('switch', { name: /Enable descent filter/i })).toBeDisabled();
+        expect(screen.queryByText(/The loaded title cannot be removed/i)).not.toBeInTheDocument();
+
+        expect(screen.queryByRole('button', { name: /Browse server folders/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^SAVE$/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^CANCEL$/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /unlink ecotaxa project/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /ADD AN ECOTAXA ACCOUNT/i })).not.toBeInTheDocument();
+        // The linked project itself stays visible (and openable in EcoTaxa).
+        expect(screen.getByRole('button', { name: /Open EcoTaxa project/i })).toBeInTheDocument();
+        expect(accountRequests).toEqual([]);
+    }, 15000);
+
+    // TC-J9: the backend leaves the import folder out of the project a user without privilege sees.
+    it('TC-J9: does not render the root folder field when the payload has no root_folder_path', async () => {
+        server.use(
+            http.post('*/projects/searches*', () => HttpResponse.json({
+                search_info: { total: 1, page: 1, limit: 1 },
+                projects: [{ ...mockProjectData, root_folder_path: undefined, managers: [{ user_id: 2 }] }],
+            })),
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} readOnly />);
+
+        await screen.findByDisplayValue('Existing Project');
+        expect(screen.queryByLabelText(/Root folder path/i)).not.toBeInTheDocument();
+        expect(screen.getByText(/This project is not linked to an EcoTaxa project/i)).toBeInTheDocument();
+        expect(screen.queryByLabelText(/EcoTaxa instance/i)).not.toBeInTheDocument();
     }, 15000);
 });

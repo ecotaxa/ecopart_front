@@ -29,6 +29,7 @@ interface ProjectMetadataSectionProps {
      * Leave undefined/empty to keep the title fully editable.
      */
     lockedTitlePrefix?: string;
+    readOnly?: boolean;
 }
 
 /**
@@ -41,7 +42,9 @@ const ProjectMetadataSectionImpl: React.FC<ProjectMetadataSectionProps> = ({
     onChange,
     errors,
     lockedTitlePrefix,
+    readOnly = false,
 }) => {
+    const readOnlySlotProps = { input: { readOnly } };
     // Ship names (already string[]); an empty list on failure leaves the freeSolo input usable.
     const { data: shipOptions = [], isPending: loadingShips } = useShips();
 
@@ -76,6 +79,7 @@ const ProjectMetadataSectionImpl: React.FC<ProjectMetadataSectionProps> = ({
                                 ? "The loaded title cannot be removed — you can add text after it."
                                 : undefined)
                         }
+                        slotProps={readOnlySlotProps}
                     />
                 </Grid>
 
@@ -87,6 +91,7 @@ const ProjectMetadataSectionImpl: React.FC<ProjectMetadataSectionProps> = ({
                         value={values.ship}
                         onChange={(_, newValue) => onChange({ ship: newValue })}
                         loading={loadingShips}
+                        readOnly={readOnly}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
@@ -122,6 +127,7 @@ const ProjectMetadataSectionImpl: React.FC<ProjectMetadataSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.acronym)}
                         helperText={errors?.acronym}
+                        slotProps={readOnlySlotProps}
                     />
                 </Grid>
 
@@ -135,6 +141,7 @@ const ProjectMetadataSectionImpl: React.FC<ProjectMetadataSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.cruise)}
                         helperText={errors?.cruise}
+                        slotProps={readOnlySlotProps}
                     />
                 </Grid>
 
@@ -150,6 +157,7 @@ const ProjectMetadataSectionImpl: React.FC<ProjectMetadataSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.description)}
                         helperText={errors?.description}
+                        slotProps={readOnlySlotProps}
                     />
                 </Grid>
             </Grid>

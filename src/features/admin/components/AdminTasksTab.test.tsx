@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import AdminTasksTab from './AdminTasksTab';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsAdmin } from '@/test/helpers/auth.helpers';
 import type { Task } from '@/features/projects/api/projects.api';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
@@ -94,7 +94,8 @@ const renderAdminTasksTab = (route = '/admin/tasks') =>
 
 describe('AdminTasksTab', () => {
     beforeEach(() => {
-        loginAsUser();
+        // The tab sits behind AdminRoute: only an admin ever sees it (and may delete tasks).
+        loginAsAdmin();
         vi.clearAllMocks();
         searchCalls = [];
         deleteCalls = [];

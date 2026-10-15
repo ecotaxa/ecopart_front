@@ -112,4 +112,17 @@ describe('ProjectSecurityTab (Functional)', () => {
         expect(await screen.findByText('Security settings updated successfully!')).toBeInTheDocument();
     });
 
+
+    // TC-K4: the timeline shows the status computed by the backend, not always "Private"
+    it('TC-K4: highlights the current privacy status on the timeline', async () => {
+        renderWithRouter(<ProjectSecurityTab projectId={101} privacyStatus="public" />);
+
+        await screen.findByDisplayValue('6');
+        const current = screen.getByText('Public').closest('[aria-current="step"]');
+        expect(current).not.toBeNull();
+        expect(screen.getAllByText(/^(Private|Visible|Public|Public\+)$/).map((step) => step.textContent)).toEqual([
+            'Private', 'Visible', 'Public', 'Public+',
+        ]);
+        expect(screen.getByText(/counted in months after the project creation/i)).toBeInTheDocument();
+    });
 });

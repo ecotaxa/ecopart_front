@@ -14,6 +14,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
 
 import type { MinimalUserModel, Project, SearchFilter } from "@/features/projects/api/projects.api";
+import { privacyLabel, toPrivacyStatus } from "@/features/projects/utils/projectAccess";
 import { useAdminProjectsTable } from "../hooks/useAdminProjectsTable";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import { parseUserIdsParam } from "../utils/userFilterParams";
@@ -130,6 +131,14 @@ export default function AdminProjectsTab() {
                 ),
         },
         { field: "root_folder_path", headerName: "Root path", flex: 1.2, minWidth: 150 },
+        {
+            field: "privacy_status",
+            headerName: "Privacy",
+            width: 110,
+            renderCell: (params: GridRenderCellParams<Project>) => (
+                <Chip label={privacyLabel(toPrivacyStatus(params.row.privacy_status))} size="small" variant="outlined" />
+            ),
+        },
         {
             field: "nbr_sample",
             headerName: "Nb of samples",

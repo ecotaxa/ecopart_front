@@ -6,17 +6,19 @@ import { http, HttpResponse } from 'msw';
 
 import ProjectDetailsPage from '@/features/projects/pages/ProjectDetailsPage';
 import { renderWithRouter } from '@/test/utils';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsRole } from '@/test/helpers/auth.helpers';
+import { makeProjectFixture } from '@/test/helpers/project.fixtures';
 import { server } from '@/test/msw/server';
 
 describe('ProjectDetailsPage (Accessibility)', () => {
 
     beforeEach(() => {
-        loginAsUser();
+        // A member: METADATA is followed by the DATA and IMPORT tabs.
+        const project = makeProjectFixture({ ...loginAsRole('member') });
 
         // Prevent API errors during render
         server.use(
-            http.post('*/projects/searches', () => HttpResponse.json({ search_info: { total: 1, page: 1, limit: 1 }, projects: [{ project_id: 101 }] })),
+            http.post('*/projects/searches', () => HttpResponse.json({ search_info: { total: 1, page: 1, limit: 1 }, projects: [project] })),
             http.get('*/users', () => HttpResponse.json({ users: [] })),
             http.get('*/ecotaxa_instances', () => HttpResponse.json([])),
             http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] }))
@@ -35,7 +37,7 @@ describe('ProjectDetailsPage (Accessibility)', () => {
         );
 
         // Wait for page to load
-        await screen.findByText('Project Details');
+        await screen.findByRole('heading', { name: 'Test Project' });
 
         // 1. Focus the Explore button just before the tabs
         const exploreBtn = screen.getByRole('button', { name: /EXPLORE/i });

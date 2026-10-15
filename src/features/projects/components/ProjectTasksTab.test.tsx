@@ -14,6 +14,7 @@ import { searchProjectTasks, deleteProjectTask, type Task, type TaskSearchRespon
 import { ProjectTasksTab } from './ProjectTasksTab';
 import { renderWithRouter } from '@/test/utils';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
+import { loginAsAdmin, loginAsRole, logoutUser } from '@/test/helpers/auth.helpers';
 
 const mockedSearchProjectTasks = vi.mocked(searchProjectTasks);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
@@ -56,6 +57,7 @@ describe('ProjectTasksTab (Functional)', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        logoutUser();
     });
 
     // TC-T1: Project-Scoped Fetch
@@ -144,6 +146,8 @@ describe('ProjectTasksTab (Functional)', () => {
     // TC-T5: Delete Flow
     it('TC-T5: deletes the selected tasks after confirmation', async () => {
         const user = userEvent.setup();
+        // Deleting a task is admin-only server-side.
+        loginAsAdmin();
         answerConfirmDialogs(true);
         mockedSearchProjectTasks.mockResolvedValue(makeResponse([
             makeTask({ task_id: 1, task_status: 'DONE' }),
@@ -170,6 +174,7 @@ describe('ProjectTasksTab (Functional)', () => {
     // TC-T5b: an unfinished task is cancelled, not deleted
     it('TC-T5b: keeps DELETE disabled while the selection holds an unfinished task', async () => {
         const user = userEvent.setup();
+        loginAsAdmin();
         // Default rows are RUNNING.
         renderTab();
         await screen.findAllByText('IMPORT');
@@ -179,6 +184,19 @@ describe('ProjectTasksTab (Functional)', () => {
 
         expect(screen.getByRole('button', { name: /^DELETE$/i })).toBeDisabled();
         expect(mockedDeleteProjectTask).not.toHaveBeenCalled();
+    });
+
+    // TC-T9: a project manager sees the project tasks but only an admin may delete them
+    it('TC-T9: does not offer DELETE to a project manager who is not an admin', async () => {
+        const user = userEvent.setup();
+        loginAsRole('manager');
+        mockedSearchProjectTasks.mockResolvedValue(makeResponse([makeTask({ task_id: 1, task_status: 'DONE' })], 1));
+        renderTab();
+        await screen.findAllByText('IMPORT');
+
+        await user.click(screen.getAllByRole('checkbox')[1]);
+        expect(await screen.findByText('1 items selected')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^DELETE$/i })).not.toBeInTheDocument();
     });
 
     // TC-T6: Status Icons Mapping

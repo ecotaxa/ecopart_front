@@ -21,6 +21,7 @@ interface ProjectPeopleSectionProps {
     };
     /** Per person, whether their own email is being looked up right now (usePeopleEmailCheck). */
     checking?: PeopleCheckState;
+    readOnly?: boolean;
 }
 
 const NOT_CHECKING: PeopleCheckState = { dataOwner: false, chiefScientist: false, operator: false };
@@ -66,7 +67,9 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
     onChange,
     errors,
     checking = NOT_CHECKING,
+    readOnly = false,
 }) => {
+    const readOnlySlotProps = { input: { readOnly } };
     return (
         <Box sx={{ mb: 4 }}>
             <Typography variant="h6" gutterBottom>
@@ -86,6 +89,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.dataOwnerName)}
                         helperText={errors?.dataOwnerName}
+                        slotProps={readOnlySlotProps}
                     />
                 </Grid>
 
@@ -102,6 +106,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         helperText={errors?.dataOwnerEmail}
                         slotProps={{
                             input: {
+                                readOnly,
                                 endAdornment: (
                                     <InputAdornment position="end">
                                         <VerificationIcon userId={values.dataOwnerId} emailValue={values.dataOwnerEmail} checking={checking.dataOwner} />
@@ -123,6 +128,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.chiefScientistName)}
                         helperText={errors?.chiefScientistName}
+                        slotProps={readOnlySlotProps}
                     />
                 </Grid>
 
@@ -138,6 +144,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         helperText={errors?.chiefScientistEmail}
                         slotProps={{
                             input: {
+                                readOnly,
                                 endAdornment: (
                                     <InputAdornment position="end">
                                         <VerificationIcon userId={values.chiefScientistId} emailValue={values.chiefScientistEmail} checking={checking.chiefScientist} />
@@ -159,6 +166,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         size="small"
                         error={Boolean(errors?.operatorName)}
                         helperText={errors?.operatorName}
+                        slotProps={readOnlySlotProps}
                     />
                 </Grid>
 
@@ -174,6 +182,7 @@ const ProjectPeopleSectionImpl: React.FC<ProjectPeopleSectionProps> = ({
                         helperText={errors?.operatorEmail}
                         slotProps={{
                             input: {
+                                readOnly,
                                 endAdornment: (
                                     <InputAdornment position="end">
                                         <VerificationIcon userId={values.operatorId} emailValue={values.operatorEmail} checking={checking.operator} />

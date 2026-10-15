@@ -154,7 +154,8 @@ describe('NewProjectPage (Functional)', () => {
                             privacy_duration: 2,
                             visible_duration: 24,
                             public_duration: 36,
-                            managers: [],
+                            // The logged-in creator manages the new project, so its IMPORT tab is offered.
+                            managers: [{ user_id: 1 }],
                             members: [],
                             contact: null
                         }]

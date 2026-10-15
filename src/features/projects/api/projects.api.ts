@@ -1,6 +1,7 @@
-import { http, httpText, httpBlob } from "@/shared/api/http";
+import { ApiError, http, httpText, httpBlob } from "@/shared/api/http";
 import { queryClient } from "@/shared/api/queryClient";
 import type { SearchFilter, SearchInfo } from "@/shared/types/api";
+import type { ProjectPrivacyStatus } from "../utils/projectAccess";
 
 // The filter condition type lives in shared (the generic server-table hook
 // needs it); re-exported here so feature code keeps importing it from the API.
@@ -22,7 +23,8 @@ export interface Project {
     project_acronym: string;
     instrument_model: string;
     ecotaxa_project_name: string | null;
-    root_folder_path: string;
+    /** Omitted by the backend for a user without privilege on the project. */
+    root_folder_path?: string;
 
     // Note: The following fields exist in the mockup but are NOT currently returned by the backend.
     // They are marked as optional so TypeScript doesn't complain when mapping the backend response.
@@ -53,6 +55,11 @@ export interface Project {
     privacy_duration?: number;
     visible_duration?: number;
     public_duration?: number;
+    /** Computed server-side from the creation date and the three delays; never recomputed here. */
+    privacy_status?: ProjectPrivacyStatus;
+    project_creation_utc_date_time?: string;
+    /** Omitted by the backend for a user without privilege on the project. */
+    last_backup_utc_date_time?: string | null;
 
     /**
      * The backend public project model returns privileges through these fields,
@@ -297,7 +304,7 @@ export async function fetchProjectById(projectId: number): Promise<Project> {
         return response.projects[0];
     }
 
-    throw new Error(`Project with ID ${projectId} not found.`);
+    throw new ApiError(404, [`Project with ID ${projectId} not found.`]);
 }
 
 /**

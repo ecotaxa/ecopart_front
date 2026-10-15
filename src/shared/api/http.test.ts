@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { http as mswHttp, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
-import { http, setSessionExpiredHandler } from '@/shared/api/http'; // Import your fetch wrapper
+import { ApiError, http, httpBlob, httpText, isAccessDenied, isNotFound, setSessionExpiredHandler } from '@/shared/api/http'; // Import your fetch wrapper
 import { useAuthStore } from '@/features/auth/store/auth.store';
 
 describe('HTTP Utility (API Fetcher)', () => {
@@ -176,5 +176,50 @@ describe('HTTP Utility (API Fetcher)', () => {
 
         await expect(http(TEST_URL)).rejects.toThrow(/Retry failed on backend/i);
         expect(attemptCount).toBe(2);
+    });
+
+    // TC-AC8: failures carry their HTTP status and every backend message
+    it('TC-AC8: should throw an ApiError with the status and all the backend messages', async () => {
+        server.use(
+            mswHttp.get(TEST_URL, () => HttpResponse.json({ errors: ['First problem', { msg: 'Second problem' }] }, { status: 422 })),
+        );
+
+        const error = await http(TEST_URL).catch((err: unknown) => err);
+
+        expect(error).toBeInstanceOf(ApiError);
+        expect(error).toMatchObject({ status: 422, message: 'First problem', messages: ['First problem', 'Second problem'] });
+        expect(isAccessDenied(error)).toBe(false);
+        expect(isNotFound(error)).toBe(false);
+    });
+
+    // TC-AC9: access refusals and missing resources are told apart, on every helper
+    it('TC-AC9: should classify 401 (after the refresh retry), 403 and 404 for every request helper', async () => {
+        const statuses: Record<string, number> = { '/api/denied': 401, '/api/forbidden': 403, '/api/missing': 404 };
+        server.use(
+            mswHttp.get('/api/:name', ({ request }) => {
+                const status = statuses[new URL(request.url).pathname];
+                return HttpResponse.json({ errors: [`status ${status}`] }, { status });
+            }),
+        );
+
+        const fail = (call: Promise<unknown>) => call.catch((err: unknown) => err);
+
+        // A 401 is retried once after a successful refresh, then thrown as is.
+        expect(isAccessDenied(await fail(http('/api/denied')))).toBe(true);
+        expect(isAccessDenied(await fail(httpText('/api/forbidden')))).toBe(true);
+        expect(isNotFound(await fail(httpBlob('/api/missing')))).toBe(true);
+        expect(isAccessDenied(await fail(http('/api/missing')))).toBe(false);
+        // A plain Error (e.g. a network failure) is neither.
+        expect(isAccessDenied(new Error('Failed to fetch'))).toBe(false);
+        expect(isNotFound(new Error('Failed to fetch'))).toBe(false);
+    });
+
+    // TC-AC10: a body without any usable message keeps the generic wording
+    it('TC-AC10: should fall back to "HTTP Error: <status>" with no messages when the body carries none', async () => {
+        server.use(mswHttp.get(TEST_URL, () => new HttpResponse('<html>Bad gateway</html>', { status: 502 })));
+
+        const error = await http(TEST_URL).catch((err: unknown) => err);
+
+        expect(error).toMatchObject({ status: 502, message: 'HTTP Error: 502', messages: [] });
     });
 });

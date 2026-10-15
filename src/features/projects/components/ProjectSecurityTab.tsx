@@ -8,10 +8,13 @@ import { PrivilegesSection } from "./PrivilegesSection";
 import { DataPrivacySection } from "./DataPrivacySection";
 
 import { useProjectSecurityTab } from "@/features/projects/hooks/useProjectSecurityTab";
+import type { ProjectPrivacyStatus } from "../utils/projectAccess";
 
 interface ProjectSecurityTabProps {
     // The ID of the project we are currently viewing
     projectId: number;
+    /** The project's current privacy status, highlighted on the privacy timeline. */
+    privacyStatus?: ProjectPrivacyStatus;
 }
 
 /**
@@ -19,7 +22,7 @@ interface ProjectSecurityTabProps {
  * Displays and allows editing of a project's security metadata (Privacy & Privileges).
  * Structure matches the metadata tab and NewProjectPage exactly.
  */
-export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectId }) => {
+export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectId, privacyStatus }) => {
     // 1. Connect to the "Brain" (Hook)
     const {
         values,
@@ -56,6 +59,7 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
                     privateMonthsError={errors.privateMonths}
                     visibleMonthsError={errors.visibleMonths}
                     publicMonthsError={errors.publicMonths}
+                    currentStatus={privacyStatus}
                 />
 
                 <Box sx={{ mt: 6 }}>

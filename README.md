@@ -260,7 +260,9 @@ The session lives in httpOnly cookies set by the backend; nothing is stored in
    (the app bootstrap clears the auth store → `ProtectedRoute` redirects to
    `/login`) and throw `"Session expired"`
 4. a `204` / empty body resolves to `undefined` instead of failing on JSON parsing
-5. errors carry the backend message (`{ message }` or `{ errors: [...] }`)
+5. errors are `ApiError`s: `status` plus every backend message (`{ message }` or `{ errors: [...] }`),
+   `message` being the first one; `isAccessDenied(err)` (401 after the retry, or 403) and
+   `isNotFound(err)` (404) let a page tell "no access" from "does not exist"
 
 ### Server-paginated grids (`shared/hooks/useServerTable.ts`)
 
@@ -361,6 +363,9 @@ Why:
   login page sends the user back there; `AdminRoute` for the console)
 * Access-token expiry is transparent (`http()` refreshes and retries); a refresh failure logs
   the user out client-side
+* Project access (role on the project × privacy status) is mirrored from the backend policy in
+  `features/projects/utils/projectAccess.ts`; pages read it through `useProjectAccess(project)`
+  and pass the gates down to their tabs as props, so the UI only hides what the backend refuses
 
 ### Why Zustand?
 
@@ -541,7 +546,7 @@ The structure forces good decisions and prevents common React project decay.
 This section documents the testing architecture, tooling, and the full catalogue of
 test cases that guard the application.
 
-> **Suite at a glance:** **336 tests** across **64 files** (Vitest).
+> **Suite at a glance:** **594 tests** across **78 files** (Vitest).
 > Every functional test embeds its `TC-…` id in the test title, so a scenario in this
 > table maps 1:1 to a runnable test (`vitest -t "TC-A3"`).
 
@@ -581,6 +586,7 @@ We follow a modular strategy to keep the suite DRY (*Don't Repeat Yourself*) and
 > tagged **♿**. Section letters run `A → Z`, then `AA`, `AB`, … The HTTP utility uses `TC-AC*`,
 > routing guards use `TC-AD*`, and the Admin tabs use `TC-AE*` (Tasks) / `TC-AF*` (Users) /
 > `TC-AG*` (Projects) / `TC-AH*` (Quick Access) / `TC-AU*` (Updates — tab, hook, store & banner).
+> The project access policy uses `TC-AL*` and the sample details access gates `TC-AM*`.
 
 ---
 
@@ -686,6 +692,9 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-G4** | Row selection & Explore navigation | The table contains at least one project. | Check the checkbox for a project, then click **EXPLORE SELECTION**. | • The selection bar appears showing "1 items selected".<br>• The user navigates to `/explore?projects=ID`. |
 | **TC-G5** | Row-click navigation | The table contains at least one project. | Click a project row (not the checkbox). | The user navigates to `/projects/ID`. |
 | **TC-G6** | Pagination & query sync | The backend has more than one page of projects. | Click next page in the DataGrid pagination. | • A new search request is sent with the updated page parameter.<br>• New rows are rendered.<br>• Selection/filter state remains consistent. |
+| **TC-G8** | Privacy & privilege columns | The search returns projects with `privacy_status` `open` / `visible` / none, managed, joined, and neither by the user. | Navigate to `/projects`. | • A **Privacy** column shows the chips "Public+", "Visible" and "Private" (a missing status reads as private).<br>• The **Privilege** chip comes from `getProjectRole`: "Manager", "Member", nothing for a plain user. |
+| **TC-G8b** | Admin privilege | Logged in as an admin; a project managed by someone else. | Select its row. | • The Privilege chip reads "Admin".<br>• **DELETE** is enabled (admins may delete any project). |
+| **TC-G9** | "All projects" scope | User is on `/projects` (default scope "All My Projects"). | Open the filter menu and pick **All projects**. | • The first search carries `for_managing = true`; after the switch a search is sent without any filter.<br>• The button reads "All projects" and the header text becomes "Every project; data access depends on the privacy status and your privilege". |
 | ♿ **TC-G7** | Keyboard navigation (basic structure) | The page is loaded. | Use the Tab key. | Focus moves logically through the Search input, Attribute select, Filter button, **NEW PROJECT** button, and into the DataGrid. |
 
 ### H. Project Creation (New Project Page)
@@ -714,13 +723,20 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
 | **TC-I1** | Invalid ID handling | None. | Navigate to `/projects/not-a-number`. | The page renders the "Invalid Project ID" error message instead of the main layout. |
-| **TC-I2** | Initial render (default tab) | User is authenticated; the API returns valid data for ID 101 (title "Test Project"). | Navigate to `/projects/101`. | • The header renders the project title ("Test Project").<br>• The METADATA tab is selected by default (`aria-selected=true`) and its content is visible (the *Project acronym* field). |
-| **TC-I3** | Tab switching | User is on `/projects/101`. | Click the SECURITY tab. | • The METADATA content unmounts.<br>• The SECURITY content mounts (verified by "Data privacy delays"). |
-| **TC-I3b** | Deep-link a tab via URL | The URL includes a tab name. | Navigate to the details URL with the Backup tab name. | The Backup tab opens directly. |
+| **TC-I2** | Initial render (default tab) | User is authenticated, with no privilege on project 101 (title "Test Project"). | Navigate to `/projects/101`. | • The header renders the project title ("Test Project").<br>• The METADATA tab is selected by default (`aria-selected=true`) and its content is visible (the *Project acronym* field). |
+| **TC-I3** | Tab switching | User manages project 101 and is on `/projects/101`. | Click the SECURITY tab, then the STATS tab. | • The METADATA content unmounts.<br>• The SECURITY content mounts (verified by "Data privacy delays").<br>• STATS shows the import and EcoTaxa link cards. |
+| **TC-I3b** | Deep-link a tab via URL | User is a member of the project; the URL includes a tab name. | Navigate to the details URL with the Backup tab name. | The Backup tab opens directly. |
 | **TC-I4** | Explore navigation | User is on `/projects/101`. | Click the **EXPLORE** button. | The app navigates to `/explore?projects=101`. |
-| **TC-I5** | API error handling | A valid project ID is in the URL; the backend returns 404/500. | Navigate to the page and wait for load. | • A clear error state is displayed.<br>• No broken data is rendered.<br>• No crash; navigation remains possible. |
-| **TC-I6** | Open tab via navigation state | `activeTab` is provided in the navigation state. | Navigate to the details page with that state. | The Import tab opens. |
-| ♿ **TC-I7** | Keyboard navigation (tabs) | User is on `/projects/101`. | Use Tab and Arrow keys to navigate the MUI `<Tabs>` component. | Focus moves logically through the tabs, demonstrating proper ARIA roles and keyboard support. |
+| **TC-I5** | API error handling | A valid project ID is in the URL; the project search answers 500. | Navigate to the page and wait for load. | • A page-level error "Failed to load project details. (message)" replaces the header and the tabs (no tab is rendered).<br>• A **BACK TO PROJECTS** button is offered. |
+| **TC-I6** | Open tab via navigation state | User is a member of the project; `activeTab` (legacy index 3) is provided in the navigation state. | Navigate to the details page with that state. | The Import tab opens. |
+| ♿ **TC-I7** | Keyboard navigation (tabs) | A project member is on `/projects/101`. | Use Tab and Arrow keys to navigate the MUI `<Tabs>` component. | Focus moves logically through the tabs (METADATA, DATA, IMPORT), demonstrating proper ARIA roles and keyboard support. |
+| **TC-I9** | Tabs per role and privacy | Logged in as a user, member, manager or admin of project 101, whose `privacy_status` varies. | Navigate to `/projects/101`. | • user on private: STATS, METADATA.<br>• user on visible / open: STATS, METADATA, DATA.<br>• member: every tab but SECURITY.<br>• manager, admin: all eight tabs.<br>• **DELETE** is offered to managers and admins only. |
+| **TC-I10** | Privacy chip | Any role; the payload carries `privacy_status`. | Navigate to `/projects/101`. | A chip next to the title shows the status as sent by the backend ("Private", "Visible", "Public", "Public+"); the front never recomputes it. |
+| **TC-I11** | Deep link to a hidden tab | A user on a private project. | Open `/projects/101/security`, `/projects/101/data`, or pass `activeTab` 3 / `"backup"` in the navigation state. | METADATA is selected and rendered instead. |
+| **TC-I12** | Data hidden notice | A user on a private project. | Open the STATS tab. | • "Data hidden until the project becomes visible" is shown, with the contact as a `mailto:` link.<br>• No **IMPORT DATA** or **LINK PROJECT** action. |
+| **TC-I13** | Member: import yes, manage no | A project member. | Open STATS, then METADATA. | • **IMPORT DATA** is offered, **LINK PROJECT** is not, no privacy notice.<br>• The metadata fields are read-only and there is no **SAVE**. |
+| **TC-I14** | Project not found | The project search returns no project. | Navigate to `/projects/101`. | "Project not found" is shown and no tab is rendered. |
+| **TC-I15** | No access | The project search answers 401 (after the refresh retry) or 403. | Navigate to `/projects/101`. | "No access to this project" is shown and no tab is rendered. |
 
 ### J. Project Metadata Tab (`ProjectMetadataTab`)
 
@@ -733,6 +749,8 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-J3** | Update error (PATCH) | The backend returns 500. | Click **SAVE**. | An error snackbar appears. |
 | **TC-J4** | Linked EcoTaxa summary | The project is linked to an EcoTaxa project. | View the tab, then unlink. | • The linked EcoTaxa summary is shown.<br>• The fields switch back to editable after unlinking. |
 | **TC-J5** | Loaded project title is locked | The component is connected to the API handlers. | Wait for the loaded title to display, then try to erase the field via a user action. | • The lock helper text is present.<br>• The original value stays intact in the input after the deletion attempt. |
+| **TC-J8** | Read-only mode | `readOnly` is set (the user may not manage the project); the project is linked to EcoTaxa. | Render the tab. | • Text fields are `readonly`, the descent filter switch is disabled, the title lock helper is hidden.<br>• No folder browser, **SAVE**, **CANCEL**, **UNLINK ECOTAXA PROJECT** or **ADD AN ECOTAXA ACCOUNT**.<br>• The linked EcoTaxa project stays visible and openable.<br>• The viewer's EcoTaxa accounts are never requested. |
+| **TC-J9** | No root folder in the payload | The backend omits `root_folder_path` (user without privilege); the project is not linked. | Render the tab read-only. | • The *Root folder path* field is not rendered.<br>• "This project is not linked to an EcoTaxa project." replaces the link fields. |
 
 ### K. Project Security Tab (`ProjectSecurityTab`)
 
@@ -743,6 +761,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-K1** | Initial data loading (privileges & privacy) | The backend returns privacy settings and privileges arrays. | Render the component. | • Privacy inputs show the correct months.<br>• The privileges list shows existing managers/members. |
 | **TC-K2** | Validation (no contact) | The form is loaded. | Remove the Contact radio selection (or ensure none is selected) and click **SAVE**. | • Submission is blocked.<br>• A warning snackbar appears ("A contact is required.") — the same validator as project creation (a manager is required too). |
 | **TC-K3** | Update success (PATCH) | Valid security data; `PATCH /projects/101` mocked OK. | Change a privacy delay (6 → 12) and click **SAVE**. | • `PATCH /projects/101` is called.<br>• The "Security settings updated successfully!" snackbar appears. |
+| **TC-K4** | Timeline follows the privacy status | The tab receives `privacyStatus="public"`. | Render the tab. | • The steps read Private, Visible, Public, Public+; the reached ones are ticked and Public is the current step (`aria-current="step"`).<br>• The delays are described as counted in months after the project creation. |
 
 ### L. `useNewProjectForm` Hook (unit)
 
@@ -833,8 +852,12 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-P14** | `buildEcoTaxaSampleUrl` returns null when unlinked (hook) | `getProjectById` returns an unlinked project (`ecotaxa_instance_id: null`). | Mount the hook and call `buildEcoTaxaSampleUrl(sample)`. | The method returns `null` and the call to `getEcoTaxaInstances` is short-circuited. |
 | **TC-P15** | `buildEcoTaxaSampleUrl` constructs the URL when linked (hook) | `getProjectById` resolves with a linked project (20092/1); `getEcoTaxaInstances` returns `https://ecotaxa.example.fr/`. | Mount the hook, wait for resolution and run `buildEcoTaxaSampleUrl({ ecotaxa_sample_id: 42 })`. | The method deterministically returns `https://ecotaxa.example.fr/prj/20092?samples=42` (trailing slash cleaned). |
 | **TC-P16** | Instance-resolution failure is non-blocking (hook) | `getProjectById` rejects with `Error('boom')`; the UVP/CTD data is valid. | Mount the hook and wait for the initial load. | • The hook loads the UVP/CTD lists normally (`uvpSamples.length === 1`) without crashing.<br>• `buildEcoTaxaSampleUrl` transparently returns `null`. |
+| **TC-P17** | User without privilege | `canImport` and `canManage` are false. | Render the tab. | • Only the UVP samples are listed: no CTD or EcoTaxa section, no **DELETE**.<br>• The EcoTaxa / CTD lists and the EcoTaxa deep-link data are never requested. |
+| **TC-P18** | Member | `canManage` is false. | Render the tab. | The CTD and EcoTaxa lists are shown, without any **DELETE** action. |
+| **TC-P19** | Samples not visible yet | `canSeeFigures` is false, with a notice. | Render the tab. | The notice replaces the lists: no error box, no sample request. |
+| **TC-P20** | No dead bulk button | Default rendering. | Render the tab. | The former **OPEN IN ECOTAXA** button is gone (a row click opens the sample in EcoTaxa). |
 | ♿ **TC-P4** | Tooltips a11y on icons | The user uses a screen reader. | Navigate the "QC state" column icons or the Actions column (`<OpenInNewIcon/>`). | Thanks to `<Tooltip title="…">`, an `aria-label` is generated on the element; the reader reads the description (e.g. "Data valid"/"Data invalid") instead of ignoring the SVG or reading raw code. |
-| ♿ **TC-P5** | Action-bar focus management | Elements are selected in the tables (e.g. EcoTaxa). | Use Tab to reach the "OPEN IN ECOTAXA" and "DELETE" buttons. | • The buttons are correctly highlighted on keyboard focus (visible outline).<br>• Disabled buttons (when `ecoTaxaSelectionCount === 0`) are correctly skipped — the expected native a11y behaviour. |
+| ♿ **TC-P5** | Action-bar focus management | UVP samples are loaded. | Select a UVP row, then focus its **DELETE** button. | • DELETE is disabled (and skipped by keyboard focus) until a row is selected.<br>• Once enabled it takes the keyboard focus. |
 | ♿ **TC-P6** | Select-all activates UVP actions | The UVP grid is loaded. | Select all rows. | The UVP action buttons become enabled. |
 
 ### Q. Tasks Page (`TasksPage` — `/tasks`)
@@ -851,10 +874,11 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-Q6** | Status icons mapping | Rows with statuses DONE, ERROR, RUNNING. | Inspect the Status column. | • DONE → success Check icon.<br>• ERROR → error PriorityHigh icon.<br>• Any other → warning MoreHoriz icon.<br>• The status label text is shown uppercased. |
 | **TC-Q7** | Owner formatting | One row's `task_owner` is an object `{first_name, last_name, email}`, one is null. | Inspect the Owner column. | • Object → "First Last (email)".<br>• null → "System". |
 | **TC-Q8** | Row action navigation | Row with `task_project_id = 7`, `task_id = 3`, plus a row with `task_project_id = null`. | Click a task row. | • Navigates to `/projects/7/tasks/3`.<br>• The action is disabled for the null-project row. |
-| **TC-Q9** | Delete flow (confirm) | 2 tasks loaded; `DELETE /tasks/:id/` mocked OK; `window.confirm` stubbed to true. | Select 2 rows via checkboxes, click **DELETE**, and confirm. | • DELETE is called once per ID.<br>• A success snackbar "Selected tasks removed successfully." is shown.<br>• The selection is cleared and the list is refetched. |
+| **TC-Q9** | Delete flow (confirm) | Logged in as an admin (task DELETE is admin-only); 2 tasks loaded; `DELETE /tasks/:id/` mocked OK; `window.confirm` stubbed to true. | Select 2 rows via checkboxes, click **DELETE**, and confirm. | • DELETE is called once per ID.<br>• A success snackbar "Selected tasks removed successfully." is shown.<br>• The selection is cleared and the list is refetched. |
 | **TC-Q10** | API error handling | `POST /tasks/searches` returns 500. | Render the page and wait for load. | • An error Alert "Failed to load tasks…" is shown.<br>• The grid is empty and the page does not crash. |
 | **TC-Q11** | No OpenInNew nav button | Rows are loaded. | Inspect the action cell. | The action cell no longer renders an OpenInNew navigation button. |
-| ♿ **TC-Q12** | Action bar focus / disabled buttons | No selection (DELETE & STOP actions disabled). | Tab toward the action bar. | • Disabled buttons are skipped by keyboard focus (native a11y).<br>• Once a row is selected, DELETE becomes focusable and enabled. |
+| **TC-Q14** | DELETE is admin-only | Logged in as a user who is not an admin; a finished task is loaded. | Select its row. | The row is selected ("1 items selected") but no **DELETE** button is offered. |
+| ♿ **TC-Q12** | Action bar focus / disabled buttons | Logged in as an admin; no selection (DELETE disabled). | Tab toward the action bar. | • Disabled buttons are skipped by keyboard focus (native a11y).<br>• Once a row is selected, DELETE becomes focusable and enabled. |
 | ♿ **TC-Q13** | Keyboard navigation (filters & DataGrid) | Page loaded with rows. | Tab through Search field → Attribute select → into the grid; toggle a row checkbox with Space. | • Focus moves logically through the controls.<br>• Row selection toggles on Space and the selection count updates. |
 
 ### R. `useTasksTable` Hook (unit)
@@ -884,12 +908,13 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-S2** | Initial render (General tab) | `getOneTask` returns a valid task (ID 42, type IMPORT, status DONE, project 77). | Render the page at `/projects/77/tasks/42`. | • The "IMPORT task [42]" header shows.<br>• The GENERAL tab is selected (`aria-selected=true`).<br>• Read-only fields are pre-filled (ID 42, Status DONE, Type IMPORT, Project ID 77). |
 | **TC-S3** | Tab switch loads log | `getTaskLog` returns "streaming log output". | Click the "LOG FILE" tab. | • `getTaskLog(42)` is called (it was not on the initial load).<br>• The log text is displayed in the console. |
 | **TC-S4** | Empty-log fallback | `getTaskLog` returns an empty string `""`. | Click the "LOG FILE" tab. | The fallback message "No log messages captured yet by the kernel stream handler." is displayed. |
-| **TC-S5** | Delete success + navigation | `window.confirm` → true; `deleteProjectTask` succeeds. | Click the **DELETE** button. | • `deleteProjectTask(42)` is called.<br>• The app navigates to `/projects/77/tasks` (the list page renders). |
-| **TC-S6** | Delete error keeps user on page | `window.confirm` → true; `deleteProjectTask` rejects. | Click **DELETE**. | • No navigation.<br>• The "IMPORT task [42]" header stays displayed.<br>• The DELETE button becomes active again (retry possible). |
+| **TC-S5** | Delete success + navigation | Logged in as an admin (task DELETE is admin-only); `window.confirm` → true; `deleteProjectTask` succeeds. | Click the **DELETE** button. | • `deleteProjectTask(42)` is called.<br>• The app navigates to `/projects/77/tasks` (the list page renders). |
+| **TC-S6** | Delete error keeps user on page | Logged in as an admin (task DELETE is admin-only); `window.confirm` → true; `deleteProjectTask` rejects. | Click **DELETE**. | • No navigation.<br>• The "IMPORT task [42]" header stays displayed.<br>• The DELETE button becomes active again (retry possible). |
 | **TC-S7** | Initial load error | `getOneTask` rejects on the first load. | Render the page. | The "Failed to synchronize task metrics from server." alert is displayed (the task staying null). |
 | **TC-S8** | Adaptive polling while RUNNING | `getOneTask` returns a task with status RUNNING (fake timers). | Mount the page, let the initial load settle, advance time by 2500 ms. | `getOneTask` is re-called (goes from 1 to 2 calls) — polling runs while the task is in progress. |
 | **TC-S8b** | No polling once DONE | `getOneTask` returns a task with status DONE (fake timers). | Mount the page, advance time by 8000 ms. | `getOneTask` stays at 1 call — no "non-active" task is re-polled. |
 | **TC-S8c** | Late response for a task the user has left | `getOneTask` for task 42 never resolves before the user opens task 43 (a link in the test). | Open task 42, click through to task 43, then resolve the task-42 request. | The header shows task 43 before and after the late answer; task 42 never appears — a response only applies if no newer load (other task, tab, poll) has started since. |
+| **TC-S10** | DELETE is admin-only | Logged in as the owner of a finished task, not an admin. | Open the task. | No **DELETE** button is offered (cancel rules are unchanged: owner or admin). |
 | ♿ **TC-S9** | Tabs keyboard navigation | The page is loaded with a task. | Verify `role="tablist"`, focus the GENERAL tab, press ArrowRight then Enter. | • ArrowRight moves focus to the LOG FILE tab (roving tabindex).<br>• Enter activates it (`aria-selected=true`) — manual activation per MUI Tabs. |
 
 ### T. Project Tasks Tab (`ProjectTasksTab` — project tab)
@@ -903,10 +928,11 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-T2b** | Task id exact match & guard | Attribute = Task id. | Type a numeric then a non-numeric value. | • Numeric → `task_id = N`.<br>• Non-numeric input sends no `task_id` filter. |
 | **TC-T3** | Search builds LIKE filter | Attribute = Label (`task_type`). | Type "backup" in the Search field (wait the 500 ms debounce). | The call carries the filter `{ field: "task_type", operator: "LIKE", value: "%backup%" }`. |
 | **TC-T4** | Row action navigation | A row with `task_id = 3`. | Click the row (`findByText('3')`). | Navigation to `/projects/77/tasks/3` (the detail route renders). |
-| **TC-T5** | Delete flow | 2 tasks; `window.confirm` → true; `deleteProjectTask` succeeds. | Check 2 rows, click **DELETE**. | • `deleteProjectTask` is called for each ID.<br>• A snackbar "Selected tasks removed successfully." shows.<br>• The selection resets to "0 items selected". |
+| **TC-T5** | Delete flow | Logged in as an admin (task DELETE is admin-only); 2 tasks; `window.confirm` → true; `deleteProjectTask` succeeds. | Check 2 rows, click **DELETE**. | • `deleteProjectTask` is called for each ID.<br>• A snackbar "Selected tasks removed successfully." shows.<br>• The selection resets to "0 items selected". |
 | **TC-T6** | Status icons mapping | Rows with statuses DONE / ERROR / RUNNING. | Inspect the Status column. | • DONE → CheckIcon.<br>• ERROR → PriorityHighIcon.<br>• RUNNING → MoreHorizIcon. |
 | **TC-T7** | No OpenInNew nav button | The tab is loaded. | Inspect the action cell. | The action cell no longer renders an OpenInNew navigation button. |
-| ♿ **TC-T8** | Action buttons disabled until selection | The tab is loaded, no selection. | Check DELETE/STOP/RESTART, then select a row via keyboard. | The buttons stay disabled until a row is selected, then become focusable. |
+| **TC-T9** | DELETE is admin-only | Logged in as a project manager who is not an admin; a finished task. | Select its row. | No **DELETE** button is offered. |
+| ♿ **TC-T8** | Action buttons disabled until selection | Logged in as an admin; the tab is loaded, no selection. | Check DELETE, then select a row via keyboard. | The buttons stay disabled until a row is selected, then become focusable. |
 
 ### U. `useProjectTasksTab` Hook (unit)
 
@@ -1027,6 +1053,9 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AC4** | Refresh token loop (failure) | The target returns 401 and the refresh endpoint also returns 401. | Call `http(TEST_URL)`. | It rejects with a "Session expired" error (`/Session expired/i`). |
 | **TC-AC5** | Single refresh for concurrent 401s | Two parallel calls both get 401; the refresh succeeds; the retry wave gets 200. | Call `http` twice via `Promise.all`. | • Both resolve to `{ message: 'ok' }`.<br>• The refresh runs exactly once (`refreshCount === 1`); the target is hit 4 times total. |
 | **TC-AC6** | Retry error surfaced | The target returns 401 then 500 after a successful refresh. | Call `http(TEST_URL)`. | • It rejects with the retry error (`/Retry failed on backend/i`).<br>• The target is hit exactly twice. |
+| **TC-AC8** | `ApiError` carries status and messages | The target answers 422 with `{ errors: ['First problem', { msg: 'Second problem' }] }`. | Call `http(TEST_URL)`. | • It rejects with an `ApiError`: `status` 422, `message` "First problem", `messages` both messages.<br>• Neither `isAccessDenied` nor `isNotFound`. |
+| **TC-AC9** | Refusal vs not found | Targets answer 401 (refresh succeeds, retry still 401), 403 and 404. | Call them through `http`, `httpText` and `httpBlob`. | • 401 and 403 are `isAccessDenied`, 404 is `isNotFound`.<br>• A plain `Error` (network failure) is neither. |
+| **TC-AC10** | Body without message | The target answers 502 with an HTML body. | Call `http(TEST_URL)`. | The error reads "HTTP Error: 502", with `status` 502 and no messages. |
 
 ### AD. Routing & Guards
 
@@ -1050,7 +1079,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AE4** | Status search (LIKE) | The tab is loaded. | Type "error" in the Search field. | The latest filters equal `[{ field: 'task_status', operator: 'LIKE', value: '%error%' }]`. |
 | **TC-AE5** | Task id search (exact) | The tab is loaded. | Switch the Attribute to "Task id" and type "42". | The latest filters equal `[{ field: 'task_id', operator: '=', value: 42 }]`. |
 | **TC-AE6** | Row click → `from=/admin/tasks` | Two tasks: id 3 (project 7) and id 4 (project null). | Click the orphan row (4), then the valid row (3). | • Clicking the orphan row does not navigate.<br>• Clicking task 3 navigates to the detail page and passes `state.from = '/admin/tasks'` (so "Back" returns here). |
-| **TC-AE7** | Delete after confirmation | 2 tasks; `window.confirm` → true; delete mocked OK. | Select 2 rows, click **DELETE**. | • Both IDs are deleted (`[1, 2]`).<br>• The "Selected tasks removed successfully." snackbar shows.<br>• The selection returns to "0 items selected". |
+| **TC-AE7** | Delete after confirmation | Logged in as an admin (the tab sits behind `AdminRoute`); 2 tasks; `window.confirm` → true; delete mocked OK. | Select 2 rows, click **DELETE**. | • Both IDs are deleted (`[1, 2]`).<br>• The "Selected tasks removed successfully." snackbar shows.<br>• The selection returns to "0 items selected". |
 | **TC-AE8** | Reserved bulk actions disabled | The tab is loaded. | Inspect the USERS and PROJECTS bulk-action buttons. | Both are disabled (reserved). |
 | **TC-AE9** | Error alert | `POST /tasks/searches` returns 500. | Render the tab. | • "Failed to load tasks" is shown.<br>• No IMPORT row is rendered. |
 
@@ -1098,6 +1127,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AG11** | Not-yet-wired actions disabled | The tab is loaded. | Inspect the reserved actions. | **REMOVE ALL MANAGER**, **REMOVE ALL MEMBERS**, **TASKS** and **USERS** are all disabled. |
 | **TC-AG12** | Partial failure keeps failed projects selected | 2 projects; `window.confirm` → true; the DELETE for project 2 returns 500, project 1 succeeds. | Select both rows and click **DELETE**. | • The "Failed to delete some projects." snackbar shows.<br>• Only the failed project stays selected ("1 items selected"). |
 | **TC-AG13** | Search error alert | `POST /projects/searches` returns 500. | Render the tab. | "Failed to load projects" is shown. |
+| **TC-AG17** | Privacy column | The search returns a project with `privacy_status` `public` and one without it. | Render the tab. | A **Privacy** column shows "Public" and "Private" (a missing status reads as private). |
 
 ### AH. Admin — Quick Access Tab (`AdminQuickAccessTab`)
 
@@ -1158,6 +1188,37 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AK1** | Cache dropped on user change | `fetchMe` is mocked to fail (signed out); a query is seeded in the app-wide `queryClient`. | Sign in user 1, seed again, sign in user 2, seed again, sign out. | After each change of signed-in user the seeded query is gone — a user never sees data cached by the previous one. |
 | **TC-AK2** | Cache kept for the same user | User 1 is signed in and a query is seeded. | Call `setUser` again with the same `user_id` (renamed profile). | The seeded query is still there — only a change of identity clears the cache. |
 | **TC-AK3** | Session-expired handler signs out | The bootstrap registered its handler through `setSessionExpiredHandler` (mocked); user 1 is signed in with a seeded query. | Invoke the registered handler. | `isAuthenticated = false`, `user = null`, and the cache is empty (signing out is a user change). |
+
+### AL. Project access policy (`projectAccess`, `useProjectAccess`)
+
+*`features/projects/utils/projectAccess.test.ts` · `features/projects/hooks/useProjectAccess.test.ts`*
+
+The front mirrors the backend policy to hide what would be refused: roles `admin` > `manager` >
+`member` > `user` (contact is a flag, not a role), privacy `private` / `visible` / `public` /
+`open` as computed by the backend (`privacy_status`, never recomputed; missing means private).
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AL1** | Full matrix | None (pure function). | Call `isProjectActionAllowed(role, privacy, action)` for the 4 roles × 4 statuses × 6 actions. | • admin, manager: everything.<br>• member: everything but `manage`.<br>• user: `see` always, `figures` from visible, `export_particles` from public, `export_ecotaxa` when open, never `import` or `manage`. |
+| **TC-AL2** | Role precedence | A project where user 1 is both manager and member. | Call `getProjectRole` for an admin, user 1, a member, a stranger. | admin, manager, member, user respectively; string ids are matched too. |
+| **TC-AL3** | Missing user or project | No user, or no project. | Call `getProjectRole`. | A plain user, except an admin who stays admin. |
+| **TC-AL4** | Fails closed | A payload without (or with an unknown) `privacy_status`. | Call `toPrivacyStatus` / `getProjectAccess`. | The status reads `private`, so a user gets no figures. |
+| **TC-AL5** | Access summary | A user on a public project; a member on a private one. | Call `getProjectAccess`. | `{ role, privacy, can }` lists every action (`see`, `figures`, `export_particles` for the user; `import` but not `manage` for the member). |
+| **TC-AL6** | Chip labels | None. | Call `privacyLabel` and `roleLabel`. | Private / Visible / Public / Public+; Admin / Manager / Member / none for a user. |
+| **TC-AL7** | Hook reads the auth store | Logged in as a member of a visible project. | Render `useProjectAccess(project)`. | role member, privacy visible, `import` allowed, `manage` refused. |
+| **TC-AL8** | Unknown project | The project is still loading (`undefined`). | Render the hook as a user, then as an admin. | Only `see` for the user; everything for the admin. |
+
+### AM. Sample Details Page access gates (`SampleDetailsPage`)
+
+*`features/projects/pages/SampleDetailsPage.test.tsx`*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-AM1** | Private project, user | A user without privilege; the project is private. | Open `/projects/555/samples/9`. | • The "Data hidden until the project becomes visible" notice replaces the sample, no raw error.<br>• The sample is never requested; no **DELETE**. |
+| **TC-AM2** | Visible project, user | A user without privilege; the project is visible; the sample has import tasks and a pending QC. | Open the CONTEXT, METADATA and QUALITY CHECKS tabs. | • The EcoTaxa sample link stays, the import task buttons are hidden.<br>• The position radios are disabled.<br>• No **Validate QC**; the EcoTaxa classification is said to be member-only and the EcoTaxa sample list is never requested. |
+| **TC-AM3** | Member | A project member; a pending QC. | Open QUALITY CHECKS, then METADATA. | **Validate QC** is offered and the position radios are enabled; no **DELETE** (manager-only). |
+| **TC-AM4** | Not found | The project does not exist; then the project exists but the sample answers 404. | Open the sample page. | "Project not found", then "This sample does not exist or has been deleted." |
+| **TC-AM5** | Sample refused | The project is visible; the sample answers 403. | Open the sample page. | "Your account is not allowed to see this sample." |
 
 ### AU. Admin — Updates (`AdminUpdatesTab`, `useAdminUpdates`, `announcement.store`, `GlobalAnnouncementBanner`, `broadcastMessages.api`)
 

@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import TasksPage from './TasksPage';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsAdmin, loginAsUser } from '@/test/helpers/auth.helpers';
 import type { Task } from '../api/projects.api';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
@@ -225,6 +225,8 @@ describe('TasksPage (Functional)', () => {
     // TC-Q9: Delete Flow (with confirmation)
     it('TC-Q9: deletes the selected tasks after confirmation', async () => {
         const user = userEvent.setup();
+        // Deleting a task is admin-only server-side.
+        loginAsAdmin();
         answerConfirmDialogs(true);
         mockTasksSearch([
             makeTask({ task_id: 1, task_type: 'IMPORT', task_status: 'DONE' }),
@@ -251,6 +253,7 @@ describe('TasksPage (Functional)', () => {
 
     it('TC-Q9b: keeps DELETE disabled while the selection holds an unfinished task', async () => {
         const user = userEvent.setup();
+        loginAsAdmin();
         mockTasksSearch([
             makeTask({ task_id: 1, task_type: 'IMPORT', task_status: 'DONE' }),
             makeTask({ task_id: 2, task_type: 'BACKUP', task_status: 'RUNNING' }),
@@ -270,6 +273,19 @@ describe('TasksPage (Functional)', () => {
         expect(await screen.findByText('2 items selected')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^DELETE$/i })).toBeDisabled();
         expect(deleteCalls).toEqual([]);
+    });
+
+    // TC-Q14: only an admin may delete a task, so nobody else is offered DELETE
+    it('TC-Q14: does not offer DELETE to a user who is not an admin', async () => {
+        const user = userEvent.setup();
+        mockTasksSearch([makeTask({ task_id: 1, task_type: 'IMPORT', task_status: 'DONE' })], 1);
+
+        renderTasksPage();
+        await screen.findByText('IMPORT');
+
+        await user.click(screen.getAllByRole('checkbox')[1]);
+        expect(await screen.findByText('1 items selected')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^DELETE$/i })).not.toBeInTheDocument();
     });
 
     // TC-Q10: API Error Handling

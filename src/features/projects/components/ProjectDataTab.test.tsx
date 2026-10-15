@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { ComponentProps } from 'react';
 
 vi.mock('../api/projects.api', () => ({
     searchProjectSamples: vi.fn(),
@@ -29,7 +30,8 @@ import { ProjectDataTab } from './ProjectDataTab';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 // Sample names link to the sample page, so the tab needs a router around it.
-const renderTab = () => render(<MemoryRouter><ProjectDataTab projectId={77} /></MemoryRouter>);
+const renderTab = (props: Partial<ComponentProps<typeof ProjectDataTab>> = {}) =>
+    render(<MemoryRouter><ProjectDataTab projectId={77} {...props} /></MemoryRouter>);
 
 const makeProject = (overrides: Partial<Project> = {}): Project => ({
     project_id: 77,
@@ -372,6 +374,51 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             } finally {
                 openSpy.mockRestore();
             }
+        });
+    });
+
+    describe('Access gates', () => {
+        // TC-P17: a user without privilege (project visible) gets the UVP samples only.
+        it('TC-P17 - shows only the UVP samples, without DELETE, to a user without privilege', async () => {
+            renderTab({ canImport: false, canManage: false });
+
+            await waitFor(() => screen.getByText('UVP-1'), { timeout: 10000 });
+
+            expect(screen.queryByText('Links with CTD samples')).not.toBeInTheDocument();
+            expect(screen.queryByText('Links with EcoTaxa samples')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /DELETE/i })).not.toBeInTheDocument();
+            expect(searchProjectEcoTaxaSamples).not.toHaveBeenCalled();
+            expect(searchProjectCtdSamples).not.toHaveBeenCalled();
+            expect(getProjectById).not.toHaveBeenCalled();
+        });
+
+        // TC-P18: a member lists everything but deletes nothing.
+        it('TC-P18 - lists the CTD and EcoTaxa samples to a member, without any DELETE', async () => {
+            renderTab({ canManage: false });
+
+            await waitFor(() => screen.getByText('UVP-1'), { timeout: 10000 });
+
+            expect(screen.getByText('Links with CTD samples')).toBeInTheDocument();
+            expect(screen.getByText('Links with EcoTaxa samples')).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /DELETE/i })).not.toBeInTheDocument();
+            expect(searchProjectEcoTaxaSamples).toHaveBeenCalled();
+        });
+
+        // TC-P19: while the samples may not be seen, the notice replaces the lists (no error boxes, no request).
+        it('TC-P19 - renders the notice instead of the lists when the samples may not be seen', () => {
+            renderTab({ canSeeFigures: false, hiddenDataNotice: <p>Data hidden notice</p> });
+
+            expect(screen.getByText('Data hidden notice')).toBeInTheDocument();
+            expect(screen.queryByText(/Failed to load/i)).not.toBeInTheDocument();
+            expect(searchProjectSamples).not.toHaveBeenCalled();
+        });
+
+        // TC-P20: the dead OPEN IN ECOTAXA button is gone; a row click opens the sample instead.
+        it('TC-P20 - no longer renders an OPEN IN ECOTAXA bulk button', async () => {
+            renderTab();
+
+            await waitFor(() => screen.getByText('UVP-1'), { timeout: 10000 });
+            expect(screen.queryByRole('button', { name: /OPEN IN ECOTAXA/i })).not.toBeInTheDocument();
         });
     });
 });

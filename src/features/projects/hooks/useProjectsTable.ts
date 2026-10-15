@@ -12,8 +12,11 @@ import {
     searchProjects,
 } from "../api/projects.api";
 
-/** The scoping choices of the "My projects" filter menu. */
-export type ProjectsScope = "All" | "Manager" | "Validated";
+/**
+ * The scoping choices of the "My projects" filter menu. "All" is every project
+ * the user holds a privilege on; "Everything" is every project of the platform.
+ */
+export type ProjectsScope = "All" | "Manager" | "Validated" | "Everything";
 
 /** Attributes searched with an exact numeric match rather than `LIKE`. */
 const NUMERIC_ATTRIBUTES = ["project_id"] as const;
@@ -21,8 +24,10 @@ const NUMERIC_ATTRIBUTES = ["project_id"] as const;
 /**
  * Hook backing the user-facing Projects page (`/projects`).
  *
- * Every request is scoped to projects the current user holds a privilege on
- * (`for_managing`), or strictly to the ones they manage; the rows are then
+ * By default every request is scoped to projects the current user holds a
+ * privilege on (`for_managing`), or strictly to the ones they manage; the
+ * "Everything" scope drops that filter (the backend lists every project to any
+ * logged-in user, data access then follows the privacy status). The rows are
  * enriched with their sample totals (see `enrichProjectsWithSampleCounts`).
  */
 export const useProjectsTable = () => {
@@ -33,7 +38,7 @@ export const useProjectsTable = () => {
 
     // SECURITY & SCOPING FILTERS: translate the UI selection into backend queries.
     const scopeFilters = useMemo<SearchFilter[]>(() => {
-        if (!currentUser) return [];
+        if (!currentUser || selectedFilter === "Everything") return [];
         if (selectedFilter === "Manager") {
             // Strictly filter to projects where the user is a manager
             return [{ field: "managers", operator: "=", value: currentUser.user_id }];

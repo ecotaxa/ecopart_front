@@ -13,6 +13,8 @@ interface RootFolderSectionProps {
     /** When provided, renders the "Load metadata" button (project creation only). */
     onLoadMetadata?: () => void;
     error?: string;
+    /** Shows the path without the folder browser and without editing. */
+    readOnly?: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ const RootFolderSectionImpl: React.FC<RootFolderSectionProps> = ({
     onChange,
     onLoadMetadata,
     error,
+    readOnly = false,
 }) => {
     // Local state only controls whether the shared modal is visible or not
     const [modalOpen, setModalOpen] = useState(false);
@@ -46,7 +49,8 @@ const RootFolderSectionImpl: React.FC<RootFolderSectionProps> = ({
                     helperText={error}
                     slotProps={{
                         input: {
-                            endAdornment: (
+                            readOnly,
+                            endAdornment: readOnly ? undefined : (
                                 <InputAdornment position="end">
                                     <IconButton
                                         onClick={() => setModalOpen(true)}
@@ -78,16 +82,18 @@ const RootFolderSectionImpl: React.FC<RootFolderSectionProps> = ({
 
             {/* --- REUSABLE SERVER BROWSER MODAL --- */}
             {/* We pass the current value and receive the new value via onConfirm callback */}
-            <ServerFolderBrowserDialog
-                open={modalOpen}
-                initialPath={value}
-                onClose={() => setModalOpen(false)}
-                onConfirm={(selectedPath) => {
-                    //   Pass the raw selectedPath directly.
-                    onChange(selectedPath);
-                    setModalOpen(false);
-                }}
-            />
+            {!readOnly && (
+                <ServerFolderBrowserDialog
+                    open={modalOpen}
+                    initialPath={value}
+                    onClose={() => setModalOpen(false)}
+                    onConfirm={(selectedPath) => {
+                        //   Pass the raw selectedPath directly.
+                        onChange(selectedPath);
+                        setModalOpen(false);
+                    }}
+                />
+            )}
         </Box>
     );
 };

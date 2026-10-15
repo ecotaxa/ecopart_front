@@ -20,7 +20,15 @@ import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import { toRequestLimit } from "@/shared/utils/pageSizeOptions";
 
-export const useProjectDataTab = (projectId: number) => {
+export interface UseProjectDataTabOptions {
+    /**
+     * Load the EcoTaxa and CTD sample lists (and the EcoTaxa deep-link data).
+     * Off for a user without privilege on the project: the backend refuses them.
+     */
+    withLinkedSamples?: boolean;
+}
+
+export const useProjectDataTab = (projectId: number, { withLinkedSamples = true }: UseProjectDataTabOptions = {}) => {
     const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
 
     const getSelectionCount = (selectionModel: GridRowSelectionModel, totalRows: number): number => {
@@ -194,17 +202,18 @@ export const useProjectDataTab = (projectId: number) => {
     }, [fetchUvpSamples]);
 
     useEffect(() => {
-        fetchEcoTaxaSamples();
-    }, [fetchEcoTaxaSamples]);
+        if (withLinkedSamples) fetchEcoTaxaSamples();
+    }, [fetchEcoTaxaSamples, withLinkedSamples]);
 
     useEffect(() => {
-        fetchCtdSamples();
-    }, [fetchCtdSamples]);
+        if (withLinkedSamples) fetchCtdSamples();
+    }, [fetchCtdSamples, withLinkedSamples]);
 
     // Resolve the EcoTaxa instance URL + linked project id so EcoTaxa sample rows
     // can deep-link into the right EcoTaxa instance. Failures are non-fatal: the
     // rows simply stay non-clickable instead of breaking the whole tab.
     useEffect(() => {
+        if (!withLinkedSamples) return;
         let active = true;
 
         (async () => {
@@ -231,7 +240,7 @@ export const useProjectDataTab = (projectId: number) => {
         return () => {
             active = false;
         };
-    }, [projectId]);
+    }, [projectId, withLinkedSamples]);
 
     // Builds the EcoTaxa gallery URL for one sample (instance + project + sample
     // filter). Returns null when the project is not linked to EcoTaxa yet.

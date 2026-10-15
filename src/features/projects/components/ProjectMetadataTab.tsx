@@ -19,6 +19,8 @@ import { useProjectFormHandlers } from "@/features/projects/hooks/useProjectForm
 interface ProjectMetadataTabProps {
     // The ID of the project we are currently viewing
     projectId: number;
+    /** Show the metadata without any way to change it (the user may not manage the project). */
+    readOnly?: boolean;
 }
 
 /**
@@ -26,7 +28,7 @@ interface ProjectMetadataTabProps {
  * Displays and allows editing of a project's metadata.
  * Structure matches NewProjectPage exactly.
  */
-export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectId }) => {
+export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectId, readOnly = false }) => {
     // 1. Connect to the "Brain" (Hook)
     const {
         values,
@@ -40,6 +42,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         handleSave,
         handleCancel,
         lockedTitlePrefix,
+        hasRootFolder,
         checkingPeople,
         snackbar,
         closeSnackbar
@@ -93,23 +96,28 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         <SectionCard>
 
                 {/* No "Load metadata" button in edit mode: the folder metadata was applied at creation. */}
-                <RootFolderSection
-                    value={values.rootFolderPath}
-                    onChange={on.rootFolderPath}
-                    error={errors.rootFolderPath}
-                />
+                {hasRootFolder && (
+                    <RootFolderSection
+                        value={values.rootFolderPath}
+                        onChange={on.rootFolderPath}
+                        error={errors.rootFolderPath}
+                        readOnly={readOnly}
+                    />
+                )}
 
                 <InstrumentMetadataSection
                     values={values.instrument}
                     onChange={on.instrument}
                     errors={sectionErrors.instrument}
+                    readOnly={readOnly}
                 />
 
                 <ProjectMetadataSection
                     values={values.metadata}
                     onChange={on.metadata}
-                    lockedTitlePrefix={lockedTitlePrefix}
+                    lockedTitlePrefix={readOnly ? undefined : lockedTitlePrefix}
                     errors={sectionErrors.metadata}
+                    readOnly={readOnly}
                 />
 
                 <ProjectPeopleSection
@@ -117,6 +125,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                     onChange={on.people}
                     errors={sectionErrors.people}
                     checking={checkingPeople}
+                    readOnly={readOnly}
                 />
 
 
@@ -125,6 +134,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                         <ImportSettingsSection
                             values={values.importSettings}
                             onChange={on.importSettings}
+                            readOnly={readOnly}
                         />
                     </Grid>
 
@@ -138,31 +148,34 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                             onUnlink={handleUnlinkEcoTaxaProject}
                             showCreateNewProjectToggle={!linkedEcoTaxaProject}
                             autoSelectLinkedAccount={false}
+                            readOnly={readOnly}
                         />
                     </Grid>
                 </Grid>
 
                 {/* Action Buttons (Save / Cancel) matching the bottom of the mockup */}
-                <Box sx={{ mt: 6, pt: 3, display: 'flex', gap: 2 }}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleSave}
-                        disabled={saving}
-                        sx={{ minWidth: 120, fontWeight: 'bold' }}
-                    >
-                        {saving ? "SAVING..." : "SAVE"}
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={handleCancel}
-                        disabled={saving}
-                        sx={{ minWidth: 120, fontWeight: 'bold' }}
-                    >
-                        CANCEL
-                    </Button>
-                </Box>
+                {!readOnly && (
+                    <Box sx={{ mt: 6, pt: 3, display: 'flex', gap: 2 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleSave}
+                            disabled={saving}
+                            sx={{ minWidth: 120, fontWeight: 'bold' }}
+                        >
+                            {saving ? "SAVING..." : "SAVE"}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={handleCancel}
+                            disabled={saving}
+                            sx={{ minWidth: 120, fontWeight: 'bold' }}
+                        >
+                            CANCEL
+                        </Button>
+                    </Box>
+                )}
 
                 {/* Shared Notification System */}
                 <Snackbar

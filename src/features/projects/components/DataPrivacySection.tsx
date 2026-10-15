@@ -3,6 +3,7 @@ import { Box, Typography, TextField, Stack, InputAdornment, Divider } from "@mui
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import type { NewProjectFormValues } from "../types/newProject.types";
+import { PROJECT_PRIVACY_STATUSES, privacyLabel, type ProjectPrivacyStatus } from "../utils/projectAccess";
 
 interface DataPrivacySectionProps {
     values: NewProjectFormValues["privacy"];
@@ -10,6 +11,8 @@ interface DataPrivacySectionProps {
     privateMonthsError?: string;
     visibleMonthsError?: string;
     publicMonthsError?: string;
+    /** The project's current status, as computed by the backend; a project being created is private. */
+    currentStatus?: ProjectPrivacyStatus;
 }
 
 /**
@@ -69,6 +72,7 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
     privateMonthsError,
     visibleMonthsError,
     publicMonthsError,
+    currentStatus = "private",
 }) => {
     // Keep per-field drafts so users can temporarily clear/type invalid text,
     // while preserving their visible edits even if a save request fails.
@@ -80,34 +84,39 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
         field: keyof NewProjectFormValues["privacy"],
         fallback: number
     ) => draftValues[field] ?? fallback.toString();
-    const renderTimelineStep = (label: string, isBlue: boolean) => (
-        <Stack direction="row" alignItems="center" spacing={1}>
-            {isBlue ? <CheckCircleIcon color="primary" aria-hidden="true" /> : <CancelIcon sx={{ color: "#9e9e9e" }} aria-hidden="true" />}
-            <Typography
-                variant="body2"
-                fontWeight={isBlue ? "bold" : "normal"}
-                color={isBlue ? "text.primary" : "text.secondary"}
-            >
-                {label}
-            </Typography>
-        </Stack>
-    );
+    const currentIndex = PROJECT_PRIVACY_STATUSES.indexOf(currentStatus);
+    // Every status reached so far is ticked; the current one is also in bold.
+    const renderTimelineStep = (status: ProjectPrivacyStatus, index: number) => {
+        const isReached = index <= currentIndex;
+        const isCurrent = index === currentIndex;
+        return (
+            <Stack direction="row" alignItems="center" spacing={1} aria-current={isCurrent ? "step" : undefined}>
+                {isReached ? <CheckCircleIcon color="primary" aria-hidden="true" /> : <CancelIcon sx={{ color: "#9e9e9e" }} aria-hidden="true" />}
+                <Typography
+                    variant="body2"
+                    fontWeight={isCurrent ? "bold" : "normal"}
+                    color={isReached ? "text.primary" : "text.secondary"}
+                >
+                    {privacyLabel(status)}
+                </Typography>
+            </Stack>
+        );
+    };
 
     return (
         <Box sx={{ mb: 5 }}>
             <Typography variant="h6">Data privacy delays</Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-                All delays are computed from the date of the first sample.
+                All delays are counted in months after the project creation.
             </Typography>
 
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
-                {renderTimelineStep("Private", true)}
-                <Divider sx={{ flexGrow: 1 }} />
-                {renderTimelineStep("Visible", false)}
-                <Divider sx={{ flexGrow: 1 }} />
-                {renderTimelineStep("Public", false)}
-                <Divider sx={{ flexGrow: 1 }} />
-                {renderTimelineStep("Open", false)}
+                {PROJECT_PRIVACY_STATUSES.map((status, index) => (
+                    <React.Fragment key={status}>
+                        {index > 0 && <Divider sx={{ flexGrow: 1 }} />}
+                        {renderTimelineStep(status, index)}
+                    </React.Fragment>
+                ))}
             </Stack>
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={3}>

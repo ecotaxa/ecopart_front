@@ -34,9 +34,10 @@ interface VisualQcSectionProps {
     projectId: number;
     sample: SampleData;
     onSampleUpdated: (sample: SampleData) => void;
+    canValidate: boolean;
 }
 
-function VisualQcSection({ projectId, sample, onSampleUpdated }: VisualQcSectionProps) {
+function VisualQcSection({ projectId, sample, onSampleUpdated, canValidate }: VisualQcSectionProps) {
     const [isValidating, setIsValidating] = useState(false);
     const [validateError, setValidateError] = useState<string | null>(null);
 
@@ -71,11 +72,13 @@ function VisualQcSection({ projectId, sample, onSampleUpdated }: VisualQcSection
                     <ReadOnlyField label="Visual QC status" value={status.label} valueColor={status.color} />
                 </Grid>
                 {isPending ? (
-                    <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex", alignItems: "center" }}>
-                        <Button variant="outlined" color="success" onClick={handleValidate} disabled={isValidating}>
-                            {isValidating ? "Validating..." : "Validate QC"}
-                        </Button>
-                    </Grid>
+                    canValidate && (
+                        <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex", alignItems: "center" }}>
+                            <Button variant="outlined" color="success" onClick={handleValidate} disabled={isValidating}>
+                                {isValidating ? "Validating..." : "Validate QC"}
+                            </Button>
+                        </Grid>
+                    )
                 ) : (
                     <>
                         <Grid size={{ xs: 12, md: 6 }}>
@@ -243,12 +246,13 @@ const ECOTAXA_STATS_STALE_MS = 5 * 60_000;
 const isClassificationComplete = (stats: EcoTaxaSampleData) =>
     stats.nb_objects > 0 && stats.nb_validated === stats.nb_objects;
 
-function TaxonomySection({ projectId, sample }: { projectId: number; sample: SampleData }) {
+function TaxonomySection({ projectId, sample, canSeeStats }: { projectId: number; sample: SampleData; canSeeStats: boolean }) {
     const isInEcoTaxa = sample.ecotaxa_sample_imported !== false && sample.ecotaxa_sample_id != null;
     const { data: stats, isLoading, error } = useQuery({
         queryKey: ["projects", projectId, "samples", sample.sample_id, "ecotaxa-stats"],
         queryFn: () => getEcoTaxaSampleStats(projectId, sample.sample_id),
-        enabled: isInEcoTaxa,
+        // The counts come from the project's EcoTaxa sample list, which the backend only serves to members.
+        enabled: isInEcoTaxa && canSeeStats,
         // Reads the whole project list live from EcoTaxa: reuse it while switching tabs.
         staleTime: ECOTAXA_STATS_STALE_MS,
     });
@@ -268,6 +272,13 @@ function TaxonomySection({ projectId, sample }: { projectId: number; sample: Sam
             return (
                 <Typography variant="body2" color="text.secondary">
                     This sample is not imported in EcoTaxa.
+                </Typography>
+            );
+        }
+        if (!canSeeStats) {
+            return (
+                <Typography variant="body2" color="text.secondary">
+                    The EcoTaxa classification of this sample is only shown to the project members.
                 </Typography>
             );
         }
@@ -312,19 +323,25 @@ interface SampleQualityChecksTabProps {
     sample: SampleData;
     /** Called with the sample returned by the backend after the QC was validated. */
     onSampleUpdated: (sample: SampleData) => void;
+    /** The Validate QC button is offered (QC validation is member-level). */
+    canValidateQc?: boolean;
+    /** The EcoTaxa classification counts are loaded (the EcoTaxa sample list is member-level). */
+    canSeeEcoTaxaStats?: boolean;
 }
 
-export function SampleQualityChecksTab({ projectId, sample, onSampleUpdated }: SampleQualityChecksTabProps) {
+export function SampleQualityChecksTab({
+    projectId, sample, onSampleUpdated, canValidateQc = true, canSeeEcoTaxaStats = true,
+}: SampleQualityChecksTabProps) {
     return (
         <SectionCard sx={{ p: 0 }}>
             <Typography variant="h6" sx={{ px: { xs: 2.5, md: 3 }, py: 2 }}>Quality checks</Typography>
             <Divider />
 
             <Box sx={{ p: { xs: 2.5, md: 3 }, display: "flex", flexDirection: "column", gap: 5 }}>
-                <VisualQcSection projectId={projectId} sample={sample} onSampleUpdated={onSampleUpdated} />
+                <VisualQcSection projectId={projectId} sample={sample} onSampleUpdated={onSampleUpdated} canValidate={canValidateQc} />
                 <QcGraphsSection projectId={projectId} sample={sample} />
                 <StationLocationSection sample={sample} />
-                <TaxonomySection projectId={projectId} sample={sample} />
+                <TaxonomySection projectId={projectId} sample={sample} canSeeStats={canSeeEcoTaxaStats} />
             </Box>
         </SectionCard>
     );

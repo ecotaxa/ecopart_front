@@ -11,9 +11,11 @@ import { ReadOnlyField, SubsectionHeader } from "./SampleDetailFields";
 interface SampleContextTabProps {
     project: Project | undefined;
     sample: SampleData;
+    /** The import task buttons are offered (project tasks are member-level). */
+    canOpenTasks?: boolean;
 }
 
-export function SampleContextTab({ project, sample }: SampleContextTabProps) {
+export function SampleContextTab({ project, sample, canOpenTasks = true }: SampleContextTabProps) {
     const navigate = useNavigate();
 
     const { data: ecoTaxaInstances } = useEcoTaxaInstances();
@@ -69,19 +71,21 @@ export function SampleContextTab({ project, sample }: SampleContextTabProps) {
                         title="EcoTaxa"
                         action={
                             <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 1 }}>
-                                <Tooltip title={ecoTaxaImportTaskPath ? "" : "The EcoTaxa import task of this sample is not available"}>
-                                    <span>
-                                        <Button
-                                            variant="outlined"
-                                            size="small"
-                                            aria-label="Open EcoTaxa import task"
-                                            onClick={() => ecoTaxaImportTaskPath && navigate(ecoTaxaImportTaskPath)}
-                                            disabled={!ecoTaxaImportTaskPath}
-                                        >
-                                            Open import task
-                                        </Button>
-                                    </span>
-                                </Tooltip>
+                                {canOpenTasks && (
+                                    <Tooltip title={ecoTaxaImportTaskPath ? "" : "The EcoTaxa import task of this sample is not available"}>
+                                        <span>
+                                            <Button
+                                                variant="outlined"
+                                                size="small"
+                                                aria-label="Open EcoTaxa import task"
+                                                onClick={() => ecoTaxaImportTaskPath && navigate(ecoTaxaImportTaskPath)}
+                                                disabled={!ecoTaxaImportTaskPath}
+                                            >
+                                                Open import task
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
+                                )}
                                 <Tooltip title={ecoTaxaSampleUrl ? "" : "This sample is not imported in a linked EcoTaxa project"}>
                                     <span>
                                         <Button
@@ -138,7 +142,7 @@ export function SampleContextTab({ project, sample }: SampleContextTabProps) {
                 <Box>
                     <SubsectionHeader
                         title="CTD"
-                        action={
+                        action={canOpenTasks ? (
                             <Tooltip title={ctdImportTaskPath ? "" : "The import task of this CTD file is not available"}>
                                 <span>
                                     <Button
@@ -152,7 +156,7 @@ export function SampleContextTab({ project, sample }: SampleContextTabProps) {
                                     </Button>
                                 </span>
                             </Tooltip>
-                        }
+                        ) : undefined}
                     />
                     {sample.ctd_imported ? (
                         <Grid container spacing={2}>

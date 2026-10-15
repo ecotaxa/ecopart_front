@@ -19,6 +19,7 @@ interface InstrumentMetadataSectionProps {
         model?: string;
         serialNumber?: string;
     };
+    readOnly?: boolean;
 }
 
 /**
@@ -29,6 +30,7 @@ const InstrumentMetadataSectionImpl: React.FC<InstrumentMetadataSectionProps> = 
     values,
     onChange,
     errors,
+    readOnly = false,
 }) => {
     // Instrument models from the shared reference-data cache; an empty list on
     // failure shows the "No instruments available" entry.
@@ -62,6 +64,7 @@ const InstrumentMetadataSectionImpl: React.FC<InstrumentMetadataSectionProps> = 
                         disabled={loading}
                         slotProps={{
                             input: {
+                                readOnly,
                                 endAdornment: loading ? <CircularProgress size={20} /> : null,
                             },
                         }}
@@ -92,6 +95,7 @@ const InstrumentMetadataSectionImpl: React.FC<InstrumentMetadataSectionProps> = 
                         size="small"
                         error={Boolean(errors?.serialNumber)}
                         helperText={errors?.serialNumber}
+                        slotProps={{ input: { readOnly } }}
                     />
                 </Grid>
             </Grid>
