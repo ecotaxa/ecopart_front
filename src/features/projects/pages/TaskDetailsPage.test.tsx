@@ -297,6 +297,22 @@ describe('TaskDetailsPage cancellation', () => {
         expect(screen.queryByRole('button', { name: /CANCEL TASK/i })).not.toBeInTheDocument();
     });
 
+    it.each([
+        ['PENDING', true, false],
+        ['RUNNING', true, false],
+        ['CANCELLING', false, false],
+        ['DONE', false, true],
+        ['ERROR', false, true],
+        ['CANCELLED', false, true],
+    ])('%s task: cancel offered %s, delete offered %s (never both)', async (task_status, cancel, del) => {
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        expect(screen.queryByRole('button', { name: /CANCEL TASK/i }) !== null).toBe(cancel);
+        expect(screen.queryByRole('button', { name: /^DELETE$/i }) !== null).toBe(del);
+    });
+
     it('shows the server message when the task ended before the request (409)', async () => {
         const user = userEvent.setup();
         answerConfirmDialogs(true);

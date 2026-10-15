@@ -12,7 +12,7 @@ import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-dat
 import SectionCard from "@/shared/components/SectionCard";
 import { useTasksTable } from "../hooks/useTasksTable";
 import type { Task } from "../api/projects.api";
-import { buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
+import { ACTIVE_TASK_DELETE_HINT, buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
 import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
 
 /**
@@ -32,7 +32,7 @@ export default function TasksPage() {
         selectedTasks, setSelectedTasks, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
-        isActionRunning,
+        isActionRunning, canDeleteSelection,
         handleDeleteTasks,
         downloadingTaskId, handleDownloadTaskFile,
         snackbar, closeSnackbar
@@ -127,15 +127,19 @@ export default function TasksPage() {
                         {selectionCount} items selected
                     </Typography>
                     <Stack direction="row" spacing={2}>
-                        <Button
-                            variant="text" color="inherit"
-                            disabled={selectionCount === 0 || isActionRunning}
-                            onClick={handleDeleteTasks}
-                            startIcon={<CloseIcon />}
-                            sx={{ fontWeight: "bold" }}
-                        >
-                            DELETE
-                        </Button>
+                        <Tooltip title={selectionCount > 0 && !canDeleteSelection ? ACTIVE_TASK_DELETE_HINT : ""}>
+                            <span>
+                                <Button
+                                    variant="text" color="inherit"
+                                    disabled={!canDeleteSelection || isActionRunning}
+                                    onClick={handleDeleteTasks}
+                                    startIcon={<CloseIcon />}
+                                    sx={{ fontWeight: "bold" }}
+                                >
+                                    DELETE
+                                </Button>
+                            </span>
+                        </Tooltip>
                     </Stack>
                 </Box>
 

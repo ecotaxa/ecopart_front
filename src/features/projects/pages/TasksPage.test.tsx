@@ -227,8 +227,8 @@ describe('TasksPage (Functional)', () => {
         const user = userEvent.setup();
         answerConfirmDialogs(true);
         mockTasksSearch([
-            makeTask({ task_id: 1, task_type: 'IMPORT' }),
-            makeTask({ task_id: 2, task_type: 'BACKUP' }),
+            makeTask({ task_id: 1, task_type: 'IMPORT', task_status: 'DONE' }),
+            makeTask({ task_id: 2, task_type: 'BACKUP', task_status: 'ERROR' }),
         ], 2);
         mockTaskDelete();
 
@@ -247,6 +247,29 @@ describe('TasksPage (Functional)', () => {
         await waitFor(() => expect(deleteCalls.sort()).toEqual([1, 2]));
         expect(await screen.findByText('Selected tasks removed successfully.')).toBeInTheDocument();
         expect(screen.getByText('0 items selected')).toBeInTheDocument();
+    });
+
+    it('TC-Q9b: keeps DELETE disabled while the selection holds an unfinished task', async () => {
+        const user = userEvent.setup();
+        mockTasksSearch([
+            makeTask({ task_id: 1, task_type: 'IMPORT', task_status: 'DONE' }),
+            makeTask({ task_id: 2, task_type: 'BACKUP', task_status: 'RUNNING' }),
+        ], 2);
+        mockTaskDelete();
+
+        renderTasksPage();
+        await screen.findByText('IMPORT');
+
+        const checkboxes = screen.getAllByRole('checkbox');
+        await user.click(checkboxes[1]);
+        expect(await screen.findByText('1 items selected')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^DELETE$/i })).toBeEnabled();
+
+        // Adding the RUNNING task: it must be cancelled, not deleted.
+        await user.click(checkboxes[2]);
+        expect(await screen.findByText('2 items selected')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^DELETE$/i })).toBeDisabled();
+        expect(deleteCalls).toEqual([]);
     });
 
     // TC-Q10: API Error Handling

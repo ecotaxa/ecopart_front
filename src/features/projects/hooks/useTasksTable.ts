@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import { useServerTable } from "@/shared/hooks/useServerTable";
 import { deleteProjectTask, downloadTaskFile, type SearchFilter, searchProjectTasks, type Task } from "../api/projects.api";
+import { isDeletableTask } from "../utils/taskColumns";
 
 // Stable default so callers that pass no extra filters don't get a fresh array
 // reference every render (which would make the query key unstable → refetch loop).
@@ -59,7 +60,15 @@ export const useTasksTable = (
         extraFilters,
     });
 
-    const { runBulkAction, showSnackbar } = table;
+    const { runBulkAction, showSnackbar, rows, selectedIds } = table;
+
+    // A task still running (or being cancelled) is cancelled, not deleted, so
+    // DELETE stays disabled while the selection holds one. Selected ids whose row
+    // is no longer loaded are left for the server to accept or reject.
+    const canDeleteSelection = selectedIds.length > 0 && selectedIds.every((taskId) => {
+        const task = rows.find((row) => row.task_id === taskId);
+        return !task || isDeletableTask(task);
+    });
 
     const handleDeleteTasks = useCallback(() => runBulkAction({
         action: deleteProjectTask,
@@ -105,6 +114,7 @@ export const useTasksTable = (
         searchAttribute: table.searchAttribute,
         setSearchAttribute: table.setSearchAttribute,
         isActionRunning: table.isActionRunning,
+        canDeleteSelection,
         handleDeleteTasks,
         downloadingTaskId,
         handleDownloadTaskFile,

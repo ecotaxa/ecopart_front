@@ -145,6 +145,10 @@ describe('ProjectTasksTab (Functional)', () => {
     it('TC-T5: deletes the selected tasks after confirmation', async () => {
         const user = userEvent.setup();
         answerConfirmDialogs(true);
+        mockedSearchProjectTasks.mockResolvedValue(makeResponse([
+            makeTask({ task_id: 1, task_status: 'DONE' }),
+            makeTask({ task_id: 2, task_status: 'CANCELLED' }),
+        ], 2));
         renderTab();
         await screen.findAllByText('IMPORT');
 
@@ -161,6 +165,20 @@ describe('ProjectTasksTab (Functional)', () => {
         });
         expect(await screen.findByText('Selected tasks removed successfully.')).toBeInTheDocument();
         expect(screen.getByText('0 items selected')).toBeInTheDocument();
+    });
+
+    // TC-T5b: an unfinished task is cancelled, not deleted
+    it('TC-T5b: keeps DELETE disabled while the selection holds an unfinished task', async () => {
+        const user = userEvent.setup();
+        // Default rows are RUNNING.
+        renderTab();
+        await screen.findAllByText('IMPORT');
+
+        await user.click(screen.getAllByRole('checkbox')[1]);
+        expect(await screen.findByText('1 items selected')).toBeInTheDocument();
+
+        expect(screen.getByRole('button', { name: /^DELETE$/i })).toBeDisabled();
+        expect(mockedDeleteProjectTask).not.toHaveBeenCalled();
     });
 
     // TC-T6: Status Icons Mapping

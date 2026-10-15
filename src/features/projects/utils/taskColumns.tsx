@@ -81,6 +81,15 @@ export const isActiveTask = (task: Task): boolean => {
     return status === "PENDING" || status === "RUNNING" || status === "CANCELLING";
 };
 
+/**
+ * True once the task has stopped (DONE, ERROR, CANCELLED, ...). A task whose work
+ * may still be running is cancelled, not deleted.
+ */
+export const isDeletableTask = (task: Task): boolean => !isActiveTask(task);
+
+/** Why a task grid's DELETE is greyed out while the selection holds an unfinished task. */
+export const ACTIVE_TASK_DELETE_HINT = "Unfinished tasks cannot be deleted: cancel them from their detail page first";
+
 /** True when a cancellation can still be requested (the backend answers 409 otherwise). */
 export const isCancellableTask = (task: Task): boolean => {
     const status = formatTaskStatus(task);

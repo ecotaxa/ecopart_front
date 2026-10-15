@@ -16,7 +16,7 @@ import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-dat
 
 import { useTasksTable } from "@/features/projects/hooks/useTasksTable";
 import type { SearchFilter, Task } from "@/features/projects/api/projects.api";
-import { buildBaseTaskColumns, isDownloadableTask } from "@/features/projects/utils/taskColumns";
+import { ACTIVE_TASK_DELETE_HINT, buildBaseTaskColumns, isDownloadableTask } from "@/features/projects/utils/taskColumns";
 import { parseUserIdsParam } from "../utils/userFilterParams";
 
 /**
@@ -65,7 +65,7 @@ export default function AdminTasksTab() {
         selectedTasks, setSelectedTasks, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
-        isActionRunning,
+        isActionRunning, canDeleteSelection,
         handleDeleteTasks,
         downloadingTaskId, handleDownloadTaskFile,
         snackbar, closeSnackbar
@@ -219,6 +219,7 @@ export default function AdminTasksTab() {
                                 <Typography variant="caption" component="p">
                                     DELETE removes the selected background tasks and their logs across all projects. You
                                     are asked to confirm first. It does not undo work a completed task already performed.
+                                    Only finished tasks can be deleted: cancel an unfinished one from its detail page.
                                     USERS / PROJECTS open the matching admin tab filtered to the owner(s) / project(s)
                                     of the selected task(s).
                                 </Typography>
@@ -226,15 +227,19 @@ export default function AdminTasksTab() {
                         />
                     </Typography>
                     <Stack direction="row" spacing={2}>
-                        <Button
-                            variant="text" color="inherit"
-                            disabled={selectionCount === 0 || isActionRunning}
-                            onClick={handleDeleteTasks}
-                            startIcon={<CloseIcon />}
-                            sx={{ fontWeight: "bold" }}
-                        >
-                            DELETE
-                        </Button>
+                        <Tooltip title={selectionCount > 0 && !canDeleteSelection ? ACTIVE_TASK_DELETE_HINT : ""}>
+                            <span>
+                                <Button
+                                    variant="text" color="inherit"
+                                    disabled={!canDeleteSelection || isActionRunning}
+                                    onClick={handleDeleteTasks}
+                                    startIcon={<CloseIcon />}
+                                    sx={{ fontWeight: "bold" }}
+                                >
+                                    DELETE
+                                </Button>
+                            </span>
+                        </Tooltip>
                         {/* USERS / PROJECTS: jump to the matching admin tab, scoped to the
                             owner(s) / project(s) of the selected task(s). Disabled while
                             nothing is selected. */}

@@ -16,7 +16,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SectionCard from "@/shared/components/SectionCard";
 import { ecotaxaColors } from "@/theme";
 import { cancelTask, deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task } from "../api/projects.api";
-import { formatTaskOwner, isActiveTask, isCancellableTask, isDownloadableTask } from "../utils/taskColumns";
+import { formatTaskOwner, isActiveTask, isCancellableTask, isDeletableTask, isDownloadableTask } from "../utils/taskColumns";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { useAuthStore } from "@/features/auth";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
@@ -262,7 +262,11 @@ export default function TaskDetailsPage() {
                                         {isCancelling ? "CANCELLING..." : "CANCEL TASK"}
                                     </Button>
                                 )}
-                                <Button variant="outlined" color="error" size="small" sx={{ fontWeight: "bold" }} onClick={handleDeleteTask} disabled={isDeleting}>{isDeleting ? "DELETING..." : "DELETE"}</Button>
+                                {/* Cancel while it runs, delete once it has stopped: never both.
+                                    A CANCELLING task offers neither until it stops. */}
+                                {isDeletableTask(task) && (
+                                    <Button variant="outlined" color="error" size="small" sx={{ fontWeight: "bold" }} onClick={handleDeleteTask} disabled={isDeleting}>{isDeleting ? "DELETING..." : "DELETE"}</Button>
+                                )}
                             </Stack>
                         </Box>
 
