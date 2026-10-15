@@ -70,7 +70,8 @@ describe('TasksPage (Accessibility)', () => {
     // TC-Q12: Action Bar Focus / Disabled Buttons
     it('TC-Q12: disables the action buttons until a task is selected', async () => {
         const user = userEvent.setup({ delay: null });
-        mockTasks([makeTask({ task_id: 1, task_type: 'IMPORT' })]);
+        // A finished task: an unfinished one keeps DELETE disabled even once selected.
+        mockTasks([makeTask({ task_id: 1, task_type: 'IMPORT', task_status: 'DONE' })]);
 
         renderWithRouter(<TasksPage />, { route: '/tasks' });
 

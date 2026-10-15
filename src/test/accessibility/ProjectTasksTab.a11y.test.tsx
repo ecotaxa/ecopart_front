@@ -34,7 +34,8 @@ describe('ProjectTasksTab (Accessibility)', () => {
         vi.clearAllMocks();
         mockedSearchProjectTasks.mockResolvedValue({
             search_info: { total: 1, page: 1, limit: 10 },
-            tasks: [makeTask({ task_id: 1 })],
+            // A finished task: an unfinished one keeps DELETE disabled even once selected.
+            tasks: [makeTask({ task_id: 1, task_status: 'DONE' })],
         });
         vi.mocked(deleteProjectTask).mockResolvedValue({ message: 'deleted' });
     });
