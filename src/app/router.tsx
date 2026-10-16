@@ -27,7 +27,7 @@ const SampleDetailsPage = lazy(() => import("@/features/projects/pages/SampleDet
 const TasksPage = lazy(() => import("@/features/projects/pages/TasksPage"));
 const AdminPage = lazy(() => import("@/features/admin/pages/AdminPage"));
 const NotFoundPage = lazy(() => import("@/features/errors/pages/NotFoundPage"));
-const ComingSoonPage = lazy(() => import("@/features/errors/pages/ComingSoonPage"));
+const ExplorePage = lazy(() => import("@/features/explore/pages/ExplorePage"));
 
 /** Wraps a lazily-loaded page in the suspense fallback shown while its chunk downloads. */
 const page = (element: ReactNode) => <Suspense fallback={<PageFallback />}>{element}</Suspense>;
@@ -91,16 +91,8 @@ export const router = createBrowserRouter([
                     </AdminRoute>
                 ),
             },
-            // Header entry whose feature is not built yet.
-            {
-                path: "/explore",
-                element: page(
-                    <ComingSoonPage
-                        title="Explore"
-                        description="Browse and visualise particle data across projects. This section is coming soon."
-                    />
-                ),
-            },
+            // Public: anyone can browse the data; exporting needs an account.
+            { path: "/explore/:mode?/:tabName?", element: page(<ExplorePage />) },
             { path: "*", element: page(<NotFoundPage />) },
         ],
     },

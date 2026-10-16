@@ -5,7 +5,7 @@ import { ecotaxaColors } from "@/theme";
  *
  * Uses the same `mainblue` scale as the QC import profile charts
  * (QcSampleCard: pressure = mainblue[500], pixel classes = mainblue[400/600/800])
- * so the admin dashboard reads as one system with the rest of the app. Shades
+ * so the admin dashboard and the explore page read as one system with the rest of the app. Shades
  * are ordered for maximum contrast between adjacent series, and cycled when a
  * chart has more series than colours.
  */
