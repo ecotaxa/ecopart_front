@@ -4,7 +4,7 @@ import { PieChart } from "@mui/x-charts/PieChart";
 
 import type { LabelCount } from "../api/adminStats.api";
 import { prettifyLabel } from "../utils/prettifyLabel";
-import { chartColorAt } from "../utils/chartColors";
+import { chartColorAt } from "@/shared/utils/chartColors";
 
 interface BreakdownChartProps {
     title: string;
