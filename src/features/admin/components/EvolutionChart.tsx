@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import { LineChart } from "@mui/x-charts/LineChart";
 import { BarChart } from "@mui/x-charts/BarChart";
 
-import { chartColorAt } from "../utils/chartColors";
+import { chartColorAt } from "@/shared/utils/chartColors";
 
 export interface EvolutionSeries {
     label: string;

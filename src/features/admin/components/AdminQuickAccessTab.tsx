@@ -1,6 +1,6 @@
 import {
     Box, Typography, TextField, MenuItem,
-    Alert, Stack, Paper, Skeleton, Link, Divider,
+    Alert, Stack, Link, Divider,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
@@ -10,57 +10,18 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 
 import SectionCard from "@/shared/components/SectionCard";
+import StatCard, { STAT_CARD_COLORS } from "@/shared/components/StatCard";
 import { QUICK_ACCESS_PERIODS, useAdminQuickAccess } from "../hooks/useAdminQuickAccess";
 import AdminStatisticsSection from "./AdminStatisticsSection";
 
-// Headline-counter accents drawn from the app theme (teal-led EcoPart palette)
-// instead of the off-brand mockup colours, so the tab matches the rest of the app.
+// Headline-counter accents shared with the explore counters (StatCard).
+const [PROJECTS_COLOR, USERS_COLOR, EXPORTS_COLOR, TASKS_COLOR] = STAT_CARD_COLORS;
 const STAT_COLORS = {
-    projects: "primary.main",
-    users: "secondary.main",
-    exports: "info.main",
-    tasks: "success.main",
+    projects: PROJECTS_COLOR,
+    users: USERS_COLOR,
+    exports: EXPORTS_COLOR,
+    tasks: TASKS_COLOR,
 } as const;
-
-/** One brand-coloured headline counter (projects / users / exports / tasks). */
-interface StatCardProps {
-    label: string;
-    value: number | null;
-    loading: boolean;
-    color: string;
-    icon: React.ReactNode;
-}
-
-const StatCard = ({ label, value, loading, color, icon }: StatCardProps) => (
-    <Paper
-        elevation={0}
-        sx={{
-            backgroundColor: color,
-            color: "common.white",
-            borderRadius: 2,
-            p: 2.5,
-            height: "100%",
-            minHeight: 140,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-        }}
-    >
-        <Box sx={{ "& svg": { fontSize: 30 } }}>{icon}</Box>
-        <Box>
-            {loading ? (
-                <Skeleton variant="text" width={70} height={44} sx={{ bgcolor: "rgba(255,255,255,0.35)" }} />
-            ) : (
-                <Typography variant="h3" component="div" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
-                    {value ?? "—"}
-                </Typography>
-            )}
-            <Typography variant="h6" component="div" sx={{ fontWeight: 400, mt: 0.5 }}>
-                {label}
-            </Typography>
-        </Box>
-    </Paper>
-);
 
 /** An external "useful link" from the mockup (opens in a new tab). */
 const USEFUL_LINKS: { label: string; href: string }[] = [
