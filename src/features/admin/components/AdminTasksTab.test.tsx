@@ -114,7 +114,7 @@ describe('AdminTasksTab', () => {
         renderAdminTasksTab();
 
         expect(screen.getByRole('heading', { name: 'Task list' })).toBeInTheDocument();
-        expect(screen.getByText('Additional description if required')).toBeInTheDocument();
+        expect(screen.queryByText('Additional description if required')).not.toBeInTheDocument();
 
         expect(await screen.findByText('IMPORT')).toBeInTheDocument();
         expect(await screen.findByText('BACKUP')).toBeInTheDocument();

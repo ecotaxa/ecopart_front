@@ -50,7 +50,9 @@ export default function TaskDetailsPage() {
         : `/tasks/${parsedTaskId}`;
 
     const handleTabChange = (_e: React.SyntheticEvent, val: number) => {
-        navigate(`${taskDetailBase}/${val === 1 ? "logfile" : "general"}`);
+        // Carry the navigation state over so "Back to tasks list" still returns
+        // to the caller (e.g. the admin console) after switching tabs.
+        navigate(`${taskDetailBase}/${val === 1 ? "logfile" : "general"}`, { state: location.state });
     };
     const [task, setTask] = useState<Task | null>(null);
     const [logContent, setLogContent] = useState<string>("");

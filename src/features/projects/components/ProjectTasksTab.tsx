@@ -146,6 +146,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={[5, 10, 25]}
                         autoHeight
+                        sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                     />
                 </Box>
             </SectionCard>
