@@ -116,6 +116,26 @@ describe('TaskDetailsPage (Functional)', () => {
         expect(await screen.findByText('streaming log output')).toBeInTheDocument();
     });
 
+    // TC-S3b: Back keeps the caller's origin after a tab switch
+    it('TC-S3b: returns to the admin console from the LOG FILE tab when opened from it', async () => {
+        const user = userEvent.setup();
+        renderWithRouter(
+            <Routes>
+                <Route path="/projects/:id/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
+                <Route path="/projects/:id/tasks" element={<h1>Tasks List Page</h1>} />
+                <Route path="/admin/tasks" element={<h1>Admin Tasks Page</h1>} />
+            </Routes>,
+            { route: '/projects/77/tasks/42/general', state: { from: '/admin/tasks' } },
+        );
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
+        await screen.findByText('streaming log output');
+        await user.click(screen.getByRole('button', { name: /Back to tasks list/i }));
+
+        expect(await screen.findByRole('heading', { name: 'Admin Tasks Page' })).toBeInTheDocument();
+    });
+
     // TC-S4: Empty Log Fallback
     it('TC-S4: shows the empty-log fallback when no log content is returned', async () => {
         const user = userEvent.setup();

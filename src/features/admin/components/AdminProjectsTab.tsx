@@ -189,9 +189,6 @@ export default function AdminProjectsTab() {
                 {/* 1. HEADER + FILTER CONTROLS */}
                 <Box sx={{ p: 3, borderBottom: "1px solid #e0e0e0" }}>
                     <Typography variant="h6">Project list</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        All projects with advanced filters
-                    </Typography>
 
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
                         <TextField
@@ -322,6 +319,7 @@ export default function AdminProjectsTab() {
                         onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={buildPageSizeOptions()}
                         autoHeight
+                        sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                     />
                 </Box>
             </Paper>

@@ -150,9 +150,6 @@ export default function AdminTasksTab() {
                 {/* 1. HEADER + FILTER CONTROLS */}
                 <Box sx={{ p: 3, borderBottom: "1px solid #e0e0e0" }}>
                     <Typography variant="h6">Task list</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Additional description if required
-                    </Typography>
 
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
                         <TextField
@@ -288,6 +285,7 @@ export default function AdminTasksTab() {
                         onPaginationModelChange={setPaginationModel}
                         pageSizeOptions={[5, 10, 25]}
                         autoHeight
+                        sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                     />
                 </Box>
             </Paper>

@@ -103,7 +103,7 @@ describe('AdminUsersTab', () => {
         renderUsersTab();
 
         expect(screen.getByRole('heading', { name: 'User list' })).toBeInTheDocument();
-        expect(screen.getByText('Additional description if required')).toBeInTheDocument();
+        expect(screen.queryByText('Additional description if required')).not.toBeInTheDocument();
 
         expect(await screen.findByText('John Doe')).toBeInTheDocument();
         expect(await screen.findByText('jane@roe.com')).toBeInTheDocument();

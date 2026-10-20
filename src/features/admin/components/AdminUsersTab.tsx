@@ -251,9 +251,6 @@ export default function AdminUsersTab() {
                 {/* 1. HEADER + FILTER CONTROLS */}
                 <Box sx={{ p: 3, borderBottom: "1px solid #e0e0e0" }}>
                     <Typography variant="h6">User list</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Additional description if required
-                    </Typography>
 
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
                         <TextField

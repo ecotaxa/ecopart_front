@@ -103,7 +103,7 @@ describe('AdminProjectsTab', () => {
         renderProjectsTab();
 
         expect(screen.getByRole('heading', { name: 'Project list' })).toBeInTheDocument();
-        expect(screen.getByText('All projects with advanced filters')).toBeInTheDocument();
+        expect(screen.queryByText('All projects with advanced filters')).not.toBeInTheDocument();
 
         expect(await screen.findByText('uvp5_sn209_bval57')).toBeInTheDocument();
         expect(screen.getAllByText('Marc Picheral').length).toBeGreaterThan(0);
