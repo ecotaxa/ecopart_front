@@ -30,6 +30,8 @@ import {
     updateProject,
     getOneTask,
     cancelTask,
+    enrichProjectsWithSampleCounts,
+    type Project,
     type SearchFilter,
 } from './projects.api';
 
@@ -455,5 +457,32 @@ describe('cancelTask', () => {
         );
 
         await expect(cancelTask(9)).rejects.toThrow('Task cannot be cancelled');
+    });
+});
+
+describe('enrichProjectsWithSampleCounts', () => {
+    const project = (project_id: number): Project => ({
+        project_id,
+        project_title: `p${project_id}`,
+        project_acronym: 'P',
+        instrument_model: 'UVP6',
+        ecotaxa_project_name: null,
+    });
+
+    it('fills nbr_sample and nbr_ctd_sample (ctd_imported filter), leaving a failed count undefined', async () => {
+        server.use(
+            http.post('*/projects/:id/samples/searches', async ({ request, params }) => {
+                const filters = (await request.json()) as SearchFilter[];
+                const isCtd = filters.some((filter) => filter.field === 'ctd_imported' && filter.value === 1);
+                if (params.id === '2' && isCtd) return new HttpResponse(null, { status: 500 });
+                return HttpResponse.json({ search_info: { total: isCtd ? 4 : 10, page: 1, limit: 1 }, samples: [] });
+            }),
+        );
+
+        const [first, second] = await enrichProjectsWithSampleCounts([project(1), project(2)]);
+
+        expect(first).toMatchObject({ nbr_sample: 10, nbr_ctd_sample: 4 });
+        expect(second.nbr_sample).toBe(10);
+        expect(second.nbr_ctd_sample).toBeUndefined();
     });
 });

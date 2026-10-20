@@ -380,4 +380,21 @@ describe('AdminProjectsTab', () => {
         expect(screen.getByText('Public')).toBeInTheDocument();
         expect(screen.getByText('Private')).toBeInTheDocument();
     });
+
+    it('TC-AG18: shows the number of samples with a linked CTD per project', async () => {
+        server.use(
+            http.post('*/projects/:projectId/samples/searches', async ({ request }) => {
+                const filters = (await request.json()) as { field: string }[];
+                const total = filters.some((filter) => filter.field === 'ctd_imported') ? 7 : 12;
+                return HttpResponse.json({ search_info: { total, page: 1, limit: 1 }, samples: [] });
+            }),
+        );
+        mockProjectsSearch([makeProject({ project_id: 473 })], 1);
+
+        renderProjectsTab();
+
+        expect(await screen.findByText('7')).toBeInTheDocument();
+        expect(screen.getByText('12')).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: 'Samples with CTD' })).toBeInTheDocument();
+    });
 });
