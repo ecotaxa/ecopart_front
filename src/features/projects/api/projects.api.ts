@@ -29,6 +29,8 @@ export interface Project {
     // Note: The following fields exist in the mockup but are NOT currently returned by the backend.
     // They are marked as optional so TypeScript doesn't complain when mapping the backend response.
     nbr_sample?: number;
+    /** Samples with an imported CTD file; filled in by `enrichProjectsWithSampleCounts`. */
+    nbr_ctd_sample?: number;
 
     /**
      * IMPORTANT:
@@ -835,13 +837,17 @@ export async function setSampleVisualQc(
     });
 }
 
+/** Samples search filter keeping only the samples with an imported CTD file. */
+const CTD_IMPORTED_FILTER: SearchFilter = { field: "ctd_imported", operator: "=", value: 1 };
+
 /**
- * Fill in `nbr_sample` for a page of projects.
+ * Fill in `nbr_sample` and `nbr_ctd_sample` for a page of projects.
  *
- * The project-search endpoint does not return a sample count, so we ask the
- * samples search endpoint for `search_info.total` (limit=1, one lightweight
- * request per row). A failed request leaves `nbr_sample` undefined so the grid
- * shows "—" (unknown) rather than a misleading "0".
+ * The project-search endpoint returns neither count, so we ask the samples
+ * search endpoint for `search_info.total` (limit=1), once unfiltered and once
+ * filtered on `ctd_imported`: two lightweight requests per row. A failed
+ * request leaves its count undefined so the grid shows "—" (unknown) rather
+ * than a misleading "0".
  *
  * NOTE: this is an N+1 the backend should eventually fold into the project
  * search response; keep page sizes reasonable until it does.
@@ -849,14 +855,24 @@ export async function setSampleVisualQc(
 export async function enrichProjectsWithSampleCounts(projects: Project[]): Promise<Project[]> {
     if (projects.length === 0) return projects;
 
-    const results = await Promise.allSettled(
-        projects.map((project) => searchProjectSamples(project.project_id, { page: 1, limit: 1, filters: [] })),
-    );
+    const countSamples = (projectId: number, filters: SearchFilter[]) =>
+        searchProjectSamples(projectId, { page: 1, limit: 1, filters }).then((response) => response.search_info?.total);
+    const totalOf = (result: PromiseSettledResult<number | undefined>) =>
+        result.status === "fulfilled" && typeof result.value === "number" ? result.value : undefined;
+
+    const [sampleResults, ctdResults] = await Promise.all([
+        Promise.allSettled(projects.map((project) => countSamples(project.project_id, []))),
+        Promise.allSettled(projects.map((project) => countSamples(project.project_id, [CTD_IMPORTED_FILTER]))),
+    ]);
 
     return projects.map((project, index) => {
-        const result = results[index];
-        const total = result.status === "fulfilled" ? result.value.search_info?.total : undefined;
-        return typeof total === "number" ? { ...project, nbr_sample: total } : project;
+        const nbrSample = totalOf(sampleResults[index]);
+        const nbrCtdSample = totalOf(ctdResults[index]);
+        return {
+            ...project,
+            ...(nbrSample !== undefined && { nbr_sample: nbrSample }),
+            ...(nbrCtdSample !== undefined && { nbr_ctd_sample: nbrCtdSample }),
+        };
     });
 }
 

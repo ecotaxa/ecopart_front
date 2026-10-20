@@ -152,6 +152,18 @@ export default function AdminProjectsTab() {
                     : <Typography variant="caption" color="text.secondary">—</Typography>,
         },
         {
+            field: "nbr_ctd_sample",
+            headerName: "Samples with CTD",
+            width: 130,
+            align: "center",
+            headerAlign: "center",
+            sortable: false,
+            renderCell: (params: GridRenderCellParams<Project>) =>
+                typeof params.value === "number"
+                    ? <Typography variant="body2" color={params.value > 0 ? "text.primary" : "text.secondary"}>{params.value}</Typography>
+                    : <Typography variant="caption" color="text.secondary">—</Typography>,
+        },
+        {
             field: "managers",
             headerName: "Managers",
             flex: 1,

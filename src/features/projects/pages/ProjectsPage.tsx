@@ -176,6 +176,24 @@ export default function ProjectsPage() {
                 ),
         },
         {
+            field: "nbr_ctd_sample",
+            headerName: "Samples with CTD",
+            width: 140,
+            align: "center",
+            headerAlign: "center",
+            sortable: false,
+            renderCell: (params: GridRenderCellParams<Project>) =>
+                typeof params.value === "number" ? (
+                    <Typography variant="body2" color={params.value > 0 ? "text.primary" : "text.secondary"}>
+                        {params.value}
+                    </Typography>
+                ) : (
+                    <Typography variant="caption" color="text.secondary">
+                        —
+                    </Typography>
+                ),
+        },
+        {
             field: "privilege",
             headerName: "Privilege",
             width: 120,
