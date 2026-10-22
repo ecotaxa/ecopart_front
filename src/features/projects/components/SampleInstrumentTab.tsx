@@ -5,7 +5,6 @@ import SyncIcon from "@mui/icons-material/Sync";
 
 import SectionCard from "@/shared/components/SectionCard";
 import type { SampleData } from "../api/projects.api";
-import { formatUtcDateTime } from "../utils/sampleFormat";
 import { ReadOnlyField, SubsectionHeader } from "./SampleDetailFields";
 
 /** Half-width cell of the two-column field grid. */
@@ -167,12 +166,6 @@ export function SampleInstrumentTab({ sample }: { sample: SampleData }) {
                             <ReadOnlyField
                                 label="Image post process"
                                 value={sample.instrument_settings_images_post_process}
-                            />
-                        </FieldCell>
-                        <FieldCell>
-                            <ReadOnlyField
-                                label="UTC date time"
-                                value={formatUtcDateTime(sample.instrument_settings_process_datetime, { withPrefix: false })}
                             />
                         </FieldCell>
                         <FieldCell>

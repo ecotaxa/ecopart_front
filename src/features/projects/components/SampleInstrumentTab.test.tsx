@@ -15,7 +15,6 @@ const sample: SampleData = {
     instrument_settings_acq_gain: 6,
     instrument_settings_acq_x_size: 1280,
     instrument_settings_images_post_process: "Zooprocess",
-    instrument_settings_process_datetime: "2011-03-11T19:42:10.000Z",
 };
 
 describe("SampleInstrumentTab", () => {
@@ -27,7 +26,8 @@ describe("SampleInstrumentTab", () => {
         expect(screen.getByLabelText("Shutter speed")).toHaveValue("12");
         expect(screen.getByLabelText("Xsize")).toHaveValue("1280");
         expect(screen.getByLabelText("Image post process")).toHaveValue("Zooprocess");
-        expect(screen.getByLabelText("UTC date time")).toHaveValue("2011-03-11 19:42:10");
+        // The processing date was never filled, not even in legacy EcoPart: no field for it.
+        expect(screen.queryByLabelText("UTC date time")).toBeNull();
         // Missing values keep the field with a dash.
         expect(screen.getByLabelText("Threshold")).toHaveValue("—");
         expect(screen.getByRole("radio", { name: "Local calibration parameters" })).toBeChecked();

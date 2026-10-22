@@ -691,7 +691,6 @@ export interface SampleData {
     instrument_settings_depth_offset_m?: number | null;
     // Processing
     instrument_settings_images_post_process?: string | null;
-    instrument_settings_process_datetime?: string | null;
     instrument_settings_process_vignette_resize_factor?: number | null;
     instrument_settings_process_gamma?: number | null;
     // Image range kept by the profile filter, and the image counts.
