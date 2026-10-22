@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 
 import { PolarMap, type MapPoint, type MarkerShape } from "@/shared/components/map";
@@ -13,12 +13,12 @@ const shapeOf = (instrumentModel: string): MarkerShape => {
 
 function useStatusColors(): Record<PrivacyStatus, string> {
     const { palette } = useTheme();
-    return {
+    return useMemo(() => ({
         private: palette.error.main,
         visible: palette.warning.main,
         public: palette.info.main,
         open: palette.success.main,
-    };
+    }), [palette]);
 }
 
 export interface ExploreMapProps {
@@ -34,8 +34,9 @@ export interface ExploreMapProps {
 /**
  * Polar map of the explored samples. One marker per sample: its shape gives the
  * instrument, its colour the data status, a dark ring marks the user's projects.
+ * Memoized: switching tabs or changing a graph leaves the map as it is.
  */
-export default function ExploreMap({ samples, bounds, drawing, onBoundsDrawn, height = 420 }: ExploreMapProps) {
+const ExploreMap = memo(function ExploreMap({ samples, bounds, drawing, onBoundsDrawn, height = 420 }: ExploreMapProps) {
     const theme = useTheme();
     const statusColors = useStatusColors();
     const ringColor = theme.palette.text.primary;
@@ -65,7 +66,9 @@ export default function ExploreMap({ samples, bounds, drawing, onBoundsDrawn, he
             legend={<MapLegend statusColors={statusColors} ringColor={ringColor} neutral={theme.palette.text.secondary} />}
         />
     );
-}
+});
+
+export default ExploreMap;
 
 function LegendSwatch({ shape, color, ring }: { shape: MarkerShape; color: string; ring?: string }) {
     const size = 10;

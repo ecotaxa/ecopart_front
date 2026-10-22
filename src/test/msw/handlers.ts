@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import type { User } from '@/features/auth/types/user';
+import { createExploreHandlers } from './explore.handlers';
 
 // Fake server
 // We use a simple variable to simulate server-side session state.
@@ -251,6 +252,9 @@ export const handlers = [
         const includeStorage = url.searchParams.get('include_storage') === 'true';
         return HttpResponse.json(buildAdminStats(includeStorage));
     }),
+
+    // --- MOCK EXPLORE (/explore/*) ---
+    ...createExploreHandlers(() => isLoggedIn),
 ];
 
 /**

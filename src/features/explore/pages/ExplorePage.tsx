@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    Alert, Box, Button, Container, Divider, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup,
+    Alert, Box, Button, Container, Divider, LinearProgress, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup,
     Tooltip, Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -21,12 +21,13 @@ import SelectionGraphs from "../components/SelectionGraphs";
 import EcoTaxaSummary from "../components/EcoTaxaSummary";
 import RandomImages from "../components/RandomImages";
 import { useExploreData } from "../hooks/useExploreData";
-import type { ExploreAggregation, ExploreFilters, ExploreMode, GeoBounds } from "../types/explore.types";
+import type { ExploreAggregation, ExploreFilters, ExploreMode, ExploreTab, GeoBounds } from "../types/explore.types";
 import {
     DEFAULT_AGGREGATION,
     boundsError,
     createEmptyDraft,
     dateRangeError,
+    toBounds,
     toBoundsDraft,
     toFilters,
     type ExploreFiltersDraft,
@@ -39,13 +40,11 @@ const MODES: { value: ExploreMode; label: string }[] = [
     { value: "time", label: "Time series" },
 ];
 
-const TABS = [
+const TABS: { slug: ExploreTab; label: string; icon: ReactElement }[] = [
     { slug: "stats", label: "Selected data stats", icon: <InsertChartIcon /> },
     { slug: "graphs", label: "Selected data graphs", icon: <ViewModuleIcon /> },
     { slug: "exportable", label: "Exportable selection", icon: <FileDownloadIcon /> },
-] as const;
-
-type TabSlug = (typeof TABS)[number]["slug"];
+];
 
 /**
  * ExplorePage — browse the particle data of every project (route
@@ -63,7 +62,7 @@ export default function ExplorePage() {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     const mode: ExploreMode = modeParam === "time" ? "time" : "depth";
-    const tab: TabSlug = TABS.find((t) => t.slug === tabName)?.slug ?? "stats";
+    const tab: ExploreTab = TABS.find((t) => t.slug === tabName)?.slug ?? "stats";
 
     const [draft, setDraft] = useState<ExploreFiltersDraft>(createEmptyDraft);
     const [applied, setApplied] = useState<ExploreFilters | null>(null);
@@ -71,14 +70,19 @@ export default function ExplorePage() {
     const [drawing, setDrawing] = useState(false);
     const [sumChildTaxa, setSumChildTaxa] = useState(true);
 
-    const data = useExploreData(mode, applied, { sumChildTaxa });
+    const data = useExploreData(mode, applied, { aggregation, tab, sumChildTaxa });
 
     const draftBoundsError = boundsError(draft.bounds);
     const draftDateError = dateRangeError(draft.date_from, draft.date_to);
     const draftFilters = useMemo(() => (draftBoundsError ? null : toFilters(draft)), [draft, draftBoundsError]);
+    // Only the location reaches the map: editing another criterion leaves it as it is.
+    const draftBounds = useMemo(() => (draftBoundsError ? null : toBounds(draft.bounds)), [draft.bounds, draftBoundsError]);
     const dirty = applied === null || JSON.stringify(draftFilters) !== JSON.stringify(applied);
 
-    const updateDraft = (patch: Partial<ExploreFiltersDraft>) => setDraft((prev) => ({ ...prev, ...patch }));
+    const updateDraft = useCallback(
+        (patch: Partial<ExploreFiltersDraft>) => setDraft((prev) => ({ ...prev, ...patch })),
+        [],
+    );
 
     const apply = () => {
         if (!draftFilters || draftDateError) return;
@@ -92,12 +96,12 @@ export default function ExplorePage() {
         setDrawing(false);
     };
 
-    const handleBoundsDrawn = (bounds: GeoBounds) => {
+    const handleBoundsDrawn = useCallback((bounds: GeoBounds) => {
         updateDraft({ bounds: toBoundsDraft(bounds) });
         setDrawing(false);
-    };
+    }, [updateDraft]);
 
-    const goTo = (nextMode: ExploreMode, nextTab: TabSlug) => navigate(`/explore/${nextMode}/${nextTab}`);
+    const goTo = (nextMode: ExploreMode, nextTab: ExploreTab) => navigate(`/explore/${nextMode}/${nextTab}`);
 
     const noSelectionHint = applied === null && (
         <Alert severity="info" variant="outlined" sx={{ mb: 3 }}>
@@ -154,24 +158,27 @@ export default function ExplorePage() {
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 8, xl: 9 }}>
-                    {!data.available && (
+                    {data.unavailable && (
                         <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
                             The explore data service is not available yet: the map and the selection stay empty.
                         </Alert>
                     )}
+                    {data.error && (
+                        <Alert severity="error" variant="outlined" sx={{ mb: 2 }}>{data.error}</Alert>
+                    )}
 
                     <ExploreMap
                         samples={data.mapSamples}
-                        bounds={draftFilters?.bounds ?? null}
+                        bounds={draftBounds}
                         drawing={drawing}
                         onBoundsDrawn={handleBoundsDrawn}
                         height={MAP_HEIGHT}
                     />
 
-                    <Box sx={{ ...pageTabsSx, mt: 3 }}>
+                    <Box sx={{ ...pageTabsSx, mt: 3, position: "relative" }}>
                         <Tabs
                             value={tab}
-                            onChange={(_event, next: TabSlug) => goTo(mode, next)}
+                            onChange={(_event, next: ExploreTab) => goTo(mode, next)}
                             variant="scrollable"
                             scrollButtons="auto"
                         >
@@ -179,6 +186,12 @@ export default function ExplorePage() {
                                 <Tab key={t.slug} value={t.slug} icon={t.icon} iconPosition="start" label={t.label} />
                             ))}
                         </Tabs>
+                        {data.loading && (
+                            <LinearProgress
+                                aria-label="Loading the explore data"
+                                sx={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 2 }}
+                            />
+                        )}
                     </Box>
 
                     {noSelectionHint}
@@ -200,15 +213,26 @@ export default function ExplorePage() {
                         </SectionCard>
                     )}
 
-                    {tab === "graphs" && (
-                        <SectionCard>
-                            <SelectionGraphs
-                                mode={mode}
-                                graphs={data.graphs}
-                                sumChildTaxa={sumChildTaxa}
-                                onSumChildTaxaChange={setSumChildTaxa}
-                            />
-                        </SectionCard>
+                    {tab === "graphs" && !isAuthenticated && (
+                        <Alert severity="info" variant="outlined">Log in to see the graphs of the selection.</Alert>
+                    )}
+
+                    {tab === "graphs" && isAuthenticated && (
+                        <>
+                            {data.graphs && data.graphs.warnings.length > 0 && (
+                                <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+                                    {data.graphs.warnings.map((warning) => <div key={warning}>{warning}</div>)}
+                                </Alert>
+                            )}
+                            <SectionCard>
+                                <SelectionGraphs
+                                    mode={mode}
+                                    graphs={data.graphs}
+                                    sumChildTaxa={sumChildTaxa}
+                                    onSumChildTaxaChange={setSumChildTaxa}
+                                />
+                            </SectionCard>
+                        </>
                     )}
 
                     {tab === "exportable" && (

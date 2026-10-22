@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
 
 import type { ValueScale } from "../types/explore.types";
 import { createScale, extent, formatTick } from "../utils/chartScales";
+import { decimate } from "../utils/decimate";
 
 const WIDTH = 420;
 const HEIGHT = 300;
@@ -35,6 +36,8 @@ interface ProfileChartProps {
      * to the next point (depth bins), "horizontal" holds the y value up to it (time bins).
      */
     step?: "vertical" | "horizontal";
+    /** Axis of the measured values (the other one being the depth or the time): a long curve keeps its extremes on it. */
+    valueAxis?: "x" | "y";
     /** Accessible name of the chart. */
     title: string;
 }
@@ -49,42 +52,50 @@ function domainOf(values: number[], axis: ChartAxis): [number, number] {
  * Light SVG line chart for sample profiles: one curve per sample, each axis on
  * its own scale (linear, sqrt, log(x+1), log10). Hand-rolled because profiles run
  * along the vertical axis (depth), which line charts drawn along x cannot do, and
- * because a selection can hold thousands of points per curve.
+ * because a selection can hold thousands of points per curve (a curve longer than
+ * the chart can show is thinned out, its extremes kept).
  */
-export default function ProfileChart({ series, x, y, step, title }: ProfileChartProps) {
+function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileChartProps) {
     const theme = useTheme();
     const axisColor = theme.palette.text.secondary;
     const gridColor = theme.palette.divider;
 
     const { xScale, yScale, paths } = useMemo(() => {
-        const xs = series.flatMap((s) => s.points.map(([px]) => px));
-        const ys = series.flatMap((s) => s.points.map(([, py]) => py));
+        const xs: number[] = [];
+        const ys: number[] = [];
+        for (const s of series) {
+            for (const [px, py] of s.points) {
+                xs.push(px);
+                ys.push(py);
+            }
+        }
         const xRange: [number, number] = x.reversed ? [WIDTH - MARGIN.right, MARGIN.left] : [MARGIN.left, WIDTH - MARGIN.right];
         const yRange: [number, number] = y.reversed ? [MARGIN.top, HEIGHT - MARGIN.bottom] : [HEIGHT - MARGIN.bottom, MARGIN.top];
         const xScale = createScale(x.scale, domainOf(xs, x), xRange);
         const yScale = createScale(y.scale, domainOf(ys, y), yRange);
 
+        const valueIndex = valueAxis === "x" ? 0 : 1;
         const paths = series.map((s) => {
             let d = "";
-            let previous: [number, number] | null = null;
-            for (const [px, py] of s.points) {
+            let drawing = false;
+            for (const [px, py] of decimate(s.points, valueIndex)) {
                 const sx = xScale.map(px);
                 const sy = yScale.map(py);
                 // A value the scale cannot draw (≤ 0 in log10) breaks the curve.
                 if (!Number.isFinite(sx) || !Number.isFinite(sy)) {
-                    previous = null;
+                    drawing = false;
                     continue;
                 }
-                if (!previous) d += `M${sx.toFixed(1)},${sy.toFixed(1)}`;
+                if (!drawing) d += `M${sx.toFixed(1)},${sy.toFixed(1)}`;
                 else if (step === "vertical") d += `V${sy.toFixed(1)}H${sx.toFixed(1)}`;
                 else if (step === "horizontal") d += `H${sx.toFixed(1)}V${sy.toFixed(1)}`;
                 else d += `L${sx.toFixed(1)},${sy.toFixed(1)}`;
-                previous = [sx, sy];
+                drawing = true;
             }
             return { id: s.id, label: s.label, color: s.color, d };
         });
         return { xScale, yScale, paths };
-    }, [series, x, y, step]);
+    }, [series, x, y, step, valueAxis]);
 
     const formatX = x.format ?? formatTick;
     const formatY = y.format ?? formatTick;
@@ -146,3 +157,5 @@ export default function ProfileChart({ series, x, y, step, title }: ProfileChart
         </Box>
     );
 }
+
+export default memo(ProfileChart);

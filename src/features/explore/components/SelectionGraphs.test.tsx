@@ -20,6 +20,7 @@ const graphs: ExploreGraphs = {
     biovolume: dataset(['64-128µm', '128-256µm']),
     ctd: dataset(['Chloro fluo', 'Conductivity']),
     ecotaxa: dataset(['Copepoda', 'Living', 'detritus']),
+    warnings: [],
 };
 
 const card = (name: string) => screen.getByRole('region', { name });

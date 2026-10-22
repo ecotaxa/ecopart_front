@@ -1,14 +1,15 @@
 /*
- * Data shown by the Explore page.
- *
- * The backend has no explore endpoint yet: these types describe what the page
- * renders, and `useExploreData` is the single place the requests will plug in.
+ * Data shown by the Explore page, as served by the backend `/explore` routes
+ * (`api/explore.api.ts`) and put together by `useExploreData`.
  */
 
 import type { GeoBox } from "@/shared/components/map";
 
 /** Explore page flavour: depth profiles or time series (the sample type). */
 export type ExploreMode = "depth" | "time";
+
+/** The tabs of the Explore page (the last segment of its route). */
+export type ExploreTab = "stats" | "graphs" | "exportable";
 
 /** Data access status of a project, from its privacy / visible / public durations. */
 export type PrivacyStatus = "private" | "visible" | "public" | "open";
@@ -154,6 +155,34 @@ export interface ExploreSelection {
     projects: ExploreProjectRow[];
 }
 
+/** The summary served by `POST /explore/selection`: everything but the EcoTaxa part. */
+export type ExploreSelectionSummary = Omit<ExploreSummary, "ecotaxa_categories" | "classification">;
+
+/** One selection of `POST /explore/selection` (summary null when no sample matches). */
+export interface ExploreSelectionPart {
+    summary: ExploreSelectionSummary | null;
+    projects: ExploreProjectRow[];
+}
+
+export interface ExploreSelectionResponse {
+    all: ExploreSelectionPart;
+    exportable: ExploreSelectionPart;
+}
+
+/** The EcoTaxa part of a summary, served apart by `POST /explore/ecotaxa` (it calls EcoTaxa). */
+export interface ExploreEcoTaxaSummary {
+    /** Display names of the taxa used by the samples, sorted. */
+    categories: string[];
+    classification: ClassificationShares;
+    /** Samples of the selection EcoTaxa has statistics for (the base of the shares). */
+    nb_samples_with_stats: number;
+}
+
+export interface ExploreEcoTaxaResponse {
+    all: ExploreEcoTaxaSummary;
+    exportable: ExploreEcoTaxaSummary;
+}
+
 // ---------------------------------------------------------------------------
 // Selected data graphs
 // ---------------------------------------------------------------------------
@@ -190,4 +219,6 @@ export interface ExploreGraphs {
     ctd: GraphDataset;
     /** Concentrations (depth) or abundances (time) per EcoTaxa category. */
     ecotaxa: GraphDataset;
+    /** Why some samples of the selection are not drawn (private projects, too many samples). */
+    warnings: string[];
 }
