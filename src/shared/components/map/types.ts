@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 
 export type Hemisphere = "north" | "south";
 
+/** Flat world map, or the Earth seen from above a pole. */
+export type MapProjection = "mercator" | "polar";
+
 export type MarkerShape = "circle" | "triangle" | "square";
 
 /** Latitude / longitude box, in decimal degrees. */
@@ -12,7 +15,7 @@ export interface GeoBox {
     west: number;
 }
 
-/** A marker of the polar map. */
+/** A marker of the map. */
 export interface MapPoint {
     /** Stable key, also used to open the point's popup. */
     id: string;
@@ -43,6 +46,8 @@ export interface PolarMapProps {
     emptyMessage?: string;
     /** Rendered under the map. */
     legend?: ReactNode;
+    /** View shown first; the user can switch between both. */
+    defaultProjection?: MapProjection;
 }
 
 export interface MapLocation {
