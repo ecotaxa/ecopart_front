@@ -10,10 +10,21 @@ const point = (id: string, latitude: number, longitude: number): MapPoint => ({
 });
 
 describe('PolarMap', () => {
-    it('opens on the pole most points are around and points to the others', async () => {
+    it('opens on the Mercator world view, with every point', () => {
+        render(<PolarMap points={[point('med', 43.7, 7.3), point('arctic', 78.2, 15.6), point('so', -60, 30)]} />);
+
+        expect(screen.getByRole('img', { name: /Mercator map/ })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Sample med' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Sample arctic' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Sample so' })).toBeInTheDocument();
+        expect(screen.queryByRole('group', { name: 'Pole' })).not.toBeInTheDocument();
+    });
+
+    it('opens the polar view on the pole most points are around and points to the others', async () => {
         const user = userEvent.setup();
         render(<PolarMap points={[point('med', 43.7, 7.3), point('arctic', 78.2, 15.6), point('so', -60, 30)]} />);
 
+        await user.click(within(screen.getByRole('group', { name: 'Projection' })).getByRole('button', { name: 'Polar' }));
         expect(screen.getByRole('img', { name: /North pole view/ })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Sample med' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Sample arctic' })).toBeInTheDocument();

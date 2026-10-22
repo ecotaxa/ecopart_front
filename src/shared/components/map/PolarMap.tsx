@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { geoAzimuthalEquidistant, geoGraticule, geoPath, type GeoProjection } from "d3-geo";
+import { geoAzimuthalEquidistant, geoGraticule, geoMercator, geoPath, type GeoProjection } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
 import type { FeatureCollection } from "geojson";
@@ -12,7 +12,7 @@ import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import CloseIcon from "@mui/icons-material/Close";
 
 import { ecotaxaColors } from "@/theme";
-import type { GeoBox, Hemisphere, MapPoint, MarkerShape, PolarMapProps } from "./types";
+import type { GeoBox, Hemisphere, MapPoint, MapProjection, MarkerShape, PolarMapProps } from "./types";
 
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 40;
@@ -24,6 +24,8 @@ const MARKER_SIZE = 12;
 /** The disc goes 20° past the equator: beyond, the far hemisphere gets too distorted to read. */
 const CLIP_ANGLE = 110;
 const FAR_LATITUDE_LIMIT = CLIP_ANGLE - 90;
+/** Mercator stops where the world becomes a square (the poles are at infinity). */
+const MERCATOR_LATITUDE_LIMIT = 85.05;
 
 interface View {
     k: number;
@@ -38,9 +40,11 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const isValidPoint = ({ latitude, longitude }: MapPoint) =>
     Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
 
-/** The point lies on the disc of the given pole. */
-const isOnDisc = (point: MapPoint, hemisphere: Hemisphere) =>
-    hemisphere === "north" ? point.latitude >= -FAR_LATITUDE_LIMIT : point.latitude <= FAR_LATITUDE_LIMIT;
+/** The point can be drawn on the map (on the disc of the given pole, in the polar view). */
+const isOnMap = (point: MapPoint, kind: MapProjection, hemisphere: Hemisphere) => {
+    if (kind === "mercator") return Math.abs(point.latitude) <= MERCATOR_LATITUDE_LIMIT;
+    return hemisphere === "north" ? point.latitude >= -FAR_LATITUDE_LIMIT : point.latitude <= FAR_LATITUDE_LIMIT;
+};
 
 /** The pole most of the points are closest to. */
 const preferredHemisphere = (points: MapPoint[]): Hemisphere =>
@@ -59,10 +63,24 @@ const polarProjection = (hemisphere: Hemisphere, radius: number): GeoProjection 
         .translate([0, 0])
         .precision(0.3);
 
-/** The zoom and offset framing the points of the disc (the whole disc without any). */
-function fitView(projection: GeoProjection, hemisphere: Hemisphere, points: MapPoint[], width: number, height: number): View {
+/** Mercator (flat world map): at zoom 1 the world spans the map width, centred on the equator. */
+const mercatorProjection = (width: number): GeoProjection =>
+    geoMercator()
+        .scale(Math.max(width, 1) / (2 * Math.PI))
+        .translate([0, 0])
+        .precision(0.3);
+
+const buildProjection = (kind: MapProjection, hemisphere: Hemisphere, width: number, height: number) =>
+    kind === "mercator"
+        ? mercatorProjection(width)
+        : polarProjection(hemisphere, Math.max(Math.min(width, height) / 2 - 8, 1));
+
+/** The zoom and offset framing the points of the map (the whole map without any). */
+function fitView(
+    projection: GeoProjection, kind: MapProjection, hemisphere: Hemisphere, points: MapPoint[], width: number, height: number,
+): View {
     const projected = points
-        .filter((point) => isOnDisc(point, hemisphere))
+        .filter((point) => isOnMap(point, kind, hemisphere))
         .map((point) => projection([point.longitude, point.latitude]))
         .filter((xy): xy is [number, number] => xy !== null);
     if (projected.length === 0) return HOME_VIEW;
@@ -71,7 +89,7 @@ function fitView(projection: GeoProjection, hemisphere: Hemisphere, points: MapP
     const ys = projected.map(([, y]) => y);
     const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
     const minSpan = (MIN_FIT_SPAN_DEG * Math.PI / 180) * projection.scale();
-    // Never smaller than the whole disc (zoom 1), which always fits.
+    // Never smaller than the whole map (zoom 1).
     const k = clamp(
         Math.min(
             (width - 2 * FIT_PADDING) / Math.max(maxX - minX, minSpan),
@@ -129,13 +147,15 @@ type Gesture =
     | { kind: "draw"; start: [number, number] };
 
 /**
- * Polar map: the Earth seen from above the North or the South pole (azimuthal
- * equidistant projection), drawn as vectors (Natural Earth coastlines, graticule).
+ * World map with two views: a flat Mercator map, or the Earth seen from above the
+ * North or the South pole (azimuthal equidistant projection). Drawn as vectors
+ * (Natural Earth coastlines, graticule).
  * Drag to pan, Ctrl/⌘ + wheel or the buttons to zoom, click a marker for its details.
  * In drawing mode, a drag draws a latitude/longitude box instead of panning.
  */
 export default function PolarMap({
     points, height = 320, bounds = null, drawing = false, onBoundsDrawn, emptyMessage = "Nothing to show", legend,
+    defaultProjection = "mercator",
 }: PolarMapProps) {
     const theme = useTheme();
     const land = useLand();
@@ -145,6 +165,7 @@ export default function PolarMap({
     const validPoints = useMemo(() => points.filter(isValidPoint), [points]);
     const pointsKey = validPoints.map((point) => `${point.id}:${point.latitude}:${point.longitude}`).join("|");
 
+    const [kind, setKind] = useState<MapProjection>(defaultProjection);
     const [hemisphere, setHemisphere] = useState<Hemisphere>(() => preferredHemisphere(validPoints));
     const [view, setView] = useState<View>(HOME_VIEW);
     const [openPointId, setOpenPointId] = useState<string | null>(null);
@@ -152,8 +173,7 @@ export default function PolarMap({
     const [showZoomHint, setShowZoomHint] = useState(false);
     const gesture = useRef<Gesture | null>(null);
 
-    const radius = Math.max(Math.min(width, height) / 2 - 8, 1);
-    const projection = useMemo(() => polarProjection(hemisphere, radius), [hemisphere, radius]);
+    const projection = useMemo(() => buildProjection(kind, hemisphere, width, height), [kind, hemisphere, width, height]);
 
     // New points (or a new size) re-frame the map, turned to the pole they are around.
     // Adjusted during render, not in an effect, so a stale frame is never painted.
@@ -163,7 +183,7 @@ export default function PolarMap({
         const nextHemisphere = framed?.points === pointsKey ? hemisphere : preferredHemisphere(validPoints);
         setFramed({ points: pointsKey, size: sizeKey });
         setHemisphere(nextHemisphere);
-        setView(fitView(polarProjection(nextHemisphere, radius), nextHemisphere, validPoints, width, height));
+        setView(fitView(buildProjection(kind, nextHemisphere, width, height), kind, nextHemisphere, validPoints, width, height));
     }
 
     const path = useMemo(() => geoPath(projection), [projection]);
@@ -278,23 +298,33 @@ export default function PolarMap({
         if (!current.moved) setOpenPointId(null);
     };
 
-    const switchHemisphere = (next: Hemisphere) => {
-        setHemisphere(next);
+    const switchView = (nextKind: MapProjection, nextHemisphere: Hemisphere) => {
+        setKind(nextKind);
+        setHemisphere(nextHemisphere);
         setOpenPointId(null);
-        setView(fitView(polarProjection(next, radius), next, validPoints, width, height));
+        setView(fitView(
+            buildProjection(nextKind, nextHemisphere, width, height), nextKind, nextHemisphere, validPoints, width, height,
+        ));
     };
 
-    const discPoints = validPoints.filter((point) => isOnDisc(point, hemisphere));
-    const hiddenCount = validPoints.length - discPoints.length;
+    const shownPoints = validPoints.filter((point) => isOnMap(point, kind, hemisphere));
+    const hiddenCount = validPoints.length - shownPoints.length;
     const otherHemisphere: Hemisphere = hemisphere === "north" ? "south" : "north";
 
-    const markers = discPoints
+    const markers = shownPoints
         .map((point) => ({ point, xy: toScreen(projection([point.longitude, point.latitude])) }))
         .filter((marker): marker is { point: MapPoint; xy: [number, number] } => marker.xy !== null);
     const openMarker = markers.find((marker) => marker.point.id === openPointId);
 
-    const parallelLabels = (hemisphere === "north" ? [75, 60, 45, 30, 15, 0, -15] : [-75, -60, -45, -30, -15, 0, 15])
-        .map((latitude) => ({ latitude, xy: toScreen(projection([45, latitude])) }))
+    // Polar: along the 45°E meridian. Mercator: along the left edge of the map.
+    const labelLatitudes = kind === "mercator"
+        ? [75, 60, 45, 30, 15, 0, -15, -30, -45, -60, -75]
+        : hemisphere === "north" ? [75, 60, 45, 30, 15, 0, -15] : [-75, -60, -45, -30, -15, 0, 15];
+    const parallelLabels = labelLatitudes
+        .map((latitude) => {
+            const xy = toScreen(projection([kind === "mercator" ? 0 : 45, latitude]));
+            return { latitude, xy: xy && kind === "mercator" ? [4, xy[1]] as [number, number] : xy };
+        })
         .filter((label): label is { latitude: number; xy: [number, number] } =>
             label.xy !== null && label.xy[0] > 0 && label.xy[0] < width && label.xy[1] > 0 && label.xy[1] < height);
 
@@ -326,7 +356,9 @@ export default function PolarMap({
                     width={width}
                     height={height}
                     role="img"
-                    aria-label={`Polar map, ${hemisphere === "north" ? "North" : "South"} pole view`}
+                    aria-label={kind === "mercator"
+                        ? "Mercator map, world view"
+                        : `Polar map, ${hemisphere === "north" ? "North" : "South"} pole view`}
                     style={{ display: "block", touchAction: "none", cursor: drawing ? "crosshair" : "grab" }}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
@@ -422,18 +454,34 @@ export default function PolarMap({
                     </Paper>
                 )}
 
-                <Paper elevation={2} sx={{ position: "absolute", top: 10, left: 10, p: 0.5, borderRadius: 2 }}>
-                    <ToggleButtonGroup
-                        size="small"
-                        exclusive
-                        value={hemisphere}
-                        onChange={(_event, next: Hemisphere | null) => next && switchHemisphere(next)}
-                        aria-label="Pole"
-                    >
-                        <ToggleButton value="north" sx={{ py: 0.25, px: 1, fontSize: 12 }}>North pole</ToggleButton>
-                        <ToggleButton value="south" sx={{ py: 0.25, px: 1, fontSize: 12 }}>South pole</ToggleButton>
-                    </ToggleButtonGroup>
-                </Paper>
+                <Box sx={{ position: "absolute", top: 10, left: 10, right: 56, display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    <Paper elevation={2} sx={{ p: 0.5, borderRadius: 2 }}>
+                        <ToggleButtonGroup
+                            size="small"
+                            exclusive
+                            value={kind}
+                            onChange={(_event, next: MapProjection | null) => next && switchView(next, hemisphere)}
+                            aria-label="Projection"
+                        >
+                            <ToggleButton value="mercator" sx={{ py: 0.25, px: 1, fontSize: 12 }}>Mercator</ToggleButton>
+                            <ToggleButton value="polar" sx={{ py: 0.25, px: 1, fontSize: 12 }}>Polar</ToggleButton>
+                        </ToggleButtonGroup>
+                    </Paper>
+                    {kind === "polar" && (
+                        <Paper elevation={2} sx={{ p: 0.5, borderRadius: 2 }}>
+                            <ToggleButtonGroup
+                                size="small"
+                                exclusive
+                                value={hemisphere}
+                                onChange={(_event, next: Hemisphere | null) => next && switchView("polar", next)}
+                                aria-label="Pole"
+                            >
+                                <ToggleButton value="north" sx={{ py: 0.25, px: 1, fontSize: 12 }}>North pole</ToggleButton>
+                                <ToggleButton value="south" sx={{ py: 0.25, px: 1, fontSize: 12 }}>South pole</ToggleButton>
+                            </ToggleButtonGroup>
+                        </Paper>
+                    )}
+                </Box>
 
                 <Paper
                     elevation={2}
@@ -453,7 +501,7 @@ export default function PolarMap({
                         <IconButton
                             size="small"
                             aria-label="Fit to points"
-                            onClick={() => setView(fitView(projection, hemisphere, validPoints, width, height))}
+                            onClick={() => setView(fitView(projection, kind, hemisphere, validPoints, width, height))}
                         >
                             <CenterFocusStrongIcon fontSize="small" />
                         </IconButton>
@@ -473,11 +521,11 @@ export default function PolarMap({
                     </Box>
                 </Fade>
 
-                {hiddenCount > 0 && (
+                {kind === "polar" && hiddenCount > 0 && (
                     <Paper elevation={2} sx={{ position: "absolute", bottom: 10, left: 10, px: 1.5, py: 0.5, borderRadius: 2 }}>
                         <Typography variant="caption" color="text.secondary">
                             {hiddenCount} more near the{" "}
-                            <Link component="button" type="button" variant="caption" onClick={() => switchHemisphere(otherHemisphere)}>
+                            <Link component="button" type="button" variant="caption" onClick={() => switchView("polar", otherHemisphere)}>
                                 {otherHemisphere === "north" ? "North" : "South"} pole
                             </Link>
                         </Typography>
