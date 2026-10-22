@@ -33,6 +33,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { useNavigate } from "react-router-dom";
 import SectionCard from "@/shared/components/SectionCard";
+import { countColumn } from "@/shared/components/countColumn";
 import type { Project } from "../api/projects.api";
 import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
 import { getProjectAccess, getProjectRole, privacyLabel, roleLabel, toPrivacyStatus } from "../utils/projectAccess";
@@ -160,39 +161,8 @@ export default function ProjectsPage() {
                 ),
         },
         { field: "root_folder_path", headerName: "Root folder", flex: 2 },
-        {
-            field: "nbr_sample",
-            headerName: "Samples",
-            width: 120,
-            align: "center",
-            headerAlign: "center",
-            renderCell: (params: GridRenderCellParams<Project>) =>
-                typeof params.value === "number" ? (
-                    <Typography variant="body2">{params.value}</Typography>
-                ) : (
-                    <Typography variant="caption" color="text.secondary">
-                        —
-                    </Typography>
-                ),
-        },
-        {
-            field: "nbr_ctd_sample",
-            headerName: "Samples with CTD",
-            width: 140,
-            align: "center",
-            headerAlign: "center",
-            sortable: false,
-            renderCell: (params: GridRenderCellParams<Project>) =>
-                typeof params.value === "number" ? (
-                    <Typography variant="body2" color={params.value > 0 ? "text.primary" : "text.secondary"}>
-                        {params.value}
-                    </Typography>
-                ) : (
-                    <Typography variant="caption" color="text.secondary">
-                        —
-                    </Typography>
-                ),
-        },
+        countColumn<Project>("nbr_sample", "Samples"),
+        countColumn<Project>("nbr_ctd_sample", "Samples with CTD"),
         {
             field: "privilege",
             headerName: "Privilege",

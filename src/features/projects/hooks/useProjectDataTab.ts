@@ -18,7 +18,14 @@ import { getEcoTaxaInstances } from "@/shared/api/ecotaxa.api";
 import { buildEcoTaxaSampleUrl as buildSampleUrl } from "../utils/ecotaxaLinks";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
-import { toRequestLimit } from "@/shared/utils/pageSizeOptions";
+import { ALL_PAGE_SIZE, toRequestLimit } from "@/shared/utils/pageSizeOptions";
+
+/**
+ * 0-based index of the last page that holds rows. A page past it comes back
+ * empty from the server, e.g. after deleting the only rows of the last page.
+ */
+const getLastPageIndex = (totalRows: number, pageSize: number): number =>
+    pageSize === ALL_PAGE_SIZE || pageSize <= 0 ? 0 : Math.max(Math.ceil(totalRows / pageSize) - 1, 0);
 
 export interface UseProjectDataTabOptions {
     /**
@@ -122,6 +129,7 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
     const fetchUvpSamples = useCallback(async () => {
         const requestId = ++uvpRequestId.current;
         const isLatest = () => requestId === uvpRequestId.current;
+        let steppedBack = false;
         setLoadingUvp(true);
         setUvpError(null);
         try {
@@ -131,8 +139,19 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
                 filters: [],
             });
             if (!isLatest()) return;
-            setUvpSamples(response.samples || []);
-            setTotalUvpRows(response.search_info?.total || 0);
+            const samples = response.samples || [];
+            const total = response.search_info?.total || 0;
+            const lastPage = getLastPageIndex(total, uvpPaginationModel.pageSize);
+            if (samples.length === 0 && uvpPaginationModel.page > lastPage) {
+                // This page emptied (its last rows were deleted): step back to the last
+                // non-empty page instead of showing the empty state. The page change
+                // triggers the next fetch, so the loading state is kept until then.
+                steppedBack = true;
+                setUvpPaginationModel((prev) => ({ ...prev, page: lastPage }));
+                return;
+            }
+            setUvpSamples(samples);
+            setTotalUvpRows(total);
         } catch (error) {
             if (!isLatest()) return;
             console.error("Failed to load UVP samples", error);
@@ -140,13 +159,14 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
             setTotalUvpRows(0);
             setUvpError(error instanceof Error ? error.message : "Unknown error");
         } finally {
-            if (isLatest()) setLoadingUvp(false);
+            if (isLatest() && !steppedBack) setLoadingUvp(false);
         }
     }, [projectId, uvpPaginationModel.page, uvpPaginationModel.pageSize]);
 
     const fetchEcoTaxaSamples = useCallback(async () => {
         const requestId = ++ecoTaxaRequestId.current;
         const isLatest = () => requestId === ecoTaxaRequestId.current;
+        let steppedBack = false;
         setLoadingEcoTaxa(true);
         setEcoTaxaError(null);
         try {
@@ -156,8 +176,17 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
                 filters: [],
             });
             if (!isLatest()) return;
-            setEcoTaxaSamples(response.samples || []);
-            setTotalEcoTaxaRows(response.search_info?.total || 0);
+            const samples = response.samples || [];
+            const total = response.search_info?.total || 0;
+            const lastPage = getLastPageIndex(total, ecoTaxaPaginationModel.pageSize);
+            if (samples.length === 0 && ecoTaxaPaginationModel.page > lastPage) {
+                // Same step back as the UVP list.
+                steppedBack = true;
+                setEcoTaxaPaginationModel((prev) => ({ ...prev, page: lastPage }));
+                return;
+            }
+            setEcoTaxaSamples(samples);
+            setTotalEcoTaxaRows(total);
         } catch (error) {
             if (!isLatest()) return;
             console.error("Failed to load EcoTaxa samples", error);
@@ -165,7 +194,7 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
             setTotalEcoTaxaRows(0);
             setEcoTaxaError(error instanceof Error ? error.message : "Unknown error");
         } finally {
-            if (isLatest()) setLoadingEcoTaxa(false);
+            if (isLatest() && !steppedBack) setLoadingEcoTaxa(false);
         }
     }, [projectId, ecoTaxaPaginationModel.page, ecoTaxaPaginationModel.pageSize]);
 

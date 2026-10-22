@@ -287,4 +287,68 @@ describe('hooks/useProjectDataTab', () => {
             errorSpy.mockRestore();
         }
     });
+
+    it('TC-P21: steps back to the last non-empty page when the UVP page comes back empty after a delete', async () => {
+        // 21 samples over 3 pages of 10; deleting the only sample of page 3 leaves 20.
+        let deleted = false;
+        vi.mocked(searchProjectSamples).mockImplementation(async (_projectId, { page }) => {
+            if (page === 3) {
+                return deleted
+                    ? { samples: [], search_info: { total: 20, page: 3, limit: 10 } }
+                    : { samples: [{ sample_id: 21, sample_name: 's21' }], search_info: { total: 21, page: 3, limit: 10 } };
+            }
+            return {
+                samples: [{ sample_id: page * 10, sample_name: `s${page * 10}` }],
+                search_info: { total: deleted ? 20 : 21, page, limit: 10 },
+            };
+        });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(deleteProjectSample).mockImplementation(async () => {
+            deleted = true;
+            return { message: 'Deleted' };
+        });
+        const confirmSpy = answerConfirmDialogs(true);
+
+        try {
+            const { result } = renderHook(() => useProjectDataTab(77));
+            await waitFor(() => expect(result.current.uvpSamples[0]?.sample_name).toBe('s10'));
+
+            act(() => result.current.setUvpPaginationModel({ page: 2, pageSize: 10 }));
+            await waitFor(() => expect(result.current.uvpSamples[0]?.sample_name).toBe('s21'));
+
+            act(() => result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([21]) }));
+            await act(async () => {
+                await result.current.handleDeleteUvpSamples();
+            });
+
+            // Page 3 is now past the end: the hook goes back to page 2 and shows its rows.
+            await waitFor(() => expect(result.current.uvpPaginationModel.page).toBe(1));
+            await waitFor(() => expect(result.current.uvpSamples[0]?.sample_name).toBe('s20'));
+            expect(result.current.totalUvpRows).toBe(20);
+            expect(result.current.loadingUvp).toBe(false);
+            expect(searchProjectSamples).toHaveBeenLastCalledWith(77, expect.objectContaining({ page: 2, limit: 10 }));
+        } finally {
+            confirmSpy.mockRestore();
+        }
+    });
+
+    it('TC-P22: steps back to the last non-empty page when the EcoTaxa page comes back empty', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectEcoTaxaSamples).mockImplementation(async (_projectId, { page }) =>
+            page === 1
+                ? { samples: [makeEcoTaxaSample({ sample_name: 'etx-1' })], search_info: { total: 5, page: 1, limit: 10 } }
+                : { samples: [], search_info: { total: 5, page, limit: 10 } },
+        );
+
+        const { result } = renderHook(() => useProjectDataTab(77));
+        await waitFor(() => expect(result.current.ecoTaxaSamples).toHaveLength(1));
+
+        act(() => result.current.setEcoTaxaPaginationModel({ page: 1, pageSize: 10 }));
+
+        await waitFor(() => expect(result.current.ecoTaxaPaginationModel.page).toBe(0));
+        await waitFor(() => expect(result.current.loadingEcoTaxa).toBe(false));
+        expect(result.current.ecoTaxaSamples.map((s) => s.sample_name)).toEqual(['etx-1']);
+    });
 });

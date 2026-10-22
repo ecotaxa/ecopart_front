@@ -35,7 +35,20 @@ describe('chartScales', () => {
 
     it('formats ticks compactly', () => {
         expect(formatTick(1200)).toBe('1200');
-        expect(formatTick(0.000012)).toBe('1e-5');
+        expect(formatTick(0.000012)).toBe('1.2e-5');
         expect(formatTick(0.30000000000000004)).toBe('0.3');
+    });
+
+    it('keeps the mantissa of exponent labels, so close ticks stay distinct', () => {
+        expect(formatTick(0.00025)).toBe('2.5e-4');
+        expect(formatTick(0.0005)).toBe('5e-4');
+        expect(formatTick(100000)).toBe('1e5');
+        const labels = [100000, 120000, 140000].map(formatTick);
+        expect(labels).toEqual(['1e5', '1.2e5', '1.4e5']);
+    });
+
+    it('falls back to a few decades in log10 when the domain has no positive bound', () => {
+        expect(createScale('log10', [0, 1], [0, 300]).ticks).toEqual([0.01, 0.1, 1]);
+        expect(createScale('log10', [-5, 0], [0, 300]).ticks).toEqual([0.1, 1, 10]);
     });
 });

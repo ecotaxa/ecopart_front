@@ -18,9 +18,7 @@ import { VALIDATION_MESSAGES } from "@/shared/utils/validation/messages";
 // Shared components
 import { AuthPageLayout } from "@/shared/components/AuthPageLayout";
 import { PasswordInput } from "@/shared/components/PasswordInput";
-
-/** Where a freshly logged-in user lands when no protected page redirected them here. */
-const DEFAULT_AFTER_LOGIN = "/dashboard";
+import { redirectPathFromState } from "@/shared/utils/redirectPath";
 
 export default function LoginPage() {
     const location = useLocation();
@@ -37,13 +35,10 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null);
 
     // location.state is untyped: narrow what we read from it.
-    const navState = location.state as { successMessage?: unknown; from?: unknown } | null;
+    const navState = location.state as { successMessage?: unknown } | null;
     const successMessage = typeof navState?.successMessage === "string" ? navState.successMessage : undefined;
-    // Only in-app paths are honoured (never an absolute URL), so the redirect
-    // can't be abused to send the user off-site.
-    const from = typeof navState?.from === "string" && navState.from.startsWith("/") && !navState.from.startsWith("//")
-        ? navState.from
-        : DEFAULT_AFTER_LOGIN;
+    // Same target as PublicOnlyRoute, which redirects as soon as the user is set.
+    const from = redirectPathFromState(location.state);
 
     // Validation Logic
     const emailIsValid = isValidEmail(email);

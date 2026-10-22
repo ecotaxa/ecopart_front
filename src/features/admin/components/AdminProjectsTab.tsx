@@ -7,6 +7,7 @@ import {
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoTooltip from "@/shared/components/InfoTooltip";
+import { countColumn } from "@/shared/components/countColumn";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 
@@ -139,30 +140,8 @@ export default function AdminProjectsTab() {
                 <Chip label={privacyLabel(toPrivacyStatus(params.row.privacy_status))} size="small" variant="outlined" />
             ),
         },
-        {
-            field: "nbr_sample",
-            headerName: "Nb of samples",
-            width: 120,
-            align: "center",
-            headerAlign: "center",
-            sortable: false,
-            renderCell: (params: GridRenderCellParams<Project>) =>
-                typeof params.value === "number"
-                    ? <Typography variant="body2">{params.value}</Typography>
-                    : <Typography variant="caption" color="text.secondary">—</Typography>,
-        },
-        {
-            field: "nbr_ctd_sample",
-            headerName: "Samples with CTD",
-            width: 130,
-            align: "center",
-            headerAlign: "center",
-            sortable: false,
-            renderCell: (params: GridRenderCellParams<Project>) =>
-                typeof params.value === "number"
-                    ? <Typography variant="body2" color={params.value > 0 ? "text.primary" : "text.secondary"}>{params.value}</Typography>
-                    : <Typography variant="caption" color="text.secondary">—</Typography>,
-        },
+        countColumn<Project>("nbr_sample", "Samples"),
+        countColumn<Project>("nbr_ctd_sample", "Samples with CTD"),
         {
             field: "managers",
             headerName: "Managers",

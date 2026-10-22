@@ -273,7 +273,7 @@ export function EcopartAccountTab({ page }: EcopartAccountTabProps) {
                 </Button>
             </Paper>
 
-            <Dialog open={deleteAccount.dialogOpen} onClose={deleteAccount.close}>
+            <Dialog open={deleteAccount.dialogOpen} onClose={deleteAccount.deleting ? undefined : deleteAccount.close}>
                 <DialogTitle>Delete Account?</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
@@ -283,8 +283,8 @@ export function EcopartAccountTab({ page }: EcopartAccountTabProps) {
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={deleteAccount.close}>Cancel</Button>
-                    <Button onClick={deleteAccount.confirm} color="error" autoFocus>Delete</Button>
+                    <Button onClick={deleteAccount.close} disabled={deleteAccount.deleting}>Cancel</Button>
+                    <Button onClick={deleteAccount.confirm} color="error" autoFocus disabled={deleteAccount.deleting}>Delete</Button>
                 </DialogActions>
             </Dialog>
         </>

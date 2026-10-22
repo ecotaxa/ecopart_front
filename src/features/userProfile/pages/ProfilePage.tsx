@@ -2,7 +2,9 @@ import { Alert, Box, CircularProgress, Container, Tab, Tabs, Typography } from "
 import PersonIcon from "@mui/icons-material/Person";
 import CloudIcon from "@mui/icons-material/Cloud";
 
-import { useProfilePage } from "../hooks/useProfilePage";
+import { useParams } from "react-router-dom";
+
+import { routeUserIdFromParam, useProfilePage } from "../hooks/useProfilePage";
 import { EcopartAccountTab } from "../components/EcopartAccountTab";
 import { EcoTaxaAccountsTab } from "../components/EcoTaxaAccountsTab";
 import { pageContainerSx, pageTabsSx } from "@/shared/layout/pageLayout";
@@ -11,8 +13,19 @@ import { pageContainerSx, pageTabsSx } from "@/shared/layout/pageLayout";
  * Settings page (`/settings/:userId?/:tabName?`): the EcoPart account (profile,
  * password, deletion) and the linked EcoTaxa accounts. All the state lives in
  * `useProfilePage`; each tab is its own component.
+ *
+ * The route element stays mounted when only the id in the URL changes (an admin
+ * going from one account to another), so the page is keyed on the edited
+ * account: every form field, feedback message and dialog starts afresh instead
+ * of carrying over from the previous account. Switching tabs keeps the key
+ * (except once from the legacy id-less URL, whose tab links add the id).
  */
 export default function ProfilePage() {
+    const { userId } = useParams<{ userId?: string }>();
+    return <ProfilePageContent key={routeUserIdFromParam(userId) ?? "self"} />;
+}
+
+function ProfilePageContent() {
     const page = useProfilePage();
     const { loadingUser, loadError, tabValue, handleTabChange } = page;
 

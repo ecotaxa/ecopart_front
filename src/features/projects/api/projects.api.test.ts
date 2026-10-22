@@ -98,15 +98,15 @@ describe('Projects API helpers (W)', () => {
     it('TC-W3: getLastBackupDate returns the backup date (and passes null through)', async () => {
         server.use(
             http.get('*/projects/:id/backup/last-date', () =>
-                HttpResponse.json({ last_backup_date: '2026-01-01T00:00:00.000Z' }),
+                HttpResponse.json({ last_backup_utc_date_time: '2026-01-01T00:00:00.000Z' }),
             ),
         );
-        await expect(getLastBackupDate(PID)).resolves.toEqual({ last_backup_date: '2026-01-01T00:00:00.000Z' });
+        await expect(getLastBackupDate(PID)).resolves.toEqual({ last_backup_utc_date_time: '2026-01-01T00:00:00.000Z' });
 
         server.use(
-            http.get('*/projects/:id/backup/last-date', () => HttpResponse.json({ last_backup_date: null })),
+            http.get('*/projects/:id/backup/last-date', () => HttpResponse.json({ last_backup_utc_date_time: null })),
         );
-        await expect(getLastBackupDate(PID)).resolves.toEqual({ last_backup_date: null });
+        await expect(getLastBackupDate(PID)).resolves.toEqual({ last_backup_utc_date_time: null });
     });
 
     // TC-W4: Raw samples
@@ -484,5 +484,25 @@ describe('enrichProjectsWithSampleCounts', () => {
         expect(first).toMatchObject({ nbr_sample: 10, nbr_ctd_sample: 4 });
         expect(second.nbr_sample).toBe(10);
         expect(second.nbr_ctd_sample).toBeUndefined();
+    });
+
+    it('skips the CTD count of an empty project and of a project whose count failed', async () => {
+        const ctdRequests: string[] = [];
+        server.use(
+            http.post('*/projects/:id/samples/searches', async ({ request, params }) => {
+                const filters = (await request.json()) as SearchFilter[];
+                if (filters.some((filter) => filter.field === 'ctd_imported')) ctdRequests.push(String(params.id));
+                if (params.id === '2') return new HttpResponse(null, { status: 403 });
+                return HttpResponse.json({ search_info: { total: params.id === '1' ? 0 : 5, page: 1, limit: 1 }, samples: [] });
+            }),
+        );
+
+        const [empty, refused, filled] = await enrichProjectsWithSampleCounts([project(1), project(2), project(3)]);
+
+        expect(empty).toMatchObject({ nbr_sample: 0, nbr_ctd_sample: 0 });
+        expect(refused.nbr_sample).toBeUndefined();
+        expect(refused.nbr_ctd_sample).toBeUndefined();
+        expect(filled).toMatchObject({ nbr_sample: 5, nbr_ctd_sample: 5 });
+        expect(ctdRequests).toEqual(['3']);
     });
 });

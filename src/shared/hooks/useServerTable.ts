@@ -104,7 +104,7 @@ export function useServerTable<Row>({
             // Numeric exact-match column: only fully-numeric input produces a filter.
             return /^\d+$/.test(text) ? [{ field: searchAttribute, operator: "=", value: Number(text) }] : [];
         }
-        return [{ field: searchAttribute, operator: "LIKE", value: `%${debouncedSearchText}%` }];
+        return [{ field: searchAttribute, operator: "LIKE", value: `%${text}%` }];
     }, [debouncedSearchText, searchAttribute, numericAttributes]);
 
     const filters = useMemo(() => [...searchFilters, ...extraFilters], [searchFilters, extraFilters]);

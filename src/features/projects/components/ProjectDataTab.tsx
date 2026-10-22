@@ -61,7 +61,7 @@ interface ProjectDataTabProps {
 
 // Helper function to format YYYYMMDDHHMMSS strings into readable dates
 const formatCompactDate = (dateString?: string) => {
-    if (!dateString) return 'Cell';
+    if (!dateString) return '—';
     // If it's already an ISO string (contains 'T')
     if (dateString.includes('T')) return dateString.split('T')[0];
 
@@ -129,12 +129,12 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
             headerName: "Date",
             flex: 1,
             minWidth: 120,
-            // MENTOR FIX: Apply date formatting for better readability
+            // Dates are formatted for readability
             valueGetter: (_value, row) => formatCompactDate(row.sampling_utc_date_time)
         },
-        { field: "filename", headerName: "Raw file name", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.filename || 'Cell' },
-        { field: "sample_type_label", headerName: "Type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.sample_type_label || 'Cell' },
-        { field: "comment", headerName: "Comment", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.comment || 'Cell' },
+        { field: "filename", headerName: "Raw file name", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.filename || '—' },
+        { field: "sample_type_label", headerName: "Type", flex: 1, minWidth: 100, valueGetter: (_value, row) => row.sample_type_label || '—' },
+        { field: "comment", headerName: "Comment", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.comment || '—' },
         {
             field: "ctd_imported", headerName: "Linked CTD", flex: 1, minWidth: 100, align: 'center', headerAlign: 'center', renderCell: (params) => (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -172,7 +172,7 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
 
     const ecoTaxaSamplesColumns: GridColDef<EcoTaxaSampleData>[] = [
         { field: "sample_name", headerName: "Sample name", flex: 2, minWidth: 200 },
-        { field: "ecotaxa_sample_id", headerName: "EcoTaxa sample ID", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.ecotaxa_sample_id || 'Cell' },
+        { field: "ecotaxa_sample_id", headerName: "EcoTaxa sample ID", flex: 1.5, minWidth: 150, valueGetter: (_value, row) => row.ecotaxa_sample_id || '—' },
         { field: "nb_objects", headerName: "Number of objects", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.nb_objects ?? 0 },
         {
             field: "progress",

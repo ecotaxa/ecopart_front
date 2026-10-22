@@ -27,7 +27,7 @@ npm test
 
 ### Core
 
-* **React 18** — UI library
+* **React 19** — UI library
 * **TypeScript** — type safety, refactoring confidence
 * **Vite** — fast dev server and build tool
 
@@ -45,14 +45,13 @@ npm test
 
 ### Routing & Auth
 
-* **React Router v6**
-* **JWT authentication**
+* **React Router v7** (`react-router-dom`, data router)
+* **Cookie session** — httpOnly cookies set by the backend (see Authentication Strategy)
 * **Protected routes**
 
 ### Tooling
 
 * **ESLint** — code quality
-* **Prettier** — formatting
 * **Absolute imports (`@/...`)** — no relative path hell
 
 ---
@@ -195,17 +194,22 @@ This rule prevents premature abstraction and keeps features cohesive.
 
 ---
 
-### Example: Login API
+### Example: Auth API
 
 ```ts
-export async function loginRequest(email: string, password: string) {
-  return fetch("/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  }).then((r) => r.json());
+// features/auth/api/auth.api.ts
+import { http } from "@/shared/api/http";
+
+export async function fetchMe(): Promise<User> {
+  // The shared http() wrapper: cookies, 401 → refresh → retry, ApiError mapping
+  return http<User>("/auth/user/me");
 }
 ```
+
+API helpers go through `http()` (see `shared/api/http.ts` below). The login and
+logout calls are the exception: they use a plain `fetch(API_BASE_URL + …, { credentials: "include" })`,
+since a wrong password (401) must surface as `InvalidCredentialsError` instead of
+triggering a token refresh.
 
 ### Example: Feature export
 
@@ -234,7 +238,7 @@ shared/
 │  └─ referenceData.api.ts
 ├─ components/
 │  ├─ ConfirmDialog.tsx  # ConfirmDialogHost — the one confirmation dialog of the app
-│  ├─ TopBar.tsx, GlobalAnnouncementBanner.tsx, SectionCard.tsx, InfoTooltip.tsx, …
+│  ├─ SectionCard.tsx, InfoTooltip.tsx, StatCard.tsx, PasswordInput.tsx, map/, …
 ├─ confirm/
 │  └─ confirm.store.ts   # confirmDialog(options): Promise<boolean>
 ├─ hooks/
@@ -300,7 +304,7 @@ theme/
 Why:
 
 * Consistent UI
-* Easy dark/light mode
+* One place to change colours and typography (the palette is light-only today)
 * No duplicated styles
 
 ---
@@ -405,11 +409,14 @@ features/reports/
 
 ## 🚢 Deployment (CI/CD)
 
-Pushing a `v*.*.*` git tag triggers [`.github/workflows/ci.yml`](.github/workflows/ci.yml), which runs three jobs in sequence:
+Every pull request to `main` (and every push to `main`) runs [`.github/workflows/pr-check.yml`](.github/workflows/pr-check.yml): **`lint`** (`npm run lint`) and **`test`** (Vitest with coverage, uploaded to Codecov on pushes) in parallel, then **`build`** (`npm run build`) once both pass. It publishes nothing.
 
-1. **`test`** — runs the Vitest suite with coverage.
-2. **`build-and-push`** — builds the production Docker image and pushes it to Docker Hub under **two tags** (login via the `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` repository secrets).
-3. **`deploy-test`** — deploys that `:latest` image to the test server.
+Pushing a `v*.*.*` git tag triggers [`.github/workflows/ci.yml`](.github/workflows/ci.yml), which runs four jobs in sequence:
+
+1. **`test`** — runs the Vitest suite with coverage (uploaded to Codecov; a Codecov outage does not block the release).
+2. **`build`** — a matrix job that builds the production Docker image natively per platform (`linux/amd64` on `ubuntu-latest`, `linux/arm64` on `ubuntu-24.04-arm`) and pushes each image to Docker Hub **by digest only**, untagged (login via the `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` repository secrets).
+3. **`publish`** — combines the per-platform digests into one multi-arch image with `docker buildx imagetools create` and gives it **two tags** (no rebuild, registry-side).
+4. **`deploy-test`** — deploys that `:latest` image to the test server.
 
 ### The git tag does not pick a target
 
@@ -489,42 +496,17 @@ The **test** runner (label `ecopart-test`) lives on a different machine and was 
 
 ## 🔮 Future Improvements (Planned)
 * techno/architecture :
-  * Backend aggregates for the per-row counts (`nbr_sample` in the project search,
+  * Backend aggregates for the per-row counts (`nbr_sample` and `nbr_ctd_sample` in the project search,
     manager/member counts in the user search) — the front currently derives them
-    with one request per row (`enrichProjectsWithSampleCounts`, `useAdminUsersTable`)
+    with one or two requests per row (`enrichProjectsWithSampleCounts`, `useAdminUsersTable`)
   * One documented response shape per backend endpoint, so the defensive
     normalisers in `projects.api.ts` can go
   * Automated accessibility checks (axe) on top of the keyboard-navigation tests
   * E2E tests (Playwright)
-* features to come: 
-  * explore
-  * export
-  * login
-  * register
-  * reset password
-  * user settings ecopart account
-  * user settings ecotaxa accounts
-  * projects
-  * create project
-  * project stats
-  * project metadata
-  * project data
-  * project import
-  * project update
-  * project security
-  * project tasks
-  * sample context
-  * sample metadata
-  * sample instrument
-  * sample QC
-  * tasks
-  * task general
-  * task log file
-  * admin quick acces
-  * admin users
-  * admin projects
-  * admin tasks
-  * admin updates
+* features to come:
+  * explore data: the Explore page UI is built, but `useExploreData` returns an empty
+    selection until the backend explore endpoints exist
+  * export: the Explore page's **Export selection** button has no action yet
 
 ---
 
@@ -546,9 +528,10 @@ The structure forces good decisions and prevents common React project decay.
 This section documents the testing architecture, tooling, and the full catalogue of
 test cases that guard the application.
 
-> **Suite at a glance:** **594 tests** across **78 files** (Vitest).
+> **Suite at a glance:** **600+ tests** across **80+ files** (Vitest).
 > Every functional test embeds its `TC-…` id in the test title, so a scenario in this
-> table maps 1:1 to a runnable test (`vitest -t "TC-A3"`).
+> table maps 1:1 to a runnable test (`vitest -t "TC-A3"`). The Explore tests are the
+> exception: they carry no id yet and are listed by title (run them by file).
 
 ## 🛠 Testing Tech Stack
 
@@ -749,8 +732,12 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-J3** | Update error (PATCH) | The backend returns 500. | Click **SAVE**. | An error snackbar appears. |
 | **TC-J4** | Linked EcoTaxa summary | The project is linked to an EcoTaxa project. | View the tab, then unlink. | • The linked EcoTaxa summary is shown.<br>• The fields switch back to editable after unlinking. |
 | **TC-J5** | Loaded project title is locked | The component is connected to the API handlers. | Wait for the loaded title to display, then try to erase the field via a user action. | • The lock helper text is present.<br>• The original value stays intact in the input after the deletion attempt. |
+| **TC-J6** | Plain save on a linked project | The project is linked to EcoTaxa. | Change the root folder path and click **SAVE**. | The PATCH carries the new `root_folder_path` and no EcoTaxa field (the backend reads any of them as a link request). |
+| **TC-J6** *(people)* | People emails checked against EcoPart accounts | Only the data owner's email has an account. | Render the tab. | • One `email IN (…)` users search for the three loaded emails.<br>• One confirmed icon (data owner) and two unknown icons. |
+| **TC-J7** | Instance alone is not a link request | The unlinked project carries an EcoTaxa instance but no account is picked. | Click **SAVE**. | • *Create a new EcoTaxa project* is off by default.<br>• The PATCH carries no EcoTaxa field. |
 | **TC-J8** | Read-only mode | `readOnly` is set (the user may not manage the project); the project is linked to EcoTaxa. | Render the tab. | • Text fields are `readonly`, the descent filter switch is disabled, the title lock helper is hidden.<br>• No folder browser, **SAVE**, **CANCEL**, **UNLINK ECOTAXA PROJECT** or **ADD AN ECOTAXA ACCOUNT**.<br>• The linked EcoTaxa project stays visible and openable.<br>• The viewer's EcoTaxa accounts are never requested. |
 | **TC-J9** | No root folder in the payload | The backend omits `root_folder_path` (user without privilege); the project is not linked. | Render the tab read-only. | • The *Root folder path* field is not rendered.<br>• "This project is not linked to an EcoTaxa project." replaces the link fields. |
+| **TC-J10** | Editing a field clears its inline error | The loaded project has an empty acronym. | Click **SAVE**, then type an acronym. | • After the save the acronym field is invalid with "Project acronym is required".<br>• Once edited, the field is valid again and the message is gone. |
 
 ### K. Project Security Tab (`ProjectSecurityTab`)
 
@@ -762,6 +749,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-K2** | Validation (no contact) | The form is loaded. | Remove the Contact radio selection (or ensure none is selected) and click **SAVE**. | • Submission is blocked.<br>• A warning snackbar appears ("A contact is required.") — the same validator as project creation (a manager is required too). |
 | **TC-K3** | Update success (PATCH) | Valid security data; `PATCH /projects/101` mocked OK. | Change a privacy delay (6 → 12) and click **SAVE**. | • `PATCH /projects/101` is called.<br>• The "Security settings updated successfully!" snackbar appears. |
 | **TC-K4** | Timeline follows the privacy status | The tab receives `privacyStatus="public"`. | Render the tab. | • The steps read Private, Visible, Public, Public+; the reached ones are ticked and Public is the current step (`aria-current="step"`).<br>• The delays are described as counted in months after the project creation. |
+| **TC-K5** | Load error shows an alert, not the form | `POST /projects/searches` answers 500. | Render the tab. | • An error alert is shown.<br>• No **SAVE** button: a form of defaults is never offered (saving it would wipe the real settings). |
 
 ### L. `useNewProjectForm` Hook (unit)
 
@@ -839,16 +827,16 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
 | **TC-P1** | Server-side pagination (UVP samples) | The API returns a total of 45 rows for UVP samples (`totalUvpRows = 45`). | Click the "Next page" button in the UVP DataGrid footer. | • `uvpPaginationModel` moves to page 1 (index 1).<br>• A new `searchProjectSamples` call fires with `{ page: 2, limit: 10 }`.<br>• A loading spinner appears briefly, then the new data displays. |
-| **TC-P2** | Delete UVP samples flow | The user has selected 2 UVP samples in the table. | Click **DELETE** in the UVP action bar, then confirm the `window.confirm` dialog. | • `deleteProjectSample` is called for each ID via `Promise.all`.<br>• On success, `selectedUvpSamples` resets, `fetchUvpSamples` re-fires to refresh the table, and a success snackbar is shown. |
+| **TC-P2** | Delete UVP samples flow | The user has selected 2 UVP samples in the table. | Click **DELETE** in the UVP action bar, then confirm the dialog (`confirmDialog`). | • `deleteProjectSample` is called for each ID via `Promise.all`.<br>• On success, `selectedUvpSamples` resets, `fetchUvpSamples` re-fires to refresh the table, and a success snackbar is shown. |
 | **TC-P3** | QC status icons mapping | The returned sample row has `visual_qc_status_label: "VALIDATED"` or `"TO_BE_CHECKED"`. | Inspect the "QC state" column. | • The success icon shows for "VALIDATED" (`<CheckCircleIcon color="success"/>`).<br>• The warning icon shows for any other value (`<WarningAmberIcon color="warning"/>`). |
 | **TC-P3b** | EcoTaxa fetch error state | The EcoTaxa fetch fails. | Load the Data tab. | An error state is shown (not "No rows"). |
 | **TC-P7** | Deep-link EcoTaxa row click when project is linked | `getProjectById` returns a linked project (`ecotaxa_project_id: 20092`, `ecotaxa_instance_id: 1`); `getEcoTaxaInstances` returns the URL `https://ecotaxa.example.fr`; `searchProjectEcoTaxaSamples` returns sample ETX-1 (`ecotaxa_sample_id: 5001`). | Render the component, wait for instance resolution, and click the ETX-1 sample cell. | `window.open` is called with `('https://ecotaxa.example.fr/prj/20092?samples=5001', '_blank', 'noopener,noreferrer')`. |
 | **TC-P8** | EcoTaxa row click is inert when project is not linked | The returned project has its EcoTaxa identifiers set to null. | Render the component, wait for the ETX-1 row and click it. | The action stays inert and `window.open` is never called. |
 | **TC-P9** | Fetches UVP samples & exposes pagination info (hook) | `searchProjectSamples` and `searchProjectEcoTaxaSamples` are mocked to return data and `search_info` (total/page/limit). | Mount `useProjectDataTab(projectId)` and wait for the initial load. | • `uvpSamples` is filled.<br>• `totalUvpRows` reflects `search_info.total`.<br>• The exposed pagination is correctly initialized. |
-| **TC-P10** | Selected UVP samples deletion & refetch (hook) | `searchProjectSamples` returns rows then `[]`; `deleteProjectSample` resolves; `window.confirm` returns true. | Select IDs `{1,2}` and call `handleDeleteUvpSamples()`. | • `deleteProjectSample` is called twice, with `(77,1)` and `(77,2)`.<br>• `uvpSelectionCount` returns to 0. |
+| **TC-P10** | Selected UVP samples deletion & refetch (hook) | `searchProjectSamples` returns rows then `[]`; `deleteProjectSample` resolves; the confirm dialog is answered yes. | Select IDs `{1,2}` and call `handleDeleteUvpSamples()`. | • `deleteProjectSample` is called twice, with `(77,1)` and `(77,2)`.<br>• `uvpSelectionCount` returns to 0. |
 | **TC-P11** | Exclude-selection mode counting (hook) | `searchProjectSamples` returns a global total of 2 samples. | Set the selection with `{ type: 'exclude', ids: ∅ }`. | `uvpSelectionCount === 2` (all rows of the project). |
 | **TC-P12** | Selected CTD samples deletion & refetch (hook) | `searchProjectCtdSamples` returns a sample then `[]`; `deleteProjectCtdSamples` resolves. | Select sample `ctd-1` and call `handleDeleteCtdSamples()`. | • The API is called with `deleteProjectCtdSamples(77, ['ctd-1'])`.<br>• `ctdSelectionCount` resets. |
-| **TC-P13** | EcoTaxa deletion message & refetch (hook) | `searchProjectEcoTaxaSamples` returns a sample then `[]`; `deleteProjectEcoTaxaSamples` resolves; `window.confirm` active. | Select sample `etx-1` and call `handleDeleteEcoTaxaSamples()`. | • The confirm box mentions "delete 1 samples" and "from EcoTaxa".<br>• The API is called with `(77, ['etx-1'])`.<br>• The snackbar shows success and the selection clears. |
+| **TC-P13** | EcoTaxa deletion message & refetch (hook) | `searchProjectEcoTaxaSamples` returns a sample then `[]`; `deleteProjectEcoTaxaSamples` resolves; the confirm dialog is answered yes. | Select sample `etx-1` and call `handleDeleteEcoTaxaSamples()`. | • The confirm box mentions "delete 1 samples" and "from EcoTaxa".<br>• The API is called with `(77, ['etx-1'])`.<br>• The snackbar shows success and the selection clears. |
 | **TC-P14** | `buildEcoTaxaSampleUrl` returns null when unlinked (hook) | `getProjectById` returns an unlinked project (`ecotaxa_instance_id: null`). | Mount the hook and call `buildEcoTaxaSampleUrl(sample)`. | The method returns `null` and the call to `getEcoTaxaInstances` is short-circuited. |
 | **TC-P15** | `buildEcoTaxaSampleUrl` constructs the URL when linked (hook) | `getProjectById` resolves with a linked project (20092/1); `getEcoTaxaInstances` returns `https://ecotaxa.example.fr/`. | Mount the hook, wait for resolution and run `buildEcoTaxaSampleUrl({ ecotaxa_sample_id: 42 })`. | The method deterministically returns `https://ecotaxa.example.fr/prj/20092?samples=42` (trailing slash cleaned). |
 | **TC-P16** | Instance-resolution failure is non-blocking (hook) | `getProjectById` rejects with `Error('boom')`; the UVP/CTD data is valid. | Mount the hook and wait for the initial load. | • The hook loads the UVP/CTD lists normally (`uvpSamples.length === 1`) without crashing.<br>• `buildEcoTaxaSampleUrl` transparently returns `null`. |
@@ -874,7 +862,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-Q6** | Status icons mapping | Rows with statuses DONE, ERROR, RUNNING. | Inspect the Status column. | • DONE → success Check icon.<br>• ERROR → error PriorityHigh icon.<br>• Any other → warning MoreHoriz icon.<br>• The status label text is shown uppercased. |
 | **TC-Q7** | Owner formatting | One row's `task_owner` is an object `{first_name, last_name, email}`, one is null. | Inspect the Owner column. | • Object → "First Last (email)".<br>• null → "System". |
 | **TC-Q8** | Row action navigation | Row with `task_project_id = 7`, `task_id = 3`, plus a row with `task_project_id = null`. | Click a task row. | • Navigates to `/projects/7/tasks/3`.<br>• The action is disabled for the null-project row. |
-| **TC-Q9** | Delete flow (confirm) | Logged in as an admin (task DELETE is admin-only); 2 tasks loaded; `DELETE /tasks/:id/` mocked OK; `window.confirm` stubbed to true. | Select 2 rows via checkboxes, click **DELETE**, and confirm. | • DELETE is called once per ID.<br>• A success snackbar "Selected tasks removed successfully." is shown.<br>• The selection is cleared and the list is refetched. |
+| **TC-Q9** | Delete flow (confirm) | Logged in as an admin (task DELETE is admin-only); 2 tasks loaded; `DELETE /tasks/:id/` mocked OK; the confirm dialog is answered yes (`answerConfirmDialogs(true)`). | Select 2 rows via checkboxes, click **DELETE**, and confirm. | • DELETE is called once per ID.<br>• A success snackbar "Selected tasks removed successfully." is shown.<br>• The selection is cleared and the list is refetched. |
 | **TC-Q10** | API error handling | `POST /tasks/searches` returns 500. | Render the page and wait for load. | • An error Alert "Failed to load tasks…" is shown.<br>• The grid is empty and the page does not crash. |
 | **TC-Q11** | No OpenInNew nav button | Rows are loaded. | Inspect the action cell. | The action cell no longer renders an OpenInNew navigation button. |
 | **TC-Q14** | DELETE is admin-only | Logged in as a user who is not an admin; a finished task is loaded. | Select its row. | The row is selected ("1 items selected") but no **DELETE** button is offered. |
@@ -892,9 +880,9 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-R3** | Debounced status search resets page | Hook mounted. | Call `setSearchText("done")` and advance the 500 ms debounce. | • Page resets to 0.<br>• The next API call carries `{field:"task_status", operator:"LIKE", value:"%done%"}`. |
 | **TC-R4** | `task_id` exact match & numeric guard | Hook mounted. | Call `setSearchAttribute("task_id")`, then `setSearchText("42")` and later `"abc"`. | • "42" → `{field:"task_id", operator:"=", value:42}`.<br>• "abc" → no `task_id` filter is included in the request. |
 | **TC-R5** | Pagination 1-indexed to backend | Hook mounted. | Call `setPaginationModel({page:2, pageSize:5})`. | `searchProjectTasks` is called with `page:3` and `limit:5`. |
-| **TC-R6** | Delete success (batch + cleanup) | `window.confirm` → true; `deleteProjectTask` mocked OK. | Set `selectedTasks` with IDs `{1,2}` and `await handleDeleteTasks()`. | • `deleteProjectTask(1)` and `(2)` are called.<br>• A success snackbar is triggered.<br>• Selection resets to size 0, `searchProjectTasks` is re-called, and `isActionRunning` resets to false. |
-| **TC-R7** | Delete cancelled | `window.confirm` → false; selection non-empty. | Call `await handleDeleteTasks()`. | • `deleteProjectTask` is never called.<br>• The selection is preserved. |
-| **TC-R8** | Delete error handling | `window.confirm` → true; `deleteProjectTask` rejects. | Call `await handleDeleteTasks()`. | • An error snackbar "Failed to clean up some server tasks." is shown.<br>• `isActionRunning` becomes false and the selection is preserved for retry. |
+| **TC-R6** | Delete success (batch + cleanup) | The confirm dialog is answered yes; `deleteProjectTask` mocked OK. | Set `selectedTasks` with IDs `{1,2}` and `await handleDeleteTasks()`. | • `deleteProjectTask(1)` and `(2)` are called.<br>• A success snackbar is triggered.<br>• Selection resets to size 0, `searchProjectTasks` is re-called, and `isActionRunning` resets to false. |
+| **TC-R7** | Delete cancelled | The confirm dialog is answered no; selection non-empty. | Call `await handleDeleteTasks()`. | • `deleteProjectTask` is never called.<br>• The selection is preserved. |
+| **TC-R8** | Delete error handling | The confirm dialog is answered yes; `deleteProjectTask` rejects. | Call `await handleDeleteTasks()`. | • An error snackbar "Failed to clean up some server tasks." is shown.<br>• `isActionRunning` becomes false and the selection is preserved for retry. |
 | **TC-R9** | Fetch error handling | `searchProjectTasks` rejects. | Mount the hook. | • The `error` state is set to the error message.<br>• `tasks = []`, `totalRows = 0`, and `loading = false`. |
 | **TC-R10** | External refresh event | After the initial load. | Trigger `window.dispatchEvent(new Event("ecopart:tasks:refresh"))`. | `searchProjectTasks` is called again (the listener is correctly wired/unwired on mount/unmount). |
 
@@ -908,8 +896,8 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-S2** | Initial render (General tab) | `getOneTask` returns a valid task (ID 42, type IMPORT, status DONE, project 77). | Render the page at `/projects/77/tasks/42`. | • The "IMPORT task [42]" header shows.<br>• The GENERAL tab is selected (`aria-selected=true`).<br>• Read-only fields are pre-filled (ID 42, Status DONE, Type IMPORT, Project ID 77). |
 | **TC-S3** | Tab switch loads log | `getTaskLog` returns "streaming log output". | Click the "LOG FILE" tab. | • `getTaskLog(42)` is called (it was not on the initial load).<br>• The log text is displayed in the console. |
 | **TC-S4** | Empty-log fallback | `getTaskLog` returns an empty string `""`. | Click the "LOG FILE" tab. | The fallback message "No log messages captured yet by the kernel stream handler." is displayed. |
-| **TC-S5** | Delete success + navigation | Logged in as an admin (task DELETE is admin-only); `window.confirm` → true; `deleteProjectTask` succeeds. | Click the **DELETE** button. | • `deleteProjectTask(42)` is called.<br>• The app navigates to `/projects/77/tasks` (the list page renders). |
-| **TC-S6** | Delete error keeps user on page | Logged in as an admin (task DELETE is admin-only); `window.confirm` → true; `deleteProjectTask` rejects. | Click **DELETE**. | • No navigation.<br>• The "IMPORT task [42]" header stays displayed.<br>• The DELETE button becomes active again (retry possible). |
+| **TC-S5** | Delete success + navigation | Logged in as an admin (task DELETE is admin-only); the confirm dialog is answered yes; `deleteProjectTask` succeeds. | Click the **DELETE** button. | • `deleteProjectTask(42)` is called.<br>• The app navigates to `/projects/77/tasks` (the list page renders). |
+| **TC-S6** | Delete error keeps user on page | Logged in as an admin (task DELETE is admin-only); the confirm dialog is answered yes; `deleteProjectTask` rejects. | Click **DELETE**. | • No navigation.<br>• The "IMPORT task [42]" header stays displayed.<br>• The DELETE button becomes active again (retry possible). |
 | **TC-S7** | Initial load error | `getOneTask` rejects on the first load. | Render the page. | The "Failed to synchronize task metrics from server." alert is displayed (the task staying null). |
 | **TC-S8** | Adaptive polling while RUNNING | `getOneTask` returns a task with status RUNNING (fake timers). | Mount the page, let the initial load settle, advance time by 2500 ms. | `getOneTask` is re-called (goes from 1 to 2 calls) — polling runs while the task is in progress. |
 | **TC-S8b** | No polling once DONE | `getOneTask` returns a task with status DONE (fake timers). | Mount the page, advance time by 8000 ms. | `getOneTask` stays at 1 call — no "non-active" task is re-polled. |
@@ -928,7 +916,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-T2b** | Task id exact match & guard | Attribute = Task id. | Type a numeric then a non-numeric value. | • Numeric → `task_id = N`.<br>• Non-numeric input sends no `task_id` filter. |
 | **TC-T3** | Search builds LIKE filter | Attribute = Label (`task_type`). | Type "backup" in the Search field (wait the 500 ms debounce). | The call carries the filter `{ field: "task_type", operator: "LIKE", value: "%backup%" }`. |
 | **TC-T4** | Row action navigation | A row with `task_id = 3`. | Click the row (`findByText('3')`). | Navigation to `/projects/77/tasks/3` (the detail route renders). |
-| **TC-T5** | Delete flow | Logged in as an admin (task DELETE is admin-only); 2 tasks; `window.confirm` → true; `deleteProjectTask` succeeds. | Check 2 rows, click **DELETE**. | • `deleteProjectTask` is called for each ID.<br>• A snackbar "Selected tasks removed successfully." shows.<br>• The selection resets to "0 items selected". |
+| **TC-T5** | Delete flow | Logged in as an admin (task DELETE is admin-only); 2 tasks; the confirm dialog is answered yes; `deleteProjectTask` succeeds. | Check 2 rows, click **DELETE**. | • `deleteProjectTask` is called for each ID.<br>• A snackbar "Selected tasks removed successfully." shows.<br>• The selection resets to "0 items selected". |
 | **TC-T6** | Status icons mapping | Rows with statuses DONE / ERROR / RUNNING. | Inspect the Status column. | • DONE → CheckIcon.<br>• ERROR → PriorityHighIcon.<br>• RUNNING → MoreHorizIcon. |
 | **TC-T7** | No OpenInNew nav button | The tab is loaded. | Inspect the action cell. | The action cell no longer renders an OpenInNew navigation button. |
 | **TC-T9** | DELETE is admin-only | Logged in as a project manager who is not an admin; a finished task. | Select its row. | No **DELETE** button is offered. |
@@ -945,9 +933,9 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-U3** | Debounced LIKE filter on the selected attribute | Hook mounted. | Call `setSearchText("IMPORT")` and advance the debounce. | • The last call's filters equal `[{ field: 'task_type', operator: 'LIKE', value: '%IMPORT%' }]`.<br>• `paginationModel.page` stays 0. |
 | **TC-U3b** | `task_id` exact match & numeric guard | Hook mounted. | Call `setSearchAttribute("task_id")` + `setSearchText("42")`, then `"abc"`. | • "42" → `[{ field: 'task_id', operator: '=', value: 42 }]`.<br>• "abc" → filters `[]` (no `task_id` filter). |
 | **TC-U4** | Pagination 1-indexed to backend | Hook mounted. | Call `setPaginationModel({ page: 2, pageSize: 5 })`. | The last call matches `{ page: 3, limit: 5, projectId: 77 }`. |
-| **TC-U5** | Delete success (batch + cleanup) | `window.confirm` → true; `deleteProjectTask` resolves. | Set selection `{1,2}` and `await handleDeleteTasks()`. | • `deleteProjectTask(1)` and `(2)` are called.<br>• Selection resets to size 0; snackbar is success "Selected tasks removed successfully."; `isActionRunning` false.<br>• `searchProjectTasks` is re-called. |
-| **TC-U6** | Delete cancelled | `window.confirm` → false; selection = `{1,2}`. | Call `await handleDeleteTasks()`. | • `deleteProjectTask` is never called.<br>• `selectionCount` stays 2. |
-| **TC-U7** | Delete error handling | `window.confirm` → true; the first delete (task 1) rejects, task 2 succeeds. | Set selection `{1,2}` and `await handleDeleteTasks()`. | • Both deletions are attempted (a single failure does not abort the batch).<br>• Snackbar is error "Failed to clean up some server tasks."; `isActionRunning` false.<br>• Only the failed task (1) stays selected (`selectionCount = 1`).<br>• The grid is refreshed. |
+| **TC-U5** | Delete success (batch + cleanup) | The confirm dialog is answered yes; `deleteProjectTask` resolves. | Set selection `{1,2}` and `await handleDeleteTasks()`. | • `deleteProjectTask(1)` and `(2)` are called.<br>• Selection resets to size 0; snackbar is success "Selected tasks removed successfully."; `isActionRunning` false.<br>• `searchProjectTasks` is re-called. |
+| **TC-U6** | Delete cancelled | The confirm dialog is answered no; selection = `{1,2}`. | Call `await handleDeleteTasks()`. | • `deleteProjectTask` is never called.<br>• `selectionCount` stays 2. |
+| **TC-U7** | Delete error handling | The confirm dialog is answered yes; the first delete (task 1) rejects, task 2 succeeds. | Set selection `{1,2}` and `await handleDeleteTasks()`. | • Both deletions are attempted (a single failure does not abort the batch).<br>• Snackbar is error "Failed to clean up some server tasks."; `isActionRunning` false.<br>• Only the failed task (1) stays selected (`selectionCount = 1`).<br>• The grid is refreshed. |
 | **TC-U8** | Fetch error handling | `searchProjectTasks` rejects. | Mount the hook and wait for `loading=false`. | • `tasks = []`.<br>• `totalRows = 0`. *(This hook exposes no `error` field.)* |
 | **TC-U9** | External refresh event | After the initial load. | `window.dispatchEvent(new Event("ecopart:tasks:refresh"))`. | `searchProjectTasks` is called again (listener wired/unwired on mount/unmount). |
 
@@ -1001,7 +989,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 
 ### Z. Top Bar (`TopBar`)
 
-*`shared/components/TopBar.test.tsx`*
+*`app/layouts/TopBar.test.tsx`*
 
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
@@ -1066,6 +1054,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AD1** | Block unauthenticated access | The user is not authenticated. | Render a `<ProtectedRoute>` at `/dashboard`. | • The protected content ("Protected Dashboard") is not rendered.<br>• The user is redirected to `/login` (the "Login Page" renders). |
 | **TC-AD2** | Allow authenticated access | The user is authenticated (`loginAsUser`). | Render a `<ProtectedRoute>` at `/dashboard`. | The protected content ("Protected Dashboard") is rendered; no redirect. |
 | **TC-AD3** | Public-only redirect | The user is authenticated. | Render `<PublicOnlyRoute>` at `/login`, then unmount and render it at `/register`. | • On `/login`: the Login page is not rendered; the app lands on the Dashboard.<br>• On `/register`: the Register page is not rendered; the app lands on the Dashboard. |
+| **TC-AD4** | Deep-link return after login | The user is not authenticated and opens `/projects/5` (a `ProtectedRoute`). | Get redirected to `/login`, fill the form and log in. | The app lands back on `/projects/5`, not on the Dashboard (`PublicOnlyRoute` re-renders as soon as the user is set, before the login page's own `navigate()`, so it aims at the requested page too). |
 
 ### AE. Admin — Tasks Tab (`AdminTasksTab`)
 
@@ -1079,13 +1068,13 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AE4** | Status search (LIKE) | The tab is loaded. | Type "error" in the Search field. | The latest filters equal `[{ field: 'task_status', operator: 'LIKE', value: '%error%' }]`. |
 | **TC-AE5** | Task id search (exact) | The tab is loaded. | Switch the Attribute to "Task id" and type "42". | The latest filters equal `[{ field: 'task_id', operator: '=', value: 42 }]`. |
 | **TC-AE6** | Row click → `from=/admin/tasks` | Two tasks: id 3 (project 7) and id 4 (project null). | Click the orphan row (4), then the valid row (3). | • Clicking the orphan row does not navigate.<br>• Clicking task 3 navigates to the detail page and passes `state.from = '/admin/tasks'` (so "Back" returns here). |
-| **TC-AE7** | Delete after confirmation | Logged in as an admin (the tab sits behind `AdminRoute`); 2 tasks; `window.confirm` → true; delete mocked OK. | Select 2 rows, click **DELETE**. | • Both IDs are deleted (`[1, 2]`).<br>• The "Selected tasks removed successfully." snackbar shows.<br>• The selection returns to "0 items selected". |
+| **TC-AE7** | Delete after confirmation | Logged in as an admin (the tab sits behind `AdminRoute`); 2 tasks; the confirm dialog is answered yes; delete mocked OK. | Select 2 rows, click **DELETE**. | • Both IDs are deleted (`[1, 2]`).<br>• The "Selected tasks removed successfully." snackbar shows.<br>• The selection returns to "0 items selected". |
 | **TC-AE8** | Reserved bulk actions disabled | The tab is loaded. | Inspect the USERS and PROJECTS bulk-action buttons. | Both are disabled (reserved). |
 | **TC-AE9** | Error alert | `POST /tasks/searches` returns 500. | Render the tab. | • "Failed to load tasks" is shown.<br>• No IMPORT row is rendered. |
 
 ### AF. Admin — Users Tab (`AdminUsersTab`, `adminUsers.api`)
 
-*`features/admin/components/AdminUsersTab.test.tsx` — hits `POST /users/searches` (list) and `PATCH /users/:id/` (grant/revoke admin). `adminUsers.api.test.ts` (TC-AF17–18) pins the same two endpoints at the API layer against MSW.*
+*`features/admin/components/AdminUsersTab.test.tsx` — hits `POST /users/searches` (list), `PATCH /users/:id/` (grant/revoke admin) and `DELETE /users/:id/` (delete accounts). `adminUsers.api.test.ts` pins the search and PATCH endpoints at the API layer against MSW; its ids TC-AF17–18 are also used by two tab tests, hence the *(API)* / *(tab)* marks below.*
 
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
@@ -1097,20 +1086,27 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AF6** | Name search (LIKE, default attribute) | The default attribute is Name. | Type "doe" in the Search field. | The latest filters equal `[{ field: 'last_name', operator: 'LIKE', value: '%doe%' }]`. |
 | **TC-AF7** | User id search (exact) | The tab is loaded. | Switch the Attribute to "User id" and type "42". | The latest filters equal `[{ field: 'user_id', operator: '=', value: 42 }]`. |
 | **TC-AF8** | Pagination (1-indexed) | The search returns 1 row with `total = 45`. | Click **Go to next page**. | The latest search call carries `page=2` and `limit=10`. |
-| **TC-AF9** | Grant admin after confirmation | 2 non-admin users; `window.confirm` → true; patch mocked OK. | Select 2 rows, click **ADD ADMIN**. | • Two PATCH calls fire, each with `is_admin: true`, for user IDs `[1, 2]`.<br>• The "Admin rights granted." snackbar shows.<br>• The selection returns to "0 items selected". |
-| **TC-AF10** | Revoke admin after confirmation | One admin user (id 5); `window.confirm` → true; patch mocked OK. | Select the row, click **REMOVE ADMIN**. | • A single PATCH fires: `{ userId: 5, body: { is_admin: false } }`.<br>• The "Admin rights revoked." snackbar shows. |
-| **TC-AF11** | Cancel action (no API call) | `window.confirm` → false. | Select a row and click **ADD ADMIN**. | No PATCH call is made. |
+| **TC-AF9** | Grant admin after confirmation | 2 non-admin users; the confirm dialog is answered yes; patch mocked OK. | Select 2 rows, click **ADD ADMIN**. | • Two PATCH calls fire, each with `is_admin: true`, for user IDs `[1, 2]`.<br>• The "Admin rights granted." snackbar shows.<br>• The selection returns to "0 items selected". |
+| **TC-AF10** | Revoke admin after confirmation | One admin user (id 5); the confirm dialog is answered yes; patch mocked OK. | Select the row, click **REMOVE ADMIN**. | • A single PATCH fires: `{ userId: 5, body: { is_admin: false } }`.<br>• The "Admin rights revoked." snackbar shows. |
+| **TC-AF11** | Cancel action (no API call) | The confirm dialog is answered no. | Select a row and click **ADD ADMIN**. | No PATCH call is made. |
 | **TC-AF12** | Disabled actions without selection | Nothing is selected. | Inspect **ADD ADMIN** and **REMOVE ADMIN**. | Both are disabled. |
-| **TC-AF13** | Not-yet-wired actions disabled | The tab is loaded. | Inspect the reserved actions. | **NEW USER**, **REMOVE FROM ALL PROJECTS**, **ACTIVE**, **DEACTIVE**, **TASKS** and **PROJECTS** are all disabled. |
+| **TC-AF13** | Action bar without selection | The tab is loaded, nothing is selected. | Inspect the action bar. | • **NEW USER** is enabled.<br>• **DELETE**, **TASKS** and **PROJECTS** are disabled.<br>• The removed **REMOVE FROM ALL PROJECTS**, **ACTIVE** and **DEACTIVATE** buttons are absent. |
 | **TC-AF14** | Prevents selecting a deleted account | One active user and one anonymized/deleted user. | Inspect the row checkboxes. | Exactly one checkbox is disabled (the deleted user cannot be selected). |
 | **TC-AF15** | Search error alert | `POST /users/searches` returns 500. | Render the tab. | • "Failed to load users" is shown.<br>• "John Doe" is not rendered. |
-| **TC-AF16** | Partial failure keeps failed users selected | 2 users; `window.confirm` → true; the PATCH for user 2 returns 500, user 1 succeeds. | Select both rows and click **ADD ADMIN**. | • The "Failed to update some users." snackbar shows.<br>• Only the failed user stays selected ("1 items selected"). |
-| **TC-AF17** | `searchUsers` query + body split | MSW captures `POST /users/searches`. | Call with page/limit/sort_by and a filter array. | `page`/`limit`/`sort_by` are in the query; the filter array is the POST body. |
-| **TC-AF18** | `setUserAdmin` PATCHes one user | MSW captures `PATCH /users/:id/`. | Call `setUserAdmin(7, true)`. | A `PATCH /users/7/` carries `{ is_admin: true }` and returns the updated row. |
+| **TC-AF16** | Partial failure keeps failed users selected | 2 users; the confirm dialog is answered yes; the PATCH for user 2 returns 500, user 1 succeeds. | Select both rows and click **ADD ADMIN**. | • The "Failed to update some users." snackbar shows.<br>• Only the failed user stays selected ("1 items selected"). |
+| **TC-AF17** *(API)* | `searchUsers` query + body split | MSW captures `POST /users/searches`. | Call with page/limit/sort_by and a filter array. | `page`/`limit`/`sort_by` are in the query; the filter array is the POST body. |
+| **TC-AF18** *(API)* | `setUserAdmin` PATCHes one user | MSW captures `PATCH /users/:id/`. | Call `setUserAdmin(7, true)`. | A `PATCH /users/7/` carries `{ is_admin: true }` and returns the updated row. |
+| **TC-AF17** *(tab)* | Delete accounts after confirmation | 2 users; the confirm dialog is answered yes. | Select both rows, click **DELETE**. | • `DELETE /users/:id/` is sent for users 1 and 2.<br>• The "User account(s) deleted." snackbar shows. |
+| **TC-AF18** *(tab)* | NEW USER opens the create modal | The tab is loaded. | Click **NEW USER**. | A dialog with the "Create user" heading opens. |
+| **TC-AF19** | Row click → user settings | A user with id 7. | Click the "John Doe" row. | The app navigates to `/settings/7/ecopart_account`. |
+| **TC-AF20** | PROJECTS filtered by the selected user | A user with id 3. | Select the row, click **PROJECTS**. | The app navigates to `/admin/projects?users=3`. |
+| **TC-AF21** | Manager / member project counts | `POST /projects/searches` answers 3 for a `managers` filter and 5 for a `members` filter. | Render the tab. | The row shows the counts 3 and 5. |
+| **TC-AF22** | `?project=` filters by the project's people | Project 41 has manager 10 and members 20, 30. | Open `/admin/users?project=41`. | • The user search filters `user_id IN [10, 20, 30]`.<br>• A "Members of project #41" chip is shown. |
+| **TC-AF23** | `?owner=` scopes by user id | — | Open `/admin/users?owner=11,22` (from the TASKS tab). | • The user search filters `user_id IN [11, 22]`.<br>• A "2 task owners" chip is shown. |
 
 ### AG. Admin — Projects Tab (`AdminProjectsTab`)
 
-*`features/admin/components/AdminProjectsTab.test.tsx` — hits `POST /projects/searches` (list), `POST /projects/:id/samples/searches` (per-row sample count) and `DELETE /projects/:id/` (bulk delete).*
+*`features/admin/components/AdminProjectsTab.test.tsx` — hits `POST /projects/searches` (list), `POST /projects/:id/samples/searches` (per-row sample and CTD counts) and `DELETE /projects/:id/` (bulk delete).*
 
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
@@ -1121,13 +1117,17 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AG5** | Project id search (exact) | The tab is loaded. | Switch the Attribute to "Project id" and type "473". | The latest filters equal `[{ field: 'project_id', operator: '=', value: 473 }]`. |
 | **TC-AG6** | Manager search (exact) | The tab is loaded. | Switch the Attribute to "Manager (user id)" and type "10". | The latest filters equal `[{ field: 'managers', operator: '=', value: 10 }]`. |
 | **TC-AG7** | Non-numeric manager input (no filter) | The Manager attribute is selected. | Type "Marc" (non-numeric) in the Search field. | No manager filter is sent (an empty filter list), rather than a value the backend would reject. |
-| **TC-AG8** | Delete after confirmation | 2 projects; `window.confirm` → true; delete mocked OK. | Select 2 rows, click **DELETE**. | • Both IDs are deleted (`[1, 2]`).<br>• The "Project(s) deleted." snackbar shows.<br>• The selection returns to "0 items selected". |
-| **TC-AG9** | Cancel delete (no API call) | `window.confirm` → false. | Select a row and click **DELETE**. | No DELETE call is made. |
+| **TC-AG8** | Delete after confirmation | 2 projects; the confirm dialog is answered yes; delete mocked OK. | Select 2 rows, click **DELETE**. | • Both IDs are deleted (`[1, 2]`).<br>• The "Project(s) deleted." snackbar shows.<br>• The selection returns to "0 items selected". |
+| **TC-AG9** | Cancel delete (no API call) | The confirm dialog is answered no. | Select a row and click **DELETE**. | No DELETE call is made. |
 | **TC-AG10** | Disabled delete without selection | Nothing is selected. | Inspect the **DELETE** button. | It is disabled. |
-| **TC-AG11** | Not-yet-wired actions disabled | The tab is loaded. | Inspect the reserved actions. | **REMOVE ALL MANAGER**, **REMOVE ALL MEMBERS**, **TASKS** and **USERS** are all disabled. |
-| **TC-AG12** | Partial failure keeps failed projects selected | 2 projects; `window.confirm` → true; the DELETE for project 2 returns 500, project 1 succeeds. | Select both rows and click **DELETE**. | • The "Failed to delete some projects." snackbar shows.<br>• Only the failed project stays selected ("1 items selected"). |
+| **TC-AG11** | Action bar without selection | The tab is loaded, nothing is selected. | Inspect the action bar. | • **TASKS** and **USERS** are disabled.<br>• The removed **NEW PROJECT**, **REMOVE ALL MANAGER** and **REMOVE ALL MEMBERS** buttons are absent. |
+| **TC-AG12** | Partial failure keeps failed projects selected | 2 projects; the confirm dialog is answered yes; the DELETE for project 2 returns 500, project 1 succeeds. | Select both rows and click **DELETE**. | • The "Failed to delete some projects." snackbar shows.<br>• Only the failed project stays selected ("1 items selected"). |
 | **TC-AG13** | Search error alert | `POST /projects/searches` returns 500. | Render the tab. | "Failed to load projects" is shown. |
+| **TC-AG14** | TASKS filtered by the selection | Projects 41 and 42. | Select both rows, click **TASKS**. | The app navigates to `/admin/tasks?project=41,42`. |
+| **TC-AG15** | USERS filtered by the selection | Project 41. | Select the row, click **USERS**. | The app navigates to `/admin/users?project=41`. |
+| **TC-AG16** | `?project=` scopes the search | — | Open `/admin/projects?project=41,42` (from the TASKS tab). | • The search filters `project_id IN [41, 42]`.<br>• A "2 projects" chip is shown. |
 | **TC-AG17** | Privacy column | The search returns a project with `privacy_status` `public` and one without it. | Render the tab. | A **Privacy** column shows "Public" and "Private" (a missing status reads as private). |
+| **TC-AG18** | CTD count column | Samples searches answer 12 unfiltered and 7 with the `ctd_imported = 1` filter. | Render the tab. | The **Samples** cell shows 12 and the **Samples with CTD** cell shows 7; the CTD request carries exactly that filter. |
 
 ### AH. Admin — Quick Access Tab (`AdminQuickAccessTab`)
 
@@ -1222,7 +1222,7 @@ The front mirrors the backend policy to hide what would be refused: roles `admin
 
 ### AU. Admin — Updates (`AdminUpdatesTab`, `useAdminUpdates`, `announcement.store`, `GlobalAnnouncementBanner`, `broadcastMessages.api`)
 
-*The UPDATES tab broadcasts a single site-wide message to every user. The message is owned by the backend (`/broadcast_messages`: `GET` reads the current one — or `null` — for any authenticated user, `POST` sets/replaces it and `DELETE` clears it, both admin-only). The `useAnnouncementStore` Zustand store fetches it via `refresh()` and drives the admin mutations (`publish`/`clear`); only the per-viewer dismissal (`dismissedKey`, keyed on the message's creation timestamp) is persisted to `localStorage`. `GlobalAnnouncementBanner` — mounted in `MainLayout` — refetches on each navigation and shows the message on every page, with a close button that hides it for that viewer until a newer message is pushed. The tab/hook/store/banner tests mock the API; the API helpers themselves (TC-AU19–21) are exercised end-to-end against MSW.*
+*The UPDATES tab broadcasts a single site-wide message to every user. The message is owned by the backend (`/broadcast_messages`: `GET` reads the current one — or `null` — for any authenticated user, `POST` sets/replaces it and `DELETE` clears it, both admin-only). The `useAnnouncementStore` Zustand store fetches it via `refresh()` and drives the admin mutations (`publish`/`clear`); only the per-viewer dismissal (`dismissedKey`, keyed on the message's creation timestamp) is persisted to `localStorage`. `GlobalAnnouncementBanner` — mounted in `MainLayout` — fetches only while a user is signed in, refetches on each navigation and shows the message on every page, with a close button that hides it for that viewer until a newer message is pushed. The tab/hook/store/banner tests mock the API; the API helpers themselves (TC-AU19–21) are exercised end-to-end against MSW.*
 
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
@@ -1230,6 +1230,7 @@ The front mirrors the backend policy to hide what would be refused: roles `admin
 | **TC-AU2** | CREATE gated on message + confirmation | The form is empty. | Type a message, then tick the confirmation. | • CREATE is disabled while empty.<br>• Still disabled with a message alone.<br>• Enabled once the confirmation is ticked. |
 | **TC-AU3** | Create pushes & shows the message | The form is filled. | Fill Message + Sub message, pick "Warning", tick the confirmation, click **Create**. | • `setBroadcastMessage` is called with `{ message, sub_message, level: 'warning' }`.<br>• The form is replaced by the active-message view (no CREATE button). |
 | **TC-AU4** | Remove returns to the form | A message is active. | Click the active alert's close button. | `deleteBroadcastMessage` is called, the broadcast is cleared and the creation form reappears. |
+| **TC-AU4b** | Declining the removal keeps the message | A message is active; the confirm dialog is answered no. | Click the active alert's close button. | • The confirm dialog closes.<br>• `deleteBroadcastMessage` is not called and the message stays displayed (for everyone). |
 | **TC-AU5** | Whitespace-only message stays invalid | `useAdminUpdates`. | Set the message to spaces and tick the confirmation. | `canCreate` is `false` (the `message.trim()` guard). |
 | **TC-AU6** | Trims message & sub message | `useAdminUpdates`. | Set padded message/sub message, pick "Warning", confirm, `create()`. | `setBroadcastMessage` receives the trimmed strings and `activeAnnouncement` reflects them. |
 | **TC-AU6b** | Blank sub message sent as `null` | `useAdminUpdates`. | Fill only the message, confirm, `create()`. | `setBroadcastMessage` receives `sub_message: null`. |
@@ -1253,3 +1254,25 @@ The front mirrors the backend policy to hide what would be refused: roles `admin
 | **TC-AU19b** | Empty/blank/`null`/bad body → `null` | `broadcastMessages.api` vs MSW; `GET` returns an empty, whitespace, `"null"`, or malformed body. | Call `getBroadcastMessage()`. | Each case resolves to `null` (the endpoint sends an empty body when no message is set; parse errors are swallowed). |
 | **TC-AU20** | `setBroadcastMessage` POSTs the input | `broadcastMessages.api` vs MSW. | Call `setBroadcastMessage(input)`. | A `POST /broadcast_messages` carries the input body and the stored row is returned. |
 | **TC-AU21** | `deleteBroadcastMessage` clears the message | `broadcastMessages.api` vs MSW. | Call `deleteBroadcastMessage()`. | A `DELETE /broadcast_messages` is sent and the promise resolves to `undefined`. |
+| **TC-AU22** | No fetch while signed out | The visitor is signed out; the store even holds a message. | Render the banner. | `getBroadcastMessage` is never called and no alert is rendered. |
+| **TC-AU23** | Signing in fetches the message | The visitor is signed out; a message exists. | Render the banner, then sign in. | The alert appears with the message, without a page reload. |
+| **TC-AU24** | Refetch on navigation | Signed in; no message at first. | A message is pushed meanwhile; click a link to another page. | The banner refetches and shows the new message. |
+
+### AN. Explore (`ExplorePage`, `SelectionGraphs`, explore utils)
+
+*`features/explore/pages/ExplorePage.test.tsx` · `features/explore/components/SelectionGraphs.test.tsx` · `features/explore/utils/{exploreFilters,chartScales,accessRequestMail}.test.ts` — these tests carry no `TC-…` id yet; run them by file (`npx vitest run src/features/explore`). The map is replaced by a stand-in (jsdom has no WebGL) and the page renders its empty state, `useExploreData` returning no data until the backend explore endpoints exist.*
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| — | Default page | — | Open `/explore`. | • **Depth profiles** is pressed and the *Selected data stats* tab selected.<br>• The criteria are empty and the four counters (Projects, Samples, Particles, Images) read "—".<br>• "Set your data selection criteria" is shown. |
+| — | Criteria applied only with "Apply filters" | The page is open. | Type an incomplete location, clear it, click **Apply filters**. | • **Apply filters** is disabled with "Fill the four coordinates, or none." while the location is incomplete.<br>• Once applied, the invitation disappears and the button is disabled again until something changes. |
+| — | Time series page from the route | — | Open `/explore/time/exportable`. | • **Time series** is pressed and the *Exportable selection* heading renders.<br>• *Time bin* replaces *Pressure bin*; **Export selection** is disabled. |
+| — | Graphs as depth profiles | Graph data with several keys. | Render `SelectionGraphs` in depth mode. | The first two keys of every graph are drawn, against *Depth [m]*, with the log10 scale; no time scale. |
+| — | Time series wording | Same data. | Render in time mode. | The time series titles (LPM abundance, EcoTaxa classification…) and the *Absolute* CTD scale are used. |
+| — | Hide / show a graph | — | Hide *CTD data*, then bring it back. | The graph card disappears, then comes back. |
+| — | Add a taxon, reset | — | Add *detritus* to *EcoTaxa concentrations*, then reset the graph. | The taxon is drawn, then removed. |
+| — | "Sum children" option | — | Untick *Sum concentrations of children categories*. | The change callback receives `false`. |
+| — | Empty graphs | No data. | Render the graphs. | Every graph shows "No data". |
+| — | Filter rules (`exploreFilters`) | — | Build the filters from an empty draft; validate locations and dates. | • An empty draft keeps every privacy status and no criterion.<br>• A location is empty or complete, in range, south below north; typed and drawn locations convert both ways.<br>• A date range may not end before it starts. |
+| — | Chart scales (`chartScales`) | — | Map values and build ticks on linear, log10, log(x+1) and sqrt scales. | Round ticks, reversed ranges, values a scale cannot draw skipped (zero / negatives in log10), compact and distinct tick labels, a log10 fallback without a positive bound. |
+| — | Access request mail (`accessRequestMail`) | A project with managers and a contact. | Build the `mailto:` link. | • It writes to the managers, else to the contact, else there is no link.<br>• Subject and body are pre-written (project, matching samples, mode, requester), spaces encoded as `%20`. |

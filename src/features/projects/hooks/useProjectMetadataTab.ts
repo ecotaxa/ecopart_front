@@ -30,6 +30,21 @@ const toLinkedEcoTaxaProject = (project: Project): EcoTaxaLinkedProject | null =
         }
         : null;
 
+/**
+ * The error keys each form section owns: editing a section clears them. Privileges
+ * and privacy are edited (and validated) on the SECURITY tab, so they own none here.
+ */
+const SECTION_ERROR_KEYS: Record<keyof NewProjectFormValues, (keyof ProjectFormErrors)[]> = {
+    rootFolderPath: ["rootFolderPath"],
+    instrument: ["instrumentModel", "instrumentSerialNumber"],
+    metadata: ["projectTitle", "projectAcronym", "ship", "cruise", "projectDescription"],
+    people: ["dataOwnerName", "dataOwnerEmail", "chiefScientistName", "chiefScientistEmail", "operatorName", "operatorEmail"],
+    importSettings: [],
+    ecoTaxa: ["ecoTaxaInstance", "ecoTaxaAccount", "ecoTaxaProject"],
+    privileges: [],
+    privacy: [],
+};
+
 export const useProjectMetadataTab = (projectId: number) => {
     // --------------------------------------------------
     // 1. STATE
@@ -125,6 +140,16 @@ export const useProjectMetadataTab = (projectId: number) => {
                 [section]: data as NewProjectFormValues[T],
             };
         });
+
+        // Editing a section clears its inline errors.
+        const keysToClear = SECTION_ERROR_KEYS[section];
+        if (keysToClear.length > 0) {
+            setErrors((prev) => {
+                const next = { ...prev };
+                for (const key of keysToClear) delete next[key];
+                return next;
+            });
+        }
     }, []);
 
     const handleUnlinkEcoTaxaProject = () => {

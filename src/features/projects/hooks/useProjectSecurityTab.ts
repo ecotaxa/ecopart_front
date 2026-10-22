@@ -20,6 +20,9 @@ export const useProjectSecurityTab = (projectId: number) => {
     // 1. STATE
     // --------------------------------------------------
     const [loading, setLoading] = useState(true);
+    // Set when the project or the users list could not be loaded: the form then
+    // holds defaults, and saving them would wipe the real delays and privileges.
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<ProjectFormErrors>({});
     const [availableUsers, setAvailableUsers] = useState<UserSearchResponse["users"]>([]);
@@ -53,6 +56,7 @@ export const useProjectSecurityTab = (projectId: number) => {
 
         const loadData = async () => {
             setLoading(true);
+            setLoadError(null);
 
             try {
                 // The users list (privileges dropdown) and the project are independent.
@@ -74,7 +78,7 @@ export const useProjectSecurityTab = (projectId: number) => {
             } catch (error) {
                 if (cancelled) return;
                 console.error("Failed to load project security details", error);
-                showSnackbar("Failed to load project details.", "error");
+                setLoadError(extractErrorMessage(error, "Failed to load project details."));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -82,7 +86,7 @@ export const useProjectSecurityTab = (projectId: number) => {
 
         loadData();
         return () => { cancelled = true; };
-    }, [projectId, showSnackbar]);
+    }, [projectId]);
 
     // --------------------------------------------------
     // 3. FIELD UPDATER
@@ -174,6 +178,7 @@ export const useProjectSecurityTab = (projectId: number) => {
         values,
         errors,
         loading,
+        loadError,
         saving,
         availableUsers,
         updateField,
