@@ -127,7 +127,7 @@ export default function AdminQuickAccessTab() {
                                     <span>FRONT</span>
                                 </Link>
                                 <Typography component="span" variant="body2">
-                                    <span> et </span>
+                                    <span> and </span>
                                 </Typography>
                                 <Link
                                     href="https://github.com/ecotaxa/ecopart_back"

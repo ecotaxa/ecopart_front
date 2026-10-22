@@ -31,7 +31,7 @@ const mockProjectFetch = (role: ProjectRole = 'user', overrides: ProjectFixtureO
         http.get('*/users', () => HttpResponse.json({ users: [] })),
         http.get('*/ecotaxa_instances', () => HttpResponse.json([])),
         http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] })),
-        http.get('*/projects/*/backup/last-date', () => HttpResponse.json({ last_backup_date: null })),
+        http.get('*/projects/*/backup/last-date', () => HttpResponse.json({ last_backup_utc_date_time: null })),
         // Import tab hooks can be mounted and request these endpoints even when testing other tabs.
         http.get('*/projects/*/samples/can_be_imported', () => HttpResponse.json([])),
         http.get('*/projects/*/ecotaxa_samples/can_be_imported', () => HttpResponse.json([])),

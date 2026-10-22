@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 
@@ -330,5 +330,28 @@ describe('ProjectMetadataTab (Functional)', () => {
         expect(screen.queryByLabelText(/Root folder path/i)).not.toBeInTheDocument();
         expect(screen.getByText(/This project is not linked to an EcoTaxa project/i)).toBeInTheDocument();
         expect(screen.queryByLabelText(/EcoTaxa instance/i)).not.toBeInTheDocument();
+    }, 15000);
+
+    // TC-J10: fixing a field after a failed save removes its inline error.
+    it('TC-J10: clears the inline error of a field once the user edits it', async () => {
+        const user = userEvent.setup({ delay: null });
+        server.use(
+            http.post('*/projects/searches*', () => HttpResponse.json({
+                search_info: { total: 1, page: 1, limit: 1 },
+                projects: [{ ...mockProjectData, project_acronym: '' }],
+            })),
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} />);
+        await screen.findByDisplayValue('Existing Project');
+
+        const acronymInput = screen.getByLabelText(/Project acronym/i);
+        await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
+        await waitFor(() => expect(acronymInput).toHaveAttribute('aria-invalid', 'true'));
+        expect(acronymInput).toHaveAccessibleDescription(/Project acronym is required/i);
+
+        await user.type(acronymInput, 'EP');
+        expect(acronymInput).toHaveAttribute('aria-invalid', 'false');
+        expect(acronymInput).not.toHaveAccessibleDescription(/Project acronym is required/i);
     }, 15000);
 });

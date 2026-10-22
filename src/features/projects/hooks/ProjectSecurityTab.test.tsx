@@ -125,4 +125,17 @@ describe('ProjectSecurityTab (Functional)', () => {
         ]);
         expect(screen.getByText(/counted in months after the project creation/i)).toBeInTheDocument();
     });
+
+    // TC-K5: a failed load must not leave an editable form of defaults (saving it would wipe the real data)
+    it('TC-K5: shows an error instead of the form when the project cannot be loaded', async () => {
+        server.use(
+            http.post('*/projects/searches', () =>
+                HttpResponse.json({ errors: ['Internal error'] }, { status: 500 })),
+        );
+
+        renderWithRouter(<ProjectSecurityTab projectId={101} />);
+
+        expect(await screen.findByRole('alert')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^SAVE$/i })).not.toBeInTheDocument();
+    });
 });

@@ -44,8 +44,9 @@ export interface BroadcastMessageInput {
  *
  * The endpoint answers `200` with an EMPTY body when there is no message, so we
  * read it as text (via `httpText`, which keeps the 401 → refresh → retry flow)
- * and treat an empty/`null` payload as "no message". `http()` cannot be used
- * here because it always calls `response.json()`, which throws on an empty body.
+ * and treat an empty/`null` payload as "no message"; reading text also lets a
+ * malformed body resolve to "no message" instead of throwing (the banner is
+ * best-effort).
  */
 export async function getBroadcastMessage(): Promise<BroadcastMessage | null> {
     const text = await httpText("/broadcast_messages");

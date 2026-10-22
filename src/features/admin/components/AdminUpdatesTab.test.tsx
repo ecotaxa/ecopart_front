@@ -17,6 +17,8 @@ import {
 } from '../api/broadcastMessages.api';
 import { useAnnouncementStore } from '../store/announcement.store';
 import { renderWithRouter } from '@/test/utils';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
+import { useConfirmStore } from '@/shared/confirm/confirm.store';
 
 // ---------------------------------------------------------------------------
 // The UPDATES tab broadcasts a single site-wide message through the backend
@@ -119,12 +121,29 @@ describe('AdminUpdatesTab', () => {
         expect(screen.queryByRole('button', { name: 'Create' })).not.toBeInTheDocument();
         expect(screen.getByText('Downtime tonight')).toBeInTheDocument();
 
-        // The alert's close button removes the broadcast.
+        // The alert's close button removes the broadcast, once confirmed.
+        const confirmSpy = answerConfirmDialogs(true);
         const alert = screen.getByRole('alert');
         await user.click(within(alert).getByRole('button', { name: /close/i }));
 
         await waitFor(() => expect(mockedDelete).toHaveBeenCalled());
+        expect(confirmSpy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Remove the message' }));
         expect(useAnnouncementStore.getState().broadcast).toBeNull();
         expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument();
+    });
+
+    it('TC-AU4b: declining the confirmation keeps the message for everyone', async () => {
+        const active = makeBroadcast({ message: 'Downtime tonight', sub_message: null, level: 'error' });
+        mockedGet.mockResolvedValue(active);
+        useAnnouncementStore.setState({ broadcast: active });
+        answerConfirmDialogs(false);
+        const user = userEvent.setup();
+        renderUpdates();
+
+        await user.click(within(screen.getByRole('alert')).getByRole('button', { name: /close/i }));
+
+        await waitFor(() => expect(useConfirmStore.getState().pending).toBeNull());
+        expect(mockedDelete).not.toHaveBeenCalled();
+        expect(screen.getByText('Downtime tonight')).toBeInTheDocument();
     });
 });

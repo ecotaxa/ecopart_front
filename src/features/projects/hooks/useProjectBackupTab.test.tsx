@@ -28,7 +28,7 @@ describe('hooks/useProjectBackupTab', () => {
 
     it('TC-O6: initializes with project path and last backup date', async () => {
         vi.mocked(getProjectById).mockResolvedValue(mockProject);
-        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: '2024-01-01T00:00:00Z' });
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: '2024-01-01T00:00:00Z' });
 
         const { result } = renderHook(() => useProjectBackupTab(77));
 
@@ -40,7 +40,7 @@ describe('hooks/useProjectBackupTab', () => {
 
     it('TC-O7: handleStartExport calls API and clears isExporting', async () => {
         vi.mocked(getProjectById).mockResolvedValue(mockProject);
-        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
         // Keep the mock synchronous; we only assert final state and API call
         vi.mocked(exportProjectBackup).mockResolvedValue({ task_id: 1, task_status: 'PENDING', task_type: 'EXPORT' });
 
@@ -61,8 +61,8 @@ describe('hooks/useProjectBackupTab', () => {
 
         // Initial load: never backed up. After the task completes the server reports the real date.
         vi.mocked(getLastBackupDate)
-            .mockResolvedValueOnce({ last_backup_date: null })
-            .mockResolvedValue({ last_backup_date: '2025-05-01T12:00:00Z' });
+            .mockResolvedValueOnce({ last_backup_utc_date_time: null })
+            .mockResolvedValue({ last_backup_utc_date_time: '2025-05-01T12:00:00Z' });
 
         vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 99, task_status: 'PENDING', task_type: 'BACKUP' });
         // First poll: still running; second poll: done.
@@ -93,7 +93,7 @@ describe('hooks/useProjectBackupTab', () => {
 
     it('TC-O9: a failed backup task never updates lastBackupDate', async () => {
         vi.mocked(getProjectById).mockResolvedValue(mockProject);
-        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
         vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 100, task_status: 'PENDING', task_type: 'BACKUP' });
         vi.mocked(getOneTask).mockResolvedValue({ task_id: 100, task_status: 'ERROR', task_error: 'disk full' } as never);
 
@@ -113,7 +113,7 @@ describe('hooks/useProjectBackupTab', () => {
 
     it('TC-O10: a cancelled backup task stops the follow-up with a warning and leaves lastBackupDate unchanged', async () => {
         vi.mocked(getProjectById).mockResolvedValue(mockProject);
-        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
         vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 101, task_status: 'PENDING', task_type: 'BACKUP' });
         vi.mocked(getOneTask).mockResolvedValue({ task_id: 101, task_status: 'CANCELLED' } as never);
 
@@ -131,7 +131,7 @@ describe('hooks/useProjectBackupTab', () => {
 
     it('TC-O11: a backup refused because another backup task is running (409) shows the server message and follows nothing', async () => {
         vi.mocked(getProjectById).mockResolvedValue(mockProject);
-        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+        vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
         vi.mocked(runProjectBackup).mockRejectedValue(new Error('A backup task is already running for this project'));
 
         const { result } = renderHook(() => useProjectBackupTab(77));

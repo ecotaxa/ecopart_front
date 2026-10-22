@@ -57,7 +57,10 @@ export function createScale(kind: ValueScale, domain: [number, number], range: [
     const forward = FORWARD[kind];
     let [min, max] = domain;
     if (kind === "log10") {
-        min = Math.max(min, Number.MIN_VALUE);
+        // No drawable bound: fall back to a few decades rather than down to Number.MIN_VALUE,
+        // which would span the whole double range (~324 decades of ticks).
+        if (!(max > 0)) max = 10;
+        if (!(min > 0)) min = Math.min(1, max / 100);
         if (max <= min) max = min * 10;
     }
     const [from, to] = [forward(min), forward(max)];
@@ -94,6 +97,7 @@ export function extent(values: number[], kind: ValueScale = "linear"): [number, 
 export function formatTick(value: number): string {
     if (value === 0) return "0";
     const abs = Math.abs(value);
-    if (abs >= 1e5 || abs < 1e-3) return value.toExponential(0).replace("+", "");
+    // Same 4 significant digits as below, so close ticks (1.2e5, 1.4e5) keep distinct labels.
+    if (abs >= 1e5 || abs < 1e-3) return Number(value.toPrecision(4)).toExponential().replace("+", "");
     return String(Number(value.toPrecision(4)));
 }

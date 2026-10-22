@@ -1,15 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { screen, within, waitFor } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Routes, Route } from 'react-router-dom';
+import { createMemoryRouter, Link, Routes, Route, RouterProvider } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
 import ProfilePage from './ProfilePage';
-import { renderWithRouter } from '@/test/utils';
+import { ProtectedRoute } from '@/app/ProtectedRoute';
+import { PublicOnlyRoute } from '@/app/PublicOnlyRoute';
+import { useAuthStore } from '@/features/auth/store/auth.store';
+import { createTestQueryClient, renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 
 //import { EcoTaxaAccountLink } from '../api/profile.api';
+
+/** An EcoTaxa expiration date one year from now, so "not expired" fixtures never age out. */
+const FUTURE_EXPIRATION_DATE = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 // ============================================================================
 // SUITE 1: ECOPART ACCOUNT TAB (TAB 0)
@@ -227,6 +234,65 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         expect(await screen.findByText(/Login Page/i)).toBeInTheDocument();
     });
 
+    // TC-E9b: with the real route guards, clearing the session must not let
+    // ProtectedRoute's own redirect (state.from=/settings/...) win over the
+    // intended one: the login page gets the success message, and no `from`.
+    it('TC-E9b: lands on /login with the success message behind the real route guards', async () => {
+        const user = userEvent.setup();
+        const router = createMemoryRouter([
+            { path: '/settings/:userId?/:tabName?', element: <ProtectedRoute><ProfilePage /></ProtectedRoute> },
+            { path: '/login', element: <PublicOnlyRoute><h1>Login Page</h1></PublicOnlyRoute> },
+            { path: '/dashboard', element: <ProtectedRoute><h1>Dashboard</h1></ProtectedRoute> },
+        ], { initialEntries: ['/settings/1/ecopart_account'] });
+        render(
+            <QueryClientProvider client={createTestQueryClient()}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>,
+        );
+
+        await screen.findByRole('heading', { name: /Delete account/i });
+        await user.click(screen.getByRole('button', { name: /^DELETE$/i }));
+        const dialog = await screen.findByRole('dialog', { name: /Delete Account/i });
+        await user.click(within(dialog).getByRole('button', { name: /Delete/i }));
+
+        expect(await screen.findByRole('heading', { name: 'Login Page' })).toBeInTheDocument();
+        await waitFor(() => {
+            expect(router.state.location.state).toEqual({ successMessage: 'Your account has been successfully deleted.' });
+        });
+        expect(router.state.location.pathname).toBe('/login');
+        expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    });
+
+    // TC-E9c: a double click on the confirm button sends a single DELETE request.
+    it('TC-E9c: a double click on the confirm button deletes the account only once', async () => {
+        const user = userEvent.setup();
+        let deleteCalls = 0;
+        server.use(
+            http.delete('*/users/:id', async () => {
+                deleteCalls += 1;
+                // Keep the request in flight long enough for the second click to land.
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                return new HttpResponse(null, { status: 204 });
+            }),
+        );
+
+        renderWithRouter(
+            <Routes>
+                <Route path="/settings" element={<ProfilePage />} />
+                <Route path="/login" element={<h1>Login Page</h1>} />
+            </Routes>,
+            { route: '/settings' }
+        );
+
+        await screen.findByRole('heading', { name: /Delete account/i });
+        await user.click(screen.getByRole('button', { name: /^DELETE$/i }));
+        const dialog = await screen.findByRole('dialog', { name: /Delete Account/i });
+        await user.dblClick(within(dialog).getByRole('button', { name: /Delete/i }));
+
+        expect(await screen.findByText(/Login Page/i)).toBeInTheDocument();
+        expect(deleteCalls).toBe(1);
+    });
+
     // TC-E10: Admin Dashboard Navigation
     it('TC-E10: should navigate to admin dashboard when ADMIN button is clicked', async () => {
         logoutUser();
@@ -301,7 +367,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
                             ecotaxa_account_instance_id: 1,
                             ecotaxa_user_login: 'mock_ecotaxa_user',
                             ecotaxa_account_instance_name: 'FR',
-                            ecotaxa_expiration_date: '2026-12-31'
+                            ecotaxa_expiration_date: FUTURE_EXPIRATION_DATE
                         }
                     ]
                 });
@@ -418,7 +484,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
                     ecotaxa_account_instance_id: 1,
                     ecotaxa_user_login: 'new_linked_user',
                     ecotaxa_account_instance_name: 'FR',
-                    ecotaxa_expiration_date: '2026-12-31'
+                    ecotaxa_expiration_date: FUTURE_EXPIRATION_DATE
                 }];
                 return HttpResponse.json({ message: 'Account linked' }, { status: 201 });
             })
@@ -476,7 +542,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
             ecotaxa_account_instance_id: 1,
             ecotaxa_user_login: 'stays_linked_user',
             ecotaxa_account_instance_name: 'FR',
-            ecotaxa_expiration_date: '2026-12-31'
+            ecotaxa_expiration_date: FUTURE_EXPIRATION_DATE
         }];
 
         server.use(
@@ -528,7 +594,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
             ecotaxa_account_instance_id: 1,
             ecotaxa_user_login: 'doomed_user',
             ecotaxa_account_instance_name: 'FR',
-            ecotaxa_expiration_date: '2026-12-31'
+            ecotaxa_expiration_date: FUTURE_EXPIRATION_DATE
         }];
 
         server.use(
@@ -585,7 +651,7 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
             ecotaxa_account_instance_id: 1,
             ecotaxa_user_login: 'existing_user',
             ecotaxa_account_instance_name: 'FR',
-            ecotaxa_expiration_date: '2026-12-31'
+            ecotaxa_expiration_date: FUTURE_EXPIRATION_DATE
         }];
 
         server.use(
@@ -682,6 +748,46 @@ describe('ProfilePage - editing another account by id', () => {
         expect(screen.getByLabelText(/First name/i)).toHaveValue('Jane');
         // Password change is self-only, so the section is hidden for other accounts.
         expect(screen.queryByRole('heading', { name: /Change password/i })).not.toBeInTheDocument();
+    });
+
+    it('TC-E22: switching to another account starts from a clean page, not the previous one', async () => {
+        mockMe(true);
+        // getUserById filters on user_id: answer with the requested account.
+        server.use(
+            http.post('*/users/searches*', async ({ request }) => {
+                const filters = await request.json() as { value: number }[];
+                const id = filters[0]?.value ?? 2;
+                return HttpResponse.json({
+                    search_info: { total: 1, page: 1, limit: 1 },
+                    users: [{
+                        user_id: id, first_name: id === 3 ? 'Max' : 'Jane', last_name: 'Roe', email: `user${id}@roe.com`,
+                        organisation: 'Sorbonne', country: 'FR', user_planned_usage: 'Research',
+                        is_admin: false, valid_email: true, deleted: null,
+                    }],
+                });
+            }),
+        );
+        const user = userEvent.setup({ delay: null });
+        renderWithRouter(
+            <>
+                <Link to="/settings/3/ecopart_account">Go to user 3</Link>
+                <Routes>
+                    <Route path="/settings/:userId?/:tabName?" element={<ProfilePage />} />
+                </Routes>
+            </>,
+            { route: '/settings/2/ecopart_account' },
+        );
+
+        expect(await screen.findByRole('heading', { name: /Edit user #2/i })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /SAVE/i }));
+        expect(await screen.findByText(/Profile updated successfully/i)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('link', { name: /Go to user 3/i }));
+
+        expect(await screen.findByRole('heading', { name: /Edit user #3/i })).toBeInTheDocument();
+        expect(screen.getByLabelText(/First name/i)).toHaveValue('Max');
+        // User #2's feedback must not carry over to user #3.
+        expect(screen.queryByText(/Profile updated successfully/i)).not.toBeInTheDocument();
     });
 
     it('TC-E21: a non-admin is redirected to their own settings when targeting another id', async () => {

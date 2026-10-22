@@ -219,7 +219,42 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                 expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
                 expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
             });
-            expect(screen.getAllByText(/0 items selected/i).length).toBeGreaterThanOrEqual(1);
+            // The UVP counter (the first of the three sections) drops back to 0 and the
+            // list is refetched. The CTD and EcoTaxa counters always read "0 items
+            // selected", so the assertion is scoped to the UVP one.
+            await waitFor(() => expect(screen.getAllByText(/\d+ items selected/)[0]).toHaveTextContent(/^0 items selected$/));
+            await waitFor(() => expect(searchProjectSamples).toHaveBeenCalledTimes(2));
+        }, 15000);
+
+        it('TC-P2b - deleting the only UVP sample of the last page goes back to the previous page', async () => {
+            const user = userEvent.setup();
+            // 11 samples: page 1 holds UVP-1, page 2 only UVP-11 until it is deleted.
+            let deleted = false;
+            vi.mocked(searchProjectSamples).mockImplementation(async (_projectId, { page }) => ({
+                search_info: { total: deleted ? 10 : 11, page, limit: 10 },
+                samples: page === 1
+                    ? [{ sample_id: 1, sample_name: 'UVP-1', visual_qc_status_label: 'VALIDATED' }]
+                    : deleted ? [] : [{ sample_id: 11, sample_name: 'UVP-11', visual_qc_status_label: 'VALIDATED' }],
+            }));
+            vi.mocked(deleteProjectSample).mockImplementation(async () => {
+                deleted = true;
+                return { message: 'Deleted' };
+            });
+            renderTab();
+
+            await waitForGridText('UVP-1');
+            await user.click(screen.getByRole('button', { name: /Go to next page/i }));
+            await waitForGridText('UVP-11');
+
+            await user.click(screen.getByRole('checkbox', { name: /Select row/i }));
+            // The UVP DELETE is the first one (the CTD section has its own).
+            await user.click(screen.getAllByRole('button', { name: /^DELETE$/ })[0]);
+
+            await waitFor(() => expect(deleteProjectSample).toHaveBeenCalledWith(77, 11));
+            // Back on page 1 with its rows, not the "No samples imported." empty state.
+            await waitFor(() => expect(searchProjectSamples).toHaveBeenLastCalledWith(77, expect.objectContaining({ page: 1 })));
+            await waitForGridText('UVP-1');
+            expect(screen.queryByText('No samples imported.')).not.toBeInTheDocument();
         }, 15000);
 
         it('TC-P3 - QC Status Icons Mapping', async () => {

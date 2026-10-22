@@ -55,7 +55,8 @@ const mockProjectsSearch = (projects: Project[], total = projects.length) => {
     );
 };
 
-// The rows are enriched with a sample count via one samples search per row.
+// The rows are enriched with their sample counts (total, then samples with a CTD)
+// via samples searches; this mock answers both with the same total.
 const mockSampleCounts = (total = 0) => {
     server.use(
         http.post('*/projects/:projectId/samples/searches', () =>
@@ -382,19 +383,24 @@ describe('AdminProjectsTab', () => {
     });
 
     it('TC-AG18: shows the number of samples with a linked CTD per project', async () => {
+        const ctdFilters: unknown[] = [];
         server.use(
             http.post('*/projects/:projectId/samples/searches', async ({ request }) => {
                 const filters = (await request.json()) as { field: string }[];
-                const total = filters.some((filter) => filter.field === 'ctd_imported') ? 7 : 12;
-                return HttpResponse.json({ search_info: { total, page: 1, limit: 1 }, samples: [] });
+                const isCtd = filters.some((filter) => filter.field === 'ctd_imported');
+                if (isCtd) ctdFilters.push(filters);
+                return HttpResponse.json({ search_info: { total: isCtd ? 7 : 12, page: 1, limit: 1 }, samples: [] });
             }),
         );
         mockProjectsSearch([makeProject({ project_id: 473 })], 1);
 
         renderProjectsTab();
 
-        expect(await screen.findByText('7')).toBeInTheDocument();
-        expect(screen.getByText('12')).toBeInTheDocument();
+        // Each count lands in its own column, not just somewhere on the page.
+        const cellOf = (field: string) => document.querySelector(`[role="gridcell"][data-field="${field}"]`);
+        await waitFor(() => expect(cellOf('nbr_ctd_sample')).toHaveTextContent('7'));
+        expect(cellOf('nbr_sample')).toHaveTextContent('12');
+        expect(ctdFilters).toEqual([[{ field: 'ctd_imported', operator: '=', value: 1 }]]);
         expect(screen.getByRole('columnheader', { name: 'Samples with CTD' })).toBeInTheDocument();
     });
 });

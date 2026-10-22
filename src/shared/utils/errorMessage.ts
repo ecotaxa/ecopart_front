@@ -1,16 +1,30 @@
 import type { ApiErrorResponse } from "@/shared/types/apiError";
 
 /**
- * Pull a human-readable message out of a backend error payload
- * (`{ message }` or express-validator style `{ errors: [string | { msg }] }`).
- * Returns `null` when the payload carries nothing usable.
+ * The `errors` entries of a payload as one list: express-validator sends an array,
+ * the sample import routes group them by step (`{ import: [...], backup: [...] }`).
+ */
+function errorEntries(errors: unknown): unknown[] {
+    if (Array.isArray(errors)) return errors;
+    if (typeof errors === "object" && errors !== null) {
+        return Object.values(errors).flatMap((group) => (Array.isArray(group) ? group : [group]));
+    }
+    return [];
+}
+
+/**
+ * Pull a human-readable message out of a backend error payload (`{ message }`,
+ * express-validator style `{ errors: [string | { msg }] }`, or errors grouped by
+ * step `{ errors: { import: [...] } }`). Returns `null` when the payload carries
+ * nothing usable.
  */
 export function messageFromApiError(errorData: ApiErrorResponse | unknown): string | null {
     if (typeof errorData !== "object" || errorData === null) return null;
     const data = errorData as { errors?: unknown; message?: unknown };
+    const errors = errorEntries(data.errors);
 
-    if (Array.isArray(data.errors) && data.errors.length > 0) {
-        const first: unknown = data.errors[0];
+    if (errors.length > 0) {
+        const first: unknown = errors[0];
         if (typeof first === "string" && first.trim()) return first;
         if (typeof first === "object" && first !== null) {
             const msg = (first as { msg?: unknown }).msg;

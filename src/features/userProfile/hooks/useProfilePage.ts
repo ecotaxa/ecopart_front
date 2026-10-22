@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import { flushSync } from "react-dom";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -21,6 +22,14 @@ export interface FeedbackMessage {
     type: "success" | "error";
     text: string;
 }
+
+/**
+ * The account id targeted by the `/settings/:userId?/:tabName?` URL, or null for
+ * the logged-in user (no id, or the legacy `/settings/:tabName` form where the
+ * first segment is the tab slug).
+ */
+export const routeUserIdFromParam = (userIdParam: string | undefined): number | null =>
+    userIdParam != null && /^\d+$/.test(userIdParam) ? Number(userIdParam) : null;
 
 /** Normalise a stored country code to the option list (upper-case ISO code, or none). */
 const toKnownCountryCode = (code: string | undefined, options: CountryOption[]) => {
@@ -48,8 +57,8 @@ export const useProfilePage = () => {
     // also accept /settings/:tabName (no id): a non-numeric first segment is the
     // tab slug, and the target user defaults to the logged-in user.
     const { userId: userIdParam, tabName: tabNameParam } = useParams<{ userId?: string; tabName?: string }>();
-    const firstSegmentIsNumeric = userIdParam != null && /^\d+$/.test(userIdParam);
-    const routeUserId = firstSegmentIsNumeric ? Number(userIdParam) : null;
+    const routeUserId = routeUserIdFromParam(userIdParam);
+    const firstSegmentIsNumeric = routeUserId != null;
     const tabName = firstSegmentIsNumeric ? tabNameParam : (userIdParam ?? tabNameParam);
 
     // The active tab is driven by the URL slug.
@@ -97,6 +106,10 @@ export const useProfilePage = () => {
     // --- STATES: DELETE ACCOUNT (Global EcoPart) ---
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    // A double click on "Delete" must not send a second DELETE: the ref guards
+    // synchronously, the state disables the dialog buttons meanwhile.
+    const deleteInFlight = useRef(false);
+    const [deleting, setDeleting] = useState(false);
 
     // --- STATES: LINKED ACCOUNTS LIST & UNLINK ---
     const [linkedAccounts, setLinkedAccounts] = useState<EcoTaxaAccountLink[]>([]);
@@ -253,7 +266,9 @@ export const useProfilePage = () => {
     const handleDeleteClick = () => setOpenDeleteDialog(true);
 
     const handleConfirmDelete = async () => {
-        if (!user) return;
+        if (!user || deleteInFlight.current) return;
+        deleteInFlight.current = true;
+        setDeleting(true);
         setDeleteError(null);
         try {
             await deleteAccount(user.user_id);
@@ -265,9 +280,14 @@ export const useProfilePage = () => {
                 } catch (err) {
                     console.warn("[Profile] Logout after account deletion failed", err);
                 }
-                clearUser();
+                // Commit the logout synchronously, so ProtectedRoute's own redirect
+                // (to /login with state.from=/settings/...) is issued right now, then
+                // supersede it: the later navigation wins and carries the message.
+                // Navigating first would not work: /login's PublicOnlyRoute would
+                // bounce the still-authenticated user to the dashboard.
+                flushSync(() => clearUser());
                 queryClient.clear();
-                navigate("/login", { state: { successMessage: "Your account has been successfully deleted." } });
+                navigate("/login", { replace: true, state: { successMessage: "Your account has been successfully deleted." } });
             } else {
                 // An admin deleted someone else's account — return to the users list.
                 navigate("/admin/users");
@@ -276,6 +296,8 @@ export const useProfilePage = () => {
             console.error(err);
             setDeleteError("Failed to delete account. Please try again or contact support.");
             setOpenDeleteDialog(false);
+            deleteInFlight.current = false;
+            setDeleting(false);
         }
     };
 
@@ -388,6 +410,7 @@ export const useProfilePage = () => {
         deleteAccount: {
             dialogOpen: openDeleteDialog,
             error: deleteError,
+            deleting,
             open: handleDeleteClick,
             close: () => setOpenDeleteDialog(false),
             confirm: handleConfirmDelete,

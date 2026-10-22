@@ -245,6 +245,46 @@ describe('TaskDetailsPage (Functional)', () => {
         expect(screen.queryByText(/IMPORT task \[42\]/)).not.toBeInTheDocument();
     });
 
+    // TC-S8d: A failed poll is reported even though a task is already shown
+    it('TC-S8d: shows the sync-error alert when a poll fails after the task was loaded', async () => {
+        vi.useFakeTimers();
+        mockedGetOneTask
+            .mockResolvedValueOnce(makeTask({ task_status: 'RUNNING', task_progress_pct: 40 }))
+            .mockRejectedValueOnce(new Error('down'));
+        renderDetail();
+
+        await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+        expect(screen.getByText('IMPORT task [42]')).toBeInTheDocument();
+
+        await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+        expect(screen.getByText('Failed to synchronize task metrics from server.')).toBeInTheDocument();
+        // The last known task stays visible below the alert.
+        expect(screen.getByText('IMPORT task [42]')).toBeInTheDocument();
+    });
+
+    // TC-S8e: Opening another task shows a spinner, not the previous task
+    it('TC-S8e: shows a loading state instead of the previous task when the task id changes', async () => {
+        mockedGetOneTask.mockImplementation((taskId) =>
+            taskId === 42 ? Promise.resolve(makeTask()) : new Promise<Task>(() => {}),
+        );
+        const user = userEvent.setup();
+        renderWithRouter(
+            <>
+                <Link to="/projects/77/tasks/43">open task 43</Link>
+                <Routes>
+                    <Route path="/projects/:id/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
+                </Routes>
+            </>,
+            { route: '/projects/77/tasks/42' },
+        );
+        await screen.findByText('IMPORT task [42]');
+
+        // Task 43 never answers: the page must wait for it, not keep task 42.
+        await user.click(screen.getByRole('link', { name: 'open task 43' }));
+        expect(screen.queryByText('IMPORT task [42]')).not.toBeInTheDocument();
+        expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    });
+
     // TC-S8b: No polling once the task is DONE
     it('TC-S8b: does not poll again when the task is already DONE', async () => {
         vi.useFakeTimers();

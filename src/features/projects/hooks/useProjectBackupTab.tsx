@@ -44,8 +44,14 @@ export const useProjectBackupTab = (projectId: number) => {
     });
 
     // Cancels the in-flight task polling (unmount, project change, new backup).
+    // The route reuses this tab across projects, so a project change must stop the
+    // previous project's poll too, or its result would land in the new project.
     const stopTracking = useRef<(() => void) | null>(null);
-    useEffect(() => () => stopTracking.current?.(), []);
+    useEffect(() => () => {
+        stopTracking.current?.();
+        stopTracking.current = null;
+        setRunningBackupTaskId(null);
+    }, [projectId]);
 
     // --- 2. LIFECYCLE (Hydration) ---
     useEffect(() => {
@@ -69,7 +75,7 @@ export const useProjectBackupTab = (projectId: number) => {
             }
 
             if (backupResult.status === "fulfilled") {
-                setLastBackupDate(backupResult.value?.last_backup_date || null);
+                setLastBackupDate(backupResult.value?.last_backup_utc_date_time || null);
             } else {
                 console.error("Failed to load last backup date:", backupResult.reason);
                 setLastBackupDate(null);
@@ -138,7 +144,7 @@ export const useProjectBackupTab = (projectId: number) => {
                     } else {
                         const backupData = await getLastBackupDate(projectId);
                         if (cancelled) return;
-                        setLastBackupDate(backupData?.last_backup_date || null);
+                        setLastBackupDate(backupData?.last_backup_utc_date_time || null);
                         showSnackbar(<>Backup task {taskLink(taskId)} completed.</>, "success");
                     }
                     finish();

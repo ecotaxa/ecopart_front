@@ -81,9 +81,9 @@ export default function ResetPasswordConfirmPage() {
                 margin="normal"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                error={isNonEmpty(confirm) && !formIsValid}
+                error={isNonEmpty(confirm) && !passwordsAreEqual}
                 helperText={
-                    isNonEmpty(confirm) && !formIsValid
+                    isNonEmpty(confirm) && !passwordsAreEqual
                         ? VALIDATION_MESSAGES.PASSWORD_MISMATCH
                         : " "
                 }

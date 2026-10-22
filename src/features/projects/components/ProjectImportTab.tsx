@@ -318,7 +318,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                         </Button>
                     </Box>
 
-                    {/* MENTOR FIX: Updated empty state text to "0 samples found." */}
+                    {/* Empty state: "0 samples found." */}
                     {rawSamples.length === 0 ? (
                         renderEmptyState(loadingRaw ? "Loading samples..." : "0 samples found.")
                     ) : (
@@ -443,7 +443,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
                                 </Typography>
                             </Box>
                         ) : ecoTaxaSamples.length === 0 ? (
-                            // MENTOR FIX: Updated empty state text to "0 samples found."
+                            // Empty state: "0 samples found."
                             renderEmptyState(loadingEcoTaxa ? "Loading samples..." : "0 samples found.")
                         ) : (
                             <Box sx={{ width: '100%', mb: 1 }}>

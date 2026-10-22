@@ -297,9 +297,12 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             // Subtitle lists the sample names being imported.
             expect(await screen.findByText(/You are about to import/i)).toBeInTheDocument();
 
-            // One "REMOVE FROM IMPORT" button per previewed sample.
+            // One "REMOVE FROM IMPORT" button per previewed sample. raw-2 failed the level-1 QC: the
+            // grid refuses to select it and the backend would refuse the whole batch, so IMPORT ALL
+            // leaves it out.
             const removeButtons = await screen.findAllByRole('button', { name: /REMOVE FROM IMPORT/i });
-            expect(removeButtons).toHaveLength(3);
+            expect(removeButtons).toHaveLength(2);
+            expect(mockedPreviewSamplesQcGraphs).toHaveBeenCalledWith(77, ['raw-1', 'raw-3']);
 
             // The three footer actions from the new mockup.
             expect(screen.getByRole('button', { name: /IMPORT & VALIDATE/i })).toBeInTheDocument();
@@ -309,7 +312,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
 
         it('TC-N3b - partial importability shows a removable error card and blocks import (UI level)', async () => {
             mockedPreviewSamplesQcGraphs.mockImplementation(async (_projectId, names) => {
-                if (names.includes('raw-2')) throw new Error('Samples not importable: raw-2');
+                if (names.includes('raw-3')) throw new Error('Samples not importable: raw-3');
                 return names.map(mockQcGraphs);
             });
 
@@ -323,7 +326,7 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             // The not-importable sample is shown with an error, and every sample keeps a remove button.
             expect(await screen.findByText(/not importable/i)).toBeInTheDocument();
             const removeButtons = await screen.findAllByRole('button', { name: /REMOVE FROM IMPORT/i });
-            expect(removeButtons).toHaveLength(3); // raw-1 + raw-3 cards + raw-2 error card
+            expect(removeButtons).toHaveLength(2); // raw-1 card + raw-3 error card
 
             // Import is blocked until the bad sample is removed.
             expect(screen.getByRole('button', { name: /IMPORT & VALIDATE/i })).toBeDisabled();
@@ -351,6 +354,8 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             // Nothing is flagged as not-importable, so the import stays available.
             expect(screen.queryByRole('button', { name: /REMOVE FROM IMPORT/i })).not.toBeInTheDocument();
             expect(screen.getByRole('button', { name: /IMPORT & PENDING/i })).not.toBeDisabled();
+            // Without any graph to look at, the samples can't be certified as validated.
+            expect(screen.getByRole('button', { name: /IMPORT & VALIDATE/i })).toBeDisabled();
         }, 20000);
 
         it('TC-N3c - import actions stay disabled until the graphs are scrolled to the bottom (UI level)', async () => {

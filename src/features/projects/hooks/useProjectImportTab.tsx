@@ -248,7 +248,9 @@ export const useProjectImportTab = (projectId: number) => {
     };
 
     const handlePreImportRawSamples = async (importAll: boolean = false) => {
-        const allRawSampleNames = rawSamples.map((s) => s.sample_name);
+        // A sample that failed the level-1 QC can't be selected in the grid, and the
+        // backend refuses the whole import when one is sent: IMPORT ALL skips them too.
+        const allRawSampleNames = rawSamples.filter((s) => s.qc_lvl1 !== false).map((s) => s.sample_name);
         const names = importAll
             ? allRawSampleNames
             : getSelectedSampleNames(selectedRawSamples, allRawSampleNames);

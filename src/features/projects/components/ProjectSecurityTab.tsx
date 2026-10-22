@@ -28,6 +28,7 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
         values,
         errors,
         loading,
+        loadError,
         saving,
         availableUsers,
         updateField,
@@ -43,6 +44,16 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
                 <CircularProgress />
             </Box>
+        );
+    }
+
+    // No editable form on a failed load: it would hold defaults, and saving them
+    // would overwrite the project's real delays and privileges.
+    if (loadError) {
+        return (
+            <SectionCard>
+                <Alert severity="error">{loadError}</Alert>
+            </SectionCard>
         );
     }
 

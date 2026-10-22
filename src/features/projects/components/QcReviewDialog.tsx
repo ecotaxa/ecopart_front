@@ -100,6 +100,9 @@ export const QcReviewDialog: React.FC<QcReviewDialogProps> = ({
     // the graphs have not been scrolled through yet.
     const importActionsDisabled =
         loading || sampleNames.length === 0 || isImporting || notImportable.length > 0 || !fullyReviewed;
+    // Validating certifies the graphs were seen: impossible when some (or all) of them could not be
+    // computed. Those samples can still be imported as pending.
+    const validateDisabled = importActionsDisabled || error !== null || previews.length < sampleNames.length;
 
     return (
         <ThemeProvider theme={qcModalTheme}>
@@ -112,7 +115,8 @@ export const QcReviewDialog: React.FC<QcReviewDialogProps> = ({
                 <DialogContent
                     dividers
                     ref={scrollRef}
-                    onScroll={updateScrollState}
+                    // Scrolling the loading screen (a long list of names) must not count as a review.
+                    onScroll={loading ? undefined : updateScrollState}
                     sx={{ backgroundColor: 'grey.50' }}
                 >
                     {/* Wrapper measured by the ResizeObserver above: its height is what grows as the
@@ -197,7 +201,7 @@ export const QcReviewDialog: React.FC<QcReviewDialogProps> = ({
                     )}
                     <Button
                         onClick={onImportValidated}
-                        disabled={importActionsDisabled}
+                        disabled={validateDisabled}
                         variant="text"
                         color="success"
                         sx={{ fontWeight: 'bold' }}

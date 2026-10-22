@@ -9,6 +9,9 @@ import { renderWithRouter } from '@/test/utils';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
 import { server } from '@/test/msw/server';
 
+/** An EcoTaxa expiration date one year from now, so a "not expired" fixture never ages out. */
+const FUTURE_EXPIRATION_DATE = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 // ============================================================================
 // SUITE 1: ECOPART ACCOUNT TAB (TAB 0)
 // ============================================================================
@@ -117,7 +120,7 @@ describe('ProfilePage - EcoTaxa Tab (Accessibility)', () => {
                         ecotaxa_account_instance_id: 1,
                         ecotaxa_user_login: 'mock_ecotaxa_user',
                         ecotaxa_account_instance_name: 'FR',
-                        ecotaxa_expiration_date: '2026-12-31'
+                        ecotaxa_expiration_date: FUTURE_EXPIRATION_DATE
                     }]
                 });
             })

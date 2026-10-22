@@ -8,6 +8,7 @@ import type {
     Announcement,
 } from "../store/announcement.store";
 import { ANNOUNCEMENT_STYLES, useAdminUpdates } from "../hooks/useAdminUpdates";
+import { confirmDialog } from "@/shared/confirm/confirm.store";
 
 /**
  * One coloured "layout style" chip (Info / Warning / Error) used as a radio label.
@@ -70,6 +71,17 @@ export default function AdminUpdatesTab() {
         submitting, error, dismissError,
     } = useAdminUpdates();
 
+    // The alert's close icon reads like "hide it for me", but it deletes the
+    // message for every user: ask first.
+    const handleRemove = async () => {
+        const confirmed = await confirmDialog({
+            title: "Remove the message",
+            message: "The message disappears for every user of the application.",
+            confirmLabel: "Remove",
+        });
+        if (confirmed) await remove();
+    };
+
     return (
         <Box>
             <Paper variant="outlined" sx={{ width: "100%", overflow: "hidden" }}>
@@ -80,7 +92,7 @@ export default function AdminUpdatesTab() {
 
                 <Box sx={{ p: 4 }}>
                     {activeAnnouncement ? (
-                        <ActiveAnnouncement announcement={activeAnnouncement} onRemove={remove} />
+                        <ActiveAnnouncement announcement={activeAnnouncement} onRemove={handleRemove} />
                     ) : (
                         <>
                             <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>

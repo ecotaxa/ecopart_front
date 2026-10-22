@@ -6,6 +6,7 @@ import {
 
 import AddIcon from "@mui/icons-material/Add";
 import InfoTooltip from "@/shared/components/InfoTooltip";
+import { renderCountCell } from "@/shared/components/countColumn";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import RemoveModeratorIcon from "@mui/icons-material/RemoveModerator";
@@ -51,11 +52,6 @@ const renderAccountStatusCell = (params: GridRenderCellParams<AdminUser>) => {
         </Tooltip>
     );
 };
-
-const renderCountCell = (value: number | undefined) =>
-    typeof value === "number"
-        ? <Typography variant="body2">{value}</Typography>
-        : <Typography variant="caption" color="text.secondary">—</Typography>;
 
 export default function AdminUsersTab() {
     const navigate = useNavigate();

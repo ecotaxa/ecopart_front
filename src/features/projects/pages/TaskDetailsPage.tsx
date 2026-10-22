@@ -65,6 +65,18 @@ export default function TaskDetailsPage() {
     const [cancelError, setCancelError] = useState<string | null>(null);
     const currentUser = useAuthStore((s) => s.user);
 
+    // Opening another task (the route stays mounted) drops the previous task's
+    // data during render, so the new one shows a spinner instead of stale data.
+    const [shownTaskId, setShownTaskId] = useState<number | null>(parsedTaskId);
+    if (shownTaskId !== parsedTaskId) {
+        setShownTaskId(parsedTaskId);
+        setTask(null);
+        setLogContent("");
+        setError(null);
+        setCancelError(null);
+        setIsLoading(true);
+    }
+
     // Every load gets a generation number; a response is applied only if no
     // newer load has started since (a later poll, another task id or tab, or
     // unmount). A slow answer for the previous task can therefore never
@@ -272,6 +284,10 @@ export default function TaskDetailsPage() {
                             </Stack>
                         </Box>
 
+                        {/* A failed poll or action while the task is shown; the next successful poll clears it. */}
+                        {error && (
+                            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>{error}</Alert>
+                        )}
                         {cancelError && (
                             <Alert severity="error" sx={{ mb: 3 }} onClose={() => setCancelError(null)}>{cancelError}</Alert>
                         )}

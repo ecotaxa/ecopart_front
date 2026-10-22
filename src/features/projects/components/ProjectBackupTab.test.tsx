@@ -34,7 +34,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
     describe('Functional Tests', () => {
         it('TC-O1 - Dynamic Last Backup Date Formatter', async () => {
             const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
-            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: fiveDaysAgo });
+            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: fiveDaysAgo });
 
             renderWithRouter(<ProjectBackupTab projectId={77} />);
 
@@ -45,7 +45,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
 
             cleanup();
 
-            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
             renderWithRouter(<ProjectBackupTab projectId={78} />);
 
             expect(await waitFor(
@@ -56,7 +56,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
 
         it('TC-O2 - Export Task Launch & UI Feedback', async () => {
             const user = userEvent.setup();
-            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
             vi.mocked(exportProjectBackup).mockImplementation(() =>
                 new Promise((resolve) => setTimeout(() => resolve({ task_id: 88, task_status: 'PENDING', task_type: 'EXPORT' }), 50))
             );
@@ -88,7 +88,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
 
         it('TC-O3 - Backup Task Launch & UI Feedback', async () => {
             const user = userEvent.setup();
-            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
             vi.mocked(runProjectBackup).mockResolvedValue({ task_id: 99, task_status: 'PENDING', task_type: 'BACKUP' });
             // The launched task is followed in the background; keep it running here so the
             // "in progress" state stays visible (its completion is covered by the hook test TC-O8).
@@ -124,7 +124,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
     describe('Accessibility Tests', () => {
         it('TC-O4 - Switch Toggles (A11y)', async () => {
             const user = userEvent.setup();
-            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
 
             render(<ProjectBackupTab projectId={77} />);
 
@@ -147,7 +147,7 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
         });
 
         it('TC-O5 - Disabled Read-Only Field Contrast', async () => {
-            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_date: null });
+            vi.mocked(getLastBackupDate).mockResolvedValue({ last_backup_utc_date_time: null });
             render(<ProjectBackupTab projectId={77} />);
 
             const inputFields = await waitFor(
@@ -158,7 +158,10 @@ describe('II. BACKUP TAB (ProjectBackupTab)', () => {
 
             expect(disabledInputField).toBeDefined();
             expect(disabledInputField).toBeDisabled();
-            expect(disabledInputField).toHaveStyle({ WebkitTextFillColor: 'rgba(0, 0, 0, 0.6) !important' });
+            // jsdom does not compute -webkit-text-fill-color (and toHaveStyle drops any
+            // value carrying `!important`, so asserting it always passed). Pin what jsdom
+            // can see: the input carries the class the contrast override targets.
+            expect(disabledInputField).toHaveClass('Mui-disabled');
         }, 10000);
     });
 });
