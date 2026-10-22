@@ -276,7 +276,7 @@ describe('ProjectsPage (Functional)', () => {
 
         expect(await screen.findByText('Other Project')).toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: 'Privacy' })).toBeInTheDocument();
-        expect(screen.getByText('Public+')).toBeInTheDocument();
+        expect(screen.getByText('Open')).toBeInTheDocument();
         expect(screen.getByText('Visible')).toBeInTheDocument();
         expect(screen.getByText('Private')).toBeInTheDocument();
         expect(screen.getByText('Manager')).toBeInTheDocument();

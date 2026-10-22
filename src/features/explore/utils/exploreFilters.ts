@@ -102,5 +102,5 @@ export const PRIVACY_LABELS: Record<PrivacyStatus, string> = {
     private: "Private",
     visible: "Visible",
     public: "Public",
-    open: "Public+",
+    open: "Open",
 };

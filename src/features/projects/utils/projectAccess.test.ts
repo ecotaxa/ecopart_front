@@ -106,7 +106,7 @@ describe('projectAccess (unit)', () => {
 
     it('TC-AL6: labels the privacy statuses and the roles for the chips', () => {
         expect((['private', 'visible', 'public', 'open'] as const).map(privacyLabel)).toEqual([
-            'Private', 'Visible', 'Public', 'Public+',
+            'Private', 'Visible', 'Public', 'Open',
         ]);
         expect((['admin', 'manager', 'member', 'user'] as const).map(roleLabel)).toEqual([
             'Admin', 'Manager', 'Member', null,

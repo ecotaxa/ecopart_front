@@ -120,8 +120,8 @@ describe('ProjectSecurityTab (Functional)', () => {
         await screen.findByDisplayValue('6');
         const current = screen.getByText('Public').closest('[aria-current="step"]');
         expect(current).not.toBeNull();
-        expect(screen.getAllByText(/^(Private|Visible|Public|Public\+)$/).map((step) => step.textContent)).toEqual([
-            'Private', 'Visible', 'Public', 'Public+',
+        expect(screen.getAllByText(/^(Private|Visible|Public|Open)$/).map((step) => step.textContent)).toEqual([
+            'Private', 'Visible', 'Public', 'Open',
         ]);
         expect(screen.getByText(/counted in months after the project creation/i)).toBeInTheDocument();
     });
