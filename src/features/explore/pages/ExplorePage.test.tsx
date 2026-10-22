@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -21,7 +21,9 @@ vi.mock('@/shared/api/referenceData.hooks', () => ({
 
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
+import { ecotaxaHandler } from '@/test/msw/explore.handlers';
 import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
+import { ECOTAXA_POLL_MS } from '../hooks/useExploreData';
 import ExplorePage from './ExplorePage';
 
 const renderPage = (route = '/explore') => renderWithRouter(
@@ -39,8 +41,13 @@ const callsTo = (path: string) => requests.filter((requested) => requested === p
 
 const counter = (label: string) => screen.getByText(label, { selector: 'div' }).parentElement!;
 const progress = () => screen.queryByRole('progressbar', { name: 'Loading the explore data' });
+const PARTIAL_NOTE = /EcoTaxa statistics are being read for/;
 
 describe('ExplorePage', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     beforeEach(() => {
         logoutUser();
         requests = [];
@@ -135,6 +142,31 @@ describe('ExplorePage', () => {
         expect(within(counter('Images')).getByText('4.2K')).toBeInTheDocument();
         expect(screen.getByText('Tara Oceans 2009 [1]')).toBeInTheDocument();
         expect(await screen.findByText('Rhizaria')).toBeInTheDocument();
+        expect(screen.queryByText(PARTIAL_NOTE)).not.toBeInTheDocument();
+    });
+
+    it('says the EcoTaxa figures cover only some samples until the backend has read them all', async () => {
+        // Only the intervals are faked (the EcoTaxa polling), still running with the clock.
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'], shouldAdvanceTime: true });
+        server.use(ecotaxaHandler(1));
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        expect(await screen.findByText(
+            'EcoTaxa statistics are being read for 2 samples, the figures below cover the others and will complete shortly.',
+        )).toBeInTheDocument();
+        expect(screen.getByText('Copepoda')).toBeInTheDocument();
+        expect(screen.queryByText('Rhizaria')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: /Exportable selection/ }));
+        expect(await screen.findByText(/EcoTaxa statistics are being read for 1 sample,/)).toBeInTheDocument();
+
+        await user.click(screen.getByRole('tab', { name: /Selected data stats/ }));
+        act(() => vi.advanceTimersByTime(ECOTAXA_POLL_MS));
+        expect(await screen.findByText('Rhizaria')).toBeInTheDocument();
+        expect(screen.queryByText(PARTIAL_NOTE)).not.toBeInTheDocument();
+        expect(callsTo('/explore/ecotaxa')).toHaveLength(2);
     });
 
     it('shows the message of a failed request', async () => {

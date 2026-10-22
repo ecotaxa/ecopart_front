@@ -17,6 +17,7 @@ import {
 } from "../api/explore.api";
 import type {
     ExploreAggregation,
+    ExploreEcoTaxaResponse,
     ExploreEcoTaxaSummary,
     ExploreFilters,
     ExploreGraphs,
@@ -66,6 +67,8 @@ const PROJECTS_STALE_MS = 5 * 60 * 1000;
 const SELECTION_STALE_MS = 30_000;
 /** The bin sliders report every step: the graphs are requested once the slider rests. */
 const AGGREGATION_DEBOUNCE_MS = 400;
+/** A partial EcoTaxa part is asked again this often, until the backend has read every sample from EcoTaxa. */
+export const ECOTAXA_POLL_MS = 5000;
 
 const EMPTY_SELECTION: ExploreSelection = { summary: null, projects: [] };
 const NO_PROJECTS: ExploreProjectOption[] = [];
@@ -75,10 +78,15 @@ const NO_ECOTAXA: ExploreEcoTaxaSummary = {
     categories: [],
     classification: { fully_validated: 0, fully_predicted: 0, partially_validated: 0, partially_predicted: 0 },
     nb_samples_with_stats: 0,
+    partial: false,
+    nb_samples_pending: 0,
 };
 
 /** An older backend without the explore routes, or no backend at all. */
 const isServiceMissing = (error: unknown) => isNotFound(error) || error instanceof TypeError;
+
+const isPartial = (ecotaxa: ExploreEcoTaxaResponse | undefined) =>
+    ecotaxa !== undefined && (ecotaxa.all.partial || ecotaxa.exportable.partial);
 
 function withEcoTaxa(part: ExploreSelectionPart, ecotaxa: ExploreEcoTaxaSummary): ExploreSelection {
     return {
@@ -87,6 +95,8 @@ function withEcoTaxa(part: ExploreSelectionPart, ecotaxa: ExploreEcoTaxaSummary)
             ...part.summary,
             ecotaxa_categories: ecotaxa.categories,
             classification: ecotaxa.classification,
+            ecotaxa_partial: ecotaxa.partial,
+            ecotaxa_pending: ecotaxa.nb_samples_pending,
         },
     };
 }
@@ -99,6 +109,10 @@ function withEcoTaxa(part: ExploreSelectionPart, ecotaxa: ExploreEcoTaxaSummary)
  * The selection shows as soon as `/explore/selection` answers; its EcoTaxa part
  * (`/explore/ecotaxa`, which calls EcoTaxa) is merged in when it arrives. New
  * filters keep the previous answers on screen until theirs arrive.
+ *
+ * While the backend still reads the EcoTaxa statistics of some samples (a partial
+ * answer), the EcoTaxa part is asked again every `ECOTAXA_POLL_MS`, its figures
+ * staying on screen, until it is complete.
  */
 export function useExploreData(
     mode: ExploreMode,
@@ -144,6 +158,7 @@ export function useExploreData(
         enabled: applied,
         staleTime: SELECTION_STALE_MS,
         placeholderData: keepPreviousData,
+        refetchInterval: (query) => (isPartial(query.state.data) ? ECOTAXA_POLL_MS : false),
     });
     const graphsQuery = useQuery({
         queryKey: exploreQueryKeys.graphs(graphsRequest, viewer),
@@ -181,6 +196,9 @@ export function useExploreData(
         void refetchImages();
     }, [refetchImages]);
 
+    // Asking again for a partial EcoTaxa part is no load: the summary says its figures are completing.
+    const ecotaxaLoading = ecotaxaQuery.isFetching && (ecotaxaQuery.isPlaceholderData || !isPartial(ecotaxaQuery.data));
+
     // Every request fails the same way without the service: the page says so once.
     const failure = unavailable ? null : [
         projectsQuery.error,
@@ -199,7 +217,8 @@ export function useExploreData(
         exportable,
         images: imagesEnabled ? imagesQuery.data ?? NO_IMAGES : NO_IMAGES,
         refreshImages,
-        loading: [projectsQuery, mapQuery, selectionQuery, ecotaxaQuery, graphsQuery, imagesQuery].some((query) => query.isFetching),
+        loading: ecotaxaLoading
+            || [projectsQuery, mapQuery, selectionQuery, graphsQuery, imagesQuery].some((query) => query.isFetching),
         available: projectsQuery.isSuccess,
         unavailable,
         error: failure ? extractErrorMessage(failure, "The explore data could not be loaded.") : null,

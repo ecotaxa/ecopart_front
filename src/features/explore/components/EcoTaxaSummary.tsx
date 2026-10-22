@@ -1,4 +1,4 @@
-import { Box, Chip, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Chip, CircularProgress, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import FolderIcon from "@mui/icons-material/Folder";
 import DraftsIcon from "@mui/icons-material/Drafts";
@@ -26,11 +26,18 @@ function ShareRing({ value, color }: { value: number | undefined; color: "succes
 /** EcoTaxa categories used by the selection and the share of samples per classification state. */
 export default function EcoTaxaSummary({ summary }: { summary: ExploreSummary | null }) {
     const categories = summary?.ecotaxa_categories ?? [];
+    const pending = summary?.ecotaxa_pending ?? 0;
 
     return (
         <Stack spacing={4}>
             <Box>
                 <Typography variant="subtitle1">EcoTaxa classification</Typography>
+                {summary?.ecotaxa_partial && (
+                    <Alert severity="info" variant="outlined" role="status" sx={{ my: 1, py: 0 }}>
+                        EcoTaxa statistics are being read for {pending} sample{pending === 1 ? "" : "s"}, the figures
+                        below cover the others and will complete shortly.
+                    </Alert>
+                )}
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
                     Categories used (validated and predicted)
                 </Typography>

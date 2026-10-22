@@ -17,7 +17,8 @@ import type {
 // The backend /explore routes: two projects, three depth samples (two of them
 // exportable), their summary, EcoTaxa part, images and curves. The handlers
 // answer whatever the body; /explore/graphs refuses anonymous users (401), like
-// the backend.
+// the backend. `ecotaxaHandler(n)` answers a partial EcoTaxa part n times before
+// the complete one, like the backend while it reads the statistics from EcoTaxa.
 // ---------------------------------------------------------------------------
 
 const projects: ExploreProjectOption[] = [
@@ -114,11 +115,33 @@ const ecotaxa: ExploreEcoTaxaResponse = {
         categories: ['Copepoda', 'Rhizaria', 'detritus'],
         classification: { fully_validated: 66.7, fully_predicted: 33.3, partially_validated: 0, partially_predicted: 0 },
         nb_samples_with_stats: 3,
+        partial: false,
+        nb_samples_pending: 0,
     },
     exportable: {
         categories: ['Copepoda', 'detritus'],
         classification: { fully_validated: 50, fully_predicted: 50, partially_validated: 0, partially_predicted: 0 },
         nb_samples_with_stats: 2,
+        partial: false,
+        nb_samples_pending: 0,
+    },
+};
+
+/** The EcoTaxa part while the statistics of all samples but tara_001 are still being read. */
+const partialEcotaxa: ExploreEcoTaxaResponse = {
+    all: {
+        categories: ['Copepoda'],
+        classification: { fully_validated: 100, fully_predicted: 0, partially_validated: 0, partially_predicted: 0 },
+        nb_samples_with_stats: 1,
+        partial: true,
+        nb_samples_pending: 2,
+    },
+    exportable: {
+        categories: ['Copepoda'],
+        classification: { fully_validated: 100, fully_predicted: 0, partially_validated: 0, partially_predicted: 0 },
+        nb_samples_with_stats: 1,
+        partial: true,
+        nb_samples_pending: 1,
     },
 };
 
@@ -167,14 +190,20 @@ const graphs: ExploreGraphs = {
 };
 
 /** What the explore handlers answer, for the assertions of the tests. */
-export const exploreFixtures = { projects, mapSamples, selection, ecotaxa, images, graphs };
+export const exploreFixtures = { projects, mapSamples, selection, ecotaxa, partialEcotaxa, images, graphs };
+
+/** POST /explore/ecotaxa: `partialAnswers` partial EcoTaxa parts, then the complete one. */
+export const ecotaxaHandler = (partialAnswers = 0) => {
+    let answers = 0;
+    return http.post('*/explore/ecotaxa', () => HttpResponse.json(answers++ < partialAnswers ? partialEcotaxa : ecotaxa));
+};
 
 /** The /explore handlers; `isLoggedIn` reads the fake session of the other handlers. */
 export const createExploreHandlers = (isLoggedIn: () => boolean) => [
     http.get('*/explore/projects', () => HttpResponse.json({ projects })),
     http.post('*/explore/map', () => HttpResponse.json({ samples: mapSamples })),
     http.post('*/explore/selection', () => HttpResponse.json(selection)),
-    http.post('*/explore/ecotaxa', () => HttpResponse.json(ecotaxa)),
+    ecotaxaHandler(),
     http.post('*/explore/images', () => HttpResponse.json({ images })),
     http.post('*/explore/graphs', () => (isLoggedIn()
         ? HttpResponse.json(graphs)

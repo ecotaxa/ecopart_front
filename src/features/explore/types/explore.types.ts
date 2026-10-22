@@ -115,6 +115,10 @@ export interface ExploreSummary {
     profiles: ProfilePoint[];
     ecotaxa_categories: string[];
     classification: ClassificationShares;
+    /** Some samples have no EcoTaxa statistics yet: the categories and shares only cover the others. */
+    ecotaxa_partial: boolean;
+    /** Samples whose EcoTaxa statistics are still being read (0 when complete or not loaded). */
+    ecotaxa_pending: number;
 }
 
 export interface ExploreContact {
@@ -156,7 +160,10 @@ export interface ExploreSelection {
 }
 
 /** The summary served by `POST /explore/selection`: everything but the EcoTaxa part. */
-export type ExploreSelectionSummary = Omit<ExploreSummary, "ecotaxa_categories" | "classification">;
+export type ExploreSelectionSummary = Omit<
+    ExploreSummary,
+    "ecotaxa_categories" | "classification" | "ecotaxa_partial" | "ecotaxa_pending"
+>;
 
 /** One selection of `POST /explore/selection` (summary null when no sample matches). */
 export interface ExploreSelectionPart {
@@ -176,6 +183,13 @@ export interface ExploreEcoTaxaSummary {
     classification: ClassificationShares;
     /** Samples of the selection EcoTaxa has statistics for (the base of the shares). */
     nb_samples_with_stats: number;
+    /**
+     * Some samples have no statistics yet: the backend reads them from EcoTaxa in
+     * the background, and a later call answers the complete figures.
+     */
+    partial: boolean;
+    /** Samples whose statistics are still being read. */
+    nb_samples_pending: number;
 }
 
 export interface ExploreEcoTaxaResponse {

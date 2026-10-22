@@ -1,16 +1,16 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 
 import { server } from '@/test/msw/server';
-import { exploreFixtures } from '@/test/msw/explore.handlers';
+import { ecotaxaHandler, exploreFixtures } from '@/test/msw/explore.handlers';
 import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 import { createTestQueryClient } from '@/test/utils';
 import type { ExploreAggregation, ExploreFilters, ExploreMode, ExploreTab } from '../types/explore.types';
 import { DEFAULT_AGGREGATION, createEmptyDraft, toFilters } from '../utils/exploreFilters';
-import { useExploreData } from './useExploreData';
+import { ECOTAXA_POLL_MS, useExploreData } from './useExploreData';
 
 interface HookProps {
     mode: ExploreMode;
@@ -55,7 +55,19 @@ function renderExploreData(initial: Partial<HookProps> = {}) {
 /** Lets a request that should not be sent have the time to show up. */
 const aMoment = () => new Promise((resolve) => setTimeout(resolve, 50));
 
+/**
+ * Only the intervals are faked (the EcoTaxa polling of React Query), still
+ * running with the clock so that `waitFor` keeps checking.
+ */
+const fakeIntervals = () => vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'], shouldAdvanceTime: true });
+/** Time for one more poll of a partial EcoTaxa part. */
+const nextPoll = () => act(() => vi.advanceTimersByTime(ECOTAXA_POLL_MS));
+
 describe('useExploreData', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     beforeEach(() => {
         logoutUser();
         requests = [];
@@ -140,6 +152,78 @@ describe('useExploreData', () => {
 
         releaseEcoTaxa();
         await waitFor(() => expect(result.current.all.summary?.ecotaxa_categories).toEqual(['Appendicularia']));
+    });
+
+    it('marks the summaries as complete when the EcoTaxa part is, and asks for it only once', async () => {
+        fakeIntervals();
+        const { result } = renderExploreData({ filters: FILTERS });
+        await waitFor(() => expect(result.current.all.summary?.ecotaxa_categories).toEqual(exploreFixtures.ecotaxa.all.categories));
+        expect(result.current.all.summary).toMatchObject({ ecotaxa_partial: false, ecotaxa_pending: 0 });
+        expect(result.current.exportable.summary).toMatchObject({ ecotaxa_partial: false, ecotaxa_pending: 0 });
+
+        nextPoll();
+        nextPoll();
+        await aMoment();
+        expect(callsTo('/explore/ecotaxa')).toHaveLength(1);
+    });
+
+    it('asks again for a partial EcoTaxa part until it is complete, its figures staying on screen meanwhile', async () => {
+        fakeIntervals();
+        server.use(ecotaxaHandler(1));
+        const { result } = renderExploreData({ filters: FILTERS });
+
+        await waitFor(() => expect(result.current.all.summary?.ecotaxa_partial).toBe(true));
+        const { partialEcotaxa } = exploreFixtures;
+        expect(result.current.all.summary).toMatchObject({
+            ecotaxa_categories: partialEcotaxa.all.categories,
+            classification: partialEcotaxa.all.classification,
+            ecotaxa_pending: 2,
+        });
+        expect(result.current.exportable.summary).toMatchObject({ ecotaxa_partial: true, ecotaxa_pending: 1 });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(callsTo('/explore/ecotaxa')).toHaveLength(1);
+
+        // The poll is held: the partial figures stay, and asking again is no load.
+        const releaseComplete = gated('post', '/explore/ecotaxa', exploreFixtures.ecotaxa);
+        nextPoll();
+        await waitFor(() => expect(callsTo('/explore/ecotaxa')).toHaveLength(2));
+        expect(result.current.all.summary).toMatchObject({ ecotaxa_categories: partialEcotaxa.all.categories, ecotaxa_partial: true });
+        expect(result.current.loading).toBe(false);
+
+        releaseComplete();
+        await waitFor(() => expect(result.current.all.summary?.ecotaxa_partial).toBe(false));
+        expect(result.current.all.summary).toMatchObject({
+            ecotaxa_categories: exploreFixtures.ecotaxa.all.categories,
+            classification: exploreFixtures.ecotaxa.all.classification,
+            ecotaxa_pending: 0,
+        });
+        expect(result.current.exportable.summary).toMatchObject({ ecotaxa_partial: false, ecotaxa_pending: 0 });
+
+        // Complete: no more polls, and the other requests were never asked again.
+        nextPoll();
+        nextPoll();
+        await aMoment();
+        expect(callsTo('/explore/ecotaxa')).toHaveLength(2);
+        expect(callsTo('/explore/selection')).toHaveLength(1);
+        expect(callsTo('/explore/map')).toHaveLength(1);
+        expect(callsTo('/explore/projects')).toHaveLength(1);
+    });
+
+    it('stops asking for a partial EcoTaxa part once the filters are cleared', async () => {
+        fakeIntervals();
+        server.use(ecotaxaHandler(Infinity));
+        const { result, update } = renderExploreData({ filters: FILTERS });
+        await waitFor(() => expect(result.current.all.summary?.ecotaxa_partial).toBe(true));
+
+        nextPoll();
+        await waitFor(() => expect(callsTo('/explore/ecotaxa')).toHaveLength(2));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        update({ filters: null });
+        nextPoll();
+        nextPoll();
+        await aMoment();
+        expect(callsTo('/explore/ecotaxa')).toHaveLength(2);
     });
 
     it('keeps the selection when EcoTaxa fails, and reports why', async () => {
