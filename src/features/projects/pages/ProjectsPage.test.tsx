@@ -321,4 +321,35 @@ describe('ProjectsPage (Functional)', () => {
         expect(screen.getByText(/Every project; data access depends on the privacy status and your privilege/i)).toBeInTheDocument();
         await waitFor(() => expect(sentFilters).toContainEqual([]));
     }, 15000);
+
+    // TC-G10: the Privacy filter applies on top of every scope
+    it('TC-G10: sends a privacy_status filter with the scope, and keeps it when the scope changes', async () => {
+        const user = userEvent.setup();
+        const sentFilters: unknown[] = [];
+        server.use(
+            http.post('*/projects/searches', async ({ request }) => {
+                sentFilters.push(await request.json());
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 10 }, projects: [] });
+            })
+        );
+
+        renderWithRouter(<ProjectsPage />, { route: '/projects' });
+
+        await user.click(await screen.findByRole('combobox', { name: 'Privacy' }));
+        expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Any', 'Private', 'Visible', 'Public', 'Open']);
+        await user.click(screen.getByRole('option', { name: 'Open' }));
+
+        await waitFor(() => expect(sentFilters).toContainEqual([
+            { field: 'for_managing', operator: '=', value: true },
+            { field: 'privacy_status', operator: '=', value: 'open' },
+        ]));
+
+        await user.click(screen.getByRole('button', { name: 'All My Projects' }));
+        await user.click(screen.getByRole('menuitem', { name: 'All projects' }));
+        await waitFor(() => expect(sentFilters).toContainEqual([{ field: 'privacy_status', operator: '=', value: 'open' }]));
+
+        await user.click(screen.getByRole('combobox', { name: 'Privacy' }));
+        await user.click(screen.getByRole('option', { name: 'Any' }));
+        await waitFor(() => expect(sentFilters[sentFilters.length - 1]).toEqual([]));
+    }, 15000);
 });

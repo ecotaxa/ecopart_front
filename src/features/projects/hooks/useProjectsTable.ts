@@ -11,6 +11,7 @@ import {
     type SearchFilter,
     searchProjects,
 } from "../api/projects.api";
+import { privacySearchFilters, type PrivacyFilterValue } from "../utils/projectAccess";
 
 /**
  * The scoping choices of the "My projects" filter menu. "All" is every project
@@ -35,6 +36,8 @@ export const useProjectsTable = () => {
 
     // Default to "All" which is safely scoped to the user's projects
     const [selectedFilter, setSelectedFilter] = useState<ProjectsScope>("All");
+    // Applies on top of every scope.
+    const [privacyFilter, setPrivacyFilter] = useState<PrivacyFilterValue>("any");
 
     // SECURITY & SCOPING FILTERS: translate the UI selection into backend queries.
     const scopeFilters = useMemo<SearchFilter[]>(() => {
@@ -52,6 +55,11 @@ export const useProjectsTable = () => {
         return filters;
     }, [currentUser, selectedFilter]);
 
+    const extraFilters = useMemo<SearchFilter[]>(
+        () => [...scopeFilters, ...privacySearchFilters(privacyFilter)],
+        [scopeFilters, privacyFilter],
+    );
+
     const table = useServerTable<Project>({
         queryKey: [...PROJECTS_ROOT_QUERY_KEY, "list", "mine", { userId: currentUser?.user_id ?? null }],
         fetchPage: async ({ page, limit, filters }) => {
@@ -60,7 +68,7 @@ export const useProjectsTable = () => {
         },
         defaultAttribute: "project_title",
         numericAttributes: NUMERIC_ATTRIBUTES,
-        extraFilters: scopeFilters,
+        extraFilters,
         // Nothing to scope to until the user is loaded into the store.
         enabled: currentUser !== null,
         enrich: enrichProjectsWithSampleCounts,
@@ -98,6 +106,8 @@ export const useProjectsTable = () => {
         setSearchAttribute: table.setSearchAttribute,
         selectedFilter,
         setSelectedFilter,
+        privacyFilter,
+        setPrivacyFilter,
         paginationModel: table.paginationModel,
         setPaginationModel: table.setPaginationModel,
         rowSelectionModel: table.selectionModel,

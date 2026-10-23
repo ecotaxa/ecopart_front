@@ -37,6 +37,7 @@ import { countColumn } from "@/shared/components/countColumn";
 import type { Project } from "../api/projects.api";
 import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
 import { getProjectAccess, getProjectRole, privacyLabel, roleLabel, toPrivacyStatus } from "../utils/projectAccess";
+import PrivacyFilterSelect from "../components/PrivacyFilterSelect";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
@@ -69,6 +70,8 @@ export default function ProjectsPage() {
         setSearchAttribute,
         selectedFilter,
         setSelectedFilter,
+        privacyFilter,
+        setPrivacyFilter,
         paginationModel,
         setPaginationModel,
         rowSelectionModel,
@@ -294,6 +297,8 @@ export default function ProjectsPage() {
                                 <MenuItem value="chief_scientist_email">Chief scientist email</MenuItem>
                                 <MenuItem value="ecotaxa_project_name">EcoTaxa project</MenuItem>
                             </TextField>
+
+                            <PrivacyFilterSelect value={privacyFilter} onChange={setPrivacyFilter} />
 
                             <Button startIcon={<FilterListIcon />} color="inherit" onClick={handleFilterClick} sx={{ whiteSpace: 'nowrap' }}>
                                 {selectedFilter === "All" ? "All My Projects" :

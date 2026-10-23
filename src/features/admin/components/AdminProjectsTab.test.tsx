@@ -382,6 +382,24 @@ describe('AdminProjectsTab', () => {
         expect(screen.getByText('Private')).toBeInTheDocument();
     });
 
+    it('TC-AG19: sends a privacy_status filter when a Privacy is picked', async () => {
+        const user = userEvent.setup();
+        mockProjectsSearch([makeProject({ project_id: 473, privacy_status: 'visible' })], 1);
+
+        renderProjectsTab();
+        await screen.findByText('uvp5_sn201_exports02_filtered');
+        expect(searchCalls[searchCalls.length - 1]?.filters).toEqual([]);
+
+        await user.click(screen.getByRole('combobox', { name: 'Privacy' }));
+        await user.click(await screen.findByRole('option', { name: 'Visible' }));
+
+        await waitFor(() => {
+            expect(searchCalls[searchCalls.length - 1]?.filters).toEqual([
+                { field: 'privacy_status', operator: '=', value: 'visible' },
+            ]);
+        });
+    });
+
     it('TC-AG18: shows the number of samples with a linked CTD per project', async () => {
         const ctdFilters: unknown[] = [];
         server.use(

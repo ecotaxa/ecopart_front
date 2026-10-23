@@ -1,5 +1,5 @@
 import type { User } from "@/features/auth/types/user";
-import type { MinimalUserModel, Project } from "../api/projects.api";
+import type { MinimalUserModel, Project, SearchFilter } from "../api/projects.api";
 
 /**
  * Access control on project data, mirroring the backend policy (ecopart_back
@@ -87,6 +87,13 @@ export const toPrivacyStatus = (value: unknown): ProjectPrivacyStatus =>
     PROJECT_PRIVACY_STATUSES.find((status) => status === value) ?? "private";
 
 export const privacyLabel = (status: ProjectPrivacyStatus): string => PRIVACY_LABELS[status];
+
+/** The privacy choice of a project list: one status, or "any" for no filter. */
+export type PrivacyFilterValue = ProjectPrivacyStatus | "any";
+
+/** The backend resolves privacy_status to the projects at that status today. */
+export const privacySearchFilters = (value: PrivacyFilterValue): SearchFilter[] =>
+    value === "any" ? [] : [{ field: "privacy_status", operator: "=", value }];
 
 /** The Privilege chip label of a role; null for a user without privilege. */
 export const roleLabel = (role: ProjectRole): string | null => ROLE_LABELS[role];

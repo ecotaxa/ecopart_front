@@ -678,7 +678,8 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-G8** | Privacy & privilege columns | The search returns projects with `privacy_status` `open` / `visible` / none, managed, joined, and neither by the user. | Navigate to `/projects`. | • A **Privacy** column shows the chips "Open", "Visible" and "Private" (a missing status reads as private).<br>• The **Privilege** chip comes from `getProjectRole`: "Manager", "Member", nothing for a plain user. |
 | **TC-G8b** | Admin privilege | Logged in as an admin; a project managed by someone else. | Select its row. | • The Privilege chip reads "Admin".<br>• **DELETE** is enabled (admins may delete any project). |
 | **TC-G9** | "All projects" scope | User is on `/projects` (default scope "All My Projects"). | Open the filter menu and pick **All projects**. | • The first search carries `for_managing = true`; after the switch a search is sent without any filter.<br>• The button reads "All projects" and the header text becomes "Every project; data access depends on the privacy status and your privilege". |
-| ♿ **TC-G7** | Keyboard navigation (basic structure) | The page is loaded. | Use the Tab key. | Focus moves logically through the Search input, Attribute select, Filter button, **NEW PROJECT** button, and into the DataGrid. |
+| **TC-G10** | Privacy filter on every scope | User is on `/projects`. | Pick **Open** in the **Privacy** select, switch to **All projects**, then pick **Any**. | • The options read Any, Private, Visible, Public, Open.<br>• The search carries `for_managing = true` and `privacy_status = open`; after the scope switch only `privacy_status = open`; with **Any** no filter at all. |
+| ♿ **TC-G7** | Keyboard navigation (basic structure) | The page is loaded. | Use the Tab key. | Focus moves logically through the Search input, Attribute select, Privacy select, Filter button, **NEW PROJECT** button, and into the DataGrid. |
 
 ### H. Project Creation (New Project Page)
 
@@ -750,6 +751,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-K3** | Update success (PATCH) | Valid security data; `PATCH /projects/101` mocked OK. | Change a privacy delay (6 → 12) and click **SAVE**. | • `PATCH /projects/101` is called.<br>• The "Security settings updated successfully!" snackbar appears. |
 | **TC-K4** | Timeline follows the privacy status | The tab receives `privacyStatus="public"`. | Render the tab. | • The steps read Private, Visible, Public, Open; the reached ones are ticked and Public is the current step (`aria-current="step"`).<br>• The delays are described as counted in months from the acquisition date of the project's oldest sample. |
 | **TC-K5** | Load error shows an alert, not the form | `POST /projects/searches` answers 500. | Render the tab. | • An error alert is shown.<br>• No **SAVE** button: a form of defaults is never offered (saving it would wipe the real settings). |
+| **TC-K6** | Start of the delays | The tab receives `oldestSampleDate` "2019-10-12T15:15:16Z", then `null`. | Render the tab. | • "Oldest sample: 2019-10-12 (UTC)".<br>• With no sample: "No sample yet: the delays have not started." |
 
 ### L. `useNewProjectForm` Hook (unit)
 
@@ -1128,6 +1130,7 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-AG16** | `?project=` scopes the search | — | Open `/admin/projects?project=41,42` (from the TASKS tab). | • The search filters `project_id IN [41, 42]`.<br>• A "2 projects" chip is shown. |
 | **TC-AG17** | Privacy column | The search returns a project with `privacy_status` `public` and one without it. | Render the tab. | A **Privacy** column shows "Public" and "Private" (a missing status reads as private). |
 | **TC-AG18** | CTD count column | Samples searches answer 12 unfiltered and 7 with the `ctd_imported = 1` filter. | Render the tab. | The **Samples** cell shows 12 and the **Samples with CTD** cell shows 7; the CTD request carries exactly that filter. |
+| **TC-AG19** | Privacy filter | The search returns one project. | Pick **Visible** in the **Privacy** select. | The next search carries exactly `privacy_status = visible`. |
 
 ### AH. Admin — Quick Access Tab (`AdminQuickAccessTab`)
 

@@ -259,7 +259,13 @@ export default function ProjectDetailsPage() {
                             )}
                             {currentTab === "import" && <ProjectImportTab projectId={projectId} />}
                             {currentTab === "update" && renderComingSoonTab("Update")}
-                            {currentTab === "security" && <ProjectSecurityTab projectId={projectId} privacyStatus={access.privacy} />}
+                            {currentTab === "security" && (
+                                <ProjectSecurityTab
+                                    projectId={projectId}
+                                    privacyStatus={access.privacy}
+                                    oldestSampleDate={project?.oldest_sample_utc_date_time ?? null}
+                                />
+                            )}
                             {currentTab === "tasks" && <ProjectTasksTab projectId={projectId} />}
                             {currentTab === "backup" && <ProjectBackupTab projectId={projectId} />}
                         </Box>
