@@ -17,6 +17,7 @@ import StorageIcon from "@mui/icons-material/Storage";
 import { useAdminStats } from "../hooks/useAdminStats";
 import type { StatsGranularity } from "../api/adminStats.api";
 import { formatBytes } from "../utils/formatBytes";
+import { privacyLabel, toPrivacyStatus } from "@/features/projects/utils/projectAccess";
 import KpiCard from "./KpiCard";
 import EvolutionChart from "./EvolutionChart";
 import BreakdownChart from "./BreakdownChart";
@@ -224,6 +225,17 @@ export default function AdminStatisticsSection() {
                                     title="Projects by instrument"
                                     variant="bar"
                                     data={data.totals.projects.by_instrument}
+                                />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 6 }}>
+                                <BreakdownChart
+                                    title="Projects by privacy"
+                                    variant="bar"
+                                    showValues
+                                    data={(data.totals.projects.by_privacy ?? []).map((p) => ({
+                                        label: privacyLabel(toPrivacyStatus(p.label)),
+                                        count: p.count,
+                                    }))}
                                 />
                             </Grid>
                             <Grid size={{ xs: 12, md: 6 }}>

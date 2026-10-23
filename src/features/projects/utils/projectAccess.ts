@@ -46,7 +46,7 @@ const PRIVACY_LABELS: Record<ProjectPrivacyStatus, string> = {
     private: "Private",
     visible: "Visible",
     public: "Public",
-    open: "Public+",
+    open: "Open",
 };
 
 const ROLE_LABELS: Record<ProjectRole, string | null> = {

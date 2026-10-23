@@ -120,10 +120,10 @@ describe('ProjectSecurityTab (Functional)', () => {
         await screen.findByDisplayValue('6');
         const current = screen.getByText('Public').closest('[aria-current="step"]');
         expect(current).not.toBeNull();
-        expect(screen.getAllByText(/^(Private|Visible|Public|Public\+)$/).map((step) => step.textContent)).toEqual([
-            'Private', 'Visible', 'Public', 'Public+',
+        expect(screen.getAllByText(/^(Private|Visible|Public|Open)$/).map((step) => step.textContent)).toEqual([
+            'Private', 'Visible', 'Public', 'Open',
         ]);
-        expect(screen.getByText(/counted in months after the project creation/i)).toBeInTheDocument();
+        expect(screen.getByText(/counted in months from the acquisition date of the project's oldest sample/i)).toBeInTheDocument();
     });
 
     // TC-K5: a failed load must not leave an editable form of defaults (saving it would wipe the real data)

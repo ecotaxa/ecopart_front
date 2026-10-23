@@ -116,7 +116,7 @@ const PrivilegesSectionImpl: React.FC<PrivilegesSectionProps> = ({
             </Typography>
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Annotation permissions in EcoTaxa must be configured directly in EcoTaxa. Project members and managers can always export all project data, including LPM, CTD, and ZOO data. Other registered users can export the particle data once the project is public, and the EcoTaxa classification once it is public+.
+                Annotation permissions in EcoTaxa must be configured directly in EcoTaxa. Project members and managers can always export all project data, including LPM, CTD, and ZOO data. Other registered users can export the particle data once the project is public, and the EcoTaxa classification once it is open.
             </Typography>
 
             <Grid container spacing={2} sx={{ mb: 1, display: { xs: "none", sm: "flex" } }}>

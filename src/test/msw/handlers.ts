@@ -283,6 +283,12 @@ function buildAdminStats(includeStorage: boolean) {
                     { label: 'UVP6LP', count: 22 },
                     { label: 'UVP5HD', count: 18 },
                 ],
+                by_privacy: [
+                    { label: 'private', count: 12 },
+                    { label: 'visible', count: 8 },
+                    { label: 'public', count: 6 },
+                    { label: 'open', count: 14 },
+                ],
             },
             tasks: {
                 total: 120,

@@ -56,9 +56,11 @@ export interface Project {
     privacy_duration?: number;
     visible_duration?: number;
     public_duration?: number;
-    /** Computed server-side from the creation date and the three delays; never recomputed here. */
+    /** Computed server-side from the oldest sample date and the three delays; never recomputed here. */
     privacy_status?: ProjectPrivacyStatus;
     project_creation_utc_date_time?: string;
+    /** Acquisition date of the oldest sample, where the privacy delays start; null while the project has no sample. */
+    oldest_sample_utc_date_time?: string | null;
     /** Omitted by the backend for a user without privilege on the project. */
     last_backup_utc_date_time?: string | null;
 

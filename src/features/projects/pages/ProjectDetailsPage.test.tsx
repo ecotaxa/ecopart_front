@@ -307,7 +307,7 @@ describe('ProjectDetailsPage (Functional)', () => {
         ['user', 'private', 'Private'],
         ['user', 'visible', 'Visible'],
         ['member', 'public', 'Public'],
-        ['manager', 'open', 'Public+'],
+        ['manager', 'open', 'Open'],
     ] as const)('TC-I10: shows the privacy chip to a %s (%s -> %s)', async (role, privacy_status, label) => {
         mockProjectFetch(role, { privacy_status });
 

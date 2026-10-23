@@ -107,7 +107,7 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
         <Box sx={{ mb: 5 }}>
             <Typography variant="h6">Data privacy delays</Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-                All delays are counted in months after the project creation.
+                All delays are counted in months from the acquisition date of the project's oldest sample; a project without samples stays private.
             </Typography>
 
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
