@@ -123,7 +123,7 @@ describe('ProjectSecurityTab (Functional)', () => {
         expect(screen.getAllByText(/^(Private|Visible|Public|Open)$/).map((step) => step.textContent)).toEqual([
             'Private', 'Visible', 'Public', 'Open',
         ]);
-        expect(screen.getByText(/counted in months after the project creation/i)).toBeInTheDocument();
+        expect(screen.getByText(/counted in months from the acquisition date of the project's oldest sample/i)).toBeInTheDocument();
     });
 
     // TC-K5: a failed load must not leave an editable form of defaults (saving it would wipe the real data)
