@@ -105,6 +105,13 @@ const markerPath = (shape: MarkerShape, size: number) => {
     const h = size / 2;
     if (shape === "triangle") return `M0,${-h}L${h},${h * 0.8}L${-h},${h * 0.8}Z`;
     if (shape === "square") return `M${-h * 0.85},${-h * 0.85}h${h * 1.7}v${h * 1.7}h${-h * 1.7}Z`;
+    // A pin whose tip is the position: a disc above, a point below.
+    if (shape === "pin") return `M0,0L${-h * 0.75},${-h * 1.3}A${h * 0.85},${h * 0.85} 0 1,1 ${h * 0.75},${-h * 1.3}Z`;
+    // An X centred on the position, drawn as a thin outline.
+    if (shape === "cross") {
+        const t = h * 0.28;
+        return `M${-h},${-h + t}L${-h + t},${-h}L0,${-t}L${h - t},${-h}L${h},${-h + t}L${t},0L${h},${h - t}L${h - t},${h}L0,${t}L${-h + t},${h}L${-h},${h - t}L${-t},0Z`;
+    }
     return `M${h},0A${h},${h} 0 1,1 ${-h},0A${h},${h} 0 1,1 ${h},0Z`;
 };
 

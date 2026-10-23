@@ -10,6 +10,7 @@ import { server } from '@/test/msw/server';
 import { loginAsRole, loginAsUser } from '@/test/helpers/auth.helpers';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 import { makeProjectFixture, type ProjectFixtureOptions } from '@/test/helpers/project.fixtures';
+import { makeProjectStatsFixture } from '@/test/helpers/projectStats.fixtures';
 import type { ProjectRole } from '../utils/projectAccess';
 
 /**
@@ -360,6 +361,19 @@ describe('ProjectDetailsPage (Functional)', () => {
         await user.click(screen.getByRole('tab', { name: /METADATA/i }));
         expect(await screen.findByLabelText(/Project acronym/i)).toHaveAttribute('readonly');
         expect(screen.queryByRole('button', { name: /^SAVE$/i })).not.toBeInTheDocument();
+    }, 15000);
+
+    // TC-I16: the STATS tab shows the statistics of a project with data
+    it('TC-I16: shows the project statistics on the STATS tab once the project has samples', async () => {
+        mockProjectFetch('member', { ecotaxa_project_id: 1234 });
+        server.use(http.get('*/projects/101/stats', () => HttpResponse.json(makeProjectStatsFixture())));
+
+        renderPage('/projects/101/stats');
+
+        expect(await screen.findByRole('region', { name: 'Data privacy status' })).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: 'Samples distribution' })).toBeInTheDocument();
+        expect(screen.getByRole('region', { name: 'EcoTaxa classification state' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /IMPORT DATA/i })).not.toBeInTheDocument();
     }, 15000);
 
     // TC-I14: an unknown project id is a "not found" page, not an empty project

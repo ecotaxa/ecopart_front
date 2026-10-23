@@ -5,7 +5,8 @@ export type Hemisphere = "north" | "south";
 /** Flat world map, or the Earth seen from above a pole. */
 export type MapProjection = "mercator" | "polar";
 
-export type MarkerShape = "circle" | "triangle" | "square";
+/** `pin` is a map pin standing on the position, `cross` an X centred on it. */
+export type MarkerShape = "circle" | "triangle" | "square" | "pin" | "cross";
 
 /** Latitude / longitude box, in decimal degrees. */
 export interface GeoBox {

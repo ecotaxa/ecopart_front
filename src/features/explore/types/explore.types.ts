@@ -181,6 +181,8 @@ export interface ExploreEcoTaxaSummary {
     /** Display names of the taxa used by the samples, sorted. */
     categories: string[];
     classification: ClassificationShares;
+    /** The objects of the samples with statistics, by classification state (absent on an older backend). */
+    objects?: { total: number; validated: number; predicted: number };
     /** Samples of the selection EcoTaxa has statistics for (the base of the shares). */
     nb_samples_with_stats: number;
     /**
