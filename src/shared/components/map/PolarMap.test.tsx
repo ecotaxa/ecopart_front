@@ -18,6 +18,7 @@ describe('PolarMap', () => {
         expect(screen.getByRole('button', { name: 'Sample arctic' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Sample so' })).toBeInTheDocument();
         expect(screen.queryByRole('group', { name: 'Pole' })).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/^Scale: [\d,.]+ km$/)).toBeInTheDocument();
     });
 
     it('opens the polar view on the pole most points are around and points to the others', async () => {
