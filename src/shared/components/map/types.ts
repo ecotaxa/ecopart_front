@@ -5,9 +5,13 @@ export type Hemisphere = "north" | "south";
 /** Flat world map, or the Earth seen from above a pole. */
 export type MapProjection = "mercator" | "polar";
 
-export type MarkerShape = "circle" | "triangle" | "square";
+/** `pin`: the location pin of the MUI `LocationOn` icon, its tip on the point. */
+export type MarkerShape = "circle" | "triangle" | "square" | "pin";
 
-/** Latitude / longitude box, in decimal degrees. */
+/**
+ * Latitude / longitude box, in decimal degrees (longitudes in [-180, 180]).
+ * `west > east` means the box crosses the antimeridian (GeoJSON bbox convention).
+ */
 export interface GeoBox {
     north: number;
     south: number;
