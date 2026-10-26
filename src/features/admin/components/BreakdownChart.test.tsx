@@ -49,4 +49,14 @@ describe('BreakdownChart (AI)', () => {
 
         expect(screen.getByLabelText('Tasks by status')).toBeInTheDocument();
     });
+
+    it('TC-AI20: writes each count on its bar only when showValues is set', () => {
+        const data = [{ label: 'Private', count: 37 }, { label: 'Open', count: 13 }];
+        const { rerender } = render(<BreakdownChart title="By privacy" data={data} />);
+        expect(screen.queryByText('37')).not.toBeInTheDocument();
+
+        rerender(<BreakdownChart title="By privacy" data={data} showValues />);
+        expect(screen.getByText('37')).toBeInTheDocument();
+        expect(screen.getByText('13')).toBeInTheDocument();
+    });
 });

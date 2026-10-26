@@ -45,6 +45,8 @@ export interface AdminStats {
             backed_up: number;
             linked_to_ecotaxa: number;
             by_instrument: LabelCount[];
+            // private | visible | public | open, in that order. Absent from older backends.
+            by_privacy?: LabelCount[];
         };
         tasks: {
             total: number;

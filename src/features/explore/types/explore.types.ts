@@ -1,14 +1,15 @@
 /*
- * Data shown by the Explore page.
- *
- * The backend has no explore endpoint yet: these types describe what the page
- * renders, and `useExploreData` is the single place the requests will plug in.
+ * Data shown by the Explore page, as served by the backend `/explore` routes
+ * (`api/explore.api.ts`) and put together by `useExploreData`.
  */
 
 import type { GeoBox } from "@/shared/components/map";
 
 /** Explore page flavour: depth profiles or time series (the sample type). */
 export type ExploreMode = "depth" | "time";
+
+/** The tabs of the Explore page (the last segment of its route). */
+export type ExploreTab = "stats" | "graphs" | "exportable";
 
 /** Data access status of a project, from its privacy / visible / public durations. */
 export type PrivacyStatus = "private" | "visible" | "public" | "open";
@@ -114,6 +115,10 @@ export interface ExploreSummary {
     profiles: ProfilePoint[];
     ecotaxa_categories: string[];
     classification: ClassificationShares;
+    /** Some samples have no EcoTaxa statistics yet: the categories and shares only cover the others. */
+    ecotaxa_partial: boolean;
+    /** Samples whose EcoTaxa statistics are still being read (0 when complete or not loaded). */
+    ecotaxa_pending: number;
 }
 
 export interface ExploreContact {
@@ -154,6 +159,44 @@ export interface ExploreSelection {
     projects: ExploreProjectRow[];
 }
 
+/** The summary served by `POST /explore/selection`: everything but the EcoTaxa part. */
+export type ExploreSelectionSummary = Omit<
+    ExploreSummary,
+    "ecotaxa_categories" | "classification" | "ecotaxa_partial" | "ecotaxa_pending"
+>;
+
+/** One selection of `POST /explore/selection` (summary null when no sample matches). */
+export interface ExploreSelectionPart {
+    summary: ExploreSelectionSummary | null;
+    projects: ExploreProjectRow[];
+}
+
+export interface ExploreSelectionResponse {
+    all: ExploreSelectionPart;
+    exportable: ExploreSelectionPart;
+}
+
+/** The EcoTaxa part of a summary, served apart by `POST /explore/ecotaxa` (it calls EcoTaxa). */
+export interface ExploreEcoTaxaSummary {
+    /** Display names of the taxa used by the samples, sorted. */
+    categories: string[];
+    classification: ClassificationShares;
+    /** Samples of the selection EcoTaxa has statistics for (the base of the shares). */
+    nb_samples_with_stats: number;
+    /**
+     * Some samples have no statistics yet: the backend reads them from EcoTaxa in
+     * the background, and a later call answers the complete figures.
+     */
+    partial: boolean;
+    /** Samples whose statistics are still being read. */
+    nb_samples_pending: number;
+}
+
+export interface ExploreEcoTaxaResponse {
+    all: ExploreEcoTaxaSummary;
+    exportable: ExploreEcoTaxaSummary;
+}
+
 // ---------------------------------------------------------------------------
 // Selected data graphs
 // ---------------------------------------------------------------------------
@@ -190,4 +233,6 @@ export interface ExploreGraphs {
     ctd: GraphDataset;
     /** Concentrations (depth) or abundances (time) per EcoTaxa category. */
     ecotaxa: GraphDataset;
+    /** Why some samples of the selection are not drawn (private projects, too many samples). */
+    warnings: string[];
 }

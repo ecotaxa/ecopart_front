@@ -13,7 +13,15 @@ interface DataPrivacySectionProps {
     publicMonthsError?: string;
     /** The project's current status, as computed by the backend; a project being created is private. */
     currentStatus?: ProjectPrivacyStatus;
+    /**
+     * Acquisition date of the project's oldest sample, where the delays start: null while the project
+     * has no sample, undefined when not known (project creation).
+     */
+    oldestSampleDate?: string | null;
 }
+
+/** The UTC day of an ISO date time ("2019-10-12T15:15:16Z" → "2019-10-12"); null when unreadable. */
+const isoDay = (value: string): string | null => (/^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null);
 
 /**
  * Parse and clamp to a minimum of 1 month.
@@ -73,6 +81,7 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
     visibleMonthsError,
     publicMonthsError,
     currentStatus = "private",
+    oldestSampleDate,
 }) => {
     // Keep per-field drafts so users can temporarily clear/type invalid text,
     // while preserving their visible edits even if a save request fails.
@@ -107,8 +116,15 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
         <Box sx={{ mb: 5 }}>
             <Typography variant="h6">Data privacy delays</Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-                All delays are counted in months after the project creation.
+                All delays are counted in months from the acquisition date of the project's oldest sample; a project without samples stays private.
             </Typography>
+            {oldestSampleDate !== undefined && (
+                <Typography variant="body2" gutterBottom sx={{ mb: 3 }}>
+                    {oldestSampleDate && isoDay(oldestSampleDate)
+                        ? <>Oldest sample: <strong>{isoDay(oldestSampleDate)}</strong> (UTC)</>
+                        : "No sample yet: the delays have not started."}
+                </Typography>
+            )}
 
             <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
                 {PROJECT_PRIVACY_STATUSES.map((status, index) => (

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
     Box, Typography, Button, TextField, MenuItem,
     Snackbar, Alert, Stack, IconButton, Tooltip, Paper, Chip
@@ -15,7 +15,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
 
 import type { MinimalUserModel, Project, SearchFilter } from "@/features/projects/api/projects.api";
-import { privacyLabel, toPrivacyStatus } from "@/features/projects/utils/projectAccess";
+import { privacyLabel, privacySearchFilters, toPrivacyStatus, type PrivacyFilterValue } from "@/features/projects/utils/projectAccess";
+import PrivacyFilterSelect from "@/features/projects/components/PrivacyFilterSelect";
 import { useAdminProjectsTable } from "../hooks/useAdminProjectsTable";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import { parseUserIdsParam } from "../utils/userFilterParams";
@@ -68,8 +69,9 @@ export default function AdminProjectsTab() {
     // When opened from the TASKS tab (?project=1,2,3), scope the list to those
     // projects directly (the projects the selected task(s) belong to).
     const projectIds = useMemo(() => parseUserIdsParam(searchParams.get("project")), [searchParams]);
+    const [privacyFilter, setPrivacyFilter] = useState<PrivacyFilterValue>("any");
     const extraFilters = useMemo<SearchFilter[]>(() => {
-        const filters: SearchFilter[] = [];
+        const filters: SearchFilter[] = privacySearchFilters(privacyFilter);
         if (userIds.length > 0) {
             filters.push(userIds.length === 1
                 ? { field: "granted_users", operator: "=", value: userIds[0] }
@@ -81,7 +83,7 @@ export default function AdminProjectsTab() {
                 : { field: "project_id", operator: "IN", value: projectIds });
         }
         return filters;
-    }, [userIds, projectIds]);
+    }, [userIds, projectIds, privacyFilter]);
 
     const clearFilter = (key: "users" | "project") => {
         const next = new URLSearchParams(searchParams);
@@ -210,6 +212,7 @@ export default function AdminProjectsTab() {
                             <MenuItem value="managers">Manager (user id)</MenuItem>
                             <MenuItem value="members">Member (user id)</MenuItem>
                         </TextField>
+                        <PrivacyFilterSelect value={privacyFilter} onChange={setPrivacyFilter} />
                         <Tooltip title="Advanced filters (coming soon)">
                             <span>
                                 <IconButton disabled>

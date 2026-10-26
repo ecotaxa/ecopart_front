@@ -109,6 +109,19 @@ export default defineConfig(({ mode }) => {
                     changeOrigin: true,
                 },
 
+                // Explore APIs (/explore/projects, /explore/map, ...). "/explore/:mode?/:tabName?"
+                // is also a client-side route: a browser navigation falls back to the SPA.
+                "/explore": {
+                    target: backendUrl,
+                    changeOrigin: true,
+                    bypass: (req) => {
+                        if (req.headers.accept?.includes('text/html')) {
+                            return '/index.html';
+                        }
+                        return null;
+                    }
+                },
+
                 // Admin APIs (e.g. /admin/stats). "/admin/:tabName?" is also a
                 // client-side route, so a browser navigation must fall back to
                 // the SPA while fetch()/XHR calls are proxied to the backend.

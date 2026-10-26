@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
 import {
     Autocomplete, Box, Checkbox, Chip, FormControlLabel, IconButton, Paper, Radio, RadioGroup, Stack,
     TextField, Tooltip, Typography,
@@ -15,7 +15,7 @@ import type {
 } from "../types/explore.types";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
-type GraphId = keyof ExploreGraphs;
+type GraphId = Exclude<keyof ExploreGraphs, "warnings">;
 
 const GRAPH_IDS: readonly GraphId[] = ["abundance", "biovolume", "ctd", "ecotaxa"];
 
@@ -29,6 +29,9 @@ const VALUE_SCALES: { value: ValueScale; label: string }[] = [
 /** Graphs drawn side by side when nothing is picked yet. */
 const DEFAULT_SELECTION_SIZE = 2;
 const HOUR_MS = 3_600_000;
+
+const NO_KEYS: string[] = [];
+const NO_SERIES: ProfileSeries[] = [];
 
 /**
  * One colour per sample, hues spread by the golden angle so that neighbouring
@@ -122,25 +125,55 @@ function NoGraph() {
     );
 }
 
+interface GraphChartProps {
+    title: string;
+    series: ProfileSeries[];
+    mode: ExploreMode;
+    valueLabel: string;
+    scale: ValueScale;
+    timeScale: TimeScale;
+    step?: "vertical" | "horizontal";
+}
+
+/** One chart of a card: its curves and axes are only rebuilt when they change, not when another chart does. */
+function GraphChart({ title, series, mode, valueLabel, scale, timeScale, step }: GraphChartProps) {
+    const chartSeries = useMemo(() => toChartSeries(series, mode, timeScale), [series, mode, timeScale]);
+    const chartAxes = useMemo(() => axes(mode, valueLabel, scale, timeScale), [mode, valueLabel, scale, timeScale]);
+    return (
+        <ProfileChart
+            title={title}
+            series={chartSeries}
+            x={chartAxes.x}
+            y={chartAxes.y}
+            step={step}
+            valueAxis={mode === "depth" ? "x" : "y"}
+        />
+    );
+}
+
 interface GraphCardProps {
     id: GraphId;
     mode: ExploreMode;
     dataset: GraphDataset | null;
     settings: GraphSettings;
-    onSettingsChange: (patch: Partial<GraphSettings>) => void;
-    onReset: () => void;
-    onClose: () => void;
+    onSettingsChange: (id: GraphId, patch: Partial<GraphSettings>) => void;
+    onReset: (id: GraphId) => void;
+    onClose: (id: GraphId) => void;
     /** Extra controls under the picker (EcoTaxa options). */
     extra?: ReactNode;
     /** Shown above the picker (EcoTaxa available taxa). */
     header?: ReactNode;
 }
 
-function GraphCard({ id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header }: GraphCardProps) {
+const GraphCard = memo(function GraphCard({
+    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header,
+}: GraphCardProps) {
     const text = cardText(id, mode);
-    const keys = dataset?.keys ?? [];
-    const selected = (settings.selected ?? keys.slice(0, DEFAULT_SELECTION_SIZE)).filter((key) => keys.includes(key));
-    const axesFor = (key: string) => axes(mode, dataset?.axis_labels[key] ?? key, settings.scale, settings.timeScale);
+    const keys = dataset?.keys ?? NO_KEYS;
+    const selected = useMemo(
+        () => (settings.selected ?? keys.slice(0, DEFAULT_SELECTION_SIZE)).filter((key) => keys.includes(key)),
+        [settings.selected, keys],
+    );
 
     return (
         <Paper variant="outlined" component="section" aria-label={text.title} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
@@ -148,12 +181,12 @@ function GraphCard({ id, mode, dataset, settings, onSettingsChange, onReset, onC
                 <Typography variant="h6" component="h3">{text.title}</Typography>
                 <Box>
                     <Tooltip title="Reset this graph">
-                        <IconButton size="small" onClick={onReset} aria-label={`Reset ${text.title}`}>
+                        <IconButton size="small" onClick={() => onReset(id)} aria-label={`Reset ${text.title}`}>
                             <RestartAltIcon fontSize="small" />
                         </IconButton>
                     </Tooltip>
                     <Tooltip title="Hide this graph">
-                        <IconButton size="small" onClick={onClose} aria-label={`Hide ${text.title}`}>
+                        <IconButton size="small" onClick={() => onClose(id)} aria-label={`Hide ${text.title}`}>
                             <CloseIcon fontSize="small" />
                         </IconButton>
                     </Tooltip>
@@ -167,20 +200,20 @@ function GraphCard({ id, mode, dataset, settings, onSettingsChange, onReset, onC
                 size="small"
                 options={keys}
                 value={selected}
-                onChange={(_event, value) => onSettingsChange({ selected: value })}
+                onChange={(_event, value) => onSettingsChange(id, { selected: value })}
                 noOptionsText="No data"
                 renderInput={(params) => <TextField {...params} label={text.picker} />}
             />
             {extra}
 
             <Stack direction={{ xs: "column", sm: "row" }} sx={{ columnGap: 4, mt: 1.5 }}>
-                <RadioRow label={text.scale} value={settings.scale} options={VALUE_SCALES} onChange={(scale) => onSettingsChange({ scale })} />
+                <RadioRow label={text.scale} value={settings.scale} options={VALUE_SCALES} onChange={(scale) => onSettingsChange(id, { scale })} />
                 {mode === "time" && (
                     <RadioRow
                         label="Scale time"
                         value={settings.timeScale}
                         options={[{ value: "absolute", label: "Absolute" }, { value: "relative", label: "Relative" }]}
-                        onChange={(timeScale) => onSettingsChange({ timeScale })}
+                        onChange={(timeScale) => onSettingsChange(id, { timeScale })}
                     />
                 )}
             </Stack>
@@ -188,25 +221,24 @@ function GraphCard({ id, mode, dataset, settings, onSettingsChange, onReset, onC
             <Grid container spacing={2} sx={{ mt: 1 }}>
                 {selected.length === 0 ? (
                     <Grid size={12}><NoGraph /></Grid>
-                ) : selected.map((key) => {
-                    const chartAxes = axesFor(key);
-                    return (
-                        <Grid key={key} size={{ xs: 12, md: 6 }}>
-                            <ProfileChart
-                                title={`${text.title}: ${key}`}
-                                series={toChartSeries(dataset?.series[key] ?? [], mode, settings.timeScale)}
-                                x={chartAxes.x}
-                                y={chartAxes.y}
-                                // EcoTaxa concentrations come per depth bin.
-                                step={id === "ecotaxa" && mode === "depth" ? "vertical" : undefined}
-                            />
-                        </Grid>
-                    );
-                })}
+                ) : selected.map((key) => (
+                    <Grid key={key} size={{ xs: 12, md: 6 }}>
+                        <GraphChart
+                            title={`${text.title}: ${key}`}
+                            series={dataset?.series[key] ?? NO_SERIES}
+                            mode={mode}
+                            valueLabel={dataset?.axis_labels[key] ?? key}
+                            scale={settings.scale}
+                            timeScale={settings.timeScale}
+                            // EcoTaxa concentrations come per depth bin.
+                            step={id === "ecotaxa" && mode === "depth" ? "vertical" : undefined}
+                        />
+                    </Grid>
+                ))}
             </Grid>
         </Paper>
     );
-}
+});
 
 interface SelectionGraphsProps {
     mode: ExploreMode;
@@ -232,11 +264,65 @@ export default function SelectionGraphs({ mode, graphs, sumChildTaxa, onSumChild
     const [hidden, setHidden] = useState<GraphId[]>([]);
     const [showTaxa, setShowTaxa] = useState(true);
 
-    const update = (id: GraphId, patch: Partial<GraphSettings>) =>
-        setSettings((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    // Stable callbacks: a card only renders again when its own data or settings change.
+    const update = useCallback((id: GraphId, patch: Partial<GraphSettings>) =>
+        setSettings((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } })), []);
+    const reset = useCallback((id: GraphId) => update(id, DEFAULT_SETTINGS), [update]);
+    const hide = useCallback((id: GraphId) => setHidden((prev) => [...prev, id]), []);
 
-    const taxa = graphs?.ecotaxa.keys ?? [];
-    const selectedTaxa = settings.ecotaxa.selected ?? taxa.slice(0, DEFAULT_SELECTION_SIZE);
+    const taxa = graphs?.ecotaxa.keys ?? NO_KEYS;
+    const selectedTaxa = useMemo(
+        () => settings.ecotaxa.selected ?? taxa.slice(0, DEFAULT_SELECTION_SIZE),
+        [settings.ecotaxa.selected, taxa],
+    );
+
+    const taxaHeader = useMemo(() => (
+        <Box sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+                <Typography variant="subtitle2">Available taxa</Typography>
+                <Tooltip title={showTaxa ? "Hide the list" : "Show the list"}>
+                    <IconButton size="small" onClick={() => setShowTaxa((on) => !on)} aria-label="Toggle available taxa">
+                        {showTaxa ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                    </IconButton>
+                </Tooltip>
+            </Stack>
+            {showTaxa && (taxa.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">—</Typography>
+            ) : (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                    {taxa.map((taxon) => (
+                        <Chip
+                            key={taxon}
+                            size="small"
+                            label={taxon}
+                            color={selectedTaxa.includes(taxon) ? "primary" : "default"}
+                            variant={selectedTaxa.includes(taxon) ? "filled" : "outlined"}
+                            // A click adds the taxon to the graphs (or removes it).
+                            onClick={() => update("ecotaxa", {
+                                selected: selectedTaxa.includes(taxon)
+                                    ? selectedTaxa.filter((other) => other !== taxon)
+                                    : [...selectedTaxa, taxon],
+                            })}
+                        />
+                    ))}
+                </Box>
+            ))}
+        </Box>
+    ), [showTaxa, taxa, selectedTaxa, update]);
+
+    const sumChildrenOption = useMemo(() => (
+        <FormControlLabel
+            sx={{ mt: 1 }}
+            label={mode === "depth" ? "Sum concentrations of children categories" : "Sum abundance of children categories"}
+            control={(
+                <Checkbox
+                    size="small"
+                    checked={sumChildTaxa}
+                    onChange={(event) => onSumChildTaxaChange(event.target.checked)}
+                />
+            )}
+        />
+    ), [mode, sumChildTaxa, onSumChildTaxaChange]);
 
     return (
         <Stack spacing={3}>
@@ -264,55 +350,11 @@ export default function SelectionGraphs({ mode, graphs, sumChildTaxa, onSumChild
                     mode={mode}
                     dataset={graphs?.[id] ?? null}
                     settings={settings[id]}
-                    onSettingsChange={(patch) => update(id, patch)}
-                    onReset={() => update(id, DEFAULT_SETTINGS)}
-                    onClose={() => setHidden((prev) => [...prev, id])}
-                    header={id === "ecotaxa" && (
-                        <Box sx={{ mb: 2 }}>
-                            <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-                                <Typography variant="subtitle2">Available taxa</Typography>
-                                <Tooltip title={showTaxa ? "Hide the list" : "Show the list"}>
-                                    <IconButton size="small" onClick={() => setShowTaxa((on) => !on)} aria-label="Toggle available taxa">
-                                        {showTaxa ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
-                                    </IconButton>
-                                </Tooltip>
-                            </Stack>
-                            {showTaxa && (taxa.length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">—</Typography>
-                            ) : (
-                                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                                    {taxa.map((taxon) => (
-                                        <Chip
-                                            key={taxon}
-                                            size="small"
-                                            label={taxon}
-                                            color={selectedTaxa.includes(taxon) ? "primary" : "default"}
-                                            variant={selectedTaxa.includes(taxon) ? "filled" : "outlined"}
-                                            // A click adds the taxon to the graphs (or removes it).
-                                            onClick={() => update("ecotaxa", {
-                                                selected: selectedTaxa.includes(taxon)
-                                                    ? selectedTaxa.filter((other) => other !== taxon)
-                                                    : [...selectedTaxa, taxon],
-                                            })}
-                                        />
-                                    ))}
-                                </Box>
-                            ))}
-                        </Box>
-                    )}
-                    extra={id === "ecotaxa" && (
-                        <FormControlLabel
-                            sx={{ mt: 1 }}
-                            label={mode === "depth" ? "Sum concentrations of children categories" : "Sum abundance of children categories"}
-                            control={(
-                                <Checkbox
-                                    size="small"
-                                    checked={sumChildTaxa}
-                                    onChange={(event) => onSumChildTaxaChange(event.target.checked)}
-                                />
-                            )}
-                        />
-                    )}
+                    onSettingsChange={update}
+                    onReset={reset}
+                    onClose={hide}
+                    header={id === "ecotaxa" ? taxaHeader : undefined}
+                    extra={id === "ecotaxa" ? sumChildrenOption : undefined}
                 />
             ))}
         </Stack>

@@ -82,25 +82,27 @@ export function toBoundsDraft(bounds: GeoBounds): BoundsDraft {
     };
 }
 
+/** The location of a valid typed location (callers check `boundsError` first), null when empty. */
+export function toBounds(bounds: BoundsDraft): GeoBounds | null {
+    const hasBounds = BOUND_KEYS.every((key) => bounds[key].trim() !== "");
+    return hasBounds
+        ? {
+            north: Number(bounds.north),
+            south: Number(bounds.south),
+            east: Number(bounds.east),
+            west: Number(bounds.west),
+        }
+        : null;
+}
+
 /** The applied filters of a valid draft (callers check `boundsError` first). */
 export function toFilters(draft: ExploreFiltersDraft): ExploreFilters {
-    const hasBounds = BOUND_KEYS.every((key) => draft.bounds[key].trim() !== "");
-    return {
-        ...draft,
-        bounds: hasBounds
-            ? {
-                north: Number(draft.bounds.north),
-                south: Number(draft.bounds.south),
-                east: Number(draft.bounds.east),
-                west: Number(draft.bounds.west),
-            }
-            : null,
-    };
+    return { ...draft, bounds: toBounds(draft.bounds) };
 }
 
 export const PRIVACY_LABELS: Record<PrivacyStatus, string> = {
     private: "Private",
     visible: "Visible",
     public: "Public",
-    open: "Public+",
+    open: "Open",
 };

@@ -120,10 +120,22 @@ describe('ProjectSecurityTab (Functional)', () => {
         await screen.findByDisplayValue('6');
         const current = screen.getByText('Public').closest('[aria-current="step"]');
         expect(current).not.toBeNull();
-        expect(screen.getAllByText(/^(Private|Visible|Public|Public\+)$/).map((step) => step.textContent)).toEqual([
-            'Private', 'Visible', 'Public', 'Public+',
+        expect(screen.getAllByText(/^(Private|Visible|Public|Open)$/).map((step) => step.textContent)).toEqual([
+            'Private', 'Visible', 'Public', 'Open',
         ]);
-        expect(screen.getByText(/counted in months after the project creation/i)).toBeInTheDocument();
+        expect(screen.getByText(/counted in months from the acquisition date of the project's oldest sample/i)).toBeInTheDocument();
+    });
+
+    // TC-K6: the start of the delays is shown
+    it('TC-K6: shows the date of the oldest sample, or that there is no sample yet', async () => {
+        const { unmount } = renderWithRouter(<ProjectSecurityTab projectId={101} oldestSampleDate="2019-10-12T15:15:16Z" />);
+        await screen.findByDisplayValue('6');
+        expect(screen.getByText(/Oldest sample:/).textContent).toBe('Oldest sample: 2019-10-12 (UTC)');
+        unmount();
+
+        renderWithRouter(<ProjectSecurityTab projectId={101} oldestSampleDate={null} />);
+        await screen.findByDisplayValue('6');
+        expect(screen.getByText('No sample yet: the delays have not started.')).toBeInTheDocument();
     });
 
     // TC-K5: a failed load must not leave an editable form of defaults (saving it would wipe the real data)

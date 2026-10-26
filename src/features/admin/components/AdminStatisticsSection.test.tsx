@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import AdminStatisticsSection from './AdminStatisticsSection';
@@ -43,6 +43,18 @@ describe('AdminStatisticsSection', () => {
         // The only request(s) so far must not ask for storage.
         expect(statsRequests.length).toBeGreaterThanOrEqual(1);
         expect(statsRequests.every((u) => !u.includes('include_storage=true'))).toBe(true);
+    });
+
+    it('TC-AI21: shows the projects by privacy chart with a count on each bar and readable level names', async () => {
+        renderWithRouter(<AdminStatisticsSection />);
+
+        const chart = await screen.findByLabelText('Projects by privacy');
+        for (const count of ['12', '8', '6', '14']) {
+            expect(within(chart).getByText(count)).toBeInTheDocument();
+        }
+        // jsdom drops the overlapping axis ticks, the first one always stays.
+        expect(within(chart).getByText('Private')).toBeInTheDocument();
+        expect(within(chart).queryByText('private')).not.toBeInTheDocument();
     });
 
     it('TC-AI18: computes storage on click: fires include_storage=true and reveals the storage KPI + chart', async () => {

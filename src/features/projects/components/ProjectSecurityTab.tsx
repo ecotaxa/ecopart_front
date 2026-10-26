@@ -15,6 +15,8 @@ interface ProjectSecurityTabProps {
     projectId: number;
     /** The project's current privacy status, highlighted on the privacy timeline. */
     privacyStatus?: ProjectPrivacyStatus;
+    /** Acquisition date of the oldest sample, where the delays start (null: no sample yet). */
+    oldestSampleDate?: string | null;
 }
 
 /**
@@ -22,7 +24,7 @@ interface ProjectSecurityTabProps {
  * Displays and allows editing of a project's security metadata (Privacy & Privileges).
  * Structure matches the metadata tab and NewProjectPage exactly.
  */
-export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectId, privacyStatus }) => {
+export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectId, privacyStatus, oldestSampleDate }) => {
     // 1. Connect to the "Brain" (Hook)
     const {
         values,
@@ -71,6 +73,7 @@ export const ProjectSecurityTab: React.FC<ProjectSecurityTabProps> = ({ projectI
                     visibleMonthsError={errors.visibleMonths}
                     publicMonthsError={errors.publicMonths}
                     currentStatus={privacyStatus}
+                    oldestSampleDate={oldestSampleDate}
                 />
 
                 <Box sx={{ mt: 6 }}>

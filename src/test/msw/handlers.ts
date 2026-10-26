@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import type { User } from '@/features/auth/types/user';
+import { createExploreHandlers } from './explore.handlers';
 
 // Fake server
 // We use a simple variable to simulate server-side session state.
@@ -251,6 +252,9 @@ export const handlers = [
         const includeStorage = url.searchParams.get('include_storage') === 'true';
         return HttpResponse.json(buildAdminStats(includeStorage));
     }),
+
+    // --- MOCK EXPLORE (/explore/*) ---
+    ...createExploreHandlers(() => isLoggedIn),
 ];
 
 /**
@@ -278,6 +282,12 @@ function buildAdminStats(includeStorage: boolean) {
                 by_instrument: [
                     { label: 'UVP6LP', count: 22 },
                     { label: 'UVP5HD', count: 18 },
+                ],
+                by_privacy: [
+                    { label: 'private', count: 12 },
+                    { label: 'visible', count: 8 },
+                    { label: 'public', count: 6 },
+                    { label: 'open', count: 14 },
                 ],
             },
             tasks: {

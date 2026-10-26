@@ -37,12 +37,16 @@ describe('ProjectsPage (Accessibility)', () => {
         await user.tab();
         expect(screen.getByRole('combobox', { name: /Attribute/i })).toHaveFocus();
 
-        // 2. Tab -> Filter Button
+        // 2. Tab -> Privacy Select (Combobox)
+        await user.tab();
+        expect(screen.getByRole('combobox', { name: /Privacy/i })).toHaveFocus();
+
+        // 3. Tab -> Filter Button
         await user.tab();
         // The default selectedFilter is "All", so the button says "All My Projects"
         expect(screen.getByRole('button', { name: /All My Projects/i })).toHaveFocus();
 
-        // 3. Tab -> NEW PROJECT Button
+        // 4. Tab -> NEW PROJECT Button
         await user.tab();
         expect(screen.getByRole('button', { name: /NEW PROJECT/i })).toHaveFocus();
     }, 15000);

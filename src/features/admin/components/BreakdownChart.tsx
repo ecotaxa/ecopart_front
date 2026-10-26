@@ -11,6 +11,8 @@ interface BreakdownChartProps {
     data: LabelCount[];
     variant?: "bar" | "pie";
     height?: number;
+    /** Bar variant only: writes each count on its bar. */
+    showValues?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface BreakdownChartProps {
  * (like EvolutionChart) so MUI's overlap-avoidance keeps them visible instead
  * of dropping wide upright labels.
  */
-export default function BreakdownChart({ title, data, variant = "bar", height = 260 }: BreakdownChartProps) {
+export default function BreakdownChart({ title, data, variant = "bar", height = 260, showValues = false }: BreakdownChartProps) {
     const rows = data.map((d, i) => ({
         id: d.label,
         label: prettifyLabel(d.label),
@@ -86,6 +88,7 @@ export default function BreakdownChart({ title, data, variant = "bar", height = 
                         },
                     ]}
                     grid={{ horizontal: true }}
+                    barLabel={showValues ? "value" : undefined}
                 />
             )}
         </Box>

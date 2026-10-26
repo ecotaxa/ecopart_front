@@ -1,10 +1,8 @@
 import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
+import { RANDOM_IMAGE_COUNT } from "../api/explore.api";
 import type { ExploreImage, ExploreMode } from "../types/explore.types";
-
-/** Number of object images drawn at random from the selection. */
-const RANDOM_IMAGE_COUNT = 4;
 
 const caption = (image: ExploreImage, mode: ExploreMode) => {
     if (mode === "depth" && image.depth != null) return `${image.sample_name} · ${image.depth} m`;
