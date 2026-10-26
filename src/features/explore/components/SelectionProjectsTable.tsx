@@ -8,6 +8,7 @@ import { useAuthStore } from "@/features/auth";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import type { ExploreMode, ExploreProjectRow } from "../types/explore.types";
 import { buildAccessRequestMailto } from "../utils/accessRequestMail";
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { PRIVACY_LABELS } from "../utils/exploreFilters";
 
 type SearchAttribute = "project_title" | "instrument_model" | "ecotaxa_project_name" | "contact";
@@ -73,7 +74,13 @@ export default function SelectionProjectsTable({ title, subtitle, rows, mode }: 
         {
             field: "privacy_status",
             headerName: "Privacy status",
-            width: 120,
+            width: 150,
+            renderHeader: () => (
+                <Box component="span" sx={{ fontWeight: 500 }}>
+                    Privacy status
+                    <PrivacyStatusInfo />
+                </Box>
+            ),
             renderCell: ({ row }) => (
                 <Box sx={{ lineHeight: 1.2, py: 1 }}>
                     <Typography variant="body2">{PRIVACY_LABELS[row.privacy_status]}</Typography>

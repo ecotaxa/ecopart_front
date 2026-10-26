@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Box, Typography, TextField, Stack, InputAdornment, Divider } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import type { NewProjectFormValues } from "../types/newProject.types";
 import { PROJECT_PRIVACY_STATUSES, privacyLabel, type ProjectPrivacyStatus } from "../utils/projectAccess";
 
@@ -114,7 +115,10 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
 
     return (
         <Box sx={{ mb: 5 }}>
-            <Typography variant="h6">Data privacy delays</Typography>
+            <Typography variant="h6">
+                Data privacy delays
+                <PrivacyStatusInfo />
+            </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
                 All delays are counted in months from the acquisition date of the project's oldest sample; a project without samples stays private.
             </Typography>
