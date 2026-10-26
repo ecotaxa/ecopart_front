@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { geoAzimuthalEquidistant, geoGraticule, geoMercator, geoPath, type GeoProjection } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
@@ -101,12 +101,29 @@ function fitView(
     return { k, x: -k * (minX + maxX) / 2, y: -k * (minY + maxY) / 2 };
 }
 
+/** The MUI `LocationOn` icon (24×24 box, tip at 12,22), so the map pin matches the icon used next to it. */
+const PIN_PATH = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7m0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5";
+const PIN_SIZE = 30;
+const PIN_SCALE = PIN_SIZE / 24;
+const PIN_TRANSFORM = `translate(${-12 * PIN_SCALE},${-22 * PIN_SCALE}) scale(${PIN_SCALE})`;
+
+const EARTH_RADIUS_KM = 6371;
+const SCALE_BAR_MAX_PX = 100;
+
+/** The longest round distance (1, 2 or 5 × 10ⁿ km) drawn in at most `SCALE_BAR_MAX_PX`. */
+function scaleBar(pxPerKm: number) {
+    if (!(pxPerKm > 0) || !Number.isFinite(pxPerKm)) return null;
+    const maxKm = SCALE_BAR_MAX_PX / pxPerKm;
+    const magnitude = 10 ** Math.floor(Math.log10(maxKm));
+    const km = [5, 2, 1].map((step) => step * magnitude).find((value) => value <= maxKm) ?? magnitude;
+    return { km, px: km * pxPerKm, label: `${km.toLocaleString("en-US", { maximumFractionDigits: 3 })} km` };
+}
+
 const markerPath = (shape: MarkerShape, size: number) => {
     const h = size / 2;
+    if (shape === "pin") return PIN_PATH;
     if (shape === "triangle") return `M0,${-h}L${h},${h * 0.8}L${-h},${h * 0.8}Z`;
     if (shape === "square") return `M${-h * 0.85},${-h * 0.85}h${h * 1.7}v${h * 1.7}h${-h * 1.7}Z`;
-    // A pin whose tip is the position: a disc above, a point below.
-    if (shape === "pin") return `M0,0L${-h * 0.75},${-h * 1.3}A${h * 0.85},${h * 0.85} 0 1,1 ${h * 0.75},${-h * 1.3}Z`;
     // An X centred on the position, drawn as a thin outline.
     if (shape === "cross") {
         const t = h * 0.28;
@@ -151,7 +168,25 @@ function useElementSize<T extends HTMLElement>() {
 
 type Gesture =
     | { kind: "pan"; startX: number; startY: number; view: View; moved: boolean }
-    | { kind: "draw"; start: [number, number] };
+    /** `lastLongitude` is unwrapped (may leave [-180, 180]) so the box follows the pointer across the antimeridian. */
+    | { kind: "draw"; start: [number, number]; lastLongitude: number };
+
+/** `longitude` shifted by whole turns to lie within 180° of `reference`. */
+const unwrapLongitude = (longitude: number, reference: number) =>
+    longitude + 360 * Math.round((reference - longitude) / 360);
+
+const normalizeLongitude = (longitude: number) => ((((longitude + 180) % 360) + 360) % 360) - 180;
+
+/** The box between two corners, `end` given with an unwrapped longitude. */
+function boxBetween([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): GeoBox {
+    const north = Math.max(lat1, lat2);
+    const south = Math.min(lat1, lat2);
+    const [west, east] = [Math.min(lon1, lon2), Math.max(lon1, lon2)];
+    if (east - west >= 360) return { north, south, west: -180, east: 180 };
+    // Kept as drawn when inside [-180, 180]; otherwise it crosses the antimeridian (west > east).
+    if (west >= -180 && east <= 180) return { north, south, west, east };
+    return { north, south, west: normalizeLongitude(west), east: normalizeLongitude(east) };
+}
 
 /**
  * World map with two views: a flat Mercator map, or the Earth seen from above the
@@ -168,6 +203,7 @@ export default function PolarMap({
     const land = useLand();
     const [containerRef, { width }] = useElementSize<HTMLDivElement>();
     const svgRef = useRef<SVGSVGElement>(null);
+    const worldId = `map-world-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
     const validPoints = useMemo(() => points.filter(isValidPoint), [points]);
     const pointsKey = validPoints.map((point) => `${point.id}:${point.latitude}:${point.longitude}`).join("|");
@@ -175,6 +211,7 @@ export default function PolarMap({
     const [kind, setKind] = useState<MapProjection>(defaultProjection);
     const [hemisphere, setHemisphere] = useState<Hemisphere>(() => preferredHemisphere(validPoints));
     const [view, setView] = useState<View>(HOME_VIEW);
+    /** `<point id>#<copy>`: a point drawn on several copies of the world opens on the clicked one. */
     const [openPointId, setOpenPointId] = useState<string | null>(null);
     const [draftBox, setDraftBox] = useState<GeoBox | null>(null);
     const [showZoomHint, setShowZoomHint] = useState(false);
@@ -202,7 +239,11 @@ export default function PolarMap({
     const boxPath = useMemo(() => {
         if (!shownBox) return "";
         const outline = geoGraticule()
-            .extentMajor([[shownBox.west, shownBox.south], [shownBox.east, shownBox.north]])
+            // Across the antimeridian, the east edge is taken one turn further.
+            .extentMajor([
+                [shownBox.west, shownBox.south],
+                [shownBox.east + (shownBox.west > shownBox.east ? 360 : 0), shownBox.north],
+            ])
             .outline();
         return path(outline) ?? "";
     }, [path, shownBox]);
@@ -212,13 +253,30 @@ export default function PolarMap({
     const toScreen = (xy: [number, number] | null): [number, number] | null =>
         xy ? [centerX + view.x + view.k * xy[0], centerY + view.y + view.k * xy[1]] : null;
 
+    // Mercator repeats the world side by side, so a horizontal drag never runs out
+    // of map: `copies` are the offsets (in world widths) of the copies in view.
+    const worldWidth = 2 * Math.PI * projection.scale();
+    const wrapX = (x: number) => ((((x + worldWidth / 2) % worldWidth) + worldWidth) % worldWidth) - worldWidth / 2;
+    const copies = useMemo(() => {
+        if (kind !== "mercator") return [0];
+        const first = Math.floor(((-centerX - view.x) / view.k + worldWidth / 2) / worldWidth);
+        const last = Math.floor(((width - centerX - view.x) / view.k + worldWidth / 2) / worldWidth);
+        return Array.from({ length: Math.min(last - first + 1, 8) }, (_, index) => first + index);
+    }, [kind, centerX, width, view, worldWidth]);
+
     const toGeo = (clientX: number, clientY: number): [number, number] | null => {
         const rect = svgRef.current?.getBoundingClientRect();
         if (!rect) return null;
         const x = (clientX - rect.left - centerX - view.x) / view.k;
         const y = (clientY - rect.top - centerY - view.y) / view.k;
-        return projection.invert?.([x, y]) ?? null;
+        return projection.invert?.([kind === "mercator" ? wrapX(x) : x, y]) ?? null;
     };
+
+    // Polar: distances from the pole are true. Mercator: the scale grows as 1 / cos(latitude).
+    const centerLatitude = projection.invert?.([-view.x / view.k, -view.y / view.k])?.[1] ?? 0;
+    const pxPerKm = (view.k * projection.scale() / EARTH_RADIUS_KM)
+        / (kind === "mercator" ? Math.cos(centerLatitude * Math.PI / 180) : 1);
+    const scale = scaleBar(pxPerKm);
 
     const zoomBy = (factor: number, anchorX = centerX, anchorY = centerY) => setView((prev) => {
         const k = clamp(prev.k * factor, MIN_ZOOM, MAX_ZOOM);
@@ -256,19 +314,20 @@ export default function PolarMap({
         };
     }, []);
 
-    const boxBetween = ([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): GeoBox => ({
-        north: Math.max(lat1, lat2),
-        south: Math.min(lat1, lat2),
-        east: Math.max(lon1, lon2),
-        west: Math.min(lon1, lon2),
-    });
+    /** The pointer position, its longitude unwrapped against the previous one of the drawing. */
+    const drawEnd = (event: ReactPointerEvent, draw: Extract<Gesture, { kind: "draw" }>): [number, number] | null => {
+        const end = toGeo(event.clientX, event.clientY);
+        if (!end) return null;
+        draw.lastLongitude = unwrapLongitude(end[0], draw.lastLongitude);
+        return [draw.lastLongitude, end[1]];
+    };
 
     const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
         if (event.button !== 0) return;
         if (drawing) {
             const start = toGeo(event.clientX, event.clientY);
             if (!start) return;
-            gesture.current = { kind: "draw", start };
+            gesture.current = { kind: "draw", start, lastLongitude: start[0] };
         } else {
             gesture.current = { kind: "pan", startX: event.clientX, startY: event.clientY, view, moved: false };
         }
@@ -279,7 +338,7 @@ export default function PolarMap({
         const current = gesture.current;
         if (!current) return;
         if (current.kind === "draw") {
-            const end = toGeo(event.clientX, event.clientY);
+            const end = drawEnd(event, current);
             if (end) setDraftBox(boxBetween(current.start, end));
             return;
         }
@@ -295,7 +354,7 @@ export default function PolarMap({
         gesture.current = null;
         if (!current) return;
         if (current.kind === "draw") {
-            const end = toGeo(event.clientX, event.clientY);
+            const end = drawEnd(event, current);
             setDraftBox(null);
             const box = end && boxBetween(current.start, end);
             if (box && box.north !== box.south && box.east !== box.west) onBoundsDrawn?.(box);
@@ -319,9 +378,17 @@ export default function PolarMap({
     const otherHemisphere: Hemisphere = hemisphere === "north" ? "south" : "north";
 
     const markers = shownPoints
-        .map((point) => ({ point, xy: toScreen(projection([point.longitude, point.latitude])) }))
-        .filter((marker): marker is { point: MapPoint; xy: [number, number] } => marker.xy !== null);
-    const openMarker = markers.find((marker) => marker.point.id === openPointId);
+        .flatMap((point) => {
+            const xy = toScreen(projection([point.longitude, point.latitude]));
+            if (!xy) return [];
+            return copies.map((copy) => ({
+                key: `${point.id}#${copy}`,
+                point,
+                xy: [xy[0] + copy * worldWidth * view.k, xy[1]] as [number, number],
+            }));
+        })
+        .filter(({ xy }) => kind !== "mercator" || (xy[0] > -PIN_SIZE && xy[0] < width + PIN_SIZE));
+    const openMarker = markers.find((marker) => marker.key === openPointId);
 
     // Polar: along the 45°E meridian. Mercator: along the left edge of the map.
     const labelLatitudes = kind === "mercator"
@@ -372,20 +439,25 @@ export default function PolarMap({
                     onPointerUp={handlePointerUp}
                     onPointerCancel={() => { gesture.current = null; setDraftBox(null); }}
                 >
+                    <defs>
+                        <g id={worldId}>
+                            <path d={spherePath} fill={colors.ocean} stroke={colors.graticule} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                            <path d={graticulePath} fill="none" stroke={colors.graticule} strokeOpacity={0.5} strokeWidth={0.6} vectorEffect="non-scaling-stroke" />
+                            <path d={landPath} fill={colors.land} stroke={colors.coast} strokeWidth={0.7} vectorEffect="non-scaling-stroke" />
+                            {boxPath && (
+                                <path
+                                    d={boxPath}
+                                    fill={theme.palette.primary.main}
+                                    fillOpacity={0.12}
+                                    stroke={theme.palette.primary.main}
+                                    strokeWidth={2}
+                                    vectorEffect="non-scaling-stroke"
+                                />
+                            )}
+                        </g>
+                    </defs>
                     <g transform={`translate(${centerX + view.x},${centerY + view.y}) scale(${view.k})`}>
-                        <path d={spherePath} fill={colors.ocean} stroke={colors.graticule} strokeWidth={1} vectorEffect="non-scaling-stroke" />
-                        <path d={graticulePath} fill="none" stroke={colors.graticule} strokeOpacity={0.5} strokeWidth={0.6} vectorEffect="non-scaling-stroke" />
-                        <path d={landPath} fill={colors.land} stroke={colors.coast} strokeWidth={0.7} vectorEffect="non-scaling-stroke" />
-                        {boxPath && (
-                            <path
-                                d={boxPath}
-                                fill={theme.palette.primary.main}
-                                fillOpacity={0.12}
-                                stroke={theme.palette.primary.main}
-                                strokeWidth={2}
-                                vectorEffect="non-scaling-stroke"
-                            />
-                        )}
+                        {copies.map((copy) => <use key={copy} href={`#${worldId}`} x={copy * worldWidth} />)}
                     </g>
 
                     {parallelLabels.map(({ latitude, xy }) => (
@@ -402,30 +474,34 @@ export default function PolarMap({
                         </text>
                     ))}
 
-                    {markers.map(({ point, xy }) => (
-                        <g
-                            key={point.id}
-                            transform={`translate(${xy[0]},${xy[1]})`}
-                            role="button"
-                            tabIndex={0}
-                            aria-label={point.label}
-                            style={{ cursor: "pointer", outline: "none" }}
-                            onPointerDown={(event) => { if (!drawing) event.stopPropagation(); }}
-                            onClick={() => !drawing && setOpenPointId(point.id)}
-                            onKeyDown={(event) => {
-                                if (event.key === "Enter" || event.key === " ") setOpenPointId(point.id);
-                            }}
-                        >
-                            <title>{point.label}</title>
-                            <path
-                                d={markerPath(point.shape ?? "circle", MARKER_SIZE)}
-                                fill={point.color}
-                                stroke={point.ring ?? theme.palette.common.white}
-                                strokeWidth={point.ring ? 2.5 : 1.2}
-                                style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))" }}
-                            />
-                        </g>
-                    ))}
+                    {markers.map(({ key, point, xy }) => {
+                        const isPin = point.shape === "pin";
+                        return (
+                            <g
+                                key={key}
+                                transform={`translate(${xy[0]},${xy[1]})`}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={point.label}
+                                style={{ cursor: "pointer", outline: "none" }}
+                                onPointerDown={(event) => { if (!drawing) event.stopPropagation(); }}
+                                onClick={() => !drawing && setOpenPointId(key)}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") setOpenPointId(key);
+                                }}
+                            >
+                                <title>{point.label}</title>
+                                <path
+                                    d={markerPath(point.shape ?? "circle", MARKER_SIZE)}
+                                    transform={isPin ? PIN_TRANSFORM : undefined}
+                                    fill={point.color}
+                                    stroke={point.ring ?? theme.palette.common.white}
+                                    strokeWidth={(point.ring ? 2.5 : 1.2) / (isPin ? PIN_SCALE : 1)}
+                                    style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))" }}
+                                />
+                            </g>
+                        );
+                    })}
                 </svg>
 
                 {openMarker && (
@@ -434,7 +510,7 @@ export default function PolarMap({
                         sx={{
                             position: "absolute",
                             left: openMarker.xy[0],
-                            top: openMarker.xy[1] - MARKER_SIZE,
+                            top: openMarker.xy[1] - (openMarker.point.shape === "pin" ? PIN_SIZE : MARKER_SIZE),
                             transform: "translate(-50%, -100%)",
                             px: 1.5,
                             py: 1,
@@ -528,8 +604,22 @@ export default function PolarMap({
                     </Box>
                 </Fade>
 
+                {scale && (
+                    <Box
+                        aria-label={`Scale: ${scale.label}`}
+                        sx={{
+                            position: "absolute", bottom: 10, left: 10, width: scale.px, boxSizing: "border-box",
+                            border: 2, borderTop: 0, borderColor: "text.secondary",
+                            bgcolor: "rgba(255, 255, 255, 0.75)", px: 0.5, pointerEvents: "none",
+                            fontSize: 11, lineHeight: "16px", color: "text.primary", whiteSpace: "nowrap",
+                        }}
+                    >
+                        {scale.label}
+                    </Box>
+                )}
+
                 {kind === "polar" && hiddenCount > 0 && (
-                    <Paper elevation={2} sx={{ position: "absolute", bottom: 10, left: 10, px: 1.5, py: 0.5, borderRadius: 2 }}>
+                    <Paper elevation={2} sx={{ position: "absolute", bottom: 36, left: 10, px: 1.5, py: 0.5, borderRadius: 2 }}>
                         <Typography variant="caption" color="text.secondary">
                             {hiddenCount} more near the{" "}
                             <Link component="button" type="button" variant="caption" onClick={() => switchView("polar", otherHemisphere)}>

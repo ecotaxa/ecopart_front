@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
 
 import { PolarMap, type MapPoint } from "@/shared/components/map";
 import type { ProjectStatsMap } from "../../api/projectStats.api";
@@ -100,7 +101,7 @@ function MapLegend({ sampleColor, ctdColor, mismatchColor }: { sampleColor: stri
     return (
         <Stack direction="row" sx={{ flexWrap: "wrap", columnGap: 2.5, rowGap: 0.5, mt: 1 }} aria-label="Map legend">
             <LegendItem label="Sample GPS points">
-                <Box sx={{ width: 10, height: 10, borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", bgcolor: sampleColor }} />
+                <LocationOnIcon sx={{ fontSize: 16, color: sampleColor }} aria-hidden="true" />
             </LegendItem>
             <LegendItem label="CTD GPS points">
                 <Typography component="span" sx={{ color: ctdColor, fontWeight: 700, lineHeight: 1, fontSize: 14 }} aria-hidden="true">✕</Typography>
