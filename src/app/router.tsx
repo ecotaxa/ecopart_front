@@ -92,7 +92,7 @@ export const router = createBrowserRouter([
                 ),
             },
             // Public: anyone can browse the data; exporting needs an account.
-            { path: "/explore/:mode?/:tabName?", element: page(<ExplorePage />) },
+            { path: "/explore/:tabName?", element: page(<ExplorePage />) },
             { path: "*", element: page(<NotFoundPage />) },
         ],
     },

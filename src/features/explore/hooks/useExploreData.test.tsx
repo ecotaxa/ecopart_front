@@ -8,12 +8,12 @@ import { server } from '@/test/msw/server';
 import { ecotaxaHandler, exploreFixtures } from '@/test/msw/explore.handlers';
 import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 import { createTestQueryClient } from '@/test/utils';
-import type { ExploreAggregation, ExploreFilters, ExploreMode, ExploreTab } from '../types/explore.types';
+import { toExploreRequest } from '../api/explore.api';
+import type { ExploreAggregation, ExploreFilters, ExploreTab } from '../types/explore.types';
 import { DEFAULT_AGGREGATION, createEmptyDraft, toFilters } from '../utils/exploreFilters';
 import { ECOTAXA_POLL_MS, useExploreData } from './useExploreData';
 
 interface HookProps {
-    mode: ExploreMode;
     filters: ExploreFilters | null;
     tab: ExploreTab;
     aggregation: ExploreAggregation;
@@ -21,7 +21,11 @@ interface HookProps {
 
 const FILTERS: ExploreFilters = toFilters(createEmptyDraft());
 const OTHER_FILTERS: ExploreFilters = { ...FILTERS, project_ids: [1] };
+const DEPTH_FILTERS: ExploreFilters = { ...FILTERS, sample_types: ['depth'] };
+/** The criteria as sent: the sample types travel as the `mode` of the request. */
+const SENT = toExploreRequest(FILTERS).filters;
 const NO_SELECTION = { summary: null, projects: [] };
+const NO_GRAPHS = { depth: null, time: null };
 const NO_SHARES = { fully_validated: 0, fully_predicted: 0, partially_validated: 0, partially_predicted: 0 };
 
 let requests: { path: string; request: Request }[] = [];
@@ -44,9 +48,9 @@ function renderExploreData(initial: Partial<HookProps> = {}) {
     const wrapper = ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
-    const props: HookProps = { mode: 'depth', filters: null, tab: 'stats', aggregation: DEFAULT_AGGREGATION, ...initial };
+    const props: HookProps = { filters: null, tab: 'stats', aggregation: DEFAULT_AGGREGATION, ...initial };
     const rendered = renderHook(
-        ({ mode, filters, tab, aggregation }: HookProps) => useExploreData(mode, filters, { aggregation, tab, sumChildTaxa: true }),
+        ({ filters, tab, aggregation }: HookProps) => useExploreData(filters, { aggregation, tab, sumChildTaxa: true }),
         { wrapper, initialProps: props },
     );
     return { ...rendered, props, update: (patch: Partial<HookProps>) => rendered.rerender({ ...props, ...patch }) };
@@ -88,9 +92,9 @@ describe('useExploreData', () => {
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.projectOptions).toEqual(exploreFixtures.projects);
         expect(result.current.mapSamples).toEqual(exploreFixtures.mapSamples);
-        expect(result.current).toMatchObject({ all: NO_SELECTION, exportable: NO_SELECTION, graphs: null, images: [], error: null });
+        expect(result.current).toMatchObject({ all: NO_SELECTION, exportable: NO_SELECTION, graphs: NO_GRAPHS, images: [], error: null });
         expect(requests.map(({ path }) => path).sort()).toEqual(['/explore/map', '/explore/projects']);
-        expect(await bodiesOf('/explore/map')).toEqual([{ mode: 'depth', filters: null }]);
+        expect(await bodiesOf('/explore/map')).toEqual([{ mode: 'all', filters: null }]);
     });
 
     it('says the service is unavailable after a 404 (older backend), without an error, and asks nothing more', async () => {
@@ -136,8 +140,8 @@ describe('useExploreData', () => {
             ecotaxa_categories: exploreFixtures.ecotaxa.exportable.categories,
             classification: exploreFixtures.ecotaxa.exportable.classification,
         });
-        expect(await bodiesOf('/explore/selection')).toEqual([{ mode: 'depth', filters: FILTERS }]);
-        expect(await bodiesOf('/explore/ecotaxa')).toEqual([{ mode: 'depth', filters: FILTERS }]);
+        expect(await bodiesOf('/explore/selection')).toEqual([{ mode: 'all', filters: SENT }]);
+        expect(await bodiesOf('/explore/ecotaxa')).toEqual([{ mode: 'all', filters: SENT }]);
     });
 
     it('never merges the EcoTaxa part of the previous filters into the new selection', async () => {
@@ -256,15 +260,16 @@ describe('useExploreData', () => {
     });
 
     it('asks for no graph for an anonymous user, and for the graphs once logged in', async () => {
-        const { result } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
+        const { result } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
         await waitFor(() => expect(result.current.all.summary).not.toBeNull());
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(callsTo('/explore/graphs')).toHaveLength(0);
-        expect(result.current.graphs).toBeNull();
+        expect(result.current.graphs).toEqual(NO_GRAPHS);
 
         act(() => loginAsUser());
-        await waitFor(() => expect(result.current.graphs).toEqual(exploreFixtures.graphs));
-        expect(await bodiesOf('/explore/graphs')).toEqual([{ mode: 'depth', filters: FILTERS, pressure_bin: 5, time_bin: 1 }]);
+        await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
+        expect(result.current.graphs.time).toBeNull();
+        expect(await bodiesOf('/explore/graphs')).toEqual([{ mode: 'depth', filters: SENT, pressure_bin: 5 }]);
     });
 
     it('asks for the graphs only on the graphs tab, and only once filters are applied', async () => {
@@ -274,30 +279,58 @@ describe('useExploreData', () => {
         await aMoment();
         expect(callsTo('/explore/graphs')).toHaveLength(0);
 
-        update({ filters: FILTERS, tab: 'stats' });
+        update({ filters: DEPTH_FILTERS, tab: 'stats' });
         await waitFor(() => expect(result.current.all.summary).not.toBeNull());
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(callsTo('/explore/graphs')).toHaveLength(0);
 
-        update({ ...props, filters: FILTERS, tab: 'graphs' });
-        await waitFor(() => expect(result.current.graphs?.warnings).toEqual(exploreFixtures.graphs.warnings));
+        update({ ...props, filters: DEPTH_FILTERS, tab: 'graphs' });
+        await waitFor(() => expect(result.current.graphs.depth?.warnings).toEqual(exploreFixtures.graphs.warnings));
         expect(callsTo('/explore/graphs')).toHaveLength(1);
     });
 
     it('asks again for the graphs once the bin size rests, keeping the curves meanwhile', async () => {
         loginAsUser();
-        const { result, update } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
-        await waitFor(() => expect(result.current.graphs).not.toBeNull());
+        const { result, update } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
+        await waitFor(() => expect(result.current.graphs.depth).not.toBeNull());
 
-        update({ filters: FILTERS, tab: 'graphs', aggregation: { pressure_bin: 7, time_bin: 1 } });
-        update({ filters: FILTERS, tab: 'graphs', aggregation: { pressure_bin: 20, time_bin: 1 } });
-        expect(result.current.graphs).not.toBeNull();
+        update({ filters: DEPTH_FILTERS, tab: 'graphs', aggregation: { pressure_bin: 7, time_bin: 1 } });
+        update({ filters: DEPTH_FILTERS, tab: 'graphs', aggregation: { pressure_bin: 20, time_bin: 1 } });
+        expect(result.current.graphs.depth).not.toBeNull();
 
         await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(2));
         const bodies = await bodiesOf('/explore/graphs');
-        expect(bodies[1]).toMatchObject({ pressure_bin: 20, time_bin: 1 });
+        expect(bodies[1]).toEqual({ mode: 'depth', filters: SENT, pressure_bin: 20 });
         await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(result.current.graphs).not.toBeNull();
+        expect(result.current.graphs.depth).not.toBeNull();
+    });
+
+    it('sends the sample types of the filters as the mode of the requests', async () => {
+        const { result } = renderExploreData({ filters: { ...FILTERS, sample_types: ['time'] } });
+        await waitFor(() => expect(result.current.all.summary).not.toBeNull());
+
+        expect(await bodiesOf('/explore/selection')).toEqual([{ mode: 'time', filters: SENT }]);
+        expect(await bodiesOf('/explore/map')).toEqual([{ mode: 'time', filters: SENT }]);
+    });
+
+    it('asks the graphs of both sample types by default, each on its own axis', async () => {
+        loginAsUser();
+        const { result, update } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
+        await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
+        await waitFor(() => expect(result.current.graphs.time).toEqual(exploreFixtures.graphs));
+        expect(await bodiesOf('/explore/graphs')).toEqual(expect.arrayContaining([
+            { mode: 'depth', filters: SENT, pressure_bin: 5 },
+            { mode: 'time', filters: SENT, time_bin: 1 },
+        ]));
+        expect(callsTo('/explore/graphs')).toHaveLength(2);
+
+        // A new time bin only asks the time series again.
+        update({ filters: FILTERS, tab: 'graphs', aggregation: { pressure_bin: 5, time_bin: 3 } });
+        await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(3));
+        expect(await callsTo('/explore/graphs')[2].request.json()).toEqual({ mode: 'time', filters: SENT, time_bin: 3 });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        await aMoment();
+        expect(callsTo('/explore/graphs')).toHaveLength(3);
     });
 
     it('asks for images on the exportable tab only, and for others on refresh', async () => {
@@ -308,7 +341,7 @@ describe('useExploreData', () => {
 
         update({ filters: FILTERS, tab: 'exportable' });
         await waitFor(() => expect(result.current.images).toEqual(exploreFixtures.images));
-        expect(await bodiesOf('/explore/images')).toEqual([{ mode: 'depth', filters: FILTERS, count: 4 }]);
+        expect(await bodiesOf('/explore/images')).toEqual([{ mode: 'all', filters: SENT, count: 4 }]);
 
         act(() => result.current.refreshImages());
         await waitFor(() => expect(callsTo('/explore/images')).toHaveLength(2));

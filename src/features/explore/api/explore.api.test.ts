@@ -13,6 +13,7 @@ import {
     fetchExploreMap,
     fetchExploreProjects,
     fetchExploreSelection,
+    toExploreRequest,
 } from './explore.api';
 
 interface Captured {
@@ -37,9 +38,20 @@ const capture = (method: 'get' | 'post', path: string, response: unknown): Captu
     return calls;
 };
 
-const filters = { ...toFilters(createEmptyDraft()), project_ids: [1], ctd_only: true };
+const filters = { ...toExploreRequest(toFilters(createEmptyDraft())).filters!, project_ids: [1], ctd_only: true };
 
 describe('explore API', () => {
+    it('sends the sample types of the filters as the mode, both types before any filter', () => {
+        const applied = { ...toFilters(createEmptyDraft()), sample_types: ['time' as const], ctd_only: true };
+        const { mode, filters: sent } = toExploreRequest(applied);
+
+        expect(mode).toBe('time');
+        expect(toExploreRequest(toFilters(createEmptyDraft())).mode).toBe('all');
+        expect(sent).not.toHaveProperty('sample_types');
+        expect(sent).toMatchObject({ ctd_only: true });
+        expect(toExploreRequest(null)).toEqual({ mode: 'all', filters: null });
+    });
+
     it('GETs the project options and unwraps them', async () => {
         const calls = capture('get', '/explore/projects', { projects: exploreFixtures.projects });
 

@@ -14,20 +14,23 @@ import {
     fetchExploreMap,
     fetchExploreProjects,
     fetchExploreSelection,
+    toExploreRequest,
+    type ExploreGraphsRequest,
 } from "../api/explore.api";
-import type {
-    ExploreAggregation,
-    ExploreEcoTaxaResponse,
-    ExploreEcoTaxaSummary,
-    ExploreFilters,
-    ExploreGraphs,
-    ExploreImage,
-    ExploreMapSample,
-    ExploreMode,
-    ExploreProjectOption,
-    ExploreSelection,
-    ExploreSelectionPart,
-    ExploreTab,
+import {
+    SAMPLE_TYPES_OF_MODE,
+    type ExploreAggregation,
+    type ExploreEcoTaxaResponse,
+    type ExploreEcoTaxaSummary,
+    type ExploreFilters,
+    type ExploreGraphs,
+    type ExploreImage,
+    type ExploreMapSample,
+    type ExploreProjectOption,
+    type ExploreSampleType,
+    type ExploreSelection,
+    type ExploreSelectionPart,
+    type ExploreTab,
 } from "../types/explore.types";
 
 export interface ExploreDataOptions {
@@ -46,8 +49,11 @@ export interface ExploreData {
     mapSamples: ExploreMapSample[];
     /** Stats and graphs tabs: every sample of the selection, private ones included. */
     all: ExploreSelection;
-    /** Curves of the "Selected data graphs" tab, over every sample of the selection the user may see. */
-    graphs: ExploreGraphs | null;
+    /**
+     * Curves of the "Selected data graphs" tab per sample type, over every sample of the
+     * selection the user may see (null for a type the page does not search).
+     */
+    graphs: Record<ExploreSampleType, ExploreGraphs | null>;
     /** Exportable selection tab: only the samples the user may export. */
     exportable: ExploreSelection;
     images: ExploreImage[];
@@ -63,7 +69,7 @@ export interface ExploreData {
 }
 
 const PROJECTS_STALE_MS = 5 * 60 * 1000;
-/** Switching tabs or modes back and forth reuses the answers instead of asking again. */
+/** Switching tabs or filters back and forth reuses the answers instead of asking again. */
 const SELECTION_STALE_MS = 30_000;
 /** The bin sliders report every step: the graphs are requested once the slider rests. */
 const AGGREGATION_DEBOUNCE_MS = 400;
@@ -81,6 +87,20 @@ const NO_ECOTAXA: ExploreEcoTaxaSummary = {
     partial: false,
     nb_samples_pending: 0,
 };
+
+/**
+ * The curves of one sample type, on its own axis. Each type has its own query, so
+ * moving the bin of one type leaves the curves of the other alone.
+ */
+function useGraphsQuery(request: ExploreGraphsRequest, viewer: number | null, enabled: boolean) {
+    return useQuery({
+        queryKey: exploreQueryKeys.graphs(request, viewer),
+        queryFn: () => fetchExploreGraphs(request),
+        enabled,
+        staleTime: SELECTION_STALE_MS,
+        placeholderData: keepPreviousData,
+    });
+}
 
 /** An older backend without the explore routes, or no backend at all. */
 const isServiceMissing = (error: unknown) => isNotFound(error) || error instanceof TypeError;
@@ -104,7 +124,8 @@ function withEcoTaxa(part: ExploreSelectionPart, ecotaxa: ExploreEcoTaxaSummary)
 /**
  * Data of the Explore page for the applied filters (`null` before the first
  * "Apply filters": the map then shows every sample of the application, and the
- * tabs stay empty).
+ * tabs stay empty). The sample types of the filters are sent as the `mode` of
+ * the requests; the graphs are asked per sample type, each on its own axis.
  *
  * The selection shows as soon as `/explore/selection` answers; its EcoTaxa part
  * (`/explore/ecotaxa`, which calls EcoTaxa) is merged in when it arrives. New
@@ -115,7 +136,6 @@ function withEcoTaxa(part: ExploreSelectionPart, ecotaxa: ExploreEcoTaxaSummary)
  * staying on screen, until it is complete.
  */
 export function useExploreData(
-    mode: ExploreMode,
     filters: ExploreFilters | null,
     { aggregation, tab }: ExploreDataOptions,
 ): ExploreData {
@@ -132,10 +152,11 @@ export function useExploreData(
     const unavailable = projectsQuery.isError && isServiceMissing(projectsQuery.error);
     const applied = filters !== null && !unavailable;
     const graphsEnabled = applied && isAuthenticated && tab === "graphs";
+    const request = toExploreRequest(filters);
+    const depthGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("depth");
+    const timeGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("time");
     const imagesEnabled = applied && tab === "exportable";
 
-    const request = { mode, filters };
-    const graphsRequest = { ...request, pressure_bin: bins.pressure_bin, time_bin: bins.time_bin };
     const imagesRequest = { ...request, count: RANDOM_IMAGE_COUNT };
 
     const mapQuery = useQuery({
@@ -160,14 +181,12 @@ export function useExploreData(
         placeholderData: keepPreviousData,
         refetchInterval: (query) => (isPartial(query.state.data) ? ECOTAXA_POLL_MS : false),
     });
-    const graphsQuery = useQuery({
-        queryKey: exploreQueryKeys.graphs(graphsRequest, viewer),
-        queryFn: () => fetchExploreGraphs(graphsRequest),
-        enabled: graphsEnabled,
-        staleTime: SELECTION_STALE_MS,
-        // The curves of the other page flavour have other axes: better none than those.
-        placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2].mode === mode ? previous : undefined),
-    });
+    const depthGraphsQuery = useGraphsQuery(
+        { mode: "depth", filters: request.filters, pressure_bin: bins.pressure_bin }, viewer, depthGraphsEnabled,
+    );
+    const timeGraphsQuery = useGraphsQuery(
+        { mode: "time", filters: request.filters, time_bin: bins.time_bin }, viewer, timeGraphsEnabled,
+    );
     const imagesQuery = useQuery({
         queryKey: exploreQueryKeys.images(imagesRequest),
         queryFn: () => fetchExploreImages(imagesRequest),
@@ -205,7 +224,8 @@ export function useExploreData(
         mapQuery.error,
         applied ? selectionQuery.error : null,
         applied ? ecotaxaQuery.error : null,
-        graphsEnabled ? graphsQuery.error : null,
+        depthGraphsEnabled ? depthGraphsQuery.error : null,
+        timeGraphsEnabled ? timeGraphsQuery.error : null,
         imagesEnabled ? imagesQuery.error : null,
     ].find((error) => error != null);
 
@@ -213,12 +233,16 @@ export function useExploreData(
         projectOptions: projectsQuery.data ?? NO_PROJECTS,
         mapSamples: unavailable ? NO_SAMPLES : mapQuery.data ?? NO_SAMPLES,
         all,
-        graphs: graphsEnabled ? graphsQuery.data ?? null : null,
+        graphs: {
+            depth: depthGraphsEnabled ? depthGraphsQuery.data ?? null : null,
+            time: timeGraphsEnabled ? timeGraphsQuery.data ?? null : null,
+        },
         exportable,
         images: imagesEnabled ? imagesQuery.data ?? NO_IMAGES : NO_IMAGES,
         refreshImages,
         loading: ecotaxaLoading
-            || [projectsQuery, mapQuery, selectionQuery, graphsQuery, imagesQuery].some((query) => query.isFetching),
+            || [projectsQuery, mapQuery, selectionQuery, depthGraphsQuery, timeGraphsQuery, imagesQuery]
+                .some((query) => query.isFetching),
         available: projectsQuery.isSuccess,
         unavailable,
         error: failure ? extractErrorMessage(failure, "The explore data could not be loaded.") : null,

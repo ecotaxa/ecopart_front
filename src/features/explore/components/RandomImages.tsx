@@ -4,10 +4,12 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { RANDOM_IMAGE_COUNT } from "../api/explore.api";
 import type { ExploreImage, ExploreMode } from "../types/explore.types";
 
+// The depth of the object for depth profiles, its date for time series, both when the page shows both.
 const caption = (image: ExploreImage, mode: ExploreMode) => {
-    if (mode === "depth" && image.depth != null) return `${image.sample_name} · ${image.depth} m`;
-    if (mode === "time" && image.date) return `${image.sample_name} · ${new Date(image.date).toLocaleString("en-GB", { timeZone: "UTC" })}`;
-    return image.sample_name;
+    const parts = [image.sample_name];
+    if (mode !== "time" && image.depth != null) parts.push(`${image.depth} m`);
+    if (mode !== "depth" && image.date) parts.push(new Date(image.date).toLocaleString("en-GB", { timeZone: "UTC" }));
+    return parts.join(" · ");
 };
 
 interface RandomImagesProps {

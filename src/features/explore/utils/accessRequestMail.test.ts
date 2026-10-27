@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import type { ExploreProjectRow } from '../types/explore.types';
+import type { ExploreMode, ExploreProjectRow } from '../types/explore.types';
 import { accessRequestRecipients, buildAccessRequestMailto } from './accessRequestMail';
 
 const makeProject = (overrides: Partial<ExploreProjectRow> = {}): ExploreProjectRow => ({
@@ -41,5 +41,11 @@ describe('accessRequestMail', () => {
         expect(params.get('body')).toContain('Ada Lovelace');
         // Spaces are %20, not "+", which mail clients would show as is.
         expect(href).not.toContain('+');
+    });
+
+    it('names the sample types searched', () => {
+        const body = (mode: ExploreMode) => new URLSearchParams(buildAccessRequestMailto(makeProject(), mode, null)!.split('?')[1]).get('body');
+        expect(body('time')).toContain('(time series)');
+        expect(body('all')).toContain('(depth profiles and time series)');
     });
 });

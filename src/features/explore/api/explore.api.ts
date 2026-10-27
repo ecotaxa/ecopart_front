@@ -1,5 +1,6 @@
 import { http } from "@/shared/api/http";
 
+import { modeOf } from "../utils/exploreFilters";
 import type {
     ExploreAggregation,
     ExploreEcoTaxaResponse,
@@ -9,6 +10,7 @@ import type {
     ExploreMapSample,
     ExploreMode,
     ExploreProjectOption,
+    ExploreSampleType,
     ExploreSelectionResponse,
 } from "../types/explore.types";
 
@@ -16,18 +18,28 @@ import type {
 // EXPLORE API
 // ============================================================================
 // Every route but GET /explore/projects takes `{ mode, filters }` as a JSON
-// body: `mode` restricts the samples to one type (depth / time), `filters: null`
-// means no criterion. Anonymous users may call them all except /explore/graphs
-// (401 without a session).
+// body: `mode` is the sample types filter, one type (depth / time) or both (all,
+// refused by /explore/graphs), `filters: null` means no criterion.
+// Anonymous users may call them all except /explore/graphs (401 without a session).
 // ============================================================================
 
 /** Number of random object images drawn per request (the backend default). */
 export const RANDOM_IMAGE_COUNT = 4;
 
+/** The criteria sent to the POST routes: every filter but the sample types, sent as `mode`. */
+export type ExploreRequestFilters = Omit<ExploreFilters, "sample_types">;
+
 /** The selection criteria sent to every POST route. */
 export interface ExploreRequest {
     mode: ExploreMode;
-    filters: ExploreFilters | null;
+    filters: ExploreRequestFilters | null;
+}
+
+/** The request of the applied filters: their sample types are the `mode`, both types before any filter. */
+export function toExploreRequest(filters: ExploreFilters | null): ExploreRequest {
+    if (!filters) return { mode: "all", filters: null };
+    const { sample_types, ...criteria } = filters;
+    return { mode: modeOf(sample_types), filters: criteria };
 }
 
 export interface ExploreImagesRequest extends ExploreRequest {
@@ -35,7 +47,8 @@ export interface ExploreImagesRequest extends ExploreRequest {
     count?: number;
 }
 
-export type ExploreGraphsRequest = ExploreRequest & Partial<ExploreAggregation>;
+/** The curves have one axis: the graphs take one sample type, never `all`. */
+export type ExploreGraphsRequest = Omit<ExploreRequest, "mode"> & { mode: ExploreSampleType } & Partial<ExploreAggregation>;
 
 /** User the cached answers were computed for (the selection, map and graphs depend on it). */
 type Viewer = number | null;

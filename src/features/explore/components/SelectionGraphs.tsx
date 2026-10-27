@@ -11,7 +11,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import AddIcon from "@mui/icons-material/Add";
 
 import type {
-    ExploreGraphs, ExploreMode, GraphDataset, ProfileSeries, TimeScale, ValueScale,
+    ExploreGraphs, ExploreSampleType, GraphDataset, ProfileSeries, TimeScale, ValueScale,
 } from "../types/explore.types";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
@@ -49,7 +49,7 @@ interface GraphSettings {
 const DEFAULT_SETTINGS: GraphSettings = { selected: null, scale: "log10", timeScale: "absolute" };
 
 /** Wording of a card, which differs between the depth and the time pages. */
-function cardText(id: GraphId, mode: ExploreMode) {
+function cardText(id: GraphId, mode: ExploreSampleType) {
     const depth = mode === "depth";
     switch (id) {
         case "abundance":
@@ -66,7 +66,7 @@ function cardText(id: GraphId, mode: ExploreMode) {
 const formatDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 /** The curves of one key, laid out for the page: value along x for depth profiles, along y for time series. */
-function toChartSeries(series: ProfileSeries[], mode: ExploreMode, timeScale: TimeScale): ChartSeries[] {
+function toChartSeries(series: ProfileSeries[], mode: ExploreSampleType, timeScale: TimeScale): ChartSeries[] {
     return series.map((sample, index) => {
         const start = sample.points[0]?.position ?? 0;
         return {
@@ -81,7 +81,7 @@ function toChartSeries(series: ProfileSeries[], mode: ExploreMode, timeScale: Ti
     });
 }
 
-function axes(mode: ExploreMode, valueLabel: string, scale: ValueScale, timeScale: TimeScale): { x: ChartAxis; y: ChartAxis } {
+function axes(mode: ExploreSampleType, valueLabel: string, scale: ValueScale, timeScale: TimeScale): { x: ChartAxis; y: ChartAxis } {
     const value: ChartAxis = { label: valueLabel, scale, fromZero: true };
     if (mode === "depth") {
         return { x: value, y: { label: "Depth [m]", scale: "linear", reversed: true, fromZero: true } };
@@ -128,7 +128,7 @@ function NoGraph() {
 interface GraphChartProps {
     title: string;
     series: ProfileSeries[];
-    mode: ExploreMode;
+    mode: ExploreSampleType;
     valueLabel: string;
     scale: ValueScale;
     timeScale: TimeScale;
@@ -153,7 +153,7 @@ function GraphChart({ title, series, mode, valueLabel, scale, timeScale, step }:
 
 interface GraphCardProps {
     id: GraphId;
-    mode: ExploreMode;
+    mode: ExploreSampleType;
     dataset: GraphDataset | null;
     settings: GraphSettings;
     onSettingsChange: (id: GraphId, patch: Partial<GraphSettings>) => void;
@@ -241,7 +241,10 @@ const GraphCard = memo(function GraphCard({
 });
 
 interface SelectionGraphsProps {
-    mode: ExploreMode;
+    /** The sample type drawn: depth profiles or time series. */
+    mode: ExploreSampleType;
+    /** Heading of the block, "Selected data graphs" by default. */
+    title?: string;
     graphs: ExploreGraphs | null;
     /** EcoTaxa: each category also counts the objects of its children. */
     sumChildTaxa: boolean;
@@ -254,7 +257,9 @@ interface SelectionGraphsProps {
  * profiles or time series. Each graph has its own picks and scales, can be reset
  * or hidden, and a hidden graph can be brought back.
  */
-export default function SelectionGraphs({ mode, graphs, sumChildTaxa, onSumChildTaxaChange }: SelectionGraphsProps) {
+export default function SelectionGraphs({
+    mode, title = "Selected data graphs", graphs, sumChildTaxa, onSumChildTaxaChange,
+}: SelectionGraphsProps) {
     const [settings, setSettings] = useState<Record<GraphId, GraphSettings>>({
         abundance: DEFAULT_SETTINGS,
         biovolume: DEFAULT_SETTINGS,
@@ -326,7 +331,7 @@ export default function SelectionGraphs({ mode, graphs, sumChildTaxa, onSumChild
 
     return (
         <Stack spacing={3}>
-            <Typography variant="h5" component="h2">Selected data graphs</Typography>
+            <Typography variant="h5" component="h2">{title}</Typography>
 
             {hidden.length > 0 && (
                 <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, alignItems: "center" }}>

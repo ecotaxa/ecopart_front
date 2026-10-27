@@ -1,7 +1,10 @@
 import {
     PRIVACY_STATUSES,
+    SAMPLE_TYPES,
     type ExploreAggregation,
     type ExploreFilters,
+    type ExploreMode,
+    type ExploreSampleType,
     type GeoBounds,
     type PrivacyStatus,
 } from "../types/explore.types";
@@ -29,8 +32,9 @@ export type ExploreFiltersDraft = Omit<ExploreFilters, "bounds"> & { bounds: Bou
 
 export const EMPTY_BOUNDS_DRAFT: BoundsDraft = { north: "", south: "", east: "", west: "" };
 
-/** A fresh selection panel: every field empty, every status kept. */
+/** A fresh selection panel: both sample types, every field empty, every status kept. */
 export const createEmptyDraft = (): ExploreFiltersDraft => ({
+    sample_types: [...SAMPLE_TYPES],
     project_ids: [],
     instrument_models: [],
     bounds: EMPTY_BOUNDS_DRAFT,
@@ -67,6 +71,16 @@ export function boundsError(bounds: BoundsDraft): string | null {
     return null;
 }
 
+/** Why the sample types cannot be applied, or null. */
+export function sampleTypesError(types: readonly ExploreSampleType[]): string | null {
+    return types.length === 0 ? "Check at least one sample type." : null;
+}
+
+/** The `mode` of the requests for the checked sample types: one of them, or all. */
+export function modeOf(types: readonly ExploreSampleType[]): ExploreMode {
+    return types.length === 1 ? types[0] : "all";
+}
+
 /** Why the date range cannot be applied, or null. */
 export function dateRangeError(from: string | null, to: string | null): string | null {
     return from && to && from > to ? "The start date must be before the end date." : null;
@@ -99,6 +113,11 @@ export function toBounds(bounds: BoundsDraft): GeoBounds | null {
 export function toFilters(draft: ExploreFiltersDraft): ExploreFilters {
     return { ...draft, bounds: toBounds(draft.bounds) };
 }
+
+export const SAMPLE_TYPE_LABELS: Record<ExploreSampleType, string> = {
+    depth: "Depth",
+    time: "Time",
+};
 
 export const PRIVACY_LABELS: Record<PrivacyStatus, string> = {
     private: "Private",

@@ -5,8 +5,20 @@
 
 import type { GeoBox } from "@/shared/components/map";
 
-/** Explore page flavour: depth profiles or time series (the sample type). */
-export type ExploreMode = "depth" | "time";
+/** Sample type: depth profiles or time series. */
+export type ExploreSampleType = "depth" | "time";
+
+export const SAMPLE_TYPES: readonly ExploreSampleType[] = ["depth", "time"];
+
+/** The sample types searched: one of them, or both (the `mode` of the backend requests). */
+export type ExploreMode = ExploreSampleType | "all";
+
+/** The sample types of each mode, in display order: the graphs are drawn per type, each on its axis. */
+export const SAMPLE_TYPES_OF_MODE: Record<ExploreMode, readonly ExploreSampleType[]> = {
+    depth: ["depth"],
+    time: ["time"],
+    all: ["depth", "time"],
+};
 
 /** The tabs of the Explore page (the last segment of its route). */
 export type ExploreTab = "stats" | "graphs" | "exportable";
@@ -23,6 +35,8 @@ export type GeoBounds = GeoBox;
 
 /** The selection criteria. Empty lists / nulls mean "no constraint". */
 export interface ExploreFilters {
+    /** Sample types searched (at least one); sent as the `mode` of the requests. */
+    sample_types: ExploreSampleType[];
     project_ids: number[];
     instrument_models: string[];
     bounds: GeoBounds | null;

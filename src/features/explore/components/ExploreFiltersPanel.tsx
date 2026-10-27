@@ -10,10 +10,12 @@ import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { useInstrumentModels } from "@/shared/api/referenceData.hooks";
 import {
     PRIVACY_STATUSES,
+    SAMPLE_TYPES,
     type ClassificationStateFilter,
     type ExploreAggregation,
     type ExploreMode,
     type ExploreProjectOption,
+    type ExploreSampleType,
     type PrivacyStatus,
 } from "../types/explore.types";
 import {
@@ -23,6 +25,7 @@ import {
     PRESSURE_BIN,
     PRIVACY_LABELS,
     PRESSURE_LIMITS,
+    SAMPLE_TYPE_LABELS,
     TIME_BIN,
     type ExploreFiltersDraft,
 } from "../utils/exploreFilters";
@@ -53,7 +56,8 @@ function FilterSection({ title, info, onClear, children }: { title: string; info
 }
 
 interface ExploreFiltersPanelProps {
-    mode: ExploreMode;
+    /** Sample types of the applied selection: the bins of their graphs are shown. */
+    appliedSampleType: ExploreMode;
     draft: ExploreFiltersDraft;
     onChange: (patch: Partial<ExploreFiltersDraft>) => void;
     aggregation: ExploreAggregation;
@@ -64,6 +68,7 @@ interface ExploreFiltersPanelProps {
     onToggleDrawing: () => void;
     boundsError: string | null;
     dateError: string | null;
+    sampleTypesError: string | null;
     /** The draft differs from the applied filters. */
     dirty: boolean;
     onApply: () => void;
@@ -76,8 +81,8 @@ interface ExploreFiltersPanelProps {
  * set several criteria before the selection is recomputed.
  */
 export default function ExploreFiltersPanel({
-    mode, draft, onChange, aggregation, onAggregationChange, projectOptions,
-    drawing, onToggleDrawing, boundsError, dateError, dirty, onApply, onClearAll,
+    appliedSampleType, draft, onChange, aggregation, onAggregationChange, projectOptions,
+    drawing, onToggleDrawing, boundsError, dateError, sampleTypesError, dirty, onApply, onClearAll,
 }: ExploreFiltersPanelProps) {
     const { data: instrumentModels = [] } = useInstrumentModels();
     const instrumentNames = instrumentModels.map((model) => model.instrument_model_name);
@@ -89,7 +94,13 @@ export default function ExploreFiltersPanel({
             : draft.privacy_statuses.filter((s) => s !== status),
     });
 
-    const canApply = !boundsError && !dateError;
+    const toggleSampleType = (type: ExploreSampleType, checked: boolean) => onChange({
+        sample_types: checked
+            ? SAMPLE_TYPES.filter((t) => t === type || draft.sample_types.includes(t))
+            : draft.sample_types.filter((t) => t !== type),
+    });
+
+    const canApply = !boundsError && !dateError && !sampleTypesError;
 
     return (
         <Stack spacing={3}>
@@ -123,6 +134,25 @@ export default function ExploreFiltersPanel({
                     onChange={(_event, value) => onChange({ instrument_models: value })}
                     renderInput={(params) => <TextField {...params} label="Instrument model" />}
                 />
+            </FilterSection>
+
+            <FilterSection title="Sample type">
+                <Stack direction="row" spacing={2}>
+                    {SAMPLE_TYPES.map((type) => (
+                        <FormControlLabel
+                            key={type}
+                            label={SAMPLE_TYPE_LABELS[type]}
+                            control={(
+                                <Checkbox
+                                    size="small"
+                                    checked={draft.sample_types.includes(type)}
+                                    onChange={(event) => toggleSampleType(type, event.target.checked)}
+                                />
+                            )}
+                        />
+                    ))}
+                </Stack>
+                {sampleTypesError && <Typography variant="caption" color="error">{sampleTypesError}</Typography>}
             </FilterSection>
 
             <FilterSection title="Location" onClear={() => onChange({ bounds: EMPTY_BOUNDS_DRAFT })}>
@@ -356,44 +386,47 @@ export default function ExploreFiltersPanel({
 
             <Box>
                 <Typography variant="h6" component="h2" sx={{ mb: 1 }}>Data aggregation</Typography>
-                {mode === "depth" ? (
-                    <FilterSection
-                        title="Pressure bin"
-                        onClear={() => onAggregationChange({ pressure_bin: PRESSURE_BIN.default })}
-                    >
-                        <Box sx={{ px: 1 }}>
-                            <Slider
-                                size="small"
-                                min={PRESSURE_BIN.min}
-                                max={PRESSURE_BIN.max}
-                                value={aggregation.pressure_bin}
-                                onChange={(_event, value) => onAggregationChange({ pressure_bin: value as number })}
-                                valueLabelDisplay="auto"
-                                aria-label="Pressure bin"
-                            />
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">{aggregation.pressure_bin} dbar</Typography>
-                    </FilterSection>
-                ) : (
-                    <FilterSection
-                        title="Time bin"
-                        onClear={() => onAggregationChange({ time_bin: TIME_BIN.default })}
-                    >
-                        <Box sx={{ px: 1 }}>
-                            <Slider
-                                size="small"
-                                min={TIME_BIN.min}
-                                max={TIME_BIN.max}
-                                step={0.5}
-                                value={aggregation.time_bin}
-                                onChange={(_event, value) => onAggregationChange({ time_bin: value as number })}
-                                valueLabelDisplay="auto"
-                                aria-label="Time bin"
-                            />
-                        </Box>
-                        <Typography variant="caption" color="text.secondary">{aggregation.time_bin} h</Typography>
-                    </FilterSection>
-                )}
+                <Stack spacing={2}>
+                    {appliedSampleType !== "time" && (
+                        <FilterSection
+                            title="Pressure bin"
+                            onClear={() => onAggregationChange({ pressure_bin: PRESSURE_BIN.default })}
+                        >
+                            <Box sx={{ px: 1 }}>
+                                <Slider
+                                    size="small"
+                                    min={PRESSURE_BIN.min}
+                                    max={PRESSURE_BIN.max}
+                                    value={aggregation.pressure_bin}
+                                    onChange={(_event, value) => onAggregationChange({ pressure_bin: value as number })}
+                                    valueLabelDisplay="auto"
+                                    aria-label="Pressure bin"
+                                />
+                            </Box>
+                            <Typography variant="caption" color="text.secondary">{aggregation.pressure_bin} dbar</Typography>
+                        </FilterSection>
+                    )}
+                    {appliedSampleType !== "depth" && (
+                        <FilterSection
+                            title="Time bin"
+                            onClear={() => onAggregationChange({ time_bin: TIME_BIN.default })}
+                        >
+                            <Box sx={{ px: 1 }}>
+                                <Slider
+                                    size="small"
+                                    min={TIME_BIN.min}
+                                    max={TIME_BIN.max}
+                                    step={0.5}
+                                    value={aggregation.time_bin}
+                                    onChange={(_event, value) => onAggregationChange({ time_bin: value as number })}
+                                    valueLabelDisplay="auto"
+                                    aria-label="Time bin"
+                                />
+                            </Box>
+                            <Typography variant="caption" color="text.secondary">{aggregation.time_bin} h</Typography>
+                        </FilterSection>
+                    )}
+                </Stack>
                 <Tooltip title="Coming soon">
                     <span>
                         <Button size="small" startIcon={<CategoryIcon />} disabled sx={{ mt: 2 }}>

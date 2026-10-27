@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-    Alert, Box, Button, Container, Divider, LinearProgress, Stack, Tab, Tabs, ToggleButton, ToggleButtonGroup,
-    Tooltip, Typography,
+    Alert, Box, Button, Container, Divider, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import InsertChartIcon from "@mui/icons-material/InsertChart";
@@ -21,12 +20,22 @@ import SelectionGraphs from "../components/SelectionGraphs";
 import EcoTaxaSummary from "../components/EcoTaxaSummary";
 import RandomImages from "../components/RandomImages";
 import { useExploreData } from "../hooks/useExploreData";
-import type { ExploreAggregation, ExploreFilters, ExploreMode, ExploreTab, GeoBounds } from "../types/explore.types";
+import {
+    SAMPLE_TYPES_OF_MODE,
+    type ExploreAggregation,
+    type ExploreFilters,
+    type ExploreMode,
+    type ExploreSampleType,
+    type ExploreTab,
+    type GeoBounds,
+} from "../types/explore.types";
 import {
     DEFAULT_AGGREGATION,
     boundsError,
     createEmptyDraft,
     dateRangeError,
+    modeOf,
+    sampleTypesError,
     toBounds,
     toBoundsDraft,
     toFilters,
@@ -35,10 +44,11 @@ import {
 
 const MAP_HEIGHT = 420;
 
-const MODES: { value: ExploreMode; label: string }[] = [
-    { value: "depth", label: "Depth profiles" },
-    { value: "time", label: "Time series" },
-];
+/** Title of each block of graphs when the page shows both sample types. */
+const GRAPHS_TITLE_OF_TYPE: Record<ExploreSampleType, string> = {
+    depth: "Selected data graphs: depth profiles",
+    time: "Selected data graphs: time series",
+};
 
 const TABS: { slug: ExploreTab; label: string; icon: ReactElement }[] = [
     { slug: "stats", label: "Selected data stats", icon: <InsertChartIcon /> },
@@ -48,20 +58,21 @@ const TABS: { slug: ExploreTab; label: string; icon: ReactElement }[] = [
 
 /**
  * ExplorePage — browse the particle data of every project (route
- * `/explore/:mode?/:tabName?`). The depth profile and time series pages are the
- * same screen for the two sample types.
+ * `/explore/:tabName?`).
  *
  * The criteria of the left panel are applied together with "Apply filters", and
- * then drive the map and the three tabs. Stats and graphs cover every matching
- * sample, private ones included; the exportable selection only what the user
- * may export. Before any filter is applied the map shows every project.
+ * then drive the map and the three tabs. The sample type criterion searches
+ * depth profiles, time series or both; the graphs are drawn per sample type,
+ * each on its own axis (two blocks when both are searched). Stats and graphs
+ * cover every matching sample, private ones included; the exportable selection
+ * only what the user may export. Before any filter is applied the map shows
+ * every project.
  */
 export default function ExplorePage() {
-    const { mode: modeParam, tabName } = useParams<{ mode?: string; tabName?: string }>();
+    const { tabName } = useParams<{ tabName?: string }>();
     const navigate = useNavigate();
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-    const mode: ExploreMode = modeParam === "time" ? "time" : "depth";
     const tab: ExploreTab = TABS.find((t) => t.slug === tabName)?.slug ?? "stats";
 
     const [draft, setDraft] = useState<ExploreFiltersDraft>(createEmptyDraft);
@@ -70,10 +81,13 @@ export default function ExplorePage() {
     const [drawing, setDrawing] = useState(false);
     const [sumChildTaxa, setSumChildTaxa] = useState(true);
 
-    const data = useExploreData(mode, applied, { aggregation, tab, sumChildTaxa });
+    const data = useExploreData(applied, { aggregation, tab, sumChildTaxa });
+    // The sample types of the applied selection: both before any filter.
+    const sampleType: ExploreMode = applied ? modeOf(applied.sample_types) : "all";
 
     const draftBoundsError = boundsError(draft.bounds);
     const draftDateError = dateRangeError(draft.date_from, draft.date_to);
+    const draftSampleTypesError = sampleTypesError(draft.sample_types);
     const draftFilters = useMemo(() => (draftBoundsError ? null : toFilters(draft)), [draft, draftBoundsError]);
     // Only the location reaches the map: editing another criterion leaves it as it is.
     const draftBounds = useMemo(() => (draftBoundsError ? null : toBounds(draft.bounds)), [draft.bounds, draftBoundsError]);
@@ -85,7 +99,7 @@ export default function ExplorePage() {
     );
 
     const apply = () => {
-        if (!draftFilters || draftDateError) return;
+        if (!draftFilters || draftDateError || draftSampleTypesError) return;
         setDrawing(false);
         setApplied(draftFilters);
     };
@@ -101,7 +115,7 @@ export default function ExplorePage() {
         setDrawing(false);
     }, [updateDraft]);
 
-    const goTo = (nextMode: ExploreMode, nextTab: ExploreTab) => navigate(`/explore/${nextMode}/${nextTab}`);
+    const goTo = (nextTab: ExploreTab) => navigate(`/explore/${nextTab}`);
 
     const noSelectionHint = applied === null && (
         <Alert severity="info" variant="outlined" sx={{ mb: 3 }}>
@@ -122,26 +136,14 @@ export default function ExplorePage() {
             // columns need the whole width.
             sx={{ width: { xs: "100%", lg: "66%" }, mx: "auto", ...pageContainerSx }}
         >
-            <Stack sx={{ ...pageHeaderSx, alignItems: "center" }} spacing={2}>
+            <Stack sx={{ ...pageHeaderSx, alignItems: "center" }}>
                 <Typography variant="h4" component="h1">Explore data</Typography>
-                <ToggleButtonGroup
-                    exclusive
-                    size="small"
-                    color="primary"
-                    value={mode}
-                    onChange={(_event, next: ExploreMode | null) => next && goTo(next, tab)}
-                    aria-label="Sample type"
-                >
-                    {MODES.map((option) => (
-                        <ToggleButton key={option.value} value={option.value} sx={{ px: 2 }}>{option.label}</ToggleButton>
-                    ))}
-                </ToggleButtonGroup>
             </Stack>
 
             <Grid container spacing={4}>
                 <Grid size={{ xs: 12, md: 4, xl: 3 }}>
                     <ExploreFiltersPanel
-                        mode={mode}
+                        appliedSampleType={sampleType}
                         draft={draft}
                         onChange={updateDraft}
                         aggregation={aggregation}
@@ -151,6 +153,7 @@ export default function ExplorePage() {
                         onToggleDrawing={() => setDrawing((on) => !on)}
                         boundsError={draftBoundsError}
                         dateError={draftDateError}
+                        sampleTypesError={draftSampleTypesError}
                         dirty={dirty}
                         onApply={apply}
                         onClearAll={clearAll}
@@ -178,7 +181,7 @@ export default function ExplorePage() {
                     <Box sx={{ ...pageTabsSx, mt: 3, position: "relative" }}>
                         <Tabs
                             value={tab}
-                            onChange={(_event, next: ExploreTab) => goTo(mode, next)}
+                            onChange={(_event, next: ExploreTab) => goTo(next)}
                             variant="scrollable"
                             scrollButtons="auto"
                         >
@@ -204,7 +207,7 @@ export default function ExplorePage() {
                                     title="Selected projects"
                                     subtitle="Projects for which at least one sample is matching the selected filters, private ones included"
                                     rows={data.all.projects}
-                                    mode={mode}
+                                    mode={sampleType}
                                 />
                                 <SelectionSamplesSection title="Selected samples" summary={data.all.summary} />
                                 <Divider />
@@ -218,21 +221,29 @@ export default function ExplorePage() {
                     )}
 
                     {tab === "graphs" && isAuthenticated && (
-                        <>
-                            {data.graphs && data.graphs.warnings.length > 0 && (
-                                <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
-                                    {data.graphs.warnings.map((warning) => <div key={warning}>{warning}</div>)}
-                                </Alert>
-                            )}
-                            <SectionCard>
-                                <SelectionGraphs
-                                    mode={mode}
-                                    graphs={data.graphs}
-                                    sumChildTaxa={sumChildTaxa}
-                                    onSumChildTaxaChange={setSumChildTaxa}
-                                />
-                            </SectionCard>
-                        </>
+                        <Stack spacing={4}>
+                            {SAMPLE_TYPES_OF_MODE[sampleType].map((type) => {
+                                const graphs = data.graphs[type];
+                                return (
+                                    <Box key={type}>
+                                        {graphs && graphs.warnings.length > 0 && (
+                                            <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+                                                {graphs.warnings.map((warning) => <div key={warning}>{warning}</div>)}
+                                            </Alert>
+                                        )}
+                                        <SectionCard>
+                                            <SelectionGraphs
+                                                mode={type}
+                                                title={sampleType === "all" ? GRAPHS_TITLE_OF_TYPE[type] : undefined}
+                                                graphs={graphs}
+                                                sumChildTaxa={sumChildTaxa}
+                                                onSumChildTaxaChange={setSumChildTaxa}
+                                            />
+                                        </SectionCard>
+                                    </Box>
+                                );
+                            })}
+                        </Stack>
                     )}
 
                     {tab === "exportable" && (
@@ -257,7 +268,7 @@ export default function ExplorePage() {
                                     title="Exportable selected projects"
                                     subtitle="Projects for which at least one sample is matching the selected filters"
                                     rows={data.exportable.projects}
-                                    mode={mode}
+                                    mode={sampleType}
                                 />
                                 <SelectionSamplesSection title="Exportable selected samples" summary={data.exportable.summary} />
                                 <Divider />
@@ -265,7 +276,7 @@ export default function ExplorePage() {
                                 <Divider />
                                 <RandomImages
                                     images={data.images}
-                                    mode={mode}
+                                    mode={sampleType}
                                     onRefresh={data.refreshImages}
                                     disabled={!data.available || applied === null}
                                 />

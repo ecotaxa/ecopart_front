@@ -28,7 +28,7 @@ import ExplorePage from './ExplorePage';
 
 const renderPage = (route = '/explore') => renderWithRouter(
     <Routes>
-        <Route path="/explore/:mode?/:tabName?" element={<ExplorePage />} />
+        <Route path="/explore/:tabName?" element={<ExplorePage />} />
     </Routes>,
     { route },
 );
@@ -57,11 +57,14 @@ describe('ExplorePage', () => {
         });
     });
 
-    it('opens on the depth profiles stats with empty criteria and counters', async () => {
+    it('opens on the stats of both sample types with empty criteria and counters', async () => {
         renderPage();
 
         expect(screen.getByRole('heading', { name: 'Explore data' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Depth profiles' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('checkbox', { name: 'Depth' })).toBeChecked();
+        expect(screen.getByRole('checkbox', { name: 'Time' })).toBeChecked();
+        expect(screen.getByText('Pressure bin')).toBeInTheDocument();
+        expect(screen.getByText('Time bin')).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /Selected data stats/ })).toHaveAttribute('aria-selected', 'true');
         expect(await screen.findByTestId('explore-map')).toBeInTheDocument();
 
@@ -178,19 +181,29 @@ describe('ExplorePage', () => {
         expect(await screen.findByText('Database is locked')).toBeInTheDocument();
     });
 
-    it('opens the time series page and its time bin from the route', () => {
-        renderPage('/explore/time/exportable');
-
-        expect(screen.getByRole('button', { name: 'Time series' })).toHaveAttribute('aria-pressed', 'true');
+    it('applies the sample types with the other criteria, then shows the bin of their graphs only', async () => {
+        const user = userEvent.setup();
+        renderPage('/explore/exportable');
         expect(screen.getByRole('heading', { name: 'Exportable selection' })).toBeInTheDocument();
+
+        await user.click(screen.getByRole('checkbox', { name: 'Depth' }));
+        await user.click(screen.getByRole('checkbox', { name: 'Time' }));
+        expect(screen.getByText('Check at least one sample type.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply filters' })).toBeDisabled();
+
+        await user.click(screen.getByRole('checkbox', { name: 'Time' }));
+        expect(screen.queryByText('Check at least one sample type.')).not.toBeInTheDocument();
+        expect(screen.getByText('Pressure bin')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        await waitFor(() => expect(screen.queryByText('Pressure bin')).not.toBeInTheDocument());
         expect(screen.getByText('Time bin')).toBeInTheDocument();
-        expect(screen.queryByText('Pressure bin')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Export selection/ })).toBeDisabled();
     });
 
     it('asks an anonymous user to log in for the graphs, and does not request them', async () => {
         const user = userEvent.setup();
-        renderPage('/explore/depth/graphs');
+        renderPage('/explore/graphs');
 
         expect(screen.getByText('Log in to see the graphs of the selection.')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
@@ -204,21 +217,35 @@ describe('ExplorePage', () => {
     it('draws the graphs of the selection for a logged-in user, with the warnings of the backend', async () => {
         const user = userEvent.setup();
         loginAsUser();
-        renderPage('/explore/depth/graphs');
+        renderPage('/explore/graphs');
 
         expect(screen.queryByText(/Log in to see the graphs/)).not.toBeInTheDocument();
+        await user.click(screen.getByRole('checkbox', { name: 'Time' }));
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
 
         const abundance = await screen.findByRole('region', { name: 'Particles abundance' });
         expect(await within(abundance).findByRole('img', { name: 'Particles abundance: 64-128 µm' })).toBeInTheDocument();
         expect(within(screen.getByRole('region', { name: 'CTD data' })).getByRole('img', { name: 'CTD data: chloro fluo' })).toBeInTheDocument();
         expect(screen.getByText('1 sample of a private project is not drawn')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Selected data graphs' })).toBeInTheDocument();
         expect(callsTo('/explore/graphs')).toHaveLength(1);
+    });
+
+    it('draws one block of graphs per sample type when both are searched', async () => {
+        const user = userEvent.setup();
+        loginAsUser();
+        renderPage('/explore/graphs');
+
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        expect(await screen.findByRole('heading', { name: 'Selected data graphs: depth profiles' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Selected data graphs: time series' })).toBeInTheDocument();
+        await waitFor(() => expect(screen.getAllByText('1 sample of a private project is not drawn')).toHaveLength(2));
+        expect(callsTo('/explore/graphs')).toHaveLength(2);
     });
 
     it('shows random images of the exportable selection, and asks for others on refresh', async () => {
         const user = userEvent.setup();
-        renderPage('/explore/depth/exportable');
+        renderPage('/explore/exportable');
 
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
         expect(await screen.findAllByRole('img', { name: /^Object / })).toHaveLength(4);

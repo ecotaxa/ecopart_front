@@ -1,5 +1,11 @@
 import type { ExploreMode, ExploreProjectRow } from "../types/explore.types";
 
+const MODE_WORDS: Record<ExploreMode, string> = {
+    depth: "depth profiles",
+    time: "time series",
+    all: "depth profiles and time series",
+};
+
 /** Who receives the data request of a project: its managers, else its contact. */
 export function accessRequestRecipients(project: ExploreProjectRow): string[] {
     const emails = project.managers.map((manager) => manager.email);
@@ -24,7 +30,7 @@ export function buildAccessRequestMailto(
         "Hello,",
         "",
         `I found the project "${project.project_title}" [${project.project_id}] while exploring the EcoPart data`
-        + ` (${mode === "depth" ? "depth profiles" : "time series"}): ${project.nb_selected_samples} of its`
+        + ` (${MODE_WORDS[mode]}): ${project.nb_selected_samples} of its`
         + ` ${project.nb_samples} samples match my selection.`,
         "",
         "Would you agree to share these data with me? Please let me know the conditions of use.",

@@ -5,18 +5,30 @@ import {
     boundsError,
     createEmptyDraft,
     dateRangeError,
+    modeOf,
+    sampleTypesError,
     toBoundsDraft,
     toFilters,
 } from './exploreFilters';
 
 describe('exploreFilters', () => {
-    it('starts with every criterion empty and every status kept', () => {
+    it('starts with both sample types, every criterion empty and every status kept', () => {
         const filters = toFilters(createEmptyDraft());
+        expect(filters.sample_types).toEqual(['depth', 'time']);
         expect(filters.project_ids).toEqual([]);
         expect(filters.bounds).toBeNull();
         expect(filters.hour_range).toBeNull();
         expect(filters.privacy_statuses).toEqual(['private', 'visible', 'public', 'open']);
         expect(filters.classification_state).toBe('all');
+    });
+
+    it('needs at least one sample type, and asks one type or both', () => {
+        expect(sampleTypesError(['depth', 'time'])).toBeNull();
+        expect(sampleTypesError(['time'])).toBeNull();
+        expect(sampleTypesError([])).toBe('Check at least one sample type.');
+        expect(modeOf(['depth', 'time'])).toBe('all');
+        expect(modeOf(['depth'])).toBe('depth');
+        expect(modeOf(['time'])).toBe('time');
     });
 
     it('accepts an empty or a complete location, nothing in between', () => {
