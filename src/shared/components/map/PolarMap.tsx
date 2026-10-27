@@ -124,6 +124,11 @@ const markerPath = (shape: MarkerShape, size: number) => {
     if (shape === "pin") return PIN_PATH;
     if (shape === "triangle") return `M0,${-h}L${h},${h * 0.8}L${-h},${h * 0.8}Z`;
     if (shape === "square") return `M${-h * 0.85},${-h * 0.85}h${h * 1.7}v${h * 1.7}h${-h * 1.7}Z`;
+    // An X centred on the position, drawn as a thin outline.
+    if (shape === "cross") {
+        const t = h * 0.28;
+        return `M${-h},${-h + t}L${-h + t},${-h}L0,${-t}L${h - t},${-h}L${h},${-h + t}L${t},0L${h},${h - t}L${h - t},${h}L0,${t}L${-h + t},${h}L${-h},${h - t}L${-t},0Z`;
+    }
     return `M${h},0A${h},${h} 0 1,1 ${-h},0A${h},${h} 0 1,1 ${h},0Z`;
 };
 

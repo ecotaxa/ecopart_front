@@ -239,6 +239,7 @@ export default function ProjectDetailsPage() {
 
                             {currentTab === "stats" && (
                                 <ProjectStatsTab
+                                    projectId={projectId}
                                     ecoTaxaLinked={project?.ecotaxa_project_id != null}
                                     onImportData={access.can.import ? () => navigate(`/projects/${projectId}/import`) : undefined}
                                     onLinkProject={access.can.manage ? () => navigate(`/projects/${projectId}/metadata#ecotaxa-link`) : undefined}

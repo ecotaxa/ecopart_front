@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { User } from '@/features/auth/types/user';
 import { createExploreHandlers } from './explore.handlers';
+import { makeEmptyProjectStats } from '../helpers/projectStats.fixtures';
 
 // Fake server
 // We use a simple variable to simulate server-side session state.
@@ -260,6 +261,9 @@ export const handlers = [
         search_info: { total: 0, limit: 20, total_on_page: 0, page: 1, pages: 1 },
         unread_count: 0,
     })),
+    // --- MOCK PROJECT STATISTICS (default: a project without sample) ---
+    // Tests of a populated STATS tab override it with makeProjectStatsFixture().
+    http.get('*/projects/:projectId/stats', ({ params }) => HttpResponse.json(makeEmptyProjectStats(Number(params.projectId)))),
 
     // --- MOCK EXPLORE (/explore/*) ---
     ...createExploreHandlers(() => isLoggedIn),
