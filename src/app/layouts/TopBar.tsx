@@ -23,6 +23,7 @@ import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/features/auth";
 import { logoutRequest } from "@/features/auth/api/auth.api";
+import { NotificationBell } from "@/features/notifications";
 
 export default function TopBar() {
     const navigate = useNavigate();
@@ -107,7 +108,9 @@ export default function TopBar() {
 
                 {/* User */}
                 {isAuthenticated && user ? (
-                    <>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                        <NotificationBell />
+
                         <Stack
                             direction="row"
                             spacing={1}
@@ -168,7 +171,7 @@ export default function TopBar() {
                                 Log out
                             </MenuItem>
                         </Menu>
-                    </>
+                    </Stack>
                 ) : (
                     <Stack direction="row" spacing={2}>
                         <Button
