@@ -6,6 +6,7 @@ import {
 import EditLocationAltIcon from "@mui/icons-material/EditLocationAlt";
 import CategoryIcon from "@mui/icons-material/Category";
 
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { useInstrumentModels } from "@/shared/api/referenceData.hooks";
 import {
     PRIVACY_STATUSES,
@@ -35,11 +36,11 @@ const MONTHS = [
 const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, "0")}:${hour % 1 ? "30" : "00"}`;
 
 /** Title of a criteria block, with its optional "Clear" link. */
-function FilterSection({ title, onClear, children }: { title: string; onClear?: () => void; children: ReactNode }) {
+function FilterSection({ title, info, onClear, children }: { title: string; info?: ReactNode; onClear?: () => void; children: ReactNode }) {
     return (
         <Box component="section" aria-label={title}>
             <Stack direction="row" spacing={1} sx={{ alignItems: "baseline", mb: 1 }}>
-                <Typography variant="subtitle1" component="h3">{title}</Typography>
+                <Typography variant="subtitle1" component="h3">{title}{info}</Typography>
                 {onClear && (
                     <Link component="button" type="button" variant="caption" underline="hover" onClick={onClear}>
                         Clear
@@ -262,7 +263,7 @@ export default function ExploreFiltersPanel({
                 </Typography>
             </FilterSection>
 
-            <FilterSection title="Status">
+            <FilterSection title="Status" info={<PrivacyStatusInfo />}>
                 <Stack>
                     {PRIVACY_STATUSES.map((status) => (
                         <FormControlLabel
