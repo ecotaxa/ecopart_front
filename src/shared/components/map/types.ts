@@ -5,8 +5,8 @@ export type Hemisphere = "north" | "south";
 /** Flat world map, or the Earth seen from above a pole. */
 export type MapProjection = "mercator" | "polar";
 
-/** `pin`: the location pin of the MUI `LocationOn` icon, its tip on the point. */
-export type MarkerShape = "circle" | "triangle" | "square" | "pin";
+/** `pin`: the location pin of the MUI `LocationOn` icon, its tip on the point. `cross`: an X centred on the point. */
+export type MarkerShape = "circle" | "triangle" | "square" | "pin" | "cross";
 
 /**
  * Latitude / longitude box, in decimal degrees (longitudes in [-180, 180]).

@@ -5,7 +5,7 @@ import { Box, Paper, Skeleton, Typography } from "@mui/material";
  * Headline-counter accents drawn from the app theme (teal-led EcoPart palette),
  * shared by the admin quick access and the explore counters so both read alike.
  */
-export const STAT_CARD_COLORS = ["primary.main", "secondary.main", "info.main", "success.main"] as const;
+export const STAT_CARD_COLORS = ["primary.main", "secondary.main", "info.main", "success.main", "warning.main"] as const;
 
 interface StatCardProps {
     label: string;

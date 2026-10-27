@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { User } from '@/features/auth/types/user';
 import { createExploreHandlers } from './explore.handlers';
+import { makeEmptyProjectStats } from '../helpers/projectStats.fixtures';
 
 // Fake server
 // We use a simple variable to simulate server-side session state.
@@ -252,6 +253,10 @@ export const handlers = [
         const includeStorage = url.searchParams.get('include_storage') === 'true';
         return HttpResponse.json(buildAdminStats(includeStorage));
     }),
+
+    // --- MOCK PROJECT STATISTICS (default: a project without sample) ---
+    // Tests of a populated STATS tab override it with makeProjectStatsFixture().
+    http.get('*/projects/:projectId/stats', ({ params }) => HttpResponse.json(makeEmptyProjectStats(Number(params.projectId)))),
 
     // --- MOCK EXPLORE (/explore/*) ---
     ...createExploreHandlers(() => isLoggedIn),

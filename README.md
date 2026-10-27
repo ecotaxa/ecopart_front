@@ -721,6 +721,25 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | **TC-I13** | Member: import yes, manage no | A project member. | Open STATS, then METADATA. | • **IMPORT DATA** is offered, **LINK PROJECT** is not, no privacy notice.<br>• The metadata fields are read-only and there is no **SAVE**. |
 | **TC-I14** | Project not found | The project search returns no project. | Navigate to `/projects/101`. | "Project not found" is shown and no tab is rendered. |
 | **TC-I15** | No access | The project search answers 401 (after the refresh retry) or 403. | Navigate to `/projects/101`. | "No access to this project" is shown and no tab is rendered. |
+| **TC-I16** | Stats tab with data | A project member; `GET /projects/101/stats` answers a populated project. | Open `/projects/101/stats`. | The privacy timeline, the sample map and the EcoTaxa classification state are shown; no **IMPORT DATA** card. |
+
+### I2. Project Stats Tab (`ProjectStatsTab`)
+
+*`features/projects/components/ProjectStatsTab.test.tsx` · `features/projects/hooks/useProjectStats.test.tsx` · `features/projects/api/projectStats.api.test.ts` · `features/projects/components/stats/statsFormat.test.ts`*
+
+The tab reads `GET /projects/:id/stats` (`useProjectStats`), one call for every section of the mockup: headline counters, privacy timeline, raw backup, sample map (sample and CTD positions), sample types and ranges with the maximum-pressure histogram, EcoTaxa categories and classification state, each with its orange warnings.
+
+| ID | Title | Preconditions | Steps | Expected Result |
+| --- | --- | --- | --- | --- |
+| **TC-S1** | Populated tab | The backend answers the mockup project (6 stations, 56 samples, every warning raised). | Render the tab. | • Counters Stations 6, Samples 56, Particles 1.3M, Vignettes 640, Exports 7.<br>• Timeline: Private is the current step; the oldest sample, visibility, public and open dates are shown as UTC days.<br>• Raw backup "3 weeks ago" with the *samples imported without raw backup* warning.<br>• Map: a pin per sample position, a cross per CTD position, the *missing 1 CTD file* and *mismatch 1 sample GPS coordinates* warnings, the legend.<br>• Samples: depth/time/total counts, "0m - 3056m", "42µm - 81mm", "May 1997 - June 2010", the histogram, the three range warnings.<br>• EcoTaxa: the category chips, the object and sample shares as rings, the *3 samples not imported in EcoTaxa* and *classification uncompleted* warnings.<br>• No call-to-action card. |
+| **TC-S2** | Empty project | The backend answers a project without sample; the user may import and manage. | Render the tab, click **IMPORT DATA** then **LINK PROJECT**. | • Both callbacks fire.<br>• The counters and "No sample yet: the delays have not started." are shown, no map or backup section. |
+| **TC-S3** | No action for a plain user | No import or link callback; a notice is given. | Render the tab. | The notice is shown first; no **IMPORT DATA** or **LINK PROJECT**. |
+| **TC-S4** | Raw backup hidden | The backend answers `raw_backup: null` (user without privilege). | Render the tab. | The map is shown, the *Raw backup* section is not. |
+| **TC-S5** | Unlinked project, clean data | `ecotaxa.linked` is false and no warning count is raised. | Render the tab. | No EcoTaxa section and no warning. |
+| **TC-S6** | Partial EcoTaxa statistics | `ecotaxa.partial` is true with 4 samples pending. | Render the tab. | "EcoTaxa statistics are being read for 4 samples" is shown. |
+| **TC-S7** | Load error | `GET /projects/101/stats` answers 500. | Render the tab with an import callback. | The backend message is shown in an alert; **IMPORT DATA** is still offered; no counter. |
+| **TC-S8** | Polling while partial | The hook gets a partial answer, then a complete one. | Render `useProjectStats(101)`, advance the poll interval twice. | A second request is made after `PROJECT_STATS_POLL_MS`; none once the answer is complete. |
+| **TC-S9** | API client | MSW serves the route. | Call `fetchProjectStats(77)`. | `GET /projects/77/stats` is read; a 404 surfaces as not found; the query key sits under the projects root. |
 
 ### J. Project Metadata Tab (`ProjectMetadataTab`)
 
