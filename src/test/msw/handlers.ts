@@ -253,6 +253,14 @@ export const handlers = [
         return HttpResponse.json(buildAdminStats(includeStorage));
     }),
 
+    // --- MOCK NOTIFICATIONS (the top-bar bell of a signed-in user) ---
+    http.get('*/notifications/unread_count', () => HttpResponse.json({ unread_count: 0 })),
+    http.get('*/notifications', () => HttpResponse.json({
+        notifications: [],
+        search_info: { total: 0, limit: 20, total_on_page: 0, page: 1, pages: 1 },
+        unread_count: 0,
+    })),
+
     // --- MOCK EXPLORE (/explore/*) ---
     ...createExploreHandlers(() => isLoggedIn),
 ];
