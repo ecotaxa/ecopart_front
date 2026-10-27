@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { geoAzimuthalEquidistant, geoGraticule, geoMercator, geoPath, type GeoProjection } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
@@ -21,6 +21,14 @@ const ZOOM_STEP = 1.6;
 const MIN_FIT_SPAN_DEG = 40;
 const FIT_PADDING = 40;
 const MARKER_SIZE = 12;
+/**
+ * Above this many points the markers are painted on a canvas instead of being SVG
+ * elements: the Explore map shows every sample of the application (tens of thousands),
+ * and as many SVG markers froze the page for over a minute.
+ */
+const CANVAS_MARKER_THRESHOLD = 500;
+/** How far (px) from a painted marker's centre a click still opens it. */
+const PAINTED_MARKER_REACH = MARKER_SIZE / 2 + 3;
 /** The disc goes 20° past the equator: beyond, the far hemisphere gets too distorted to read. */
 const CLIP_ANGLE = 110;
 const FAR_LATITUDE_LIMIT = CLIP_ANGLE - 90;
@@ -79,15 +87,16 @@ const buildProjection = (kind: MapProjection, hemisphere: Hemisphere, width: num
 function fitView(
     projection: GeoProjection, kind: MapProjection, hemisphere: Hemisphere, points: MapPoint[], width: number, height: number,
 ): View {
-    const projected = points
-        .filter((point) => isOnMap(point, kind, hemisphere))
-        .map((point) => projection([point.longitude, point.latitude]))
-        .filter((xy): xy is [number, number] => xy !== null);
-    if (projected.length === 0) return HOME_VIEW;
+    // A loop, not Math.min(...xs): spreading ~100k points overflows the call stack.
+    let [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity];
+    for (const point of points) {
+        if (!isOnMap(point, kind, hemisphere)) continue;
+        const xy = projection([point.longitude, point.latitude]);
+        if (!xy) continue;
+        [minX, maxX, minY, maxY] = [Math.min(minX, xy[0]), Math.max(maxX, xy[0]), Math.min(minY, xy[1]), Math.max(maxY, xy[1])];
+    }
+    if (minX === Infinity) return HOME_VIEW;
 
-    const xs = projected.map(([x]) => x);
-    const ys = projected.map(([, y]) => y);
-    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
     const minSpan = (MIN_FIT_SPAN_DEG * Math.PI / 180) * projection.scale();
     // Never smaller than the whole map (zoom 1).
     const k = clamp(
@@ -131,6 +140,76 @@ const markerPath = (shape: MarkerShape, size: number) => {
     }
     return `M${h},0A${h},${h} 0 1,1 ${-h},0A${h},${h} 0 1,1 ${h},0Z`;
 };
+
+/** A marker placed on the screen, on one copy of the world. */
+interface ScreenMarker {
+    key: string;
+    point: MapPoint;
+    xy: [number, number];
+}
+
+/** Adds to `path` the outline of a marker placed at `x, y` (its tip, for a pin). */
+function traceMarker(path: Path2D, shape: MarkerShape, x: number, y: number) {
+    const h = MARKER_SIZE / 2;
+    if (shape === "circle") {
+        path.moveTo(x + h, y);
+        path.arc(x, y, h, 0, 2 * Math.PI);
+    } else if (shape === "triangle") {
+        path.moveTo(x, y - h);
+        path.lineTo(x + h, y + h * 0.8);
+        path.lineTo(x - h, y + h * 0.8);
+        path.closePath();
+    } else if (shape === "square") {
+        path.rect(x - h * 0.85, y - h * 0.85, h * 1.7, h * 1.7);
+    } else {
+        const matrix = shape === "pin"
+            ? new DOMMatrix().translateSelf(x - 12 * PIN_SCALE, y - 22 * PIN_SCALE).scaleSelf(PIN_SCALE)
+            : new DOMMatrix().translateSelf(x, y);
+        path.addPath(new Path2D(markerPath(shape, MARKER_SIZE)), matrix);
+    }
+}
+
+/**
+ * Paints the markers in one batch per look (shape, fill, outline), so a few fill and
+ * stroke calls draw any number of them. The ringed ones (the user's data) go on top.
+ */
+function paintMarkers(context: CanvasRenderingContext2D, markers: ScreenMarker[], outline: string) {
+    const batches = new Map<string, { point: MapPoint; path: Path2D }>();
+    for (const { point, xy } of markers) {
+        const shape = point.shape ?? "circle";
+        const look = `${shape}|${point.color}|${point.ring ?? ""}`;
+        let batch = batches.get(look);
+        if (!batch) {
+            batch = { point, path: new Path2D() };
+            batches.set(look, batch);
+        }
+        traceMarker(batch.path, shape, xy[0], xy[1]);
+    }
+    const ordered = [...batches.values()].sort((a, b) => Number(a.point.ring !== undefined) - Number(b.point.ring !== undefined));
+    for (const { point, path } of ordered) {
+        context.fillStyle = point.color;
+        context.fill(path);
+        context.strokeStyle = point.ring ?? outline;
+        context.lineWidth = point.ring ? 2.5 : 1.2;
+        context.stroke(path);
+    }
+}
+
+/** The painted marker under a position of the map (the closest within reach), if any. */
+function paintedMarkerAt(markers: ScreenMarker[], x: number, y: number): ScreenMarker | null {
+    let closest: ScreenMarker | null = null;
+    let closestDistance = Infinity;
+    for (const marker of markers) {
+        const isPin = marker.point.shape === "pin";
+        // A pin stands above its point: its head is what gets clicked.
+        const distance = Math.hypot(x - marker.xy[0], y - (isPin ? marker.xy[1] - PIN_SIZE * 0.6 : marker.xy[1]));
+        if (distance <= (isPin ? PIN_SIZE / 2 : PAINTED_MARKER_REACH) && distance < closestDistance) {
+            closest = marker;
+            closestDistance = distance;
+        }
+    }
+    return closest;
+}
 
 const formatLatitude = (latitude: number) => `${Math.abs(latitude)}°${latitude > 0 ? "N" : latitude < 0 ? "S" : ""}`;
 
@@ -203,10 +282,15 @@ export default function PolarMap({
     const land = useLand();
     const [containerRef, { width }] = useElementSize<HTMLDivElement>();
     const svgRef = useRef<SVGSVGElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const worldId = `map-world-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
     const validPoints = useMemo(() => points.filter(isValidPoint), [points]);
-    const pointsKey = validPoints.map((point) => `${point.id}:${point.latitude}:${point.longitude}`).join("|");
+    const pointsKey = useMemo(
+        () => validPoints.map((point) => `${point.id}:${point.latitude}:${point.longitude}`).join("|"),
+        [validPoints],
+    );
+    const painted = validPoints.length > CANVAS_MARKER_THRESHOLD;
 
     const [kind, setKind] = useState<MapProjection>(defaultProjection);
     const [hemisphere, setHemisphere] = useState<Hemisphere>(() => preferredHemisphere(validPoints));
@@ -263,6 +347,33 @@ export default function PolarMap({
         const last = Math.floor(((width - centerX - view.x) / view.k + worldWidth / 2) / worldWidth);
         return Array.from({ length: Math.min(last - first + 1, 8) }, (_, index) => first + index);
     }, [kind, centerX, width, view, worldWidth]);
+
+    const shownPoints = useMemo(
+        () => validPoints.filter((point) => isOnMap(point, kind, hemisphere)),
+        [validPoints, kind, hemisphere],
+    );
+    const hiddenCount = validPoints.length - shownPoints.length;
+    const otherHemisphere: Hemisphere = hemisphere === "north" ? "south" : "north";
+
+    // Projected once per projection: panning and zooming only move them.
+    const projectedPoints = useMemo(() => shownPoints.flatMap((point) => {
+        const xy = projection([point.longitude, point.latitude]);
+        return xy ? [{ point, xy }] : [];
+    }), [shownPoints, projection]);
+
+    const markers = useMemo(() => {
+        const placed: ScreenMarker[] = [];
+        for (const { point, xy } of projectedPoints) {
+            const y = centerY + view.y + view.k * xy[1];
+            for (const copy of copies) {
+                const x = centerX + view.x + view.k * (xy[0] + copy * worldWidth);
+                if (kind === "mercator" && (x <= -PIN_SIZE || x >= width + PIN_SIZE)) continue;
+                placed.push({ key: `${point.id}#${copy}`, point, xy: [x, y] });
+            }
+        }
+        return placed;
+    }, [projectedPoints, copies, view, centerX, centerY, worldWidth, kind, width]);
+    const openMarker = markers.find((marker) => marker.key === openPointId);
 
     const toGeo = (clientX: number, clientY: number): [number, number] | null => {
         const rect = svgRef.current?.getBoundingClientRect();
@@ -334,9 +445,18 @@ export default function PolarMap({
         event.currentTarget.setPointerCapture(event.pointerId);
     };
 
+    /** The painted marker under the pointer (the SVG markers handle their own events). */
+    const paintedMarkerUnder = (event: ReactPointerEvent) => {
+        const rect = svgRef.current?.getBoundingClientRect();
+        return painted && rect ? paintedMarkerAt(markers, event.clientX - rect.left, event.clientY - rect.top) : null;
+    };
+
     const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
         const current = gesture.current;
-        if (!current) return;
+        if (!current) {
+            if (painted && !drawing) event.currentTarget.style.cursor = paintedMarkerUnder(event) ? "pointer" : "grab";
+            return;
+        }
         if (current.kind === "draw") {
             const end = drawEnd(event, current);
             if (end) setDraftBox(boxBetween(current.start, end));
@@ -360,8 +480,8 @@ export default function PolarMap({
             if (box && box.north !== box.south && box.east !== box.west) onBoundsDrawn?.(box);
             return;
         }
-        // A click on the background (no drag) closes the open popup.
-        if (!current.moved) setOpenPointId(null);
+        // A click (no drag) opens the painted marker under it; on the background, it closes the open popup.
+        if (!current.moved) setOpenPointId(paintedMarkerUnder(event)?.key ?? null);
     };
 
     const switchView = (nextKind: MapProjection, nextHemisphere: Hemisphere) => {
@@ -373,22 +493,22 @@ export default function PolarMap({
         ));
     };
 
-    const shownPoints = validPoints.filter((point) => isOnMap(point, kind, hemisphere));
-    const hiddenCount = validPoints.length - shownPoints.length;
-    const otherHemisphere: Hemisphere = hemisphere === "north" ? "south" : "north";
-
-    const markers = shownPoints
-        .flatMap((point) => {
-            const xy = toScreen(projection([point.longitude, point.latitude]));
-            if (!xy) return [];
-            return copies.map((copy) => ({
-                key: `${point.id}#${copy}`,
-                point,
-                xy: [xy[0] + copy * worldWidth * view.k, xy[1]] as [number, number],
-            }));
-        })
-        .filter(({ xy }) => kind !== "mercator" || (xy[0] > -PIN_SIZE && xy[0] < width + PIN_SIZE));
-    const openMarker = markers.find((marker) => marker.key === openPointId);
+    const markerOutline = theme.palette.common.white;
+    // Before the browser paints, so the markers never lag a frame behind the panned map.
+    useLayoutEffect(() => {
+        const canvas = canvasRef.current;
+        const context = canvas?.getContext("2d");
+        if (!canvas || !context) return;
+        const ratio = window.devicePixelRatio || 1;
+        const [pixelWidth, pixelHeight] = [Math.round(width * ratio), Math.round(height * ratio)];
+        if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+            canvas.width = pixelWidth;
+            canvas.height = pixelHeight;
+        }
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.clearRect(0, 0, width, height);
+        paintMarkers(context, markers, markerOutline);
+    }, [markers, width, height, markerOutline]);
 
     // Polar: along the 45°E meridian. Mercator: along the left edge of the map.
     const labelLatitudes = kind === "mercator"
@@ -474,7 +594,7 @@ export default function PolarMap({
                         </text>
                     ))}
 
-                    {markers.map(({ key, point, xy }) => {
+                    {!painted && markers.map(({ key, point, xy }) => {
                         const isPin = point.shape === "pin";
                         return (
                             <g
@@ -503,6 +623,13 @@ export default function PolarMap({
                         );
                     })}
                 </svg>
+                {painted && (
+                    <canvas
+                        ref={canvasRef}
+                        aria-hidden
+                        style={{ position: "absolute", top: 0, left: 0, width, height, pointerEvents: "none" }}
+                    />
+                )}
 
                 {openMarker && (
                     <Paper

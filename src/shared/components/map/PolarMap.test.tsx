@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import PolarMap from './PolarMap';
@@ -51,5 +51,46 @@ describe('PolarMap', () => {
     it('says when there is nothing to show', () => {
         render(<PolarMap points={[point('bad', 120, 0)]} emptyMessage="No location available" />);
         expect(screen.getByText('No location available')).toBeInTheDocument();
+    });
+
+    describe('with thousands of points', () => {
+        const MAP_WIDTH = 800;
+        const MAP_HEIGHT = 320;
+        // Every point at the same place: framed, they sit at the centre of the map.
+        const crowd = Array.from({ length: 600 }, (_, index) => point(String(index), 43.7, 7.3));
+
+        beforeEach(() => {
+            vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(MAP_WIDTH);
+            // JSDOM has no canvas: nothing is painted, the markers are still laid out.
+            vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+            if (!Element.prototype.setPointerCapture) Element.prototype.setPointerCapture = () => { /* no-op */ };
+        });
+
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it('paints the markers on a canvas instead of one SVG element each', () => {
+            const { container } = render(<PolarMap points={crowd} height={MAP_HEIGHT} />);
+
+            expect(container.querySelector('canvas')).toBeInTheDocument();
+            expect(screen.queryAllByRole('button', { name: /^Sample / })).toHaveLength(0);
+        });
+
+        it('opens a painted marker on click, and closes it on a click elsewhere', () => {
+            render(<PolarMap points={crowd} height={MAP_HEIGHT} />);
+            const map = screen.getByRole('img', { name: /Mercator map/ });
+            const click = (clientX: number, clientY: number) => {
+                fireEvent.pointerDown(map, { button: 0, clientX, clientY, pointerId: 1 });
+                fireEvent.pointerUp(map, { button: 0, clientX, clientY, pointerId: 1 });
+            };
+
+            click(MAP_WIDTH / 2 + 2, MAP_HEIGHT / 2 - 2);
+            expect(screen.getByText('Sample 0')).toBeInTheDocument();
+            expect(screen.getByText('Lat 43.70000, Lon 7.30000')).toBeInTheDocument();
+
+            click(20, MAP_HEIGHT - 20);
+            expect(screen.queryByText('Sample 0')).not.toBeInTheDocument();
+        });
     });
 });
