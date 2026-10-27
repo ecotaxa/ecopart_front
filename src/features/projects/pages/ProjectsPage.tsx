@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import SectionCard from "@/shared/components/SectionCard";
 import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { countColumn } from "@/shared/components/countColumn";
+import { BusyOverlay } from "@/shared/components/BusyOverlay";
 import type { Project } from "../api/projects.api";
 import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
 import { getProjectAccess, getProjectRole, privacyLabel, roleLabel, toPrivacyStatus } from "../utils/projectAccess";
@@ -410,6 +411,8 @@ export default function ProjectsPage() {
                     </Box>
                 </SectionCard>
             </Container>
+
+            <BusyOverlay open={isActionRunning} message="Deleting project(s)…" />
 
             <Snackbar
                 open={snackbar.open}

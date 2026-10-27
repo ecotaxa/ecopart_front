@@ -8,6 +8,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoTooltip from "@/shared/components/InfoTooltip";
 import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
+import { BusyOverlay } from "@/shared/components/BusyOverlay";
 import { countColumn } from "@/shared/components/countColumn";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
@@ -324,6 +325,8 @@ export default function AdminProjectsTab() {
                     />
                 </Box>
             </Paper>
+
+            <BusyOverlay open={isActionRunning} message="Deleting project(s)…" />
 
             <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={closeSnackbar} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
                 <Alert onClose={closeSnackbar} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>

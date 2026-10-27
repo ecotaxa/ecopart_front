@@ -257,6 +257,34 @@ describe('ProjectDetailsPage (Functional)', () => {
         confirmSpy.mockRestore();
     }, 15000);
 
+    it('greys the page out while the project is being deleted', async () => {
+        const user = userEvent.setup();
+        let finishDelete: () => void = () => {};
+        const deleteHeld = new Promise<void>((resolve) => { finishDelete = resolve; });
+
+        mockProjectFetch('manager');
+        server.use(
+            http.delete('*/projects/:projectId/', async () => {
+                await deleteHeld;
+                return HttpResponse.json({ message: 'deleted' });
+            })
+        );
+        const confirmSpy = answerConfirmDialogs(true);
+
+        renderPage();
+        await screen.findByRole('heading', { name: 'Test Project' });
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+        await user.click(await screen.findByRole('button', { name: /^DELETE$/i }));
+
+        expect(await screen.findByRole('status')).toHaveTextContent('Deleting project…');
+
+        finishDelete();
+        expect(await screen.findByText('Projects List Mock')).toBeInTheDocument();
+
+        confirmSpy.mockRestore();
+    }, 15000);
+
     // TC-I5: API Error Handling
     it('TC-I5: should show an error state when project details loading fails', async () => {
         server.use(
