@@ -5,11 +5,20 @@ import {
     boundsError,
     createEmptyDraft,
     dateRangeError,
+    parseProjectIds,
     toBoundsDraft,
     toFilters,
 } from './exploreFilters';
 
 describe('exploreFilters', () => {
+    it('reads the project ids of the projects query parameter, dropping anything else', () => {
+        expect(parseProjectIds(null)).toEqual([]);
+        expect(parseProjectIds('')).toEqual([]);
+        expect(parseProjectIds('12')).toEqual([12]);
+        expect(parseProjectIds('12,15,12')).toEqual([12, 15]);
+        expect(parseProjectIds('12,abc,,-3,1.5,0,15')).toEqual([12, 15]);
+    });
+
     it('starts with every criterion empty and every status kept', () => {
         const filters = toFilters(createEmptyDraft());
         expect(filters.project_ids).toEqual([]);
