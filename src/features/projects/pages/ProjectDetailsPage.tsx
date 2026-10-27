@@ -32,6 +32,7 @@ import { privacyLabel, type ProjectAction } from "../utils/projectAccess";
 import { ProjectLoadError, ProjectPrivacyNotice } from "../components/ProjectAccessStates";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
+import { BusyOverlay } from "@/shared/components/BusyOverlay";
 
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -277,6 +278,8 @@ export default function ProjectDetailsPage() {
                     </>
                 )}
             </Container>
+
+            <BusyOverlay open={isDeleting} message="Deleting project…" />
 
             <Snackbar
                 open={deleteError !== null}
