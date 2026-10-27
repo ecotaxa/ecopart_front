@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     Alert, Box, Button, Container, Divider, LinearProgress, Stack, Tab, Tabs, Tooltip, Typography,
 } from "@mui/material";
@@ -35,6 +35,7 @@ import {
     createEmptyDraft,
     dateRangeError,
     modeOf,
+    parseProjectIds,
     sampleTypesError,
     toBounds,
     toBoundsDraft,
@@ -67,16 +68,25 @@ const TABS: { slug: ExploreTab; label: string; icon: ReactElement }[] = [
  * cover every matching sample, private ones included; the exportable selection
  * only what the user may export. Before any filter is applied the map shows
  * every project.
+ *
+ * The project pages open it on their projects (`?projects=12,15`): that project
+ * filter is applied from the start.
  */
 export default function ExplorePage() {
     const { tabName } = useParams<{ tabName?: string }>();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     const tab: ExploreTab = TABS.find((t) => t.slug === tabName)?.slug ?? "stats";
 
-    const [draft, setDraft] = useState<ExploreFiltersDraft>(createEmptyDraft);
-    const [applied, setApplied] = useState<ExploreFilters | null>(null);
+    const [draft, setDraft] = useState<ExploreFiltersDraft>(() => ({
+        ...createEmptyDraft(),
+        project_ids: parseProjectIds(searchParams.get("projects")),
+    }));
+    const [applied, setApplied] = useState<ExploreFilters | null>(
+        () => (draft.project_ids.length > 0 ? toFilters(draft) : null),
+    );
     const [aggregation, setAggregation] = useState<ExploreAggregation>(DEFAULT_AGGREGATION);
     const [drawing, setDrawing] = useState(false);
     const [sumChildTaxa, setSumChildTaxa] = useState(true);

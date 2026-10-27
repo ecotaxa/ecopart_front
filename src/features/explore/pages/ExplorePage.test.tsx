@@ -133,6 +133,28 @@ describe('ExplorePage', () => {
         expect(apply).toBeDisabled();
     });
 
+    it('opens on the projects of the route with their filter applied, as the project pages link to it', async () => {
+        const selectionBodies: { mode: string; filters: { project_ids: number[] } | null }[] = [];
+        server.events.on('request:start', async ({ request }) => {
+            if (new URL(request.url).pathname === '/explore/selection') selectionBodies.push(await request.clone().json());
+        });
+        const user = userEvent.setup();
+        renderPage('/explore?projects=1');
+
+        expect(await screen.findByRole('button', { name: 'Tara Oceans 2009 (120)' })).toBeInTheDocument();
+        expect(screen.queryByText(/Set your data selection criteria/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Apply filters' })).toBeDisabled();
+        await waitFor(() => expect(selectionBodies).toHaveLength(1));
+        expect(selectionBodies[0]).toMatchObject({ mode: 'all', filters: { project_ids: [1] } });
+
+        // Narrowing the sample type keeps the filter.
+        await user.click(screen.getByRole('checkbox', { name: 'Depth' }));
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        await waitFor(() => expect(selectionBodies).toHaveLength(2));
+        expect(selectionBodies[1]).toMatchObject({ mode: 'time', filters: { project_ids: [1] } });
+        expect(screen.getByRole('button', { name: 'Tara Oceans 2009 (120)' })).toBeInTheDocument();
+    });
+
     it('shows the counters, projects and EcoTaxa categories of the selection once applied', async () => {
         const user = userEvent.setup();
         renderPage();

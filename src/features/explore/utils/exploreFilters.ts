@@ -114,6 +114,12 @@ export function toFilters(draft: ExploreFiltersDraft): ExploreFilters {
     return { ...draft, bounds: toBounds(draft.bounds) };
 }
 
+/** The project ids of the `projects` query parameter (`?projects=12,15`), anything else dropped. */
+export function parseProjectIds(param: string | null): number[] {
+    const ids = (param ?? "").split(",").map(Number).filter((id) => Number.isInteger(id) && id > 0);
+    return [...new Set(ids)];
+}
+
 export const SAMPLE_TYPE_LABELS: Record<ExploreSampleType, string> = {
     depth: "Depth",
     time: "Time",
