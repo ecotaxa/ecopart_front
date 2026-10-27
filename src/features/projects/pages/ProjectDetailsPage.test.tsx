@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -315,7 +315,8 @@ describe('ProjectDetailsPage (Functional)', () => {
         renderPage();
 
         await screen.findByRole('heading', { name: 'Test Project' });
-        expect(screen.getByText(label)).toBeInTheDocument();
+        const chip = screen.getByText(label).closest('.MuiChip-root') as HTMLElement;
+        expect(within(chip.parentElement as HTMLElement).getByTestId('InfoOutlinedIcon')).toBeInTheDocument();
     }, 15000);
 
     // TC-I11: a deep link to a tab the user may not open falls back to METADATA

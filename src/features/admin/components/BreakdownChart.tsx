@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Box, Typography } from "@mui/material";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { PieChart } from "@mui/x-charts/PieChart";
@@ -8,6 +9,8 @@ import { chartColorAt } from "@/shared/utils/chartColors";
 
 interface BreakdownChartProps {
     title: string;
+    /** Info point after the title. */
+    info?: ReactNode;
     data: LabelCount[];
     variant?: "bar" | "pie";
     height?: number;
@@ -22,7 +25,7 @@ interface BreakdownChartProps {
  * (like EvolutionChart) so MUI's overlap-avoidance keeps them visible instead
  * of dropping wide upright labels.
  */
-export default function BreakdownChart({ title, data, variant = "bar", height = 260, showValues = false }: BreakdownChartProps) {
+export default function BreakdownChart({ title, info, data, variant = "bar", height = 260, showValues = false }: BreakdownChartProps) {
     const rows = data.map((d, i) => ({
         id: d.label,
         label: prettifyLabel(d.label),
@@ -36,6 +39,7 @@ export default function BreakdownChart({ title, data, variant = "bar", height = 
         <Box>
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5, minHeight: 20 }}>
                 {title}
+                {info}
             </Typography>
             {!hasData ? (
                 <Box

@@ -49,6 +49,7 @@ describe('AdminStatisticsSection', () => {
         renderWithRouter(<AdminStatisticsSection />);
 
         const chart = await screen.findByLabelText('Projects by privacy');
+        expect(within(screen.getByText('Projects by privacy')).getByTestId('InfoOutlinedIcon')).toBeInTheDocument();
         for (const count of ['12', '8', '6', '14']) {
             expect(within(chart).getByText(count)).toBeInTheDocument();
         }

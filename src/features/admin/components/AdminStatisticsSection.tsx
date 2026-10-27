@@ -18,6 +18,7 @@ import { useAdminStats } from "../hooks/useAdminStats";
 import type { StatsGranularity } from "../api/adminStats.api";
 import { formatBytes } from "../utils/formatBytes";
 import { privacyLabel, toPrivacyStatus } from "@/features/projects/utils/projectAccess";
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import KpiCard from "./KpiCard";
 import EvolutionChart from "./EvolutionChart";
 import BreakdownChart from "./BreakdownChart";
@@ -230,6 +231,7 @@ export default function AdminStatisticsSection() {
                             <Grid size={{ xs: 12, md: 6 }}>
                                 <BreakdownChart
                                     title="Projects by privacy"
+                                    info={<PrivacyStatusInfo />}
                                     variant="bar"
                                     showValues
                                     data={(data.totals.projects.by_privacy ?? []).map((p) => ({

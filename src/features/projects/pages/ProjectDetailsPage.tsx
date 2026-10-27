@@ -15,6 +15,7 @@ import {
     Tooltip,
 } from "@mui/material";
 import SectionCard from "@/shared/components/SectionCard";
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 
 // Import your tabs
 import { ProjectMetadataTab } from "../components/ProjectMetadataTab";
@@ -179,9 +180,12 @@ export default function ProjectDetailsPage() {
                                 {projectTitle}
                             </Typography>
                             {project && (
-                                <Tooltip title="Privacy status: who can see the project data">
-                                    <Chip label={privacyLabel(access.privacy)} size="small" variant="outlined" />
-                                </Tooltip>
+                                <Box sx={{ display: "flex", alignItems: "center" }}>
+                                    <Tooltip title="Privacy status: who can see the project data">
+                                        <Chip label={privacyLabel(access.privacy)} size="small" variant="outlined" />
+                                    </Tooltip>
+                                    <PrivacyStatusInfo />
+                                </Box>
                             )}
                         </Stack>
                     </Box>

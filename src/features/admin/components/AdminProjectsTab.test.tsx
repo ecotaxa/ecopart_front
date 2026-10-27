@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useLocation } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -377,7 +377,7 @@ describe('AdminProjectsTab', () => {
         renderProjectsTab();
 
         expect(await screen.findByText('uvp5_sn209_bval57')).toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: 'Privacy' })).toBeInTheDocument();
+        expect(within(screen.getByRole('columnheader', { name: 'Privacy' })).getByTestId('InfoOutlinedIcon')).toBeInTheDocument();
         expect(screen.getByText('Public')).toBeInTheDocument();
         expect(screen.getByText('Private')).toBeInTheDocument();
     });

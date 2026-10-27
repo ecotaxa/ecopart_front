@@ -7,6 +7,7 @@ import {
 import FilterListIcon from "@mui/icons-material/FilterList";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoTooltip from "@/shared/components/InfoTooltip";
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { countColumn } from "@/shared/components/countColumn";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
@@ -137,7 +138,13 @@ export default function AdminProjectsTab() {
         {
             field: "privacy_status",
             headerName: "Privacy",
-            width: 110,
+            width: 130,
+            renderHeader: () => (
+                <Box component="span" sx={{ fontWeight: 500 }}>
+                    Privacy
+                    <PrivacyStatusInfo />
+                </Box>
+            ),
             renderCell: (params: GridRenderCellParams<Project>) => (
                 <Chip label={privacyLabel(toPrivacyStatus(params.row.privacy_status))} size="small" variant="outlined" />
             ),

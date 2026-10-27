@@ -33,6 +33,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { useNavigate } from "react-router-dom";
 import SectionCard from "@/shared/components/SectionCard";
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { countColumn } from "@/shared/components/countColumn";
 import type { Project } from "../api/projects.api";
 import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
@@ -191,7 +192,13 @@ export default function ProjectsPage() {
         {
             field: "privacy_status",
             headerName: "Privacy",
-            width: 110,
+            width: 130,
+            renderHeader: () => (
+                <Box component="span" sx={{ fontWeight: 500 }}>
+                    Privacy
+                    <PrivacyStatusInfo />
+                </Box>
+            ),
             renderCell: (params: GridRenderCellParams<Project>) => (
                 <Chip label={privacyLabel(toPrivacyStatus(params.row.privacy_status))} size="small" variant="outlined" />
             ),

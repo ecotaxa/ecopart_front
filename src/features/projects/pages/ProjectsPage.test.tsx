@@ -275,7 +275,7 @@ describe('ProjectsPage (Functional)', () => {
         renderWithRouter(<ProjectsPage />, { route: '/projects' });
 
         expect(await screen.findByText('Other Project')).toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: 'Privacy' })).toBeInTheDocument();
+        expect(within(screen.getByRole('columnheader', { name: 'Privacy' })).getByTestId('InfoOutlinedIcon')).toBeInTheDocument();
         expect(screen.getByText('Open')).toBeInTheDocument();
         expect(screen.getByText('Visible')).toBeInTheDocument();
         expect(screen.getByText('Private')).toBeInTheDocument();

@@ -3,6 +3,7 @@ import { Box, Divider, Stack, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 
+import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { PROJECT_PRIVACY_STATUSES, privacyLabel, type ProjectPrivacyStatus } from "../../utils/projectAccess";
 import type { ProjectStatsPrivacy } from "../../api/projectStats.api";
 import StatsSection from "./StatsSection";
@@ -32,7 +33,7 @@ export default function ProjectPrivacyTimeline({ privacy }: { privacy: ProjectSt
     const currentIndex = PROJECT_PRIVACY_STATUSES.indexOf(privacy.status);
 
     return (
-        <StatsSection title="Data privacy status">
+        <StatsSection title="Data privacy status" info={<PrivacyStatusInfo />}>
             <Stack direction="row" sx={{ alignItems: "center", gap: 2, mb: 2 }}>
                 {PROJECT_PRIVACY_STATUSES.map((status, index) => {
                     const reached = index <= currentIndex;

@@ -3,6 +3,8 @@ import { Box, Stack, Typography } from "@mui/material";
 
 interface StatsSectionProps {
     title: string;
+    /** Info point after the title. */
+    info?: ReactNode;
     /** Second line under the title. */
     subtitle?: string;
     /** The warnings of the section, on the right of the title. */
@@ -11,12 +13,12 @@ interface StatsSectionProps {
 }
 
 /** A titled block of the STATS tab, its warnings aligned right. */
-export default function StatsSection({ title, subtitle, warnings, children }: StatsSectionProps) {
+export default function StatsSection({ title, info, subtitle, warnings, children }: StatsSectionProps) {
     return (
         <Box component="section" aria-label={title}>
             <Stack direction="row" sx={{ alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 1, mb: 2 }}>
                 <Box>
-                    <Typography variant="subtitle1" component="h3" color="text.secondary">{title}</Typography>
+                    <Typography variant="subtitle1" component="h3" color="text.secondary">{title}{info}</Typography>
                     {subtitle && <Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
                 </Box>
                 {warnings}

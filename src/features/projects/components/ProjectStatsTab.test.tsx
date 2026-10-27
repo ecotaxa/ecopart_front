@@ -37,6 +37,7 @@ describe('ProjectStatsTab', () => {
 
         // Privacy timeline: the current step and the four dates
         const privacy = section('Data privacy status');
+        expect(within(privacy).getByTestId('InfoOutlinedIcon')).toBeInTheDocument();
         expect(within(privacy).getByText('Private').closest('[aria-current="step"]')).not.toBeNull();
         expect(within(privacy).getByText('2021-05-05')).toBeInTheDocument();
         expect(within(privacy).getByText('2021-07-05')).toBeInTheDocument();
