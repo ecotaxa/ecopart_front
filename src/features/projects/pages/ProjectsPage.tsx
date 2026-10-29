@@ -23,8 +23,6 @@ import {
 } from "@mui/x-data-grid";
 
 import AddIcon from "@mui/icons-material/Add";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import WarningIcon from "@mui/icons-material/Warning";
 import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -40,6 +38,7 @@ import type { Project } from "../api/projects.api";
 import { type ProjectsScope, useProjectsTable } from "../hooks/useProjectsTable";
 import { getProjectAccess, getProjectRole, privacyLabel, roleLabel, toPrivacyStatus } from "../utils/projectAccess";
 import PrivacyFilterSelect from "../components/PrivacyFilterSelect";
+import ProjectQcStateCell from "../components/ProjectQcStateCell";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
@@ -208,26 +207,9 @@ export default function ProjectsPage() {
             field: "qc_state",
             headerName: "QC state",
             width: 150,
-            renderCell: (params) => {
-                if (params.value === "validated") return <CheckCircleIcon color="success" />;
-                if (params.value === "warning")
-                    return (
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                            <WarningIcon color="warning" fontSize="small" />
-                            <Typography variant="caption" color="warning.main">
-                                calibration
-                            </Typography>
-                        </Stack>
-                    );
-
-                return params.value ? (
-                    <Typography variant="caption">{params.value}</Typography>
-                ) : (
-                    <Typography variant="caption" color="text.secondary">
-                        -
-                    </Typography>
-                );
-            },
+            renderCell: (params: GridRenderCellParams<Project>) => (
+                <ProjectQcStateCell qcState={params.row.qc_state} warnings={params.row.qc_warnings} />
+            ),
         },
     ];
 

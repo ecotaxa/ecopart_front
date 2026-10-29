@@ -33,7 +33,6 @@ const MOCK_PROJECT_1 = {
     root_folder_path: '/data/ode',
     managers: [{ user_id: 1 }],
     members: [],
-    qc_state: 'validated'
 };
 
 const MOCK_PROJECT_2 = {
@@ -45,7 +44,6 @@ const MOCK_PROJECT_2 = {
     root_folder_path: '/data/coast',
     managers: [],
     members: [{ user_id: 1 }],
-    qc_state: 'warning'
 };
 
 describe('ProjectsPage (Functional)', () => {
@@ -282,6 +280,47 @@ describe('ProjectsPage (Functional)', () => {
         expect(screen.getByText('Manager')).toBeInTheDocument();
         expect(screen.getByText('Member')).toBeInTheDocument();
     });
+
+    // TC-G11: the QC state column shows the warnings of each project's STATS tab
+    it('TC-G11: shows the QC state read from POST /projects/qc-states, warnings listed in a tooltip', async () => {
+        const user = userEvent.setup();
+        const askedIds: number[][] = [];
+        mockProjectsResponse([
+            MOCK_PROJECT_1,
+            MOCK_PROJECT_2,
+            { ...MOCK_PROJECT_2, project_id: 303, project_title: 'Empty Project' },
+        ]);
+        server.use(
+            http.post('*/projects/qc-states', async ({ request }) => {
+                askedIds.push(((await request.json()) as { project_ids: number[] }).project_ids);
+                return HttpResponse.json([
+                    { project_id: 101, qc_state: 'ok', warnings: [] },
+                    {
+                        project_id: 202,
+                        qc_state: 'warning',
+                        warnings: [
+                            { code: 'samples_without_ctd', nb_samples: 2 },
+                            { code: 'classification_uncompleted', nb_samples: null },
+                        ],
+                    },
+                    { project_id: 303, qc_state: 'empty', warnings: [] },
+                ]);
+            }),
+        );
+
+        renderWithRouter(<ProjectsPage />, { route: '/projects' });
+
+        expect(await screen.findByLabelText('No QC warning')).toBeInTheDocument();
+        expect(askedIds).toEqual([[101, 202, 303]]);
+        const warningCell = screen.getByText('2 warnings');
+        const emptyRow = screen.getByText('Empty Project').closest('[role="row"]') as HTMLElement;
+        expect(within(emptyRow).getByText('-')).toBeInTheDocument();
+
+        await user.hover(warningCell);
+        const tooltip = await screen.findByRole('tooltip');
+        expect(within(tooltip).getByText('Missing 2 CTD files')).toBeInTheDocument();
+        expect(within(tooltip).getByText('Classification uncompleted')).toBeInTheDocument();
+    }, 15000);
 
     // TC-G8b: an admin holds every privilege, and may delete any selected project
     it('TC-G8b: labels an admin as Admin and lets them delete any project', async () => {

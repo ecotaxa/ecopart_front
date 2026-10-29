@@ -38,7 +38,10 @@ export interface Project {
      */
     privilege?: string;
 
-    qc_state?: string;
+    /** Not returned by the project search; filled in by `enrichProjectsWithQcStates`. */
+    qc_state?: ProjectQcStateLabel;
+    /** The warnings of the project STATS tab; filled in by `enrichProjectsWithQcStates`. */
+    qc_warnings?: ProjectQcWarning[];
     serial_number?: string;
     ship?: string;
     cruise?: string;
@@ -71,6 +74,32 @@ export interface Project {
     members?: MinimalUserModel[];
     managers?: MinimalUserModel[];
     contact?: MinimalUserModel;
+}
+
+/** A warning of the project STATS tab, as the project lists show it. */
+export type ProjectQcWarningCode =
+    | "samples_not_backed_up"
+    | "samples_without_ctd"
+    | "coordinates_mismatches"
+    | "instrument_parameter_mismatches"
+    | "suspicious_dates"
+    | "suspicious_pressures"
+    | "samples_not_imported_in_ecotaxa"
+    | "classification_uncompleted";
+
+export interface ProjectQcWarning {
+    code: ProjectQcWarningCode;
+    /** How many samples the warning concerns; null for the classification, which concerns the objects. */
+    nb_samples: number | null;
+}
+
+/** "empty" without any sample, "ok" without any warning of the STATS tab, "warning" otherwise. */
+export type ProjectQcStateLabel = "empty" | "ok" | "warning";
+
+export interface ProjectQcState {
+    project_id: number;
+    qc_state: ProjectQcStateLabel;
+    warnings: ProjectQcWarning[];
 }
 
 /**
@@ -878,6 +907,42 @@ export async function enrichProjectsWithSampleCounts(projects: Project[]): Promi
     };
 
     return Promise.all(projects.map(enrichProject));
+}
+
+/** The most projects one `POST /projects/qc-states` call accepts. */
+export const QC_STATES_BATCH = 100;
+
+/**
+ * The QC state of up to `QC_STATES_BATCH` projects: the warnings of their STATS
+ * tab, computed by the backend from its database (unknown ids are left out).
+ * Endpoint: POST /projects/qc-states
+ */
+export async function fetchProjectsQcStates(projectIds: number[]): Promise<ProjectQcState[]> {
+    return http<ProjectQcState[]>("/projects/qc-states", {
+        method: "POST",
+        body: JSON.stringify({ project_ids: projectIds }),
+    });
+}
+
+/**
+ * Fill in `qc_state` and `qc_warnings` for a page of projects, one request per
+ * `QC_STATES_BATCH` projects. A failed request leaves its projects untouched,
+ * so the grid shows "-" (unknown) rather than a wrong state.
+ */
+export async function enrichProjectsWithQcStates(projects: Project[]): Promise<Project[]> {
+    if (projects.length === 0) return projects;
+
+    const batches: number[][] = [];
+    for (let start = 0; start < projects.length; start += QC_STATES_BATCH) {
+        batches.push(projects.slice(start, start + QC_STATES_BATCH).map((project) => project.project_id));
+    }
+    const answers = await Promise.all(batches.map((ids) => fetchProjectsQcStates(ids).catch(() => [] as ProjectQcState[])));
+    const states = new Map(answers.flat().map((state) => [state.project_id, state]));
+
+    return projects.map((project) => {
+        const state = states.get(project.project_id);
+        return state ? { ...project, qc_state: state.qc_state, qc_warnings: state.warnings } : project;
+    });
 }
 
 /**

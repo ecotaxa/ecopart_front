@@ -30,7 +30,9 @@ import {
     updateProject,
     getOneTask,
     cancelTask,
+    enrichProjectsWithQcStates,
     enrichProjectsWithSampleCounts,
+    QC_STATES_BATCH,
     type Project,
     type SearchFilter,
 } from './projects.api';
@@ -504,5 +506,57 @@ describe('enrichProjectsWithSampleCounts', () => {
         expect(refused.nbr_ctd_sample).toBeUndefined();
         expect(filled).toMatchObject({ nbr_sample: 5, nbr_ctd_sample: 5 });
         expect(ctdRequests).toEqual(['3']);
+    });
+});
+
+describe('enrichProjectsWithQcStates', () => {
+    const project = (project_id: number): Project => ({
+        project_id,
+        project_title: `p${project_id}`,
+        project_acronym: 'P',
+        instrument_model: 'UVP6',
+        ecotaxa_project_name: null,
+    });
+
+    it('fills qc_state and qc_warnings by project id, leaving a project the backend left out untouched', async () => {
+        server.use(
+            http.post('*/projects/qc-states', () => HttpResponse.json([
+                { project_id: 2, qc_state: 'warning', warnings: [{ code: 'suspicious_dates', nb_samples: 1 }] },
+                { project_id: 1, qc_state: 'ok', warnings: [] },
+            ])),
+        );
+
+        const [first, second, unknown] = await enrichProjectsWithQcStates([project(1), project(2), project(3)]);
+
+        expect(first).toMatchObject({ qc_state: 'ok', qc_warnings: [] });
+        expect(second).toMatchObject({ qc_state: 'warning', qc_warnings: [{ code: 'suspicious_dates', nb_samples: 1 }] });
+        expect(unknown).toEqual(project(3));
+    });
+
+    it('asks by batches of QC_STATES_BATCH, a failed batch leaving its projects untouched', async () => {
+        const batches: number[][] = [];
+        server.use(
+            http.post('*/projects/qc-states', async ({ request }) => {
+                const { project_ids } = (await request.json()) as { project_ids: number[] };
+                batches.push(project_ids);
+                if (project_ids.includes(1)) return new HttpResponse(null, { status: 500 });
+                return HttpResponse.json(project_ids.map((project_id) => ({ project_id, qc_state: 'ok', warnings: [] })));
+            }),
+        );
+        const projects = Array.from({ length: QC_STATES_BATCH + 1 }, (_, index) => project(index + 1));
+
+        const enriched = await enrichProjectsWithQcStates(projects);
+
+        expect(batches.map((ids) => ids.length).sort((a, b) => b - a)).toEqual([QC_STATES_BATCH, 1]);
+        expect(enriched[0].qc_state).toBeUndefined();
+        expect(enriched[QC_STATES_BATCH].qc_state).toBe('ok');
+    });
+
+    it('sends nothing for an empty page', async () => {
+        let asked = false;
+        server.use(http.post('*/projects/qc-states', () => { asked = true; return HttpResponse.json([]); }));
+
+        expect(await enrichProjectsWithQcStates([])).toEqual([]);
+        expect(asked).toBe(false);
     });
 });
