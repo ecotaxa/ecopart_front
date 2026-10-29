@@ -11,6 +11,8 @@ export function qcWarningLabel({ code, nb_samples }: ProjectQcWarning): string {
             return `Missing ${pluralize(nb_samples ?? 0, "CTD file")}`;
         case "coordinates_mismatches":
             return `Mismatch ${samples} GPS coordinates`;
+        case "samples_on_land":
+            return `${samples} on land`;
         case "instrument_parameter_mismatches":
             return `Mismatch in instrument parameters (${samples})`;
         case "suspicious_dates":

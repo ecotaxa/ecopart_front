@@ -81,6 +81,7 @@ export type ProjectQcWarningCode =
     | "samples_not_backed_up"
     | "samples_without_ctd"
     | "coordinates_mismatches"
+    | "samples_on_land"
     | "instrument_parameter_mismatches"
     | "suspicious_dates"
     | "suspicious_pressures"

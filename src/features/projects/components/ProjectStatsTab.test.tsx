@@ -49,10 +49,11 @@ describe('ProjectStatsTab', () => {
         expect(within(backup).getByText('3 weeks ago')).toBeInTheDocument();
         expect(within(backup).getByText(/Samples imported without raw backup/i)).toBeInTheDocument();
 
-        // Map: both kinds of points and the two warnings
+        // Map: both kinds of points and the three warnings
         const map = section('Samples distribution');
         expect(within(map).getByText(/Missing 1 CTD file/i)).toBeInTheDocument();
         expect(within(map).getByText(/Mismatch 1 sample GPS coordinates/i)).toBeInTheDocument();
+        expect(within(map).getByText(/^1 sample on land$/i)).toBeInTheDocument();
         expect(await within(map).findByRole('button', { name: 'tara_001' })).toBeInTheDocument();
         expect(within(map).getByRole('button', { name: 'tara_001 (CTD)' })).toBeInTheDocument();
         expect(within(map).queryByRole('button', { name: 'tara_003 (CTD)' })).not.toBeInTheDocument();
@@ -130,7 +131,7 @@ describe('ProjectStatsTab', () => {
         const stats = makeProjectStatsFixture();
         answerStats(makeProjectStatsFixture({
             ecotaxa: { ...makeEmptyProjectStats().ecotaxa, nb_samples_not_imported: 56 },
-            map: { ...stats.map, nb_samples_without_ctd: 0, nb_coordinates_mismatches: 0 },
+            map: { ...stats.map, nb_samples_without_ctd: 0, nb_coordinates_mismatches: 0, nb_samples_on_land: 0 },
             samples: { ...stats.samples, nb_instrument_parameter_mismatches: 0, nb_suspicious_dates: 0, nb_suspicious_pressures: 0 },
             raw_backup: { last_backup_utc_date_time: '2026-10-01T00:00:00.000Z', nb_samples_not_backed_up: 0 },
         }));

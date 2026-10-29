@@ -53,12 +53,15 @@ export interface ProjectStatsMapSample {
     use_ctd_coordinates: boolean;
     /** Both positions are known and more than 5 km apart. */
     coordinates_mismatch: boolean;
+    /** The position used is on land (Natural Earth 1:10m), more than 2 km from the sea or a lake. */
+    on_land: boolean;
 }
 
 export interface ProjectStatsMap {
     samples: ProjectStatsMapSample[];
     nb_samples_without_ctd: number;
     nb_coordinates_mismatches: number;
+    nb_samples_on_land: number;
 }
 
 export interface PressureHistogramBin {

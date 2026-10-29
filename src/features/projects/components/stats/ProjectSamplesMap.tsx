@@ -14,7 +14,8 @@ const positionOf = (latitude: number | null, longitude: number | null): { latitu
 /**
  * Map of the project's samples: a pin on the position of each sample's metadata,
  * a cross on the position read from its CTD file; both orange when they are too
- * far apart. Warns about samples without CTD file and mismatching positions.
+ * far apart. Warns about samples without CTD file, mismatching positions and
+ * positions on land.
  */
 export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
     const theme = useTheme();
@@ -28,6 +29,9 @@ export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
             const mismatch = sample.coordinates_mismatch;
             const position = positionOf(sample.latitude, sample.longitude);
             const ctd = positionOf(sample.ctd_latitude, sample.ctd_longitude);
+            // The backend falls back on the sample position when the CTD one is unknown.
+            const ctdUsed = sample.use_ctd_coordinates && ctd !== null;
+            const onLand = sample.on_land ? ["Position on land"] : [];
             if (position) {
                 result.push({
                     id: `sample-${sample.sample_id}`,
@@ -36,6 +40,7 @@ export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
                     details: [
                         "Sample position" + (sample.use_ctd_coordinates ? "" : " (used)"),
                         ...(mismatch ? ["CTD position more than 5 km away"] : []),
+                        ...(ctdUsed ? [] : onLand),
                     ],
                     color: mismatch ? mismatchColor : sampleColor,
                     shape: "pin",
@@ -49,6 +54,7 @@ export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
                     details: [
                         "CTD position" + (sample.use_ctd_coordinates ? " (used)" : ""),
                         ...(mismatch ? ["Sample position more than 5 km away"] : []),
+                        ...(ctdUsed ? onLand : []),
                     ],
                     color: mismatch ? mismatchColor : ctdColor,
                     shape: "cross",
@@ -61,7 +67,7 @@ export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
     return (
         <StatsSection
             title="Samples distribution"
-            warnings={(map.nb_samples_without_ctd > 0 || map.nb_coordinates_mismatches > 0) && (
+            warnings={(map.nb_samples_without_ctd > 0 || map.nb_coordinates_mismatches > 0 || map.nb_samples_on_land > 0) && (
                 <StatWarnings>
                     {map.nb_samples_without_ctd > 0 && (
                         <StatWarning
@@ -73,6 +79,12 @@ export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
                         <StatWarning
                             label={`Mismatch ${pluralize(map.nb_coordinates_mismatches, "sample")} GPS coordinates`}
                             hint="The position of the sample metadata and the one read from its CTD file are more than 5 km apart."
+                        />
+                    )}
+                    {map.nb_samples_on_land > 0 && (
+                        <StatWarning
+                            label={`${pluralize(map.nb_samples_on_land, "sample")} on land`}
+                            hint="The position used is on land, more than 2 km from the sea or a lake (Natural Earth 1:10m): check the coordinates of these samples."
                         />
                     )}
                 </StatWarnings>

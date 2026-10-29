@@ -7,7 +7,7 @@ export const makeEmptyProjectStats = (project_id = 101): ProjectStats => ({
     counts: { stations: 0, samples: 0, particles: 0, vignettes: 0, exports: 0 },
     privacy: { status: 'private', oldest_sample_utc_date_time: null, visible_utc_date_time: null, public_utc_date_time: null, open_utc_date_time: null },
     raw_backup: { last_backup_utc_date_time: null, nb_samples_not_backed_up: 0 },
-    map: { samples: [], nb_samples_without_ctd: 0, nb_coordinates_mismatches: 0 },
+    map: { samples: [], nb_samples_without_ctd: 0, nb_coordinates_mismatches: 0, nb_samples_on_land: 0 },
     samples: {
         sample_types: { depth: 0, time: 0, total: 0 },
         pressure_range: null,
@@ -50,12 +50,13 @@ export const makeProjectStatsFixture = (overrides: Partial<ProjectStats> = {}, n
     raw_backup: { last_backup_utc_date_time: new Date(now.getTime() - 21 * 24 * 3600 * 1000).toISOString(), nb_samples_not_backed_up: 3 },
     map: {
         samples: [
-            { sample_id: 1, sample_name: 'tara_001', latitude: 43.68, longitude: 7.31, ctd_latitude: 43.69, ctd_longitude: 7.32, use_ctd_coordinates: false, coordinates_mismatch: false },
-            { sample_id: 2, sample_name: 'tara_002', latitude: 36.5, longitude: -3.2, ctd_latitude: 38.5, ctd_longitude: -3.2, use_ctd_coordinates: true, coordinates_mismatch: true },
-            { sample_id: 3, sample_name: 'tara_003', latitude: 40.1, longitude: 12.4, ctd_latitude: null, ctd_longitude: null, use_ctd_coordinates: false, coordinates_mismatch: false },
+            { sample_id: 1, sample_name: 'tara_001', latitude: 43.68, longitude: 7.31, ctd_latitude: 43.69, ctd_longitude: 7.32, use_ctd_coordinates: false, coordinates_mismatch: false, on_land: false },
+            { sample_id: 2, sample_name: 'tara_002', latitude: 36.5, longitude: -3.2, ctd_latitude: 38.5, ctd_longitude: -3.2, use_ctd_coordinates: true, coordinates_mismatch: true, on_land: false },
+            { sample_id: 3, sample_name: 'tara_003', latitude: 45.76, longitude: 4.83, ctd_latitude: null, ctd_longitude: null, use_ctd_coordinates: false, coordinates_mismatch: false, on_land: true },
         ],
         nb_samples_without_ctd: 1,
         nb_coordinates_mismatches: 1,
+        nb_samples_on_land: 1,
     },
     samples: {
         sample_types: { depth: 56, time: 0, total: 56 },
