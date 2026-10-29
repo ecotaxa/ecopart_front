@@ -1028,6 +1028,18 @@ export async function importProjectCtdSamples(projectId: number, payload: Import
 }
 
 /**
+ * Rebuild the UVP6 pivot of UVP5 samples (UVP5 projects only). Empty `sample_names` = every sample
+ * of the project; `force` also rebuilds the pivots already at the current converter version.
+ * Endpoint: POST /projects/:project_id/samples/pivots/regenerate
+ */
+export async function regenerateSamplePivots(projectId: number, payload: { sample_names?: string[]; force?: boolean }): Promise<TaskLaunchResponse> {
+    return http<TaskLaunchResponse>(`/projects/${projectId}/samples/pivots/regenerate`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+}
+
+/**
  * Delete imported CTD samples from a project.
  * Endpoint: DELETE /projects/:project_id/ctd_samples
  */

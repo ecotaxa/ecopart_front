@@ -10,6 +10,7 @@ vi.mock('../api/projects.api', () => ({
     deleteProjectCtdSamples: vi.fn(),
     // The hook resolves the EcoTaxa instance URL via the project; an unlinked
     // project (null instance) keeps getEcoTaxaInstances out of these unit tests.
+    regenerateSamplePivots: vi.fn(),
     getProjectById: vi.fn().mockResolvedValue({ ecotaxa_project_id: null, ecotaxa_instance_id: null }),
 }));
 
@@ -26,6 +27,7 @@ import {
     deleteProjectCtdSamples,
     deleteProjectEcoTaxaSamples,
     getProjectById,
+    regenerateSamplePivots,
 } from '../api/projects.api';
 import type { Project, EcoTaxaSampleData } from '../api/projects.api';
 import { getEcoTaxaInstances } from '@/shared/api/ecotaxa.api';
@@ -350,5 +352,70 @@ describe('hooks/useProjectDataTab', () => {
         await waitFor(() => expect(result.current.ecoTaxaPaginationModel.page).toBe(0));
         await waitFor(() => expect(result.current.loadingEcoTaxa).toBe(false));
         expect(result.current.ecoTaxaSamples.map((s) => s.sample_name)).toEqual(['etx-1']);
+    });
+
+    it('TC-P23: regenerates the pivots of the selected UVP samples, forced, by name', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({
+            samples: [
+                { sample_id: 1, sample_name: 'a' },
+                { sample_id: 2, sample_name: 'b' },
+            ],
+            search_info: { total: 2, page: 1, limit: 10 },
+        });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(regenerateSamplePivots).mockResolvedValue({ task_id: 12, task_status: 'PENDING', task_type: 'REGENERATE_PIVOT' });
+        const confirmSpy = answerConfirmDialogs(true);
+
+        try {
+            const { result } = renderHook(() => useProjectDataTab(77));
+            await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
+
+            act(() => {
+                result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([2]) });
+            });
+            await act(async () => {
+                await result.current.handleRegeneratePivots();
+            });
+
+            expect(regenerateSamplePivots).toHaveBeenCalledWith(77, { sample_names: ['b'], force: true });
+            expect(result.current.snackbar.severity).toBe('success');
+        } finally {
+            confirmSpy.mockRestore();
+        }
+    });
+
+    it('TC-P24: without selection, regenerates every sample; a refused confirmation sends nothing', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({
+            samples: [{ sample_id: 1, sample_name: 'a' }],
+            search_info: { total: 1, page: 1, limit: 10 },
+        });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(regenerateSamplePivots).mockRejectedValue(new Error('Pivots only exist for UVP5 projects'));
+
+        const { result } = renderHook(() => useProjectDataTab(77));
+        await waitFor(() => expect(result.current.uvpSamples.length).toBe(1));
+
+        const refuseSpy = answerConfirmDialogs(false);
+        try {
+            await act(async () => {
+                await result.current.handleRegeneratePivots();
+            });
+            expect(regenerateSamplePivots).not.toHaveBeenCalled();
+        } finally {
+            refuseSpy.mockRestore();
+        }
+
+        const acceptSpy = answerConfirmDialogs(true);
+        try {
+            await act(async () => {
+                await result.current.handleRegeneratePivots();
+            });
+            expect(regenerateSamplePivots).toHaveBeenCalledWith(77, { sample_names: [], force: true });
+            expect(result.current.snackbar).toMatchObject({ open: true, severity: 'error', message: 'Pivots only exist for UVP5 projects' });
+        } finally {
+            acceptSpy.mockRestore();
+        }
     });
 });
