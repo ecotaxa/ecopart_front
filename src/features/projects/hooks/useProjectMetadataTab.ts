@@ -54,10 +54,6 @@ export const useProjectMetadataTab = (projectId: number) => {
     const [errors, setErrors] = useState<ProjectFormErrors>({});
     const [linkedEcoTaxaProject, setLinkedEcoTaxaProject] = useState<EcoTaxaLinkedProject | null>(null);
     const [ecoTaxaUnlinkWarning, setEcoTaxaUnlinkWarning] = useState(false);
-    // Existing project title loaded from the backend. Once set, it acts as a
-    // non-erasable prefix in the Project title field: the user may only append
-    // text after it (same behaviour as the New Project form).
-    const [lockedTitlePrefix, setLockedTitlePrefix] = useState("");
     // The backend leaves the import folder out of the project a user without privilege sees.
     const [hasRootFolder, setHasRootFolder] = useState(true);
 
@@ -95,8 +91,6 @@ export const useProjectMetadataTab = (projectId: number) => {
                 const projectData = await getProjectById(projectId);
                 if (cancelled) return;
 
-                // Lock the loaded title so it cannot be erased, only appended to.
-                setLockedTitlePrefix(projectData.project_title || "");
                 setValues(mapProjectToFormValues(projectData));
                 setHasRootFolder(typeof projectData.root_folder_path === "string");
                 setErrors({});
@@ -270,7 +264,6 @@ export const useProjectMetadataTab = (projectId: number) => {
         errors,
         loading,
         saving,
-        lockedTitlePrefix,
         hasRootFolder,
         checkingPeople,
         updateField,

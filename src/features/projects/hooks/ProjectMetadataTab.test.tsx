@@ -236,20 +236,30 @@ describe('ProjectMetadataTab (Functional)', () => {
         }
     }, 15000);
 
-    // TC-J5: the title loaded from the backend is locked as a non-erasable prefix.
-    it('TC-J5: locks the loaded project title so it cannot be erased', async () => {
+    // TC-J5: the title loaded from the backend stays fully editable (no locked prefix).
+    it('TC-J5: lets the user replace the loaded project title entirely', async () => {
         const user = userEvent.setup({ delay: null });
+        let capturedPatchBody: Record<string, unknown> | null = null;
+        server.use(
+            http.patch('*/projects/101', async ({ request }) => {
+                capturedPatchBody = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({}, { status: 200 });
+            })
+        );
 
         renderWithRouter(<ProjectMetadataTab projectId={101} />);
 
         const titleInput = await screen.findByDisplayValue('Existing Project');
+        expect(screen.queryByText(/The loaded title cannot be removed/i)).not.toBeInTheDocument();
 
-        // The field advertises that the loaded title cannot be removed...
-        expect(screen.getByText(/The loaded title cannot be removed/i)).toBeInTheDocument();
-
-        // ...and trying to clear it leaves the loaded value in place.
         await user.clear(titleInput);
-        expect(screen.getByDisplayValue('Existing Project')).toBeInTheDocument();
+        expect(titleInput).toHaveValue('');
+        await user.type(titleInput, 'Renamed');
+        expect(titleInput).toHaveValue('Renamed');
+
+        await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
+        expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
+        expect(capturedPatchBody).toMatchObject({ project_title: 'Renamed' });
     }, 15000);
 
     // TC-J6: the backend project carries no account ids for the people, so the
