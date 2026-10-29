@@ -6,6 +6,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
 
 import SectionCard from "@/shared/components/SectionCard";
@@ -56,6 +57,8 @@ interface ProjectDataTabProps {
     canImport?: boolean;
     /** The DELETE actions are offered (managers, admins). */
     canManage?: boolean;
+    /** UVP5 project: its samples have a pivot that can be regenerated. */
+    isUvp5?: boolean;
     hiddenDataNotice?: React.ReactNode;
 }
 
@@ -94,6 +97,7 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
     projectId,
     canImport = true,
     canManage = true,
+    isUvp5 = false,
 }) => {
     const {
         uvpSamples, loadingUvp, totalUvpRows, uvpPaginationModel, setUvpPaginationModel,
@@ -109,6 +113,7 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
 
         isActionRunning,
         handleDeleteUvpSamples, handleDeleteEcoTaxaSamples, handleDeleteCtdSamples,
+        handleRegeneratePivots,
         buildEcoTaxaSampleUrl,
         snackbar, closeSnackbar
     } = useProjectDataTab(projectId, { withLinkedSamples: canImport });
@@ -225,6 +230,16 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="body2" fontWeight="bold">{uvpSelectionCount} items selected</Typography>
                     <Stack direction="row" spacing={2}>
+                        {/* Any project privilege may regenerate; without selection, every sample is regenerated. */}
+                        {isUvp5 && canImport && (
+                            <Tooltip title={uvpSelectionCount === 0 ? "Rebuild the particle pivot of every sample" : "Rebuild the particle pivot of the selected samples"}>
+                                <span>
+                                    <Button variant="text" color="inherit" disabled={uvpSamples.length === 0 || isActionRunning} onClick={handleRegeneratePivots} startIcon={<RefreshIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
+                                        REGENERATE PIVOTS
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        )}
                         {canManage && (
                             <Button variant="text" color="inherit" disabled={uvpSelectionCount === 0 || isActionRunning} onClick={handleDeleteUvpSamples} startIcon={<CloseIcon />} sx={{ fontWeight: 'bold', color: 'text.secondary' }}>
                                 DELETE
