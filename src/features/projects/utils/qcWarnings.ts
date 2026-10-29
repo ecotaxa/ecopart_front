@@ -15,10 +15,18 @@ export function qcWarningLabel({ code, nb_samples }: ProjectQcWarning): string {
             return `${samples} on land`;
         case "instrument_parameter_mismatches":
             return `Mismatch in instrument parameters (${samples})`;
+        case "object_size_mismatches":
+            return `Mismatch instrument specification (${samples})`;
         case "suspicious_dates":
             return `Suspicious time range (${samples})`;
+        case "time_span_over_a_year":
+            return "Suspicious time range (project longer than a year)";
         case "suspicious_pressures":
             return `Suspicious pressure range (${samples})`;
+        case "unfiltered_uvp5hd":
+            return "Unfiltered UVP5HD project";
+        case "ecotaxa_not_linked":
+            return "Project not linked to an EcoTaxa project";
         case "samples_not_imported_in_ecotaxa":
             return `${samples} not imported in EcoTaxa`;
         case "classification_uncompleted":

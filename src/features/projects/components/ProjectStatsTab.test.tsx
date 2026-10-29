@@ -60,14 +60,17 @@ describe('ProjectStatsTab', () => {
         expect(within(map).getByText('Sample GPS points')).toBeInTheDocument();
         expect(within(map).getByText('CTD GPS points')).toBeInTheDocument();
 
-        // Samples: types, ranges and the three warnings
+        // Samples: types, ranges and the six warnings
         expect(screen.getByText('Number of individual depth samples')).toBeInTheDocument();
         expect(screen.getByText('0m - 3056m')).toBeInTheDocument();
         expect(screen.getByText('42µm - 81mm')).toBeInTheDocument();
         expect(screen.getByText('May 1997 - June 2010')).toBeInTheDocument();
         expect(screen.getByText(/Mismatch in instrument parameters/i)).toBeInTheDocument();
-        expect(screen.getByText(/Suspicious time range/i)).toBeInTheDocument();
+        expect(screen.getByText(/Mismatch instrument specification/i)).toBeInTheDocument();
+        expect(screen.getByText(/^Suspicious time range$/i)).toBeInTheDocument();
+        expect(screen.getByText(/project longer than a year/i)).toBeInTheDocument();
         expect(screen.getByText(/Suspicious pressure range/i)).toBeInTheDocument();
+        expect(screen.getByText(/Unfiltered UVP5HD project/i)).toBeInTheDocument();
         expect(screen.getByText('Maximum sample pressure')).toBeInTheDocument();
         expect(screen.getByText('Pressure slice [db]')).toBeInTheDocument();
 
@@ -84,6 +87,27 @@ describe('ProjectStatsTab', () => {
         // Nothing to import or link: no call-to-action card
         expect(screen.queryByRole('button', { name: /IMPORT DATA/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /LINK PROJECT/i })).not.toBeInTheDocument();
+    }, 15000);
+
+    // TC-S10: every warning leads where to act on it
+    it('TC-S10: links each warning to the tab where to act, the classification one to the EcoTaxa project', async () => {
+        answerStats(makeProjectStatsFixture());
+        renderTab({ ecoTaxaProjectUrl: 'https://ecotaxa.obs-vlfr.fr/prj/20092' });
+
+        expect(await screen.findByRole('link', { name: /Samples imported without raw backup/i })).toHaveAttribute('href', '/projects/101/backup');
+        expect(screen.getByRole('link', { name: /Missing 1 CTD file/i })).toHaveAttribute('href', '/projects/101/import');
+        expect(screen.getByRole('link', { name: /Mismatch 1 sample GPS coordinates/i })).toHaveAttribute('href', '/projects/101/data');
+        expect(screen.getByRole('link', { name: /1 sample on land/i })).toHaveAttribute('href', '/projects/101/data');
+        expect(screen.getByRole('link', { name: /Mismatch in instrument parameters/i })).toHaveAttribute('href', '/projects/101/data');
+        expect(screen.getByRole('link', { name: /Mismatch instrument specification/i })).toHaveAttribute('href', '/projects/101/data');
+        expect(screen.getByRole('link', { name: /^Suspicious time range$/i })).toHaveAttribute('href', '/projects/101/data');
+        expect(screen.getByRole('link', { name: /project longer than a year/i })).toHaveAttribute('href', '/projects/101/metadata');
+        expect(screen.getByRole('link', { name: /Suspicious pressure range/i })).toHaveAttribute('href', '/projects/101/data');
+        expect(screen.getByRole('link', { name: /Unfiltered UVP5HD project/i })).toHaveAttribute('href', '/projects/101/metadata');
+        expect(screen.getByRole('link', { name: /3 samples not imported in EcoTaxa/i })).toHaveAttribute('href', '/projects/101/import');
+        const classification = screen.getByRole('link', { name: /Classification uncompleted/i });
+        expect(classification).toHaveAttribute('href', 'https://ecotaxa.obs-vlfr.fr/prj/20092');
+        expect(classification).toHaveAttribute('target', '_blank');
     }, 15000);
 
     // TC-S2: a project without sample keeps the call-to-action cards
@@ -132,7 +156,7 @@ describe('ProjectStatsTab', () => {
         answerStats(makeProjectStatsFixture({
             ecotaxa: { ...makeEmptyProjectStats().ecotaxa, nb_samples_not_imported: 56 },
             map: { ...stats.map, nb_samples_without_ctd: 0, nb_coordinates_mismatches: 0, nb_samples_on_land: 0 },
-            samples: { ...stats.samples, nb_instrument_parameter_mismatches: 0, nb_suspicious_dates: 0, nb_suspicious_pressures: 0 },
+            samples: { ...stats.samples, nb_instrument_parameter_mismatches: 0, nb_object_size_mismatches: 0, nb_suspicious_dates: 0, time_span_over_a_year: false, nb_suspicious_pressures: 0, unfiltered_uvp5hd: false },
             raw_backup: { last_backup_utc_date_time: '2026-10-01T00:00:00.000Z', nb_samples_not_backed_up: 0 },
         }));
         renderTab({ ecoTaxaLinked: false });

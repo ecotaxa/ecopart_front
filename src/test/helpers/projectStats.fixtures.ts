@@ -15,8 +15,11 @@ export const makeEmptyProjectStats = (project_id = 101): ProjectStats => ({
         time_range: null,
         max_pressure_histogram: [],
         nb_instrument_parameter_mismatches: 0,
+        nb_object_size_mismatches: 0,
         nb_suspicious_dates: 0,
+        time_span_over_a_year: false,
         nb_suspicious_pressures: 0,
+        unfiltered_uvp5hd: false,
     },
     ecotaxa: {
         linked: false,
@@ -70,8 +73,11 @@ export const makeProjectStatsFixture = (overrides: Partial<ProjectStats> = {}, n
             { max_pressure: 3000, nb_profiles: 1 },
         ],
         nb_instrument_parameter_mismatches: 2,
+        nb_object_size_mismatches: 4,
         nb_suspicious_dates: 1,
+        time_span_over_a_year: true,
         nb_suspicious_pressures: 1,
+        unfiltered_uvp5hd: true,
     },
     ecotaxa: {
         linked: true,

@@ -38,6 +38,8 @@ describe('useNewProjectForm Hook (Unit)', () => {
         expect(result.current.values.privacy.visibleMonths).toBe(24);
         expect(result.current.values.privacy.publicMonths).toBe(36);
         expect(result.current.values.importSettings.enableDescentFilter).toBe(true);
+        expect(result.current.values.importSettings.filteredProject).toBe(false);
+        expect(result.current.values.importSettings.timeDurationCheck).toBe(true);
         expect(result.current.values.ecoTaxa.createNewProject).toBe(true);
     });
 

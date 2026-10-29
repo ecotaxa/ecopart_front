@@ -54,6 +54,8 @@ interface ProjectStatsTabProps {
     projectId: number;
     /** Whether the project already has an EcoTaxa project linked (hides the link call-to-action). */
     ecoTaxaLinked: boolean;
+    /** The page of the linked EcoTaxa project, where the classification warning leads. */
+    ecoTaxaProjectUrl?: string;
     /** Omitted when the user may not import: the import card is hidden. */
     onImportData?: () => void;
     /** Omitted when the user may not manage the project: the EcoTaxa link card is hidden. */
@@ -69,7 +71,7 @@ interface ProjectStatsTabProps {
  * without sample gets the import card instead, and an unlinked one the EcoTaxa
  * link card, each offered only to who can act on it.
  */
-export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ projectId, ecoTaxaLinked, onImportData, onLinkProject, notice }) => {
+export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ projectId, ecoTaxaLinked, ecoTaxaProjectUrl, onImportData, onLinkProject, notice }) => {
     const { data: stats, isPending, isError, error } = useProjectStats(projectId);
     const hasSamples = stats !== undefined && stats.counts.samples > 0;
     const showImportCard = onImportData !== undefined && !isPending && !hasSamples;
@@ -115,10 +117,10 @@ export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ projectId, eco
                         <ProjectPrivacyTimeline privacy={stats.privacy} />
                         {hasSamples ? (
                             <>
-                                {stats.raw_backup && <ProjectRawBackupSection rawBackup={stats.raw_backup} />}
-                                <ProjectSamplesMap map={stats.map} />
-                                <ProjectSamplesSummary samples={stats.samples} />
-                                {stats.ecotaxa.linked && <ProjectEcoTaxaSection ecotaxa={stats.ecotaxa} />}
+                                {stats.raw_backup && <ProjectRawBackupSection rawBackup={stats.raw_backup} projectId={projectId} />}
+                                <ProjectSamplesMap map={stats.map} projectId={projectId} />
+                                <ProjectSamplesSummary samples={stats.samples} projectId={projectId} />
+                                {stats.ecotaxa.linked && <ProjectEcoTaxaSection ecotaxa={stats.ecotaxa} projectId={projectId} ecoTaxaProjectUrl={ecoTaxaProjectUrl} />}
                             </>
                         ) : (
                             <Typography variant="body2" color="text.secondary">

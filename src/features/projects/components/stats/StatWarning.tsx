@@ -1,4 +1,5 @@
-import { Stack, Tooltip, Typography } from "@mui/material";
+import { Link, Stack, Tooltip, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 interface StatWarningProps {
@@ -6,16 +7,25 @@ interface StatWarningProps {
     label: string;
     /** What the warning means, as a tooltip. */
     hint?: string;
+    /** Where to act on it, in the app (a tab of the project). */
+    to?: string;
+    /** Where to act on it, outside the app (the EcoTaxa project), opened in a new tab. */
+    href?: string;
 }
 
-/** An orange warning of a STATS section: an icon and a short capitalised label. */
-export default function StatWarning({ label, hint }: StatWarningProps) {
+const labelSx = { fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 } as const;
+
+/** An orange warning of a STATS section: an icon and a short capitalised label, a link when an action exists. */
+export default function StatWarning({ label, hint, to, href }: StatWarningProps) {
+    const text = to
+        ? <Link component={RouterLink} to={to} variant="caption" color="inherit" underline="hover" sx={labelSx}>{label}</Link>
+        : href
+            ? <Link href={href} target="_blank" rel="noopener noreferrer" variant="caption" color="inherit" underline="hover" sx={labelSx}>{label}</Link>
+            : <Typography variant="caption" sx={labelSx}>{label}</Typography>;
     const content = (
         <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", color: "warning.main" }} role="status">
             <WarningAmberIcon fontSize="small" aria-hidden="true" />
-            <Typography variant="caption" sx={{ fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3 }}>
-                {label}
-            </Typography>
+            {text}
         </Stack>
     );
     return hint ? <Tooltip title={hint}>{content}</Tooltip> : content;

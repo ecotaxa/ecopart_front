@@ -12,6 +12,10 @@ describe('qcWarningLabel', () => {
         [{ code: 'suspicious_pressures', nb_samples: 5 }, 'Suspicious pressure range (5 samples)'],
         [{ code: 'samples_not_imported_in_ecotaxa', nb_samples: 6 }, '6 samples not imported in EcoTaxa'],
         [{ code: 'classification_uncompleted', nb_samples: null }, 'Classification uncompleted'],
+        [{ code: 'object_size_mismatches', nb_samples: 2 }, 'Mismatch instrument specification (2 samples)'],
+        [{ code: 'time_span_over_a_year', nb_samples: null }, 'Suspicious time range (project longer than a year)'],
+        [{ code: 'unfiltered_uvp5hd', nb_samples: null }, 'Unfiltered UVP5HD project'],
+        [{ code: 'ecotaxa_not_linked', nb_samples: null }, 'Project not linked to an EcoTaxa project'],
     ] as const)('words %j as on the STATS tab', (warning, label) => {
         expect(qcWarningLabel(warning)).toBe(label);
     });

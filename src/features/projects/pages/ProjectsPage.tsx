@@ -208,7 +208,7 @@ export default function ProjectsPage() {
             headerName: "QC state",
             width: 150,
             renderCell: (params: GridRenderCellParams<Project>) => (
-                <ProjectQcStateCell qcState={params.row.qc_state} warnings={params.row.qc_warnings} />
+                <ProjectQcStateCell projectId={params.row.project_id} qcState={params.row.qc_state} warnings={params.row.qc_warnings} />
             ),
         },
     ];

@@ -54,6 +54,10 @@ export interface Project {
     operator_email?: string;
     override_depth_offset?: number;
     enable_descent_filter?: boolean;
+    /** The data were filtered before their import (expected of a UVP5HD project). */
+    filtered_project?: boolean;
+    /** Warn when the samples span more than a year; disabled on a long project. */
+    time_duration_check?: boolean;
     ecotaxa_instance_id?: number | null;
     ecotaxa_project_id?: number | null;
     privacy_duration?: number;
@@ -83,8 +87,12 @@ export type ProjectQcWarningCode =
     | "coordinates_mismatches"
     | "samples_on_land"
     | "instrument_parameter_mismatches"
+    | "object_size_mismatches"
     | "suspicious_dates"
+    | "time_span_over_a_year"
     | "suspicious_pressures"
+    | "unfiltered_uvp5hd"
+    | "ecotaxa_not_linked"
     | "samples_not_imported_in_ecotaxa"
     | "classification_uncompleted";
 
@@ -215,6 +223,8 @@ export interface PublicProjectRequestCreationModel {
     chief_scientist_email: string;
     override_depth_offset?: number;
     enable_descent_filter: boolean;
+    filtered_project?: boolean;
+    time_duration_check?: boolean;
     privacy_duration: number;
     visible_duration: number;
     public_duration: number;
@@ -253,6 +263,8 @@ export interface PublicProjectUpdateModel {
     chief_scientist_email?: string;
     override_depth_offset?: number;
     enable_descent_filter?: boolean;
+    filtered_project?: boolean;
+    time_duration_check?: boolean;
     privacy_duration?: number;
     visible_duration?: number;
     public_duration?: number;

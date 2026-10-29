@@ -64,8 +64,9 @@ export const useProjectsTable = () => {
         // For "All" or "Validated", we still restrict visibility to projects
         // where the user has at least one privilege (Manager, Member, or Contact)
         const filters: SearchFilter[] = [{ field: "for_managing", operator: "=", value: true }];
+        // "Validated QC": the projects whose STATS tab raises no warning (the QC state column shows a check).
         if (selectedFilter === "Validated") {
-            filters.push({ field: "qc_state", operator: "=", value: "validated" });
+            filters.push({ field: "qc_state", operator: "=", value: "ok" });
         }
         return filters;
     }, [currentUser, selectedFilter]);

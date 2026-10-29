@@ -97,7 +97,13 @@ describe('ProjectsPage (Functional)', () => {
     // TC-G3: Filtering & Searching (UI State)
     it('TC-G3: should update UI when filters and search attributes are changed', async () => {
         const user = userEvent.setup();
-        mockProjectsResponse([]);
+        const sentFilters: unknown[] = [];
+        server.use(
+            http.post('*/projects/searches', async ({ request }) => {
+                sentFilters.push(await request.json());
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 10 }, projects: [] });
+            })
+        );
 
         renderWithRouter(<ProjectsPage />, { route: '/projects' });
 
@@ -113,6 +119,8 @@ describe('ProjectsPage (Functional)', () => {
         await user.click(validatedMenuItem);
 
         expect(screen.getByRole('button', { name: 'Filter: Validated' })).toBeInTheDocument();
+        // The scope asks the backend for the projects whose STATS tab raises no warning.
+        await waitFor(() => expect(sentFilters).toContainEqual(expect.arrayContaining([{ field: 'qc_state', operator: '=', value: 'ok' }])));
     }, 15000);
 
     // TC-G4: Row Selection & Explore Navigation
@@ -313,6 +321,7 @@ describe('ProjectsPage (Functional)', () => {
         expect(await screen.findByLabelText('No QC warning')).toBeInTheDocument();
         expect(askedIds).toEqual([[101, 202, 303]]);
         const warningCell = screen.getByText('2 warnings');
+        expect(warningCell.closest('a')).toHaveAttribute('href', '/projects/202/stats');
         const emptyRow = screen.getByText('Empty Project').closest('[role="row"]') as HTMLElement;
         expect(within(emptyRow).getByText('-')).toBeInTheDocument();
 

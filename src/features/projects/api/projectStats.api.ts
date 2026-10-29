@@ -80,10 +80,16 @@ export interface ProjectStatsSamples {
     max_pressure_histogram: PressureHistogramBin[];
     /** Samples whose instrument parameters differ from the most common ones of the project. */
     nb_instrument_parameter_mismatches: number;
-    /** Samples dated before 2000, in the future, or with an unreadable date. */
+    /** Samples with objects outside the size classes of the instrument model. */
+    nb_object_size_mismatches: number;
+    /** Samples dated before 2008, in the future, or with an unreadable date. */
     nb_suspicious_dates: number;
-    /** Depth samples without a positive maximum pressure, and samples deeper than 6500 dbar. */
+    /** The samples span more than a year, while the project keeps the time duration check. */
+    time_span_over_a_year: boolean;
+    /** Samples with a minimum pressure below -5 dbar or a maximum above 6500 dbar, and depth samples without a positive maximum. */
     nb_suspicious_pressures: number;
+    /** A UVP5HD project whose data were not declared filtered before import. */
+    unfiltered_uvp5hd: boolean;
 }
 
 export interface ClassificationShares {

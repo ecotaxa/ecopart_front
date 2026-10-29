@@ -26,6 +26,8 @@ const mockProjectData = {
     chief_scientist_email: 'bob@test.com',
     override_depth_offset: 0,
     enable_descent_filter: true,
+    filtered_project: true,
+    time_duration_check: false,
     ecotaxa_instance_id: null,
     ecotaxa_project_id: null,
     // The logged-in user manages the project: the save tests edit it.
@@ -92,6 +94,32 @@ describe('ProjectMetadataTab (Functional)', () => {
         await user.click(saveButton);
 
         expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
+    }, 15000);
+
+    // TC-J11: the options the quality checks of the STATS tab read
+    it('TC-J11: loads the filtered project and time duration check options and saves them', async () => {
+        const user = userEvent.setup({ delay: null });
+        let capturedPatchBody: Record<string, unknown> | null = null;
+        server.use(
+            http.patch('*/projects/101', async ({ request }) => {
+                capturedPatchBody = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({}, { status: 200 });
+            })
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} />);
+
+        const filtered = await screen.findByRole('switch', { name: /Filtered project/i });
+        const duration = screen.getByRole('switch', { name: /Time duration check/i });
+        expect(filtered).toBeChecked();
+        expect(duration).not.toBeChecked();
+
+        await user.click(filtered);
+        await user.click(duration);
+        await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
+
+        expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
+        expect(capturedPatchBody).toMatchObject({ filtered_project: false, time_duration_check: true });
     }, 15000);
 
     // TC-J3: Update Error

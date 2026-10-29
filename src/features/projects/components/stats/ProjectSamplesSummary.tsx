@@ -46,28 +46,56 @@ function Title({ children }: { children: ReactNode }) {
  * The samples of the project: counts per type, the distribution of their maximum
  * pressure, and their pressure, size and time ranges with the consistency warnings.
  */
-export default function ProjectSamplesSummary({ samples }: { samples: ProjectStatsSamples }) {
+export default function ProjectSamplesSummary({ samples, projectId }: { samples: ProjectStatsSamples; projectId: number }) {
     const { sample_types, pressure_range, size_range, time_range, max_pressure_histogram } = samples;
+    const dataTab = `/projects/${projectId}/data`;
     const warnings = [
         samples.nb_instrument_parameter_mismatches > 0 && (
             <StatWarning
                 key="instrument"
                 label="Mismatch in instrument parameters"
                 hint={`${pluralize(samples.nb_instrument_parameter_mismatches, "sample")} acquired or processed with other instrument parameters (serial number, calibration, image volume, pixel size, gain, threshold, exposure) than the rest of the project.`}
+                to={dataTab}
+            />
+        ),
+        samples.nb_object_size_mismatches > 0 && (
+            <StatWarning
+                key="sizes"
+                label="Mismatch instrument specification"
+                hint={`${pluralize(samples.nb_object_size_mismatches, "sample")} with objects outside the size classes of the instrument: check their calibration (Aa, exp) and pixel size.`}
+                to={dataTab}
             />
         ),
         samples.nb_suspicious_dates > 0 && (
             <StatWarning
                 key="dates"
                 label="Suspicious time range"
-                hint={`${pluralize(samples.nb_suspicious_dates, "sample")} dated before 2000, in the future, or with an unreadable date.`}
+                hint={`${pluralize(samples.nb_suspicious_dates, "sample")} dated before 2008, in the future, or with an unreadable date.`}
+                to={dataTab}
+            />
+        ),
+        samples.time_span_over_a_year && (
+            <StatWarning
+                key="span"
+                label="Suspicious time range (project longer than a year)"
+                hint="The samples span more than a year: check their dates, or disable the time duration check in the METADATA tab for a long project."
+                to={`/projects/${projectId}/metadata`}
             />
         ),
         samples.nb_suspicious_pressures > 0 && (
             <StatWarning
                 key="pressures"
                 label="Suspicious pressure range"
-                hint={`${pluralize(samples.nb_suspicious_pressures, "sample")} without a positive maximum pressure, or deeper than 6500 dbar.`}
+                hint={`${pluralize(samples.nb_suspicious_pressures, "sample")} starting above -5 dbar, deeper than 6500 dbar, or without a positive maximum pressure.`}
+                to={dataTab}
+            />
+        ),
+        samples.unfiltered_uvp5hd && (
+            <StatWarning
+                key="unfiltered"
+                label="Unfiltered UVP5HD project"
+                hint="Some UVP5HD require filtering of the data they produce. Declare the project filtered in the METADATA tab if it is."
+                to={`/projects/${projectId}/metadata`}
             />
         ),
     ].filter(Boolean);

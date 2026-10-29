@@ -6,6 +6,7 @@ import {
     Divider,
     Stack,
     FormControlLabel,
+    FormHelperText,
     Switch
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -114,9 +115,42 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
                     </Stack>
                 </Grid>
 
-                {/* RIGHT COLUMN: Empty for now to match the mockup grid structure */}
+                {/* RIGHT COLUMN: the options the quality checks of the STATS tab read */}
                 <Grid size={{ xs: 12, md: 6 }}>
-                    {/* Intentionally left blank as per mockup design */}
+                    <Stack spacing={2}>
+                        <Box>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={values.filteredProject}
+                                        onChange={(e) => onChange({ filteredProject: e.target.checked })}
+                                        color="primary"
+                                        disabled={readOnly}
+                                    />
+                                }
+                                label="Filtered project"
+                            />
+                            <FormHelperText sx={{ mt: 0 }}>
+                                The data were filtered before their import. A UVP5HD project left unfiltered gets a warning in its STATS tab.
+                            </FormHelperText>
+                        </Box>
+                        <Box>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={values.timeDurationCheck}
+                                        onChange={(e) => onChange({ timeDurationCheck: e.target.checked })}
+                                        color="primary"
+                                        disabled={readOnly}
+                                    />
+                                }
+                                label="Time duration check"
+                            />
+                            <FormHelperText sx={{ mt: 0 }}>
+                                The STATS tab warns when the samples span more than a year. Disable it on a project longer than a year.
+                            </FormHelperText>
+                        </Box>
+                    </Stack>
                 </Grid>
             </Grid>
         </Box>

@@ -204,6 +204,8 @@ export const useProjectMetadataTab = (projectId: number) => {
 
                 override_depth_offset: values.importSettings.overrideDepthOffset,
                 enable_descent_filter: values.importSettings.enableDescentFilter,
+                filtered_project: values.importSettings.filteredProject,
+                time_duration_check: values.importSettings.timeDurationCheck,
             };
 
             // --- ECOTAXA HANDLING ---

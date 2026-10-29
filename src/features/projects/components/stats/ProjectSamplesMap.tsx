@@ -17,7 +17,7 @@ const positionOf = (latitude: number | null, longitude: number | null): { latitu
  * far apart. Warns about samples without CTD file, mismatching positions and
  * positions on land.
  */
-export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
+export default function ProjectSamplesMap({ map, projectId }: { map: ProjectStatsMap; projectId: number }) {
     const theme = useTheme();
     const sampleColor = theme.palette.primary.main;
     const ctdColor = theme.palette.text.primary;
@@ -72,18 +72,21 @@ export default function ProjectSamplesMap({ map }: { map: ProjectStatsMap }) {
                     {map.nb_samples_without_ctd > 0 && (
                         <StatWarning
                             label={`Missing ${pluralize(map.nb_samples_without_ctd, "CTD file")}`}
+                            to={`/projects/${projectId}/import`}
                             hint="Samples without an imported CTD file: import them from the IMPORT tab."
                         />
                     )}
                     {map.nb_coordinates_mismatches > 0 && (
                         <StatWarning
                             label={`Mismatch ${pluralize(map.nb_coordinates_mismatches, "sample")} GPS coordinates`}
+                            to={`/projects/${projectId}/data`}
                             hint="The position of the sample metadata and the one read from its CTD file are more than 5 km apart."
                         />
                     )}
                     {map.nb_samples_on_land > 0 && (
                         <StatWarning
                             label={`${pluralize(map.nb_samples_on_land, "sample")} on land`}
+                            to={`/projects/${projectId}/data`}
                             hint="The position used is on land, more than 2 km from the sea or a lake (Natural Earth 1:10m): check the coordinates of these samples."
                         />
                     )}

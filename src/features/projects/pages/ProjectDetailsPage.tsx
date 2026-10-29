@@ -27,6 +27,7 @@ import { ProjectTasksTab } from "../components/ProjectTasksTab";
 import { ProjectStatsTab } from "../components/ProjectStatsTab";
 import { deleteProject } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
+import { useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
 import { useProjectAccess } from "../hooks/useProjectAccess";
 import { privacyLabel, type ProjectAction } from "../utils/projectAccess";
 import { ProjectLoadError, ProjectPrivacyNotice } from "../components/ProjectAccessStates";
@@ -82,6 +83,10 @@ export default function ProjectDetailsPage() {
     // read the same entry, so the page and its active tab cost one request.
     const { data: project, error: projectError, isPending: isProjectPending } = useProject(projectId);
     const access = useProjectAccess(project);
+    // The page of the linked EcoTaxa project, for the classification warning of the STATS tab.
+    const { data: ecoTaxaInstances = [] } = useEcoTaxaInstances();
+    const ecoTaxaInstanceUrl = ecoTaxaInstances.find((instance) => instance.ecotaxa_instance_id === project?.ecotaxa_instance_id)?.ecotaxa_instance_url;
+    const ecoTaxaProjectUrl = project?.ecotaxa_project_id != null && ecoTaxaInstanceUrl ? `${ecoTaxaInstanceUrl}/prj/${project.ecotaxa_project_id}` : undefined;
     const projectTitle = project?.project_title?.trim() ? project.project_title : "Project Details";
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -246,6 +251,7 @@ export default function ProjectDetailsPage() {
                                 <ProjectStatsTab
                                     projectId={projectId}
                                     ecoTaxaLinked={project?.ecotaxa_project_id != null}
+                                    ecoTaxaProjectUrl={ecoTaxaProjectUrl}
                                     onImportData={access.can.import ? () => navigate(`/projects/${projectId}/import`) : undefined}
                                     onLinkProject={access.can.manage ? () => navigate(`/projects/${projectId}/metadata#ecotaxa-link`) : undefined}
                                     notice={hiddenDataNotice}

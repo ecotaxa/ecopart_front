@@ -38,7 +38,7 @@ function StateRow({ icon, label, hint, value, color }: { icon: React.ReactNode; 
 const percent = (part: number, total: number) => (total === 0 ? 0 : (part / total) * 100);
 
 /** The EcoTaxa categories used by the project and the classification state of its objects and samples. */
-export default function ProjectEcoTaxaSection({ ecotaxa }: { ecotaxa: ProjectStatsEcoTaxa }) {
+export default function ProjectEcoTaxaSection({ ecotaxa, projectId, ecoTaxaProjectUrl }: { ecotaxa: ProjectStatsEcoTaxa; projectId: number; ecoTaxaProjectUrl?: string }) {
     const { objects, classification } = ecotaxa;
     const states = [
         { key: "validated_objects", icon: <ImageIcon color="success" />, label: "Validated objects", hint: "Share of the objects validated in EcoTaxa", value: percent(objects.validated, objects.total), color: "success" as const },
@@ -77,12 +77,14 @@ export default function ProjectEcoTaxaSection({ ecotaxa }: { ecotaxa: ProjectSta
                             <StatWarning
                                 label={`${pluralize(ecotaxa.nb_samples_not_imported, "sample")} not imported in EcoTaxa`}
                                 hint="Samples of the project whose images are not in EcoTaxa: import them from the IMPORT tab."
+                                to={`/projects/${projectId}/import`}
                             />
                         )}
                         {ecotaxa.linked && !ecotaxa.classification_completed && (
                             <StatWarning
                                 label="Classification uncompleted"
-                                hint="Some objects of the samples imported in EcoTaxa are not validated yet."
+                                hint="Some objects of the samples imported in EcoTaxa are neither validated nor predicted yet: classify them in EcoTaxa."
+                                href={ecoTaxaProjectUrl}
                             />
                         )}
                     </StatWarnings>
