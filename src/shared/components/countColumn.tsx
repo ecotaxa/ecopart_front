@@ -1,5 +1,5 @@
 import { Typography } from "@mui/material";
-import type { GridColDef, GridValidRowModel } from "@mui/x-data-grid";
+import type { GridColDef, GridComparatorFn, GridSortDirection, GridValidRowModel } from "@mui/x-data-grid";
 
 /**
  * Cell of a count filled in after the page loaded (per-row requests): the number,
@@ -11,8 +11,20 @@ export const renderCountCell = (value: unknown) =>
         : <Typography variant="caption" color="text.secondary">—</Typography>;
 
 /**
- * Centered, non-sortable column for such a count. Not sortable: the counts land
- * after the rows, so a sort on them would reshuffle the page once they arrive.
+ * Comparator of a count column for the given direction: numbers in that
+ * direction, unknown counts ("—") always last whatever the direction.
+ */
+export const getCountSortComparator = (sortDirection: GridSortDirection): GridComparatorFn<unknown> => (a, b) => {
+    const aKnown = typeof a === "number";
+    const bKnown = typeof b === "number";
+    if (!aKnown || !bKnown) return Number(!aKnown) - Number(!bKnown);
+    return sortDirection === "desc" ? b - a : a - b;
+};
+
+/**
+ * Centered column for such a count, sorted client-side: it orders the rows
+ * loaded in the grid (every project with the "All" page size, the current page
+ * otherwise). A sort applied before the counts arrive reorders once they do.
  */
 export const countColumn = <R extends GridValidRowModel>(field: string, headerName: string): GridColDef<R> => ({
     field,
@@ -20,6 +32,6 @@ export const countColumn = <R extends GridValidRowModel>(field: string, headerNa
     width: 140,
     align: "center",
     headerAlign: "center",
-    sortable: false,
+    getSortComparator: getCountSortComparator,
     renderCell: (params) => renderCountCell(params.value),
 });
