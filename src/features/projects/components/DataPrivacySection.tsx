@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { Box, Typography, TextField, Stack, InputAdornment, Divider } from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
+import { Box, Typography, TextField, Stack, InputAdornment } from "@mui/material";
 import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import type { NewProjectFormValues } from "../types/newProject.types";
-import { PROJECT_PRIVACY_STATUSES, privacyLabel, type ProjectPrivacyStatus } from "../utils/projectAccess";
+import type { ProjectPrivacyStatus } from "../utils/projectAccess";
+import { privacyDates } from "../utils/privacyMilestones";
+import PrivacyTimeline from "./PrivacyTimeline";
 
 interface DataPrivacySectionProps {
     values: NewProjectFormValues["privacy"];
@@ -20,9 +20,6 @@ interface DataPrivacySectionProps {
      */
     oldestSampleDate?: string | null;
 }
-
-/** The UTC day of an ISO date time ("2019-10-12T15:15:16Z" → "2019-10-12"); null when unreadable. */
-const isoDay = (value: string): string | null => (/^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null);
 
 /**
  * Parse and clamp to a minimum of 1 month.
@@ -94,24 +91,10 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
         field: keyof NewProjectFormValues["privacy"],
         fallback: number
     ) => draftValues[field] ?? fallback.toString();
-    const currentIndex = PROJECT_PRIVACY_STATUSES.indexOf(currentStatus);
-    // Every status reached so far is ticked; the current one is also in bold.
-    const renderTimelineStep = (status: ProjectPrivacyStatus, index: number) => {
-        const isReached = index <= currentIndex;
-        const isCurrent = index === currentIndex;
-        return (
-            <Stack direction="row" alignItems="center" spacing={1} aria-current={isCurrent ? "step" : undefined}>
-                {isReached ? <CheckCircleIcon color="primary" aria-hidden="true" /> : <CancelIcon sx={{ color: "#9e9e9e" }} aria-hidden="true" />}
-                <Typography
-                    variant="body2"
-                    fontWeight={isCurrent ? "bold" : "normal"}
-                    color={isReached ? "text.primary" : "text.secondary"}
-                >
-                    {privacyLabel(status)}
-                </Typography>
-            </Stack>
-        );
-    };
+    // The dates follow the delays being typed, as the STATS tab will show them once saved.
+    const dates = oldestSampleDate === undefined
+        ? undefined
+        : privacyDates(oldestSampleDate, values.privateMonths, values.visibleMonths, values.publicMonths);
 
     return (
         <Box sx={{ mb: 5 }}>
@@ -122,22 +105,9 @@ const DataPrivacySectionImpl: React.FC<DataPrivacySectionProps> = ({
             <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
                 All delays are counted in months from the acquisition date of the project's oldest sample; a project without samples stays private.
             </Typography>
-            {oldestSampleDate !== undefined && (
-                <Typography variant="body2" gutterBottom sx={{ mb: 3 }}>
-                    {oldestSampleDate && isoDay(oldestSampleDate)
-                        ? <>Oldest sample: <strong>{isoDay(oldestSampleDate)}</strong> (UTC)</>
-                        : "No sample yet: the delays have not started."}
-                </Typography>
-            )}
-
-            <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
-                {PROJECT_PRIVACY_STATUSES.map((status, index) => (
-                    <React.Fragment key={status}>
-                        {index > 0 && <Divider sx={{ flexGrow: 1 }} />}
-                        {renderTimelineStep(status, index)}
-                    </React.Fragment>
-                ))}
-            </Stack>
+            <Box sx={{ mb: 4 }}>
+                <PrivacyTimeline status={currentStatus} dates={dates} />
+            </Box>
 
             <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
                 <TextField
