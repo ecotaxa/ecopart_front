@@ -5,9 +5,12 @@ vi.mock('../api/projects.api', () => ({
     searchProjectSamples: vi.fn(),
     searchProjectEcoTaxaSamples: vi.fn(),
     searchProjectCtdSamples: vi.fn(),
-    deleteProjectSample: vi.fn(),
+    deleteProjectSamples: vi.fn(),
     deleteProjectEcoTaxaSamples: vi.fn(),
     deleteProjectCtdSamples: vi.fn(),
+    waitForTask: vi.fn(),
+    isTaskDone: (status: string | undefined) => status === 'DONE',
+    isTaskCancelled: (status: string | undefined) => status === 'CANCELLED',
     // The hook resolves the EcoTaxa instance URL via the project; an unlinked
     // project (null instance) keeps getEcoTaxaInstances out of these unit tests.
     regenerateSamplePivots: vi.fn(),
@@ -23,13 +26,16 @@ import {
     searchProjectSamples,
     searchProjectEcoTaxaSamples,
     searchProjectCtdSamples,
-    deleteProjectSample,
+    deleteProjectSamples,
     deleteProjectCtdSamples,
     deleteProjectEcoTaxaSamples,
     getProjectById,
     regenerateSamplePivots,
+    waitForTask,
 } from '../api/projects.api';
-import type { Project, EcoTaxaSampleData } from '../api/projects.api';
+import type { Project, EcoTaxaSampleData, Task } from '../api/projects.api';
+
+const DELETE_TASK = { task_id: 42, task_type: 'DELETE_SAMPLE', task_status: 'PENDING' } as Task;
 import { getEcoTaxaInstances } from '@/shared/api/ecotaxa.api';
 import type { EcoTaxaInstance } from '@/features/userProfile/api/profile.api';
 import { useProjectDataTab } from './useProjectDataTab';
@@ -102,7 +108,8 @@ describe('hooks/useProjectDataTab', () => {
             });
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
         vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
-        vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
+        vi.mocked(deleteProjectSamples).mockResolvedValue(DELETE_TASK);
+        vi.mocked(waitForTask).mockResolvedValue({ ...DELETE_TASK, task_status: 'DONE' });
         const confirmSpy = answerConfirmDialogs(true);
 
         try {
@@ -120,10 +127,45 @@ describe('hooks/useProjectDataTab', () => {
                 await result.current.handleDeleteUvpSamples();
             });
 
-            expect(deleteProjectSample).toHaveBeenCalledTimes(2);
-            expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
-            expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
+            // One task for the whole selection, waited for before the list is refreshed
+            expect(deleteProjectSamples).toHaveBeenCalledTimes(1);
+            expect(deleteProjectSamples).toHaveBeenCalledWith(77, [1, 2]);
+            expect(waitForTask).toHaveBeenCalledWith(42);
+            expect(searchProjectSamples).toHaveBeenCalledTimes(2);
             await waitFor(() => expect(result.current.uvpSelectionCount).toBe(0));
+        } finally {
+            confirmSpy.mockRestore();
+        }
+    });
+
+    it('TC-P10b: keeps the selection when the deletion task fails, so a retry targets the same samples', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({
+            samples: [
+                { sample_id: 1, sample_name: 'a' },
+                { sample_id: 2, sample_name: 'b' },
+            ],
+            search_info: { total: 2, page: 1, limit: 10 },
+        });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(deleteProjectSamples).mockResolvedValue(DELETE_TASK);
+        vi.mocked(waitForTask).mockResolvedValue({ ...DELETE_TASK, task_status: 'ERROR', task_error: 'Deletion failed for 1 of 2 sample(s). a : EcoTaxa down' });
+        const confirmSpy = answerConfirmDialogs(true);
+
+        try {
+            const { result } = renderHook(() => useProjectDataTab(77));
+            await waitFor(() => expect(result.current.uvpSamples.length).toBe(2));
+            act(() => {
+                result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1, 2]) });
+            });
+
+            await act(async () => {
+                await result.current.handleDeleteUvpSamples();
+            });
+
+            expect(result.current.uvpSelectionCount).toBe(2);
+            expect(result.current.snackbar).toMatchObject({ open: true, severity: 'error' });
+            expect(result.current.snackbar.message).toContain('EcoTaxa down');
         } finally {
             confirmSpy.mockRestore();
         }
@@ -306,10 +348,11 @@ describe('hooks/useProjectDataTab', () => {
         });
         vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
         vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
-        vi.mocked(deleteProjectSample).mockImplementation(async () => {
+        vi.mocked(deleteProjectSamples).mockImplementation(async () => {
             deleted = true;
-            return { message: 'Deleted' };
+            return DELETE_TASK;
         });
+        vi.mocked(waitForTask).mockResolvedValue({ ...DELETE_TASK, task_status: 'DONE' });
         const confirmSpy = answerConfirmDialogs(true);
 
         try {

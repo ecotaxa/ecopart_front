@@ -25,7 +25,7 @@ import { ProjectBackupTab } from "../components/ProjectBackupTab";
 import { ProjectImportTab } from "../components/ProjectImportTab";
 import { ProjectTasksTab } from "../components/ProjectTasksTab";
 import { ProjectStatsTab } from "../components/ProjectStatsTab";
-import { deleteProject } from "../api/projects.api";
+import { deleteProject, forgetDeletedProject, isTaskCancelled, isTaskDone, waitForTask } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
 import { useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
 import { useProjectAccess } from "../hooks/useProjectAccess";
@@ -89,6 +89,7 @@ export default function ProjectDetailsPage() {
     const ecoTaxaProjectUrl = project?.ecotaxa_project_id != null && ecoTaxaInstanceUrl ? `${ecoTaxaInstanceUrl}/prj/${project.ecotaxa_project_id}` : undefined;
     const projectTitle = project?.project_title?.trim() ? project.project_title : "Project Details";
     const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteProgress, setDeleteProgress] = useState<{ taskId: number; message?: string } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
 
     // Tabs are addressed by slug, so hiding one never shifts the others. A tab the
@@ -141,13 +142,26 @@ export default function ProjectDetailsPage() {
         setIsDeleting(true);
         setDeleteError(null);
         try {
-            await deleteProject(projectId);
-            navigate("/projects");
+            // The deletion runs as a task: the project exists until it is DONE, so the page waits for it.
+            const task = await deleteProject(projectId);
+            setDeleteProgress({ taskId: task.task_id });
+            const finished = await waitForTask(task.task_id, {
+                onProgress: (state) => setDeleteProgress({ taskId: task.task_id, message: state.task_progress_msg }),
+            });
+            if (isTaskDone(finished.task_status)) {
+                forgetDeletedProject(projectId);
+                navigate("/projects");
+                return;
+            }
+            setDeleteError(isTaskCancelled(finished.task_status)
+                ? `deletion task #${task.task_id} was cancelled, the project is kept.`
+                : (finished.task_error || `deletion task #${task.task_id} failed.`));
         } catch (err) {
             console.error("[Project Details] Delete failed", err);
             setDeleteError(err instanceof Error ? err.message : "Unknown error while deleting the project.");
         } finally {
             setIsDeleting(false);
+            setDeleteProgress(null);
         }
     };
 
@@ -286,11 +300,16 @@ export default function ProjectDetailsPage() {
                 )}
             </Container>
 
-            <BusyOverlay open={isDeleting} message="Deleting project…" />
+            <BusyOverlay
+                open={isDeleting}
+                message={deleteProgress
+                    ? `Deleting project… task #${deleteProgress.taskId}${deleteProgress.message ? ` : ${deleteProgress.message}` : ""}`
+                    : "Deleting project…"}
+            />
 
             <Snackbar
                 open={deleteError !== null}
-                autoHideDuration={6000}
+                autoHideDuration={10000}
                 onClose={() => setDeleteError(null)}
                 anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
             >

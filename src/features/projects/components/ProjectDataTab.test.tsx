@@ -8,9 +8,12 @@ vi.mock('../api/projects.api', () => ({
     searchProjectSamples: vi.fn(),
     searchProjectEcoTaxaSamples: vi.fn(),
     searchProjectCtdSamples: vi.fn(),
-    deleteProjectSample: vi.fn(),
+    deleteProjectSamples: vi.fn(),
     deleteProjectEcoTaxaSamples: vi.fn(),
     deleteProjectCtdSamples: vi.fn(),
+    waitForTask: vi.fn(),
+    isTaskDone: (status: string | undefined) => status === 'DONE',
+    isTaskCancelled: (status: string | undefined) => status === 'CANCELLED',
     // The hook resolves the EcoTaxa instance URL via the project; an unlinked
     // project (null instance) keeps getEcoTaxaInstances out of these unit tests.
     getProjectById: vi.fn().mockResolvedValue({ ecotaxa_project_id: null, ecotaxa_instance_id: null }),
@@ -22,8 +25,8 @@ vi.mock('@/shared/api/ecotaxa.api', () => ({
 }));
 
 import { searchProjectSamples, searchProjectEcoTaxaSamples, searchProjectCtdSamples } from '../api/projects.api';
-import { deleteProjectSample, getProjectById } from '../api/projects.api';
-import type { Project, EcoTaxaSampleData } from '../api/projects.api';
+import { deleteProjectSamples, getProjectById, waitForTask } from '../api/projects.api';
+import type { Project, EcoTaxaSampleData, Task } from '../api/projects.api';
 import { getEcoTaxaInstances } from '@/shared/api/ecotaxa.api';
 import type { EcoTaxaInstance } from '@/features/userProfile/api/profile.api';
 import { ProjectDataTab } from './ProjectDataTab';
@@ -192,7 +195,9 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
 
         it('TC-P2 - Delete UVP Samples Flow', async () => {
             const user = userEvent.setup();
-            vi.mocked(deleteProjectSample).mockResolvedValue({ message: 'Deleted' });
+            const task = { task_id: 42, task_type: 'DELETE_SAMPLE', task_status: 'PENDING' } as Task;
+            vi.mocked(deleteProjectSamples).mockResolvedValue(task);
+            vi.mocked(waitForTask).mockResolvedValue({ ...task, task_status: 'DONE' });
             renderTab();
 
             // Wait for data to load
@@ -215,10 +220,11 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
 
             expect(confirmSpy).toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringMatching(/delete/i) }));
             await waitFor(() => {
-                expect(deleteProjectSample).toHaveBeenCalledTimes(2);
-                expect(deleteProjectSample).toHaveBeenCalledWith(77, 1);
-                expect(deleteProjectSample).toHaveBeenCalledWith(77, 2);
+                expect(deleteProjectSamples).toHaveBeenCalledTimes(1);
+                expect(deleteProjectSamples).toHaveBeenCalledWith(77, [1, 2]);
+                expect(waitForTask).toHaveBeenCalledWith(42);
             });
+            expect(await screen.findByText(/2 UVP sample\(s\) deleted \(task #42\)/i)).toBeInTheDocument();
             // The UVP counter (the first of the three sections) drops back to 0 and the
             // list is refetched. The CTD and EcoTaxa counters always read "0 items
             // selected", so the assertion is scoped to the UVP one.
@@ -236,10 +242,11 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
                     ? [{ sample_id: 1, sample_name: 'UVP-1', visual_qc_status_label: 'VALIDATED' }]
                     : deleted ? [] : [{ sample_id: 11, sample_name: 'UVP-11', visual_qc_status_label: 'VALIDATED' }],
             }));
-            vi.mocked(deleteProjectSample).mockImplementation(async () => {
+            vi.mocked(deleteProjectSamples).mockImplementation(async () => {
                 deleted = true;
-                return { message: 'Deleted' };
+                return { task_id: 43, task_type: 'DELETE_SAMPLE', task_status: 'PENDING' } as Task;
             });
+            vi.mocked(waitForTask).mockResolvedValue({ task_id: 43, task_type: 'DELETE_SAMPLE', task_status: 'DONE' } as Task);
             renderTab();
 
             await waitForGridText('UVP-1');
@@ -250,7 +257,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             // The UVP DELETE is the first one (the CTD section has its own).
             await user.click(screen.getAllByRole('button', { name: /^DELETE$/ })[0]);
 
-            await waitFor(() => expect(deleteProjectSample).toHaveBeenCalledWith(77, 11));
+            await waitFor(() => expect(deleteProjectSamples).toHaveBeenCalledWith(77, [11]));
             // Back on page 1 with its rows, not the "No samples imported." empty state.
             await waitFor(() => expect(searchProjectSamples).toHaveBeenLastCalledWith(77, expect.objectContaining({ page: 1 })));
             await waitForGridText('UVP-1');

@@ -231,10 +231,12 @@ describe('ProjectDetailsPage (Functional)', () => {
         // Managed by the logged-in user, so DELETE is offered.
         mockProjectFetch('manager');
         server.use(
+            // The deletion runs as a task: the page leaves only once that task is DONE
             http.delete('*/projects/:projectId/', ({ params }) => {
                 deletedIds.push(String(params.projectId));
-                return HttpResponse.json({ message: 'deleted' });
-            })
+                return HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: 'PENDING' });
+            }),
+            http.get('*/tasks/42/', () => HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: 'DONE' })),
         );
         const confirmSpy = answerConfirmDialogs(true);
 
@@ -266,8 +268,10 @@ describe('ProjectDetailsPage (Functional)', () => {
         server.use(
             http.delete('*/projects/:projectId/', async () => {
                 await deleteHeld;
-                return HttpResponse.json({ message: 'deleted' });
-            })
+                return HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: 'PENDING' });
+            }),
+            // The page keeps its veil while it follows the task, and shows the task progress
+            http.get('*/tasks/42/', () => HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: 'DONE', task_progress_msg: 'Step 4/4 project : done' })),
         );
         const confirmSpy = answerConfirmDialogs(true);
 

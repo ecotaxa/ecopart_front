@@ -384,14 +384,20 @@ export async function updateProject(
 }
 
 /**
- * Deletes a project (and its samples / linked EcoTaxa project, server-side).
- * Allowed for the project managers and for admins.
+ * Starts the deletion of a project (its samples, linked EcoTaxa project, past tasks and
+ * storage, server-side) and returns the DELETE_PROJECT task that runs it: the project
+ * still exists until that task is DONE (see `waitForTask`). Allowed for the project
+ * managers and for admins; refused (409) while another task runs on the project.
  * Endpoint: DELETE /projects/:id/
  */
-export async function deleteProject(projectId: number): Promise<void> {
-    await http<unknown>(`/projects/${projectId}/`, {
+export async function deleteProject(projectId: number): Promise<Task> {
+    return http<Task>(`/projects/${projectId}/`, {
         method: "DELETE",
     });
+}
+
+/** Drops the cached project once its deletion task is done, and refreshes the project lists. */
+export function forgetDeletedProject(projectId: number): void {
     queryClient.removeQueries({ queryKey: projectQueryKey(projectId) });
     void queryClient.invalidateQueries({ queryKey: [...PROJECTS_ROOT_QUERY_KEY] });
 }
@@ -994,12 +1000,26 @@ export async function getEcoTaxaSampleStats(projectId: number, sampleId: number)
 }
 
 /**
- * Delete a single UVP sample.
+ * Starts the deletion of a single UVP sample and returns the DELETE_SAMPLE task that
+ * runs it: the sample still exists until that task is DONE (see `waitForTask`).
  * Endpoint: DELETE /projects/:project_id/samples/:sample_id
  */
-export async function deleteProjectSample(projectId: number, sampleId: number): Promise<{ message: string }> {
-    return http<{ message: string }>(`/projects/${projectId}/samples/${sampleId}`, {
+export async function deleteProjectSample(projectId: number, sampleId: number): Promise<Task> {
+    return http<Task>(`/projects/${projectId}/samples/${sampleId}`, {
         method: "DELETE",
+    });
+}
+
+/**
+ * Starts the deletion of several UVP samples as one DELETE_SAMPLE task and returns it.
+ * Every id must belong to the project, otherwise nothing is deleted (404). A sample that
+ * fails does not stop the others: the task then ends in ERROR, its error listing them.
+ * Endpoint: DELETE /projects/:project_id/samples
+ */
+export async function deleteProjectSamples(projectId: number, sampleIds: number[]): Promise<Task> {
+    return http<Task>(`/projects/${projectId}/samples`, {
+        method: "DELETE",
+        body: JSON.stringify({ sample_ids: sampleIds }),
     });
 }
 
@@ -1254,6 +1274,58 @@ export async function getOneTask(taskId: number): Promise<Task> {
     return http<Task>(`/tasks/${taskId}/`, {
         method: "GET",
     });
+}
+
+/** A final status: the task will not change any more. */
+export function isTaskFinished(status: string | undefined): boolean {
+    const upper = (status ?? "").toUpperCase();
+    return upper === "DONE" || upper === "ERROR" || upper === "CANCELLED";
+}
+
+export function isTaskDone(status: string | undefined): boolean {
+    return (status ?? "").toUpperCase() === "DONE";
+}
+
+export function isTaskCancelled(status: string | undefined): boolean {
+    return (status ?? "").toUpperCase() === "CANCELLED";
+}
+
+/** How often a task launched from the UI is polled until it finishes. */
+export const TASK_POLL_MS = 2000;
+/** Give up following a task after this long; the TASKS tab still shows its real state. */
+export const TASK_MAX_POLL_MS = 30 * 60 * 1000;
+
+export interface WaitForTaskOptions {
+    /** Delay between two polls, in milliseconds. */
+    pollMs?: number;
+    /** Give up after this long, in milliseconds; the task keeps running server-side. */
+    maxMs?: number;
+    /** Called with every state read, to show the progress. */
+    onProgress?: (task: Task) => void;
+}
+
+/**
+ * Polls a task, at once then every `pollMs`, until it reaches a final status (DONE,
+ * ERROR or CANCELLED) and returns it. A read that fails (network, token refresh) is
+ * retried at the next poll; the promise rejects only when `maxMs` is exceeded.
+ */
+export async function waitForTask(taskId: number, options: WaitForTaskOptions = {}): Promise<Task> {
+    const pollMs = options.pollMs ?? TASK_POLL_MS;
+    const maxMs = options.maxMs ?? TASK_MAX_POLL_MS;
+    const startedAt = Date.now();
+    for (;;) {
+        try {
+            const task = await getOneTask(taskId);
+            options.onProgress?.(task);
+            if (isTaskFinished(task.task_status)) return task;
+        } catch (error) {
+            console.warn(`[Tasks] Could not read the state of task ${taskId}`, error);
+        }
+        if (Date.now() - startedAt >= maxMs) {
+            throw new Error(`Task #${taskId} is still running. Follow it in the TASKS tab.`);
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, pollMs));
+    }
 }
 
 /**

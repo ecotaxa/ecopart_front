@@ -20,6 +20,9 @@ import {
     searchProjectSamples,
     searchProjectEcoTaxaSamples,
     deleteProjectSample,
+    deleteProjectSamples,
+    deleteProject,
+    waitForTask,
     deleteProjectEcoTaxaSamples,
     searchProjectCtdSamples,
     getImportableCtdSamples,
@@ -201,24 +204,50 @@ describe('Projects API helpers (W)', () => {
         expect(arrShape.search_info).toEqual({ total: 2, page: 1, limit: 2 });
         expect(arrShape.samples).toHaveLength(2);
 
-        // Deletes.
+        // Deletes: UVP sample deletions answer with the task that runs them.
         let deletePath = '';
+        let batchDeleteBody: unknown;
         let ecoDeleteBody: unknown;
         server.use(
             http.delete('*/projects/:id/samples/:sampleId', ({ request }) => {
                 deletePath = new URL(request.url).pathname;
-                return HttpResponse.json({ message: 'ok' });
+                return HttpResponse.json({ ...TASK, task_type: 'DELETE_SAMPLE' });
+            }),
+            http.delete('*/projects/:id/samples', async ({ request }) => {
+                deletePath = new URL(request.url).pathname;
+                batchDeleteBody = await request.json();
+                return HttpResponse.json({ ...TASK, task_type: 'DELETE_SAMPLE' });
             }),
             http.delete('*/projects/:id/ecotaxa_samples', async ({ request }) => {
                 ecoDeleteBody = await request.json();
                 return HttpResponse.json({ message: 'ok' });
             }),
         );
-        await deleteProjectSample(PID, 9);
+        const singleTask = await deleteProjectSample(PID, 9);
         expect(deletePath).toBe('/projects/77/samples/9');
+        expect(singleTask).toMatchObject({ task_id: 9, task_type: 'DELETE_SAMPLE' });
+
+        const batchTask = await deleteProjectSamples(PID, [9, 10]);
+        expect(deletePath).toBe('/projects/77/samples');
+        expect(batchDeleteBody).toEqual({ sample_ids: [9, 10] });
+        expect(batchTask).toMatchObject({ task_id: 9, task_type: 'DELETE_SAMPLE' });
 
         await deleteProjectEcoTaxaSamples(PID, ['a', 'b']);
         expect(ecoDeleteBody).toEqual({ samples: ['a', 'b'] });
+    });
+
+    // TC-W6b: a project deletion answers with the task that runs it
+    it('TC-W6b: deleteProject DELETEs /projects/:id/ and returns the task', async () => {
+        let deletePath = '';
+        server.use(
+            http.delete('*/projects/:id/', ({ request }) => {
+                deletePath = new URL(request.url).pathname;
+                return HttpResponse.json({ ...TASK, task_type: 'DELETE_PROJECT' });
+            }),
+        );
+        const task = await deleteProject(PID);
+        expect(deletePath).toBe('/projects/77/');
+        expect(task).toMatchObject({ task_id: 9, task_type: 'DELETE_PROJECT' });
     });
 
     // TC-W7: CTD search/import/delete + normalization
@@ -346,6 +375,32 @@ describe('Projects API helpers (W)', () => {
         expect(path).toBe('/projects/77');
         expect(body).toEqual({ project_title: 'Updated' });
         expect(updated.project_title).toBe('Updated');
+    });
+
+    // TC-W11: waitForTask polls until a final status, and gives up after maxMs
+    it('TC-W11: waitForTask returns the task once it is finished, retrying failed reads', async () => {
+        const statuses = ['RUNNING', 'RUNNING', 'DONE'];
+        let reads = 0;
+        server.use(
+            http.get('*/tasks/5/', () => {
+                reads++;
+                if (reads === 2) return HttpResponse.error();
+                return HttpResponse.json({ task_id: 5, task_status: statuses[reads - 1], task_progress_msg: `read ${reads}` });
+            }),
+        );
+        const seen: string[] = [];
+
+        const task = await waitForTask(5, { pollMs: 1, onProgress: (t) => seen.push(t.task_progress_msg ?? '') });
+
+        expect(task).toMatchObject({ task_id: 5, task_status: 'DONE' });
+        expect(reads).toBe(3);
+        expect(seen).toEqual(['read 1', 'read 3']);
+    });
+
+    it('TC-W11b: waitForTask rejects when the task is still running after maxMs', async () => {
+        server.use(http.get('*/tasks/5/', () => HttpResponse.json({ task_id: 5, task_status: 'RUNNING' })));
+
+        await expect(waitForTask(5, { pollMs: 1, maxMs: 0 })).rejects.toThrow('Task #5 is still running');
     });
 
     // TC-W10: getOneTask fetches a single task by id
