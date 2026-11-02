@@ -18,7 +18,7 @@ const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 40;
 const ZOOM_STEP = 1.6;
 /** Arc (degrees) shown around a single point, or a tight group of points, when framing them. */
-const MIN_FIT_SPAN_DEG = 40;
+const MIN_FIT_SPAN_DEG = 20;
 const FIT_PADDING = 40;
 const MARKER_SIZE = 12;
 /**
@@ -34,6 +34,8 @@ const CLIP_ANGLE = 110;
 const FAR_LATITUDE_LIMIT = CLIP_ANGLE - 90;
 /** Mercator stops where the world becomes a square (the poles are at infinity). */
 const MERCATOR_LATITUDE_LIMIT = 85.05;
+/** Height / width of a map given a `maxHeight`: a wide map gets taller, so it shows more latitudes. */
+const GROWING_HEIGHT_RATIO = 0.5;
 
 interface View {
     k: number;
@@ -83,31 +85,71 @@ const buildProjection = (kind: MapProjection, hemisphere: Hemisphere, width: num
         ? mercatorProjection(width)
         : polarProjection(hemisphere, Math.max(Math.min(width, height) / 2 - 8, 1));
 
+/**
+ * The smallest zoom: polar, a bit below the whole disc; Mercator, the zoom at which the
+ * whole world (pole to pole) fits the map height, so a wide map can show every latitude.
+ */
+const minZoom = (kind: MapProjection, width: number, height: number) =>
+    kind === "mercator" ? Math.min(1, height / Math.max(width, 1)) : MIN_ZOOM;
+
+/**
+ * The view kept on the map. Mercator: the top and bottom edges of the world never come
+ * inside the map (centred when it is shorter); it wraps horizontally. Polar: the pole
+ * never goes further from the map centre than the edge of the disc.
+ */
+function clampView(view: View, kind: MapProjection, projection: GeoProjection, height: number): View {
+    if (kind === "mercator") {
+        // y of the poles (±85.05°) at zoom 1: the Mercator world is a square.
+        const halfWorld = view.k * Math.PI * projection.scale();
+        const reach = Math.max(halfWorld - height / 2, 0);
+        return { ...view, y: clamp(view.y, -reach, reach) };
+    }
+    const reach = view.k * projection.scale() * CLIP_ANGLE * Math.PI / 180;
+    return { ...view, x: clamp(view.x, -reach, reach), y: clamp(view.y, -reach, reach) };
+}
+
+/**
+ * West and east (unwrapped, east may pass 180) of the narrowest longitude range holding
+ * every longitude: the points around the antimeridian are framed together, not across the world.
+ */
+function longitudeRange(longitudes: number[]): [number, number] {
+    const sorted = Float64Array.from(longitudes).sort();
+    let [gap, west] = [sorted[0] + 360 - sorted[sorted.length - 1], sorted[0]];
+    for (let index = 1; index < sorted.length; index++) {
+        if (sorted[index] - sorted[index - 1] > gap) [gap, west] = [sorted[index] - sorted[index - 1], sorted[index]];
+    }
+    return [west, west + 360 - gap];
+}
+
 /** The zoom and offset framing the points of the map (the whole map without any). */
 function fitView(
     projection: GeoProjection, kind: MapProjection, hemisphere: Hemisphere, points: MapPoint[], width: number, height: number,
 ): View {
+    const shown = points.filter((point) => isOnMap(point, kind, hemisphere));
     // A loop, not Math.min(...xs): spreading ~100k points overflows the call stack.
     let [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity];
-    for (const point of points) {
-        if (!isOnMap(point, kind, hemisphere)) continue;
+    for (const point of shown) {
         const xy = projection([point.longitude, point.latitude]);
         if (!xy) continue;
         [minX, maxX, minY, maxY] = [Math.min(minX, xy[0]), Math.max(maxX, xy[0]), Math.min(minY, xy[1]), Math.max(maxY, xy[1])];
     }
-    if (minX === Infinity) return HOME_VIEW;
+    if (minX === Infinity) return clampView(HOME_VIEW, kind, projection, height);
+
+    if (kind === "mercator") {
+        // x is proportional to the longitude: the range is taken across the antimeridian when narrower.
+        const [west, east] = longitudeRange(shown.map((point) => point.longitude));
+        const radian = projection.scale() * Math.PI / 180;
+        [minX, maxX] = [west * radian, east * radian];
+    }
 
     const minSpan = (MIN_FIT_SPAN_DEG * Math.PI / 180) * projection.scale();
-    // Never smaller than the whole map (zoom 1).
-    const k = clamp(
-        Math.min(
-            (width - 2 * FIT_PADDING) / Math.max(maxX - minX, minSpan),
-            (height - 2 * FIT_PADDING) / Math.max(maxY - minY, minSpan),
-        ),
-        1,
-        MAX_ZOOM,
-    );
-    return { k, x: -k * (minX + maxX) / 2, y: -k * (minY + maxY) / 2 };
+    const kx = (width - 2 * FIT_PADDING) / Math.max(maxX - minX, minSpan);
+    const ky = (height - 2 * FIT_PADDING) / Math.max(maxY - minY, minSpan);
+    // Mercator wraps around: only the latitudes may need to zoom out below the full width.
+    const k = kind === "mercator"
+        ? clamp(Math.min(Math.max(kx, 1), ky), minZoom(kind, width, height), MAX_ZOOM)
+        : clamp(Math.min(kx, ky), 1, MAX_ZOOM);
+    return clampView({ k, x: -k * (minX + maxX) / 2, y: -k * (minY + maxY) / 2 }, kind, projection, height);
 }
 
 /** The MUI `LocationOn` icon (24×24 box, tip at 12,22), so the map pin matches the icon used next to it. */
@@ -275,12 +317,13 @@ function boxBetween([lon1, lat1]: [number, number], [lon2, lat2]: [number, numbe
  * In drawing mode, a drag draws a latitude/longitude box instead of panning.
  */
 export default function PolarMap({
-    points, height = 320, bounds = null, drawing = false, onBoundsDrawn, emptyMessage = "Nothing to show", legend,
-    defaultProjection = "mercator",
+    points, height: minHeight = 320, maxHeight, bounds = null, drawing = false, onBoundsDrawn,
+    emptyMessage = "Nothing to show", legend, defaultProjection = "mercator",
 }: PolarMapProps) {
     const theme = useTheme();
     const land = useLand();
     const [containerRef, { width }] = useElementSize<HTMLDivElement>();
+    const height = maxHeight ? clamp(Math.round(width * GROWING_HEIGHT_RATIO), minHeight, maxHeight) : minHeight;
     const svgRef = useRef<SVGSVGElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const worldId = `map-world-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
@@ -390,13 +433,13 @@ export default function PolarMap({
     const scale = scaleBar(pxPerKm);
 
     const zoomBy = (factor: number, anchorX = centerX, anchorY = centerY) => setView((prev) => {
-        const k = clamp(prev.k * factor, MIN_ZOOM, MAX_ZOOM);
+        const k = clamp(prev.k * factor, minZoom(kind, width, height), MAX_ZOOM);
         const ratio = k / prev.k;
-        return {
+        return clampView({
             k,
             x: anchorX - centerX - (anchorX - centerX - prev.x) * ratio,
             y: anchorY - centerY - (anchorY - centerY - prev.y) * ratio,
-        };
+        }, kind, projection, height);
     });
 
     // Wheel zoom needs Ctrl (⌘) so the map does not hijack the page scroll. A
@@ -466,7 +509,7 @@ export default function PolarMap({
         const dy = event.clientY - current.startY;
         if (!current.moved && Math.hypot(dx, dy) < 3) return;
         current.moved = true;
-        setView({ ...current.view, x: current.view.x + dx, y: current.view.y + dy });
+        setView(clampView({ ...current.view, x: current.view.x + dx, y: current.view.y + dy }, kind, projection, height));
     };
 
     const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {

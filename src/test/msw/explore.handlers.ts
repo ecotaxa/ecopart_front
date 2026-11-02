@@ -160,8 +160,10 @@ const profile = (sample_id: number, sample_name: string, values: number[]): Prof
     points: values.map((value, index) => ({ position: 2.5 + index * 5, value })),
 });
 
-const sizeClasses = (labelOf: (key: string, index: number) => string, scale: number): GraphDataset => {
-    const keys = ['64-128 µm', '128-256 µm'];
+const REDUCED_KEYS = ['64-128 µm', '128-256 µm'];
+const DETAILED_KEYS = ['64-80.6 µm', '80.6-102 µm', '102-128 µm'];
+
+const sizeClasses = (labelOf: (key: string, index: number) => string, scale: number, keys = REDUCED_KEYS): GraphDataset => {
     return {
         keys,
         axis_labels: Object.fromEntries(keys.map((key, index) => [key, labelOf(key, index)])),
@@ -173,6 +175,7 @@ const sizeClasses = (labelOf: (key: string, index: number) => string, scale: num
 };
 
 const graphs: ExploreGraphs = {
+    size_classes: 'reduced',
     abundance: sizeClasses((key, index) => `Particle red. class cl${7 + index} (${key}) # l-1`, 1),
     biovolume: sizeClasses((key, index) => `Biovolume red. class bv${7 + index} (${key}) mm3 l-1`, 0.01),
     ctd: {
@@ -189,8 +192,16 @@ const graphs: ExploreGraphs = {
     warnings: ['1 sample of a private project is not drawn'],
 };
 
+/** The graphs with the detailed histogram (`size_classes: 'detailed'`): the 64-128 µm class split in three. */
+const detailedGraphs: ExploreGraphs = {
+    ...graphs,
+    size_classes: 'detailed',
+    abundance: sizeClasses((key, index) => `Particle det. class cl${19 + index} (${key}) # l-1`, 1, DETAILED_KEYS),
+    biovolume: sizeClasses((key, index) => `Biovolume det. class bv${19 + index} (${key}) mm3 l-1`, 0.01, DETAILED_KEYS),
+};
+
 /** What the explore handlers answer, for the assertions of the tests. */
-export const exploreFixtures = { projects, mapSamples, selection, ecotaxa, partialEcotaxa, images, graphs };
+export const exploreFixtures = { projects, mapSamples, selection, ecotaxa, partialEcotaxa, images, graphs, detailedGraphs };
 
 /** POST /explore/ecotaxa: `partialAnswers` partial EcoTaxa parts, then the complete one. */
 export const ecotaxaHandler = (partialAnswers = 0) => {
@@ -205,7 +216,7 @@ export const createExploreHandlers = (isLoggedIn: () => boolean) => [
     http.post('*/explore/selection', () => HttpResponse.json(selection)),
     ecotaxaHandler(),
     http.post('*/explore/images', () => HttpResponse.json({ images })),
-    http.post('*/explore/graphs', () => (isLoggedIn()
-        ? HttpResponse.json(graphs)
+    http.post('*/explore/graphs', async ({ request }) => (isLoggedIn()
+        ? HttpResponse.json(((await request.json()) as { size_classes?: string }).size_classes === 'detailed' ? detailedGraphs : graphs)
         : HttpResponse.json({ errors: ['User is not logged in'] }, { status: 401 }))),
 ];

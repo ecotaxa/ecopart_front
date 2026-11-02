@@ -39,8 +39,10 @@ export interface MapPoint {
 export interface PolarMapProps {
     /** Points with missing or out-of-range coordinates are skipped. */
     points: MapPoint[];
-    /** Map height in px. */
+    /** Map height in px (the smallest one, with `maxHeight`). */
     height?: number;
+    /** When set, the map grows with its width (to half of it), from `height` up to `maxHeight` px. */
+    maxHeight?: number;
     /** Highlighted latitude / longitude box. */
     bounds?: GeoBox | null;
     /** When on, a drag draws a box (reported by `onBoundsDrawn`) instead of panning. */

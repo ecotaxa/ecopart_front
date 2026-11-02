@@ -26,6 +26,7 @@ import {
     type ExploreFilters,
     type ExploreMode,
     type ExploreSampleType,
+    type ExploreSizeClasses,
     type ExploreTab,
     type GeoBounds,
 } from "../types/explore.types";
@@ -43,7 +44,11 @@ import {
     type ExploreFiltersDraft,
 } from "../utils/exploreFilters";
 
+const REDUCED_SIZE_CLASSES: Record<ExploreSampleType, ExploreSizeClasses> = { depth: "reduced", time: "reduced" };
+
 const MAP_HEIGHT = 420;
+/** A wide screen gets a taller map, so every latitude fits without zooming far out. */
+const MAP_MAX_HEIGHT = 640;
 
 /** Title of each block of graphs when the page shows both sample types. */
 const GRAPHS_TITLE_OF_TYPE: Record<ExploreSampleType, string> = {
@@ -90,8 +95,9 @@ export default function ExplorePage() {
     const [aggregation, setAggregation] = useState<ExploreAggregation>(DEFAULT_AGGREGATION);
     const [drawing, setDrawing] = useState(false);
     const [sumChildTaxa, setSumChildTaxa] = useState(true);
+    const [sizeClasses, setSizeClasses] = useState<Record<ExploreSampleType, ExploreSizeClasses>>(REDUCED_SIZE_CLASSES);
 
-    const data = useExploreData(applied, { aggregation, tab, sumChildTaxa });
+    const data = useExploreData(applied, { aggregation, tab, sumChildTaxa, sizeClasses });
     // The sample types of the applied selection: both before any filter.
     const sampleType: ExploreMode = applied ? modeOf(applied.sample_types) : "all";
 
@@ -153,11 +159,8 @@ export default function ExplorePage() {
             <Grid container spacing={4}>
                 <Grid size={{ xs: 12, md: 4, xl: 3 }}>
                     <ExploreFiltersPanel
-                        appliedSampleType={sampleType}
                         draft={draft}
                         onChange={updateDraft}
-                        aggregation={aggregation}
-                        onAggregationChange={(patch) => setAggregation((prev) => ({ ...prev, ...patch }))}
                         projectOptions={data.projectOptions}
                         drawing={drawing}
                         onToggleDrawing={() => setDrawing((on) => !on)}
@@ -186,6 +189,7 @@ export default function ExplorePage() {
                         drawing={drawing}
                         onBoundsDrawn={handleBoundsDrawn}
                         height={MAP_HEIGHT}
+                        maxHeight={MAP_MAX_HEIGHT}
                     />
 
                     <Box sx={{ ...pageTabsSx, mt: 3, position: "relative" }}>
@@ -248,6 +252,13 @@ export default function ExplorePage() {
                                                 graphs={graphs}
                                                 sumChildTaxa={sumChildTaxa}
                                                 onSumChildTaxaChange={setSumChildTaxa}
+                                                bin={type === "depth" ? aggregation.pressure_bin : aggregation.time_bin}
+                                                onBinChange={(bin) => setAggregation((prev) => (
+                                                    type === "depth" ? { ...prev, pressure_bin: bin } : { ...prev, time_bin: bin }
+                                                ))}
+                                                sizeClasses={sizeClasses[type]}
+                                                onSizeClassesChange={(value) => setSizeClasses((prev) => ({ ...prev, [type]: value }))}
+                                                computing={data.graphsComputing[type]}
                                             />
                                         </SectionCard>
                                     </Box>

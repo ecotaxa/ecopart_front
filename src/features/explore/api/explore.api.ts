@@ -12,6 +12,7 @@ import type {
     ExploreProjectOption,
     ExploreSampleType,
     ExploreSelectionResponse,
+    ExploreSizeClasses,
 } from "../types/explore.types";
 
 // ============================================================================
@@ -48,7 +49,9 @@ export interface ExploreImagesRequest extends ExploreRequest {
 }
 
 /** The curves have one axis: the graphs take one sample type, never `all`. */
-export type ExploreGraphsRequest = Omit<ExploreRequest, "mode"> & { mode: ExploreSampleType } & Partial<ExploreAggregation>;
+export type ExploreGraphsRequest = Omit<ExploreRequest, "mode">
+    & { mode: ExploreSampleType; size_classes?: ExploreSizeClasses }
+    & Partial<ExploreAggregation>;
 
 /** User the cached answers were computed for (the selection, map and graphs depend on it). */
 type Viewer = number | null;

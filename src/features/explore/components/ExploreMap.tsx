@@ -28,7 +28,9 @@ export interface ExploreMapProps {
     /** When on, a drag draws the location box instead of moving the map. */
     drawing: boolean;
     onBoundsDrawn: (bounds: GeoBounds) => void;
+    /** The smallest height: a wide map grows up to `maxHeight`. */
     height?: number;
+    maxHeight?: number;
 }
 
 /**
@@ -36,7 +38,7 @@ export interface ExploreMapProps {
  * instrument, its colour the data status, a dark ring marks the user's projects.
  * Memoized: switching tabs or changing a graph leaves the map as it is.
  */
-const ExploreMap = memo(function ExploreMap({ samples, bounds, drawing, onBoundsDrawn, height = 420 }: ExploreMapProps) {
+const ExploreMap = memo(function ExploreMap({ samples, bounds, drawing, onBoundsDrawn, height = 420, maxHeight }: ExploreMapProps) {
     const theme = useTheme();
     const statusColors = useStatusColors();
     const ringColor = theme.palette.text.primary;
@@ -59,6 +61,7 @@ const ExploreMap = memo(function ExploreMap({ samples, bounds, drawing, onBounds
         <PolarMap
             points={points}
             height={height}
+            maxHeight={maxHeight}
             bounds={bounds}
             drawing={drawing}
             onBoundsDrawn={onBoundsDrawn}

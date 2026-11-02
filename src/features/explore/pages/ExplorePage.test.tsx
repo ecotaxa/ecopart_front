@@ -63,8 +63,6 @@ describe('ExplorePage', () => {
         expect(screen.getByRole('heading', { name: 'Explore data' })).toBeInTheDocument();
         expect(screen.getByRole('checkbox', { name: 'Depth' })).toBeChecked();
         expect(screen.getByRole('checkbox', { name: 'Time' })).toBeChecked();
-        expect(screen.getByText('Pressure bin')).toBeInTheDocument();
-        expect(screen.getByText('Time bin')).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /Selected data stats/ })).toHaveAttribute('aria-selected', 'true');
         expect(await screen.findByTestId('explore-map')).toBeInTheDocument();
 
@@ -202,11 +200,12 @@ describe('ExplorePage', () => {
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
         expect(await screen.findByText('Database is locked')).toBeInTheDocument();
     });
-
-    it('applies the sample types with the other criteria, then shows the bin of their graphs only', async () => {
+    it('applies the sample types with the other criteria', async () => {
         const user = userEvent.setup();
         renderPage('/explore/exportable');
         expect(screen.getByRole('heading', { name: 'Exportable selection' })).toBeInTheDocument();
+        // The data aggregation is on the graphs tab, not in the criteria.
+        expect(screen.queryByText('Pressure bin')).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('checkbox', { name: 'Depth' }));
         await user.click(screen.getByRole('checkbox', { name: 'Time' }));
@@ -215,11 +214,9 @@ describe('ExplorePage', () => {
 
         await user.click(screen.getByRole('checkbox', { name: 'Time' }));
         expect(screen.queryByText('Check at least one sample type.')).not.toBeInTheDocument();
-        expect(screen.getByText('Pressure bin')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
-        await waitFor(() => expect(screen.queryByText('Pressure bin')).not.toBeInTheDocument());
-        expect(screen.getByText('Time bin')).toBeInTheDocument();
+        await waitFor(() => expect(callsTo('/explore/selection')).toHaveLength(1));
         expect(screen.getByRole('button', { name: /Export selection/ })).toBeDisabled();
     });
 
@@ -246,11 +243,32 @@ describe('ExplorePage', () => {
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
 
         const abundance = await screen.findByRole('region', { name: 'Particles abundance' });
-        expect(await within(abundance).findByRole('img', { name: 'Particles abundance: 64-128 µm' })).toBeInTheDocument();
+        // No size class is drawn until picked: the "All" preset draws every class of the selection.
+        await user.click(await within(abundance).findByRole('button', { name: 'All' }));
+        expect(within(abundance).getByRole('img', { name: 'Particles abundance: 64-128 µm' })).toBeInTheDocument();
+        expect(within(abundance).getByRole('img', { name: 'Particles abundance: 128-256 µm' })).toBeInTheDocument();
         expect(within(screen.getByRole('region', { name: 'CTD data' })).getByRole('img', { name: 'CTD data: chloro fluo' })).toBeInTheDocument();
         expect(screen.getByText('1 sample of a private project is not drawn')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Selected data graphs' })).toBeInTheDocument();
         expect(callsTo('/explore/graphs')).toHaveLength(1);
+    });
+
+    it('switches the particle graphs to the detailed histogram of legacy EcoPart', async () => {
+        const user = userEvent.setup();
+        loginAsUser();
+        renderPage('/explore/graphs');
+
+        await user.click(screen.getByRole('checkbox', { name: 'Time' }));
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        const abundance = await screen.findByRole('region', { name: 'Particles abundance' });
+        expect(await within(abundance).findByRole('button', { name: 'UVP class 6-12' })).toBeInTheDocument();
+
+        await user.click(screen.getByRole('radio', { name: 'Detailed (45 classes)' }));
+        await user.click(await within(abundance).findByRole('button', { name: 'UVP class 17-45' }));
+        expect(within(abundance).getByRole('img', { name: 'Particles abundance: 64-80.6 µm' })).toBeInTheDocument();
+        expect(within(abundance).getByRole('img', { name: 'Particles abundance: 102-128 µm' })).toBeInTheDocument();
+        expect(within(abundance).getByText('19 : 64-80.6 µm')).toBeInTheDocument();
+        expect(callsTo('/explore/graphs')).toHaveLength(2);
     });
 
     it('draws one block of graphs per sample type when both are searched', async () => {
@@ -261,6 +279,9 @@ describe('ExplorePage', () => {
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
         expect(await screen.findByRole('heading', { name: 'Selected data graphs: depth profiles' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'Selected data graphs: time series' })).toBeInTheDocument();
+        // Each block has the bin of its own axis.
+        expect(screen.getByRole('slider', { name: 'Pressure bin' })).toBeInTheDocument();
+        expect(screen.getByRole('slider', { name: 'Time bin' })).toBeInTheDocument();
         await waitFor(() => expect(screen.getAllByText('1 sample of a private project is not drawn')).toHaveLength(2));
         expect(callsTo('/explore/graphs')).toHaveLength(2);
     });

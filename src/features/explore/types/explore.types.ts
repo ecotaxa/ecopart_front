@@ -220,6 +220,9 @@ export interface ExploreEcoTaxaResponse {
 /** Scale of a value axis: linear, square root, log10(x + 1) or log10. */
 export type ValueScale = "linear" | "sqrt" | "log1p" | "log10";
 
+/** Particle histogram of the graphs: the 15 reduced or the 45 detailed size classes of legacy EcoPart. */
+export type ExploreSizeClasses = "reduced" | "detailed";
+
 /** Time axis of the time series graphs: dates, or hours since the start of each sample. */
 export type TimeScale = "absolute" | "relative";
 
@@ -244,6 +247,8 @@ export interface GraphDataset {
 }
 
 export interface ExploreGraphs {
+    /** The histogram of `abundance` and `biovolume` (absent on an older backend: reduced). */
+    size_classes?: ExploreSizeClasses;
     abundance: GraphDataset;
     biovolume: GraphDataset;
     ctd: GraphDataset;
