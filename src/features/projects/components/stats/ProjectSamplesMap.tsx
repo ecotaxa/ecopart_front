@@ -96,6 +96,7 @@ export default function ProjectSamplesMap({ map, projectId }: { map: ProjectStat
             <PolarMap
                 points={points}
                 height={360}
+                maxHeight={560}
                 emptyMessage="No sample position to show"
                 legend={<MapLegend sampleColor={sampleColor} ctdColor={ctdColor} mismatchColor={mismatchColor} />}
             />

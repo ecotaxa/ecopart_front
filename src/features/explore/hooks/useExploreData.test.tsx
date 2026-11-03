@@ -9,7 +9,7 @@ import { ecotaxaHandler, exploreFixtures } from '@/test/msw/explore.handlers';
 import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 import { createTestQueryClient } from '@/test/utils';
 import { toExploreRequest } from '../api/explore.api';
-import type { ExploreAggregation, ExploreFilters, ExploreTab } from '../types/explore.types';
+import type { ExploreAggregation, ExploreFilters, ExploreSampleType, ExploreSizeClasses, ExploreTab } from '../types/explore.types';
 import { DEFAULT_AGGREGATION, createEmptyDraft, toFilters } from '../utils/exploreFilters';
 import { ECOTAXA_POLL_MS, useExploreData } from './useExploreData';
 
@@ -17,6 +17,7 @@ interface HookProps {
     filters: ExploreFilters | null;
     tab: ExploreTab;
     aggregation: ExploreAggregation;
+    sizeClasses?: Record<ExploreSampleType, ExploreSizeClasses>;
 }
 
 const FILTERS: ExploreFilters = toFilters(createEmptyDraft());
@@ -50,7 +51,7 @@ function renderExploreData(initial: Partial<HookProps> = {}) {
     );
     const props: HookProps = { filters: null, tab: 'stats', aggregation: DEFAULT_AGGREGATION, ...initial };
     const rendered = renderHook(
-        ({ filters, tab, aggregation }: HookProps) => useExploreData(filters, { aggregation, tab, sumChildTaxa: true }),
+        ({ filters, tab, aggregation, sizeClasses }: HookProps) => useExploreData(filters, { aggregation, tab, sumChildTaxa: true, sizeClasses }),
         { wrapper, initialProps: props },
     );
     return { ...rendered, props, update: (patch: Partial<HookProps>) => rendered.rerender({ ...props, ...patch }) };
@@ -269,7 +270,7 @@ describe('useExploreData', () => {
         act(() => loginAsUser());
         await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
         expect(result.current.graphs.time).toBeNull();
-        expect(await bodiesOf('/explore/graphs')).toEqual([{ mode: 'depth', filters: SENT, pressure_bin: 5 }]);
+        expect(await bodiesOf('/explore/graphs')).toEqual([{ mode: 'depth', filters: SENT, pressure_bin: 5, size_classes: 'reduced' }]);
     });
 
     it('asks for the graphs only on the graphs tab, and only once filters are applied', async () => {
@@ -300,7 +301,7 @@ describe('useExploreData', () => {
 
         await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(2));
         const bodies = await bodiesOf('/explore/graphs');
-        expect(bodies[1]).toEqual({ mode: 'depth', filters: SENT, pressure_bin: 20 });
+        expect(bodies[1]).toEqual({ mode: 'depth', filters: SENT, pressure_bin: 20, size_classes: 'reduced' });
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.graphs.depth).not.toBeNull();
     });
@@ -319,15 +320,30 @@ describe('useExploreData', () => {
         await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
         await waitFor(() => expect(result.current.graphs.time).toEqual(exploreFixtures.graphs));
         expect(await bodiesOf('/explore/graphs')).toEqual(expect.arrayContaining([
-            { mode: 'depth', filters: SENT, pressure_bin: 5 },
-            { mode: 'time', filters: SENT, time_bin: 1 },
+            { mode: 'depth', filters: SENT, pressure_bin: 5, size_classes: 'reduced' },
+            { mode: 'time', filters: SENT, time_bin: 1, size_classes: 'reduced' },
         ]));
         expect(callsTo('/explore/graphs')).toHaveLength(2);
 
         // A new time bin only asks the time series again.
         update({ filters: FILTERS, tab: 'graphs', aggregation: { pressure_bin: 5, time_bin: 3 } });
         await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(3));
-        expect(await callsTo('/explore/graphs')[2].request.json()).toEqual({ mode: 'time', filters: SENT, time_bin: 3 });
+        expect(await callsTo('/explore/graphs')[2].request.json()).toEqual({ mode: 'time', filters: SENT, time_bin: 3, size_classes: 'reduced' });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        await aMoment();
+        expect(callsTo('/explore/graphs')).toHaveLength(3);
+    });
+
+    it('asks the detailed histogram of one sample type only', async () => {
+        loginAsUser();
+        const { result, update } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
+        await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(2));
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        update({ filters: FILTERS, tab: 'graphs', sizeClasses: { depth: 'detailed', time: 'reduced' } });
+        await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(3));
+        expect(await callsTo('/explore/graphs')[2].request.json())
+            .toEqual({ mode: 'depth', filters: SENT, pressure_bin: 5, size_classes: 'detailed' });
         await waitFor(() => expect(result.current.loading).toBe(false));
         await aMoment();
         expect(callsTo('/explore/graphs')).toHaveLength(3);

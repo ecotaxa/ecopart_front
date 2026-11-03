@@ -1,6 +1,7 @@
-import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-    Autocomplete, Box, Checkbox, Chip, FormControlLabel, IconButton, Paper, Radio, RadioGroup, Stack,
+    Alert, Autocomplete, Box, Button, Checkbox, Chip, FormControlLabel, IconButton, LinearProgress, Link, Paper,
+    Radio, RadioGroup, Slider, Stack,
     TextField, Tooltip, Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
@@ -9,13 +10,15 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import AddIcon from "@mui/icons-material/Add";
+import CategoryIcon from "@mui/icons-material/Category";
 
 import type {
-    ExploreGraphs, ExploreSampleType, GraphDataset, ProfileSeries, TimeScale, ValueScale,
+    ExploreGraphs, ExploreSampleType, ExploreSizeClasses, GraphDataset, ProfileSeries, TimeScale, ValueScale,
 } from "../types/explore.types";
+import { PRESSURE_BIN, TIME_BIN } from "../utils/exploreFilters";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
-type GraphId = Exclude<keyof ExploreGraphs, "warnings">;
+type GraphId = Exclude<keyof ExploreGraphs, "warnings" | "size_classes">;
 
 const GRAPH_IDS: readonly GraphId[] = ["abundance", "biovolume", "ctd", "ecotaxa"];
 
@@ -26,11 +29,63 @@ const VALUE_SCALES: { value: ValueScale; label: string }[] = [
     { value: "log10", label: "log10" },
 ];
 
-/** Graphs drawn side by side when nothing is picked yet. */
+/** Graphs drawn side by side when nothing is picked yet (none for the size classes). */
 const DEFAULT_SELECTION_SIZE = 2;
 const HOUR_MS = 3_600_000;
+/** A request taking longer than this gets a "computing" message. */
+const COMPUTING_NOTICE_DELAY_MS = 1000;
+
+/** The graphs of the particle size classes: no class drawn until picked, presets offered. */
+const SIZE_CLASS_GRAPHS: ReadonlySet<GraphId> = new Set(["abundance", "biovolume"]);
+
+type SizeClassPreset = { label: string; range: [number, number] | null };
+
+/** Presets of the size class pickers, as in legacy EcoPart (class numbers, inclusive), per histogram. */
+const SIZE_CLASS_PRESETS: Record<ExploreSizeClasses, SizeClassPreset[]> = {
+    reduced: [
+        { label: "All", range: [1, 15] },
+        { label: "Class 1-5", range: [1, 5] },
+        { label: "UVP class 6-12", range: [6, 12] },
+        { label: "None", range: null },
+    ],
+    detailed: [
+        { label: "All", range: [1, 45] },
+        { label: "Class 1-16", range: [1, 16] },
+        { label: "UVP class 17-45", range: [17, 45] },
+        { label: "None", range: null },
+    ],
+};
+
+const SIZE_CLASS_OPTIONS: { value: ExploreSizeClasses; label: string }[] = [
+    { value: "reduced", label: "Reduced (15 classes)" },
+    { value: "detailed", label: "Detailed (45 classes)" },
+];
+
+const defaultSelection = (id: GraphId, keys: string[]) =>
+    SIZE_CLASS_GRAPHS.has(id) ? NO_SELECTION : keys.slice(0, DEFAULT_SELECTION_SIZE);
+
+/** Number of a size class (1–15 reduced, 1–45 detailed), read from its axis label ("Particle red. class cl7 (64-128 µm) # l-1"). */
+const sizeClassNumber = (axisLabel: string | undefined) => {
+    const match = /\b(?:cl|bv)(\d+)\b/.exec(axisLabel ?? "");
+    return match ? Number(match[1]) : null;
+};
+
+/** `value`, once it has been true for `delay` ms (false at once). */
+function useDelayedFlag(value: boolean, delay: number) {
+    const [flag, setFlag] = useState(false);
+    useEffect(() => {
+        if (!value) return;
+        const timer = setTimeout(() => setFlag(true), delay);
+        return () => {
+            clearTimeout(timer);
+            setFlag(false);
+        };
+    }, [value, delay]);
+    return value && flag;
+}
 
 const NO_KEYS: string[] = [];
+const NO_SELECTION: string[] = [];
 const NO_SERIES: ProfileSeries[] = [];
 
 /**
@@ -161,19 +216,37 @@ interface GraphCardProps {
     onClose: (id: GraphId) => void;
     /** Extra controls under the picker (EcoTaxa options). */
     extra?: ReactNode;
+    /** Histogram of the size class graphs, which sets their presets. */
+    sizeClasses?: ExploreSizeClasses;
     /** Shown above the picker (EcoTaxa available taxa). */
     header?: ReactNode;
 }
 
 const GraphCard = memo(function GraphCard({
-    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header,
+    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header, sizeClasses = "reduced",
 }: GraphCardProps) {
     const text = cardText(id, mode);
     const keys = dataset?.keys ?? NO_KEYS;
     const selected = useMemo(
-        () => (settings.selected ?? keys.slice(0, DEFAULT_SELECTION_SIZE)).filter((key) => keys.includes(key)),
-        [settings.selected, keys],
+        () => (settings.selected ?? defaultSelection(id, keys)).filter((key) => keys.includes(key)),
+        [id, settings.selected, keys],
     );
+    const isSizeClass = SIZE_CLASS_GRAPHS.has(id);
+    const classNumbers = useMemo(
+        () => new Map(keys.map((key) => [key, isSizeClass ? sizeClassNumber(dataset?.axis_labels[key]) : null])),
+        [keys, isSizeClass, dataset],
+    );
+    const optionLabel = (key: string) => {
+        const number = classNumbers.get(key);
+        return number ? `${String(number).padStart(2, "0")} : ${key}` : key;
+    };
+    /** The classes of a preset the selection has data for. */
+    const presetKeys = (range: [number, number] | null) => (range
+        ? keys.filter((key) => {
+            const number = classNumbers.get(key);
+            return number != null && number >= range[0] && number <= range[1];
+        })
+        : NO_SELECTION);
 
     return (
         <Paper variant="outlined" component="section" aria-label={text.title} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
@@ -195,10 +268,32 @@ const GraphCard = memo(function GraphCard({
 
             {header}
 
+            {isSizeClass && (
+                <Stack direction="row" sx={{ flexWrap: "wrap", alignItems: "center", gap: 0.75, mb: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary">Presets:</Typography>
+                    {SIZE_CLASS_PRESETS[sizeClasses].map(({ label, range }) => {
+                        const preset = presetKeys(range);
+                        const active = preset.length === selected.length && preset.every((key) => selected.includes(key));
+                        return (
+                            <Chip
+                                key={label}
+                                size="small"
+                                label={label}
+                                color={active ? "primary" : "default"}
+                                variant={active ? "filled" : "outlined"}
+                                disabled={range !== null && preset.length === 0}
+                                onClick={() => onSettingsChange(id, { selected: preset })}
+                            />
+                        );
+                    })}
+                </Stack>
+            )}
+
             <Autocomplete
                 multiple
                 size="small"
                 options={keys}
+                getOptionLabel={optionLabel}
                 value={selected}
                 onChange={(_event, value) => onSettingsChange(id, { selected: value })}
                 noOptionsText="No data"
@@ -249,6 +344,76 @@ interface SelectionGraphsProps {
     /** EcoTaxa: each category also counts the objects of its children. */
     sumChildTaxa: boolean;
     onSumChildTaxaChange: (value: boolean) => void;
+    /** Bin of the curves: pressure bin (dbar) for depth profiles, time bin (h) for time series. */
+    bin: number;
+    onBinChange: (value: number) => void;
+    /** Particle histogram asked for: the 15 reduced or the 45 detailed size classes. */
+    sizeClasses: ExploreSizeClasses;
+    onSizeClassesChange: (value: ExploreSizeClasses) => void;
+    /** The curves are being computed: a long computation gets a message. */
+    computing?: boolean;
+}
+
+interface DataAggregationProps {
+    mode: ExploreSampleType;
+    bin: number;
+    onBinChange: (value: number) => void;
+    sizeClasses: ExploreSizeClasses;
+    onSizeClassesChange: (value: ExploreSizeClasses) => void;
+}
+
+/** The "Data aggregation" block of a sample type: the bin of its curves and the particle histogram. */
+function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesChange }: DataAggregationProps) {
+    const depth = mode === "depth";
+    const bounds = depth ? PRESSURE_BIN : TIME_BIN;
+    const title = depth ? "Pressure bin" : "Time bin";
+    // The slider moves freely, the bin only changes on release: each change recomputes every curve.
+    const [value, setValue] = useState(bin);
+    // A bin set from outside (reset) moves the slider; adjusted during render, not in an effect.
+    const [shownBin, setShownBin] = useState(bin);
+    if (shownBin !== bin) {
+        setShownBin(bin);
+        setValue(bin);
+    }
+    return (
+        <Box component="section" aria-label="Data aggregation">
+            <Typography variant="subtitle1" component="h3" sx={{ mb: 1 }}>Data aggregation</Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} sx={{ columnGap: 4, rowGap: 1, alignItems: { sm: "center" } }}>
+                <Box sx={{ flex: 1, maxWidth: 420 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
+                        <Typography variant="body2">{title}</Typography>
+                        <Typography variant="caption" color="text.secondary">{value} {depth ? "dbar" : "h"}</Typography>
+                        {bin !== bounds.default && (
+                            <Link component="button" type="button" variant="caption" underline="hover" onClick={() => onBinChange(bounds.default)}>
+                                Reset
+                            </Link>
+                        )}
+                    </Stack>
+                    <Box sx={{ px: 1 }}>
+                        <Slider
+                            size="small"
+                            min={bounds.min}
+                            max={bounds.max}
+                            step={depth ? 1 : 0.5}
+                            value={value}
+                            onChange={(_event, next) => setValue(next as number)}
+                            onChangeCommitted={(_event, next) => onBinChange(next as number)}
+                            valueLabelDisplay="auto"
+                            aria-label={title}
+                        />
+                    </Box>
+                </Box>
+                <RadioRow label="Particle histogram" value={sizeClasses} options={SIZE_CLASS_OPTIONS} onChange={onSizeClassesChange} />
+                <Tooltip title="Coming soon">
+                    <span>
+                        <Button size="small" startIcon={<CategoryIcon />} disabled>
+                            Rename/aggregate EcoTaxa categories
+                        </Button>
+                    </span>
+                </Tooltip>
+            </Stack>
+        </Box>
+    );
 }
 
 /**
@@ -258,8 +423,10 @@ interface SelectionGraphsProps {
  * or hidden, and a hidden graph can be brought back.
  */
 export default function SelectionGraphs({
-    mode, title = "Selected data graphs", graphs, sumChildTaxa, onSumChildTaxaChange,
+    mode, title = "Selected data graphs", graphs, sumChildTaxa, onSumChildTaxaChange, bin, onBinChange,
+    sizeClasses, onSizeClassesChange, computing = false,
 }: SelectionGraphsProps) {
+    const showComputing = useDelayedFlag(computing, COMPUTING_NOTICE_DELAY_MS);
     const [settings, setSettings] = useState<Record<GraphId, GraphSettings>>({
         abundance: DEFAULT_SETTINGS,
         biovolume: DEFAULT_SETTINGS,
@@ -333,6 +500,21 @@ export default function SelectionGraphs({
         <Stack spacing={3}>
             <Typography variant="h5" component="h2">{title}</Typography>
 
+            <DataAggregation
+                mode={mode}
+                bin={bin}
+                onBinChange={onBinChange}
+                sizeClasses={sizeClasses}
+                onSizeClassesChange={onSizeClassesChange}
+            />
+
+            {showComputing && (
+                <Alert severity="info" variant="outlined" role="status" sx={{ "& .MuiAlert-message": { flex: 1 } }}>
+                    Computing the graphs: this can take a while for many samples or a small bin.
+                    <LinearProgress aria-label="Computing the graphs" sx={{ mt: 1 }} />
+                </Alert>
+            )}
+
             {hidden.length > 0 && (
                 <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1, alignItems: "center" }}>
                     <Typography variant="body2" color="text.secondary">Hidden graphs:</Typography>
@@ -359,6 +541,8 @@ export default function SelectionGraphs({
                     onReset={reset}
                     onClose={hide}
                     header={id === "ecotaxa" ? taxaHeader : undefined}
+                    // The histogram of the curves on screen, which may still be the previous one while the new one loads.
+                    sizeClasses={graphs?.size_classes ?? "reduced"}
                     extra={id === "ecotaxa" ? sumChildrenOption : undefined}
                 />
             ))}

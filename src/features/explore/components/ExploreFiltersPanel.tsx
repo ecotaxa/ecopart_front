@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
 import {
     Autocomplete, Box, Button, Checkbox, Chip, FormControlLabel, Link, MenuItem, Radio, RadioGroup,
-    Slider, Stack, TextField, Tooltip, Typography,
+    Slider, Stack, TextField, Typography,
 } from "@mui/material";
 import EditLocationAltIcon from "@mui/icons-material/EditLocationAlt";
-import CategoryIcon from "@mui/icons-material/Category";
 
 import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { useInstrumentModels } from "@/shared/api/referenceData.hooks";
@@ -12,8 +11,6 @@ import {
     PRIVACY_STATUSES,
     SAMPLE_TYPES,
     type ClassificationStateFilter,
-    type ExploreAggregation,
-    type ExploreMode,
     type ExploreProjectOption,
     type ExploreSampleType,
     type PrivacyStatus,
@@ -22,11 +19,9 @@ import {
     BOUND_KEYS,
     EMPTY_BOUNDS_DRAFT,
     HOUR_LIMITS,
-    PRESSURE_BIN,
     PRIVACY_LABELS,
     PRESSURE_LIMITS,
     SAMPLE_TYPE_LABELS,
-    TIME_BIN,
     type ExploreFiltersDraft,
 } from "../utils/exploreFilters";
 
@@ -56,12 +51,8 @@ function FilterSection({ title, info, onClear, children }: { title: string; info
 }
 
 interface ExploreFiltersPanelProps {
-    /** Sample types of the applied selection: the bins of their graphs are shown. */
-    appliedSampleType: ExploreMode;
     draft: ExploreFiltersDraft;
     onChange: (patch: Partial<ExploreFiltersDraft>) => void;
-    aggregation: ExploreAggregation;
-    onAggregationChange: (patch: Partial<ExploreAggregation>) => void;
     projectOptions: ExploreProjectOption[];
     /** Rectangle drawing on the map is on. */
     drawing: boolean;
@@ -76,12 +67,12 @@ interface ExploreFiltersPanelProps {
 }
 
 /**
- * Left column of the Explore page: the data selection criteria and the data
- * aggregation steps. Nothing is applied until "Apply filters", so the user can
+ * Left column of the Explore page: the data selection criteria (the data aggregation
+ * steps are on the graphs tab). Nothing is applied until "Apply filters", so the user can
  * set several criteria before the selection is recomputed.
  */
 export default function ExploreFiltersPanel({
-    appliedSampleType, draft, onChange, aggregation, onAggregationChange, projectOptions,
+    draft, onChange, projectOptions,
     drawing, onToggleDrawing, boundsError, dateError, sampleTypesError, dirty, onApply, onClearAll,
 }: ExploreFiltersPanelProps) {
     const { data: instrumentModels = [] } = useInstrumentModels();
@@ -383,58 +374,6 @@ export default function ExploreFiltersPanel({
                     Clear all
                 </Button>
             </Stack>
-
-            <Box>
-                <Typography variant="h6" component="h2" sx={{ mb: 1 }}>Data aggregation</Typography>
-                <Stack spacing={2}>
-                    {appliedSampleType !== "time" && (
-                        <FilterSection
-                            title="Pressure bin"
-                            onClear={() => onAggregationChange({ pressure_bin: PRESSURE_BIN.default })}
-                        >
-                            <Box sx={{ px: 1 }}>
-                                <Slider
-                                    size="small"
-                                    min={PRESSURE_BIN.min}
-                                    max={PRESSURE_BIN.max}
-                                    value={aggregation.pressure_bin}
-                                    onChange={(_event, value) => onAggregationChange({ pressure_bin: value as number })}
-                                    valueLabelDisplay="auto"
-                                    aria-label="Pressure bin"
-                                />
-                            </Box>
-                            <Typography variant="caption" color="text.secondary">{aggregation.pressure_bin} dbar</Typography>
-                        </FilterSection>
-                    )}
-                    {appliedSampleType !== "depth" && (
-                        <FilterSection
-                            title="Time bin"
-                            onClear={() => onAggregationChange({ time_bin: TIME_BIN.default })}
-                        >
-                            <Box sx={{ px: 1 }}>
-                                <Slider
-                                    size="small"
-                                    min={TIME_BIN.min}
-                                    max={TIME_BIN.max}
-                                    step={0.5}
-                                    value={aggregation.time_bin}
-                                    onChange={(_event, value) => onAggregationChange({ time_bin: value as number })}
-                                    valueLabelDisplay="auto"
-                                    aria-label="Time bin"
-                                />
-                            </Box>
-                            <Typography variant="caption" color="text.secondary">{aggregation.time_bin} h</Typography>
-                        </FilterSection>
-                    )}
-                </Stack>
-                <Tooltip title="Coming soon">
-                    <span>
-                        <Button size="small" startIcon={<CategoryIcon />} disabled sx={{ mt: 2 }}>
-                            Rename/aggregate EcoTaxa categories
-                        </Button>
-                    </span>
-                </Tooltip>
-            </Box>
         </Stack>
     );
 }

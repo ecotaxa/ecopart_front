@@ -30,6 +30,7 @@ import {
     type ExploreSampleType,
     type ExploreSelection,
     type ExploreSelectionPart,
+    type ExploreSizeClasses,
     type ExploreTab,
 } from "../types/explore.types";
 
@@ -38,6 +39,8 @@ export interface ExploreDataOptions {
     aggregation: ExploreAggregation;
     /** The tab on screen: the graphs are only requested on the graphs tab, the images on the exportable one. */
     tab: ExploreTab;
+    /** Particle histogram of the graphs of each sample type (reduced when absent). */
+    sizeClasses?: Record<ExploreSampleType, ExploreSizeClasses>;
     /** EcoTaxa graphs: each category also counts the objects of its children (not served by the backend yet). */
     sumChildTaxa: boolean;
 }
@@ -54,6 +57,8 @@ export interface ExploreData {
      * selection the user may see (null for a type the page does not search).
      */
     graphs: Record<ExploreSampleType, ExploreGraphs | null>;
+    /** The curves of a sample type are being computed (a first load, or new filters or bin). */
+    graphsComputing: Record<ExploreSampleType, boolean>;
     /** Exportable selection tab: only the samples the user may export. */
     exportable: ExploreSelection;
     images: ExploreImage[];
@@ -77,6 +82,7 @@ const AGGREGATION_DEBOUNCE_MS = 400;
 export const ECOTAXA_POLL_MS = 5000;
 
 const EMPTY_SELECTION: ExploreSelection = { summary: null, projects: [] };
+const REDUCED_SIZE_CLASSES: Record<ExploreSampleType, ExploreSizeClasses> = { depth: "reduced", time: "reduced" };
 const NO_PROJECTS: ExploreProjectOption[] = [];
 const NO_SAMPLES: ExploreMapSample[] = [];
 const NO_IMAGES: ExploreImage[] = [];
@@ -137,7 +143,7 @@ function withEcoTaxa(part: ExploreSelectionPart, ecotaxa: ExploreEcoTaxaSummary)
  */
 export function useExploreData(
     filters: ExploreFilters | null,
-    { aggregation, tab }: ExploreDataOptions,
+    { aggregation, tab, sizeClasses = REDUCED_SIZE_CLASSES }: ExploreDataOptions,
 ): ExploreData {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const userId = useAuthStore((s) => s.user?.user_id ?? null);
@@ -182,10 +188,10 @@ export function useExploreData(
         refetchInterval: (query) => (isPartial(query.state.data) ? ECOTAXA_POLL_MS : false),
     });
     const depthGraphsQuery = useGraphsQuery(
-        { mode: "depth", filters: request.filters, pressure_bin: bins.pressure_bin }, viewer, depthGraphsEnabled,
+        { mode: "depth", filters: request.filters, pressure_bin: bins.pressure_bin, size_classes: sizeClasses.depth }, viewer, depthGraphsEnabled,
     );
     const timeGraphsQuery = useGraphsQuery(
-        { mode: "time", filters: request.filters, time_bin: bins.time_bin }, viewer, timeGraphsEnabled,
+        { mode: "time", filters: request.filters, time_bin: bins.time_bin, size_classes: sizeClasses.time }, viewer, timeGraphsEnabled,
     );
     const imagesQuery = useQuery({
         queryKey: exploreQueryKeys.images(imagesRequest),
@@ -236,6 +242,10 @@ export function useExploreData(
         graphs: {
             depth: depthGraphsEnabled ? depthGraphsQuery.data ?? null : null,
             time: timeGraphsEnabled ? timeGraphsQuery.data ?? null : null,
+        },
+        graphsComputing: {
+            depth: depthGraphsEnabled && depthGraphsQuery.isFetching,
+            time: timeGraphsEnabled && timeGraphsQuery.isFetching,
         },
         exportable,
         images: imagesEnabled ? imagesQuery.data ?? NO_IMAGES : NO_IMAGES,
