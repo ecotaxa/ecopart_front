@@ -230,11 +230,10 @@ export type TimeScale = "absolute" | "relative";
 export interface ProfileSeries {
     sample_id: number;
     sample_name: string;
-    /**
-     * `position` is the depth (m) in depth mode, the epoch time (ms) in time mode;
-     * `value` the measure at that position.
-     */
-    points: { position: number; value: number }[];
+    /** The depth (m) in depth mode, the epoch time (ms) in time mode, of each point. */
+    positions: number[];
+    /** The measure at each position (4 significant digits). */
+    values: number[];
 }
 
 /** The curves of one graph card, per size class / CTD variable / taxon. */

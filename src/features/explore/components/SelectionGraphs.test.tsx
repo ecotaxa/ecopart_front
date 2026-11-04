@@ -11,7 +11,8 @@ const dataset = (keys: string[]): GraphDataset => ({
     series: Object.fromEntries(keys.map((key) => [key, [{
         sample_id: 1,
         sample_name: 'uvp5_sn201_001',
-        points: [{ position: 0, value: 10 }, { position: 100, value: 4 }, { position: 200, value: 1 }],
+        positions: [0, 100, 200],
+        values: [10, 4, 1],
     }]])),
 });
 

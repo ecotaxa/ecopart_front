@@ -159,7 +159,8 @@ const images: ExploreImage[] = [1001, 1002, 1003, 1004].map((object_id, index) =
 const profile = (sample_id: number, sample_name: string, values: number[]): ProfileSeries => ({
     sample_id,
     sample_name,
-    points: values.map((value, index) => ({ position: 2.5 + index * 5, value })),
+    positions: values.map((_value, index) => 2.5 + index * 5),
+    values,
 });
 
 const REDUCED_KEYS = ['64-128 µm', '128-256 µm'];

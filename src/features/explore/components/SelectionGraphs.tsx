@@ -123,12 +123,13 @@ const formatDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 /** The curves of one key, laid out for the page: value along x for depth profiles, along y for time series. */
 function toChartSeries(series: ProfileSeries[], mode: ExploreSampleType, timeScale: TimeScale): ChartSeries[] {
     return series.map((sample, index) => {
-        const start = sample.points[0]?.position ?? 0;
+        const start = sample.positions[0] ?? 0;
         return {
             id: String(sample.sample_id),
             label: sample.sample_name,
             color: seriesColor(index),
-            points: sample.points.map(({ position, value }): [number, number] => {
+            points: sample.positions.map((position, i): [number, number] => {
+                const value = sample.values[i];
                 if (mode === "depth") return [value, position];
                 return [timeScale === "relative" ? (position - start) / HOUR_MS : position, value];
             }),
