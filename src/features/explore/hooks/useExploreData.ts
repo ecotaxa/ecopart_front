@@ -145,9 +145,7 @@ export function useExploreData(
     filters: ExploreFilters | null,
     { aggregation, tab, sizeClasses = REDUCED_SIZE_CLASSES }: ExploreDataOptions,
 ): ExploreData {
-    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-    const userId = useAuthStore((s) => s.user?.user_id ?? null);
-    const viewer = isAuthenticated ? userId : null;
+    const viewer = useAuthStore((s) => s.user?.user_id ?? null);
     const bins = useDebounce(aggregation, AGGREGATION_DEBOUNCE_MS);
 
     const projectsQuery = useQuery({
@@ -157,7 +155,7 @@ export function useExploreData(
     });
     const unavailable = projectsQuery.isError && isServiceMissing(projectsQuery.error);
     const applied = filters !== null && !unavailable;
-    const graphsEnabled = applied && isAuthenticated && tab === "graphs";
+    const graphsEnabled = applied && tab === "graphs";
     const request = toExploreRequest(filters);
     const depthGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("depth");
     const timeGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("time");

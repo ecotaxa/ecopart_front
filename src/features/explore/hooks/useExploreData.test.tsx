@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { server } from '@/test/msw/server';
 import { ecotaxaHandler, exploreFixtures } from '@/test/msw/explore.handlers';
-import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
+import { loginAsUser } from '@/test/helpers/auth.helpers';
 import { createTestQueryClient } from '@/test/utils';
 import { toExploreRequest } from '../api/explore.api';
 import type { ExploreAggregation, ExploreFilters, ExploreSampleType, ExploreSizeClasses, ExploreTab } from '../types/explore.types';
@@ -74,7 +74,8 @@ describe('useExploreData', () => {
     });
 
     beforeEach(() => {
-        logoutUser();
+        // The hook serves a page behind ProtectedRoute: a logged-in user.
+        loginAsUser();
         requests = [];
         server.events.removeAllListeners('request:start');
         server.events.on('request:start', ({ request }) => {
@@ -260,21 +261,7 @@ describe('useExploreData', () => {
         expect(result.current.exportable).toEqual(NO_SELECTION);
     });
 
-    it('asks for no graph for an anonymous user, and for the graphs once logged in', async () => {
-        const { result } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
-        await waitFor(() => expect(result.current.all.summary).not.toBeNull());
-        await waitFor(() => expect(result.current.loading).toBe(false));
-        expect(callsTo('/explore/graphs')).toHaveLength(0);
-        expect(result.current.graphs).toEqual(NO_GRAPHS);
-
-        act(() => loginAsUser());
-        await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
-        expect(result.current.graphs.time).toBeNull();
-        expect(await bodiesOf('/explore/graphs')).toEqual([{ mode: 'depth', filters: SENT, pressure_bin: 5, size_classes: 'reduced' }]);
-    });
-
     it('asks for the graphs only on the graphs tab, and only once filters are applied', async () => {
-        loginAsUser();
         const { result, update, props } = renderExploreData({ tab: 'graphs' });
         await waitFor(() => expect(result.current.available).toBe(true));
         await aMoment();
@@ -291,7 +278,6 @@ describe('useExploreData', () => {
     });
 
     it('asks again for the graphs once the bin size rests, keeping the curves meanwhile', async () => {
-        loginAsUser();
         const { result, update } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
         await waitFor(() => expect(result.current.graphs.depth).not.toBeNull());
 
@@ -315,7 +301,6 @@ describe('useExploreData', () => {
     });
 
     it('asks the graphs of both sample types by default, each on its own axis', async () => {
-        loginAsUser();
         const { result, update } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
         await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
         await waitFor(() => expect(result.current.graphs.time).toEqual(exploreFixtures.graphs));
@@ -335,7 +320,6 @@ describe('useExploreData', () => {
     });
 
     it('asks the detailed histogram of one sample type only', async () => {
-        loginAsUser();
         const { result, update } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
         await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(2));
         await waitFor(() => expect(result.current.loading).toBe(false));

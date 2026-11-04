@@ -21,7 +21,7 @@ import type {
 // Every route but GET /explore/projects takes `{ mode, filters }` as a JSON
 // body: `mode` is the sample types filter, one type (depth / time) or both (all,
 // refused by /explore/graphs), `filters: null` means no criterion.
-// Anonymous users may call them all except /explore/graphs (401 without a session).
+// Every route needs a session (401 otherwise): the Explore page is for logged-in users.
 // ============================================================================
 
 /** Number of random object images drawn per request (the backend default). */
