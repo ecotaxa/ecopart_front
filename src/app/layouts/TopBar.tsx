@@ -91,7 +91,7 @@ export default function TopBar() {
                 {/* Navigation */}
                 <Stack direction="row" sx={{ gap: 3, [compactScreen]: { gap: 2 } }}>
                     <NavLink to="/about" label="About" />
-                    <NavLink to="/explore" label="Explore" />
+                    {isAuthenticated && <NavLink to="/explore" label="Explore" />}
                     <NavLink to="https://ecotaxa.obs-vlfr.fr/" label="EcoTaxa" />
                     {isAuthenticated && (
                         <>

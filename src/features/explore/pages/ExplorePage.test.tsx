@@ -22,7 +22,7 @@ vi.mock('@/shared/api/referenceData.hooks', () => ({
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { ecotaxaHandler } from '@/test/msw/explore.handlers';
-import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
+import { loginAsUser } from '@/test/helpers/auth.helpers';
 import { ECOTAXA_POLL_MS } from '../hooks/useExploreData';
 import ExplorePage from './ExplorePage';
 
@@ -49,7 +49,8 @@ describe('ExplorePage', () => {
     });
 
     beforeEach(() => {
-        logoutUser();
+        // The page sits behind ProtectedRoute: only a logged-in user reaches it.
+        loginAsUser();
         requests = [];
         server.events.removeAllListeners('request:start');
         server.events.on('request:start', ({ request }) => {
@@ -98,7 +99,7 @@ describe('ExplorePage', () => {
         const renders = mapRendered.mock.calls.length;
 
         await user.click(screen.getByRole('tab', { name: /Selected data graphs/ }));
-        expect(await screen.findByText('Log in to see the graphs of the selection.')).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /Selected data graphs/ })).toHaveAttribute('aria-selected', 'true');
         await user.click(screen.getByRole('tab', { name: /Exportable selection/ }));
         expect(await screen.findByRole('heading', { name: 'Exportable selection' })).toBeInTheDocument();
 
@@ -217,28 +218,13 @@ describe('ExplorePage', () => {
 
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
         await waitFor(() => expect(callsTo('/explore/selection')).toHaveLength(1));
-        expect(screen.getByRole('button', { name: /Export selection/ })).toBeDisabled();
+        await waitFor(() => expect(screen.getByRole('button', { name: /Export selection/ })).toBeEnabled());
     });
 
-    it('asks an anonymous user to log in for the graphs, and does not request them', async () => {
+    it('draws the graphs of the selection, with the warnings of the backend', async () => {
         const user = userEvent.setup();
         renderPage('/explore/graphs');
 
-        expect(screen.getByText('Log in to see the graphs of the selection.')).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
-        await waitFor(() => expect(callsTo('/explore/selection')).toHaveLength(1));
-        await waitFor(() => expect(progress()).not.toBeInTheDocument());
-
-        expect(callsTo('/explore/graphs')).toHaveLength(0);
-        expect(screen.queryByRole('region', { name: 'Particles abundance' })).not.toBeInTheDocument();
-    });
-
-    it('draws the graphs of the selection for a logged-in user, with the warnings of the backend', async () => {
-        const user = userEvent.setup();
-        loginAsUser();
-        renderPage('/explore/graphs');
-
-        expect(screen.queryByText(/Log in to see the graphs/)).not.toBeInTheDocument();
         await user.click(screen.getByRole('checkbox', { name: 'Time' }));
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
 

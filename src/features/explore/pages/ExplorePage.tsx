@@ -8,7 +8,6 @@ import InsertChartIcon from "@mui/icons-material/InsertChart";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 
-import { useAuthStore } from "@/features/auth";
 import SectionCard from "@/shared/components/SectionCard";
 import { pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 import ExploreFiltersPanel from "../components/ExploreFiltersPanel";
@@ -81,7 +80,6 @@ export default function ExplorePage() {
     const { tabName } = useParams<{ tabName?: string }>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     const tab: ExploreTab = TABS.find((t) => t.slug === tabName)?.slug ?? "stats";
 
@@ -139,11 +137,9 @@ export default function ExplorePage() {
         </Alert>
     );
 
-    const exportDisabledReason = !isAuthenticated
-        ? "Log in to export data"
-        : !data.available || !data.exportable.summary?.counts.samples
-            ? "No exportable sample in the selection"
-            : null;
+    const exportDisabledReason = !data.available || !data.exportable.summary?.counts.samples
+        ? "No exportable sample in the selection"
+        : null;
 
     return (
         <Container
@@ -230,11 +226,7 @@ export default function ExplorePage() {
                         </SectionCard>
                     )}
 
-                    {tab === "graphs" && !isAuthenticated && (
-                        <Alert severity="info" variant="outlined">Log in to see the graphs of the selection.</Alert>
-                    )}
-
-                    {tab === "graphs" && isAuthenticated && (
+                    {tab === "graphs" && (
                         <Stack spacing={4}>
                             {SAMPLE_TYPES_OF_MODE[sampleType].map((type) => {
                                 const graphs = data.graphs[type];

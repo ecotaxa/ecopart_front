@@ -16,9 +16,11 @@ import type {
 // ---------------------------------------------------------------------------
 // The backend /explore routes: two projects, three depth samples (two of them
 // exportable), their summary, EcoTaxa part, images and curves. The handlers
-// answer whatever the body; /explore/graphs refuses anonymous users (401), like
-// the backend. `ecotaxaHandler(n)` answers a partial EcoTaxa part n times before
-// the complete one, like the backend while it reads the statistics from EcoTaxa.
+// answer whatever the body; /explore/graphs refuses anonymous users (401). The
+// backend refuses them on every /explore route; the other handlers serve them so
+// that the hook tests need no session. `ecotaxaHandler(n)` answers a partial
+// EcoTaxa part n times before the complete one, like the backend while it reads
+// the statistics from EcoTaxa.
 // ---------------------------------------------------------------------------
 
 const projects: ExploreProjectOption[] = [
