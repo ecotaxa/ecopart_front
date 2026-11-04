@@ -26,7 +26,7 @@ export const createEmptyProjectFormValues = (): NewProjectFormValues => ({
         operatorEmail: "",
         operatorId: undefined,
     },
-    importSettings: { overrideDepthOffset: 0, enableDescentFilter: true },
+    importSettings: { overrideDepthOffset: 0, enableDescentFilter: true, filteredProject: false, timeDurationCheck: true },
     ecoTaxa: { instance: "", account: "", project: "", createNewProject: true },
     privileges: [],
     privacy: { ...DEFAULT_PRIVACY },
@@ -268,6 +268,8 @@ export const mapProjectToFormValues = (project: Project): NewProjectFormValues =
     importSettings: {
         overrideDepthOffset: project.override_depth_offset ?? 0,
         enableDescentFilter: project.enable_descent_filter ?? true,
+        filteredProject: project.filtered_project ?? false,
+        timeDurationCheck: project.time_duration_check ?? true,
     },
     ecoTaxa: {
         instance: project.ecotaxa_instance_id?.toString() || "",

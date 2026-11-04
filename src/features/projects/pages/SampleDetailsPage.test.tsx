@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsRole, loginAsUser } from '@/test/helpers/auth.helpers';
 import { makeProjectFixture, type ProjectFixtureOptions } from '@/test/helpers/project.fixtures';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 import type { SampleData } from '../api/projects.api';
 
 /** Every request the page sent, as "METHOD path", to prove what it did not ask for. */
@@ -50,9 +51,18 @@ const mockApi = (sample: Partial<SampleData>, access: ProjectFixtureOptions = {}
 const renderPage = (route = '/projects/555/samples/9') => renderWithRouter(
     <Routes>
         <Route path="/projects/:id/samples/:sampleId/:tabName?" element={<SampleDetailsPage />} />
+        <Route path="/projects/:id/:tabName" element={<h1>Project Data Mock</h1>} />
     </Routes>,
     { route },
 );
+
+// The deletion runs as a task: the page waits for its final status before leaving
+const mockDeletion = (finalTask: Record<string, unknown>) => {
+    server.use(
+        http.delete('*/projects/555/samples/9', () => HttpResponse.json({ task_id: 42, task_type: 'DELETE_SAMPLE', task_status: 'PENDING' })),
+        http.get('*/tasks/42/', () => HttpResponse.json({ task_id: 42, task_type: 'DELETE_SAMPLE', ...finalTask })),
+    );
+};
 
 describe('SampleDetailsPage', () => {
     beforeEach(() => {
@@ -62,6 +72,10 @@ describe('SampleDetailsPage', () => {
         server.events.on('request:start', ({ request }) => {
             requests.push(`${request.method} ${new URL(request.url).pathname}`);
         });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it('rejects a malformed sample id', () => {
@@ -121,6 +135,30 @@ describe('SampleDetailsPage', () => {
         renderPage();
 
         expect(await screen.findByRole('button', { name: 'DELETE' })).toBeInTheDocument();
+    });
+
+    it('deletes the sample through its task, then returns to the project data', async () => {
+        mockApi({}, { ...loginAsRole('manager') });
+        mockDeletion({ task_status: 'DONE' });
+        answerConfirmDialogs(true);
+        renderPage();
+
+        await userEvent.setup().click(await screen.findByRole('button', { name: 'DELETE' }));
+
+        expect(await screen.findByText('Project Data Mock')).toBeInTheDocument();
+    });
+
+    it('stays on the sample and shows the task error when the deletion task fails', async () => {
+        mockApi({}, { ...loginAsRole('manager') });
+        mockDeletion({ task_status: 'ERROR', task_error: 'Deletion failed for 1 of 1 sample(s). tara_093_00_a : EcoTaxa down' });
+        answerConfirmDialogs(true);
+        renderPage();
+
+        await userEvent.setup().click(await screen.findByRole('button', { name: 'DELETE' }));
+
+        expect(await screen.findByText(/Failed to delete the sample: .*EcoTaxa down/)).toBeInTheDocument();
+        expect(screen.queryByText('Project Data Mock')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'DELETE' })).toBeEnabled();
     });
 
     it('hides DELETE from a user who is not a manager, as the backend would refuse it', async () => {

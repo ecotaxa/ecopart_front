@@ -126,11 +126,23 @@ describe('ProjectSecurityTab (Functional)', () => {
         expect(screen.getByText(/counted in months from the acquisition date of the project's oldest sample/i)).toBeInTheDocument();
     });
 
-    // TC-K6: the start of the delays is shown
-    it('TC-K6: shows the date of the oldest sample, or that there is no sample yet', async () => {
+    // TC-K6: the dates of the four statuses, as on the STATS tab, following the delays being typed
+    it('TC-K6: shows the date of each status from the oldest sample, or that there is no sample yet', async () => {
+        const user = userEvent.setup();
         const { unmount } = renderWithRouter(<ProjectSecurityTab projectId={101} oldestSampleDate="2019-10-12T15:15:16Z" />);
-        await screen.findByDisplayValue('6');
-        expect(screen.getByText(/Oldest sample:/).textContent).toBe('Oldest sample: 2019-10-12 (UTC)');
+        const privateDelay = await screen.findByDisplayValue('6');
+        const dateUnder = (label: string) => screen.getByText(`${label} :`).nextElementSibling?.textContent;
+        // Delays 6, 12 and 48 months chained from 2019-10-12
+        expect(dateUnder('Oldest sample')).toBe('2019-10-12');
+        expect(dateUnder('Visibility date')).toBe('2020-04-12');
+        expect(dateUnder('Public date')).toBe('2021-04-12');
+        expect(dateUnder('Open date')).toBe('2025-04-12');
+
+        await user.clear(privateDelay);
+        await user.type(privateDelay, '12');
+        expect(dateUnder('Visibility date')).toBe('2020-10-12');
+        expect(dateUnder('Public date')).toBe('2021-10-12');
+        expect(dateUnder('Open date')).toBe('2025-10-12');
         unmount();
 
         renderWithRouter(<ProjectSecurityTab projectId={101} oldestSampleDate={null} />);

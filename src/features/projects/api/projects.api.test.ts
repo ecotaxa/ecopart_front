@@ -20,6 +20,9 @@ import {
     searchProjectSamples,
     searchProjectEcoTaxaSamples,
     deleteProjectSample,
+    deleteProjectSamples,
+    deleteProject,
+    waitForTask,
     deleteProjectEcoTaxaSamples,
     searchProjectCtdSamples,
     getImportableCtdSamples,
@@ -30,7 +33,9 @@ import {
     updateProject,
     getOneTask,
     cancelTask,
+    enrichProjectsWithQcStates,
     enrichProjectsWithSampleCounts,
+    QC_STATES_BATCH,
     type Project,
     type SearchFilter,
 } from './projects.api';
@@ -199,24 +204,50 @@ describe('Projects API helpers (W)', () => {
         expect(arrShape.search_info).toEqual({ total: 2, page: 1, limit: 2 });
         expect(arrShape.samples).toHaveLength(2);
 
-        // Deletes.
+        // Deletes: UVP sample deletions answer with the task that runs them.
         let deletePath = '';
+        let batchDeleteBody: unknown;
         let ecoDeleteBody: unknown;
         server.use(
             http.delete('*/projects/:id/samples/:sampleId', ({ request }) => {
                 deletePath = new URL(request.url).pathname;
-                return HttpResponse.json({ message: 'ok' });
+                return HttpResponse.json({ ...TASK, task_type: 'DELETE_SAMPLE' });
+            }),
+            http.delete('*/projects/:id/samples', async ({ request }) => {
+                deletePath = new URL(request.url).pathname;
+                batchDeleteBody = await request.json();
+                return HttpResponse.json({ ...TASK, task_type: 'DELETE_SAMPLE' });
             }),
             http.delete('*/projects/:id/ecotaxa_samples', async ({ request }) => {
                 ecoDeleteBody = await request.json();
                 return HttpResponse.json({ message: 'ok' });
             }),
         );
-        await deleteProjectSample(PID, 9);
+        const singleTask = await deleteProjectSample(PID, 9);
         expect(deletePath).toBe('/projects/77/samples/9');
+        expect(singleTask).toMatchObject({ task_id: 9, task_type: 'DELETE_SAMPLE' });
+
+        const batchTask = await deleteProjectSamples(PID, [9, 10]);
+        expect(deletePath).toBe('/projects/77/samples');
+        expect(batchDeleteBody).toEqual({ sample_ids: [9, 10] });
+        expect(batchTask).toMatchObject({ task_id: 9, task_type: 'DELETE_SAMPLE' });
 
         await deleteProjectEcoTaxaSamples(PID, ['a', 'b']);
         expect(ecoDeleteBody).toEqual({ samples: ['a', 'b'] });
+    });
+
+    // TC-W6b: a project deletion answers with the task that runs it
+    it('TC-W6b: deleteProject DELETEs /projects/:id/ and returns the task', async () => {
+        let deletePath = '';
+        server.use(
+            http.delete('*/projects/:id/', ({ request }) => {
+                deletePath = new URL(request.url).pathname;
+                return HttpResponse.json({ ...TASK, task_type: 'DELETE_PROJECT' });
+            }),
+        );
+        const task = await deleteProject(PID);
+        expect(deletePath).toBe('/projects/77/');
+        expect(task).toMatchObject({ task_id: 9, task_type: 'DELETE_PROJECT' });
     });
 
     // TC-W7: CTD search/import/delete + normalization
@@ -344,6 +375,32 @@ describe('Projects API helpers (W)', () => {
         expect(path).toBe('/projects/77');
         expect(body).toEqual({ project_title: 'Updated' });
         expect(updated.project_title).toBe('Updated');
+    });
+
+    // TC-W11: waitForTask polls until a final status, and gives up after maxMs
+    it('TC-W11: waitForTask returns the task once it is finished, retrying failed reads', async () => {
+        const statuses = ['RUNNING', 'RUNNING', 'DONE'];
+        let reads = 0;
+        server.use(
+            http.get('*/tasks/5/', () => {
+                reads++;
+                if (reads === 2) return HttpResponse.error();
+                return HttpResponse.json({ task_id: 5, task_status: statuses[reads - 1], task_progress_msg: `read ${reads}` });
+            }),
+        );
+        const seen: string[] = [];
+
+        const task = await waitForTask(5, { pollMs: 1, onProgress: (t) => seen.push(t.task_progress_msg ?? '') });
+
+        expect(task).toMatchObject({ task_id: 5, task_status: 'DONE' });
+        expect(reads).toBe(3);
+        expect(seen).toEqual(['read 1', 'read 3']);
+    });
+
+    it('TC-W11b: waitForTask rejects when the task is still running after maxMs', async () => {
+        server.use(http.get('*/tasks/5/', () => HttpResponse.json({ task_id: 5, task_status: 'RUNNING' })));
+
+        await expect(waitForTask(5, { pollMs: 1, maxMs: 0 })).rejects.toThrow('Task #5 is still running');
     });
 
     // TC-W10: getOneTask fetches a single task by id
@@ -504,5 +561,57 @@ describe('enrichProjectsWithSampleCounts', () => {
         expect(refused.nbr_ctd_sample).toBeUndefined();
         expect(filled).toMatchObject({ nbr_sample: 5, nbr_ctd_sample: 5 });
         expect(ctdRequests).toEqual(['3']);
+    });
+});
+
+describe('enrichProjectsWithQcStates', () => {
+    const project = (project_id: number): Project => ({
+        project_id,
+        project_title: `p${project_id}`,
+        project_acronym: 'P',
+        instrument_model: 'UVP6',
+        ecotaxa_project_name: null,
+    });
+
+    it('fills qc_state and qc_warnings by project id, leaving a project the backend left out untouched', async () => {
+        server.use(
+            http.post('*/projects/qc-states', () => HttpResponse.json([
+                { project_id: 2, qc_state: 'warning', warnings: [{ code: 'suspicious_dates', nb_samples: 1 }] },
+                { project_id: 1, qc_state: 'ok', warnings: [] },
+            ])),
+        );
+
+        const [first, second, unknown] = await enrichProjectsWithQcStates([project(1), project(2), project(3)]);
+
+        expect(first).toMatchObject({ qc_state: 'ok', qc_warnings: [] });
+        expect(second).toMatchObject({ qc_state: 'warning', qc_warnings: [{ code: 'suspicious_dates', nb_samples: 1 }] });
+        expect(unknown).toEqual(project(3));
+    });
+
+    it('asks by batches of QC_STATES_BATCH, a failed batch leaving its projects untouched', async () => {
+        const batches: number[][] = [];
+        server.use(
+            http.post('*/projects/qc-states', async ({ request }) => {
+                const { project_ids } = (await request.json()) as { project_ids: number[] };
+                batches.push(project_ids);
+                if (project_ids.includes(1)) return new HttpResponse(null, { status: 500 });
+                return HttpResponse.json(project_ids.map((project_id) => ({ project_id, qc_state: 'ok', warnings: [] })));
+            }),
+        );
+        const projects = Array.from({ length: QC_STATES_BATCH + 1 }, (_, index) => project(index + 1));
+
+        const enriched = await enrichProjectsWithQcStates(projects);
+
+        expect(batches.map((ids) => ids.length).sort((a, b) => b - a)).toEqual([QC_STATES_BATCH, 1]);
+        expect(enriched[0].qc_state).toBeUndefined();
+        expect(enriched[QC_STATES_BATCH].qc_state).toBe('ok');
+    });
+
+    it('sends nothing for an empty page', async () => {
+        let asked = false;
+        server.use(http.post('*/projects/qc-states', () => { asked = true; return HttpResponse.json([]); }));
+
+        expect(await enrichProjectsWithQcStates([])).toEqual([]);
+        expect(asked).toBe(false);
     });
 });

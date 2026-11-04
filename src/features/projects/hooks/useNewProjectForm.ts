@@ -354,6 +354,8 @@ export const useNewProjectForm = () => {
 
                 override_depth_offset: values.importSettings.overrideDepthOffset,
                 enable_descent_filter: values.importSettings.enableDescentFilter,
+                filtered_project: values.importSettings.filteredProject,
+                time_duration_check: values.importSettings.timeDurationCheck,
 
                 privacy_duration: parsePositiveInt(values.privacy.privateMonths),
                 visible_duration: parsePositiveInt(values.privacy.visibleMonths),

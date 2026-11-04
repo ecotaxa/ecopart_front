@@ -41,7 +41,6 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
         handleUnlinkEcoTaxaProject,
         handleSave,
         handleCancel,
-        lockedTitlePrefix,
         hasRootFolder,
         checkingPeople,
         snackbar,
@@ -115,7 +114,6 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                 <ProjectMetadataSection
                     values={values.metadata}
                     onChange={on.metadata}
-                    lockedTitlePrefix={readOnly ? undefined : lockedTitlePrefix}
                     errors={sectionErrors.metadata}
                     readOnly={readOnly}
                 />

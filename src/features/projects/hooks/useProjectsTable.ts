@@ -6,6 +6,7 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
     PROJECTS_ROOT_QUERY_KEY,
     deleteProject,
+    enrichProjectsWithQcStates,
     enrichProjectsWithSampleCounts,
     type Project,
     type SearchFilter,
@@ -22,6 +23,19 @@ export type ProjectsScope = "All" | "Manager" | "Validated" | "Everything";
 /** Attributes searched with an exact numeric match rather than `LIKE`. */
 const NUMERIC_ATTRIBUTES = ["project_id"] as const;
 
+/** Sample totals and QC state of a page of projects, fetched side by side. */
+async function enrichProjects(projects: Project[]): Promise<Project[]> {
+    const [counted, checked] = await Promise.all([
+        enrichProjectsWithSampleCounts(projects),
+        enrichProjectsWithQcStates(projects),
+    ]);
+    return counted.map((project, index) => ({
+        ...project,
+        qc_state: checked[index].qc_state,
+        qc_warnings: checked[index].qc_warnings,
+    }));
+}
+
 /**
  * Hook backing the user-facing Projects page (`/projects`).
  *
@@ -29,7 +43,8 @@ const NUMERIC_ATTRIBUTES = ["project_id"] as const;
  * privilege on (`for_managing`), or strictly to the ones they manage; the
  * "Everything" scope drops that filter (the backend lists every project to any
  * logged-in user, data access then follows the privacy status). The rows are
- * enriched with their sample totals (see `enrichProjectsWithSampleCounts`).
+ * enriched with their sample totals (see `enrichProjectsWithSampleCounts`) and
+ * their QC state (see `enrichProjectsWithQcStates`).
  */
 export const useProjectsTable = () => {
     const currentUser = useAuthStore((state) => state.user);
@@ -49,8 +64,9 @@ export const useProjectsTable = () => {
         // For "All" or "Validated", we still restrict visibility to projects
         // where the user has at least one privilege (Manager, Member, or Contact)
         const filters: SearchFilter[] = [{ field: "for_managing", operator: "=", value: true }];
+        // "Validated QC": the projects whose STATS tab raises no warning (the QC state column shows a check).
         if (selectedFilter === "Validated") {
-            filters.push({ field: "qc_state", operator: "=", value: "validated" });
+            filters.push({ field: "qc_state", operator: "=", value: "ok" });
         }
         return filters;
     }, [currentUser, selectedFilter]);
@@ -71,7 +87,7 @@ export const useProjectsTable = () => {
         extraFilters,
         // Nothing to scope to until the user is loaded into the store.
         enabled: currentUser !== null,
-        enrich: enrichProjectsWithSampleCounts,
+        enrich: enrichProjects,
     });
 
     const { runBulkAction } = table;

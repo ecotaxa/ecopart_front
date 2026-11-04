@@ -7,11 +7,14 @@ import {
     searchProjectSamples,
     searchProjectEcoTaxaSamples,
     searchProjectCtdSamples,
-    deleteProjectSample,
+    deleteProjectSamples,
     deleteProjectEcoTaxaSamples,
     deleteProjectCtdSamples,
     getProjectById,
     regenerateSamplePivots,
+    isTaskCancelled,
+    isTaskDone,
+    waitForTask,
     type SampleData,
     type EcoTaxaSampleData,
     type CtdSampleData,
@@ -301,21 +304,27 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
 
         setIsActionRunning(true);
         try {
-            // Attempt every deletion (a single failure must not abort the rest), then
-            // keep only the samples that actually failed selected so a retry targets those.
-            const results = await Promise.allSettled(selectedIds.map((id) => deleteProjectSample(projectId, id)));
-            const failedIds = selectedIds.filter((_, i) => results[i].status === "rejected");
+            // One task deletes the whole selection, one sample after the other; a failing sample does
+            // not stop the others. The samples exist until the task is DONE, so the tab waits for it.
+            const task = await deleteProjectSamples(projectId, selectedIds);
+            showSnackbar(`Deleting ${selectedIds.length} UVP sample(s) (task #${task.task_id})...`, "info");
+            const finished = await waitForTask(task.task_id);
 
-            if (failedIds.length === 0) {
-                showSnackbar("UVP samples deleted successfully.", "success");
+            if (isTaskDone(finished.task_status)) {
+                showSnackbar(`${selectedIds.length} UVP sample(s) deleted (task #${task.task_id}).`, "success");
                 setSelectedUvpSamples(createEmptySelectionModel());
+            } else if (isTaskCancelled(finished.task_status)) {
+                showSnackbar(`Deletion task #${task.task_id} was cancelled: the remaining samples are kept.`, "warning");
             } else {
-                console.error("Failed to delete UVP samples:", failedIds);
-                showSnackbar(`Failed to delete ${failedIds.length} of ${selectedIds.length} UVP sample(s).`, "error");
-                setSelectedUvpSamples({ type: "include", ids: new Set<number>(failedIds) });
+                // The task error lists the samples that could not be deleted; they stay selected for a retry.
+                console.error("Failed to delete UVP samples:", finished.task_error);
+                showSnackbar(`Failed to delete UVP samples (task #${task.task_id}): ${finished.task_error ?? "see the task log"}`, "error");
             }
-            fetchUvpSamples();
+        } catch (error) {
+            console.error("Failed to delete UVP samples:", error);
+            showSnackbar(`Failed to delete UVP samples: ${error instanceof Error ? error.message : "unknown error"}`, "error");
         } finally {
+            fetchUvpSamples();
             setIsActionRunning(false);
         }
     };

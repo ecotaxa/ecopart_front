@@ -33,6 +33,10 @@ export interface NewProjectFormValues {
     importSettings: {
         overrideDepthOffset: number;
         enableDescentFilter: boolean;
+        /** The data were filtered before their import (asked of a UVP5HD project by the STATS tab). */
+        filteredProject: boolean;
+        /** Warn in the STATS tab when the samples span more than a year; off for a long project. */
+        timeDurationCheck: boolean;
     };
 
     ecoTaxa: {

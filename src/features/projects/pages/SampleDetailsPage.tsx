@@ -13,7 +13,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { isAccessDenied, isNotFound } from "@/shared/api/http";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
-import { deleteProjectSample, getProjectSample } from "../api/projects.api";
+import { deleteProjectSample, getProjectSample, isTaskCancelled, isTaskDone, waitForTask } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
 import { useProjectAccess } from "../hooks/useProjectAccess";
 import { ProjectLoadError, ProjectPrivacyNotice } from "../components/ProjectAccessStates";
@@ -90,9 +90,17 @@ export default function SampleDetailsPage() {
         setIsDeleting(true);
         setDeleteError(null);
         try {
-            await deleteProjectSample(projectId, parsedSampleId);
-            queryClient.removeQueries({ queryKey: sampleQueryKey });
-            navigate(samplesListPath);
+            // The deletion runs as a task: the sample exists until it is DONE, so the page waits for it.
+            const task = await deleteProjectSample(projectId, parsedSampleId);
+            const finished = await waitForTask(task.task_id);
+            if (isTaskDone(finished.task_status)) {
+                queryClient.removeQueries({ queryKey: sampleQueryKey });
+                navigate(samplesListPath);
+                return;
+            }
+            setDeleteError(isTaskCancelled(finished.task_status)
+                ? `deletion task #${task.task_id} was cancelled, the sample is kept.`
+                : (finished.task_error || `deletion task #${task.task_id} failed.`));
         } catch (err) {
             console.error("[Sample Details] Delete failed", err);
             setDeleteError(err instanceof Error ? err.message : "Unknown error while deleting the sample.");

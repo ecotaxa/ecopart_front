@@ -38,7 +38,10 @@ export interface Project {
      */
     privilege?: string;
 
-    qc_state?: string;
+    /** Not returned by the project search; filled in by `enrichProjectsWithQcStates`. */
+    qc_state?: ProjectQcStateLabel;
+    /** The warnings of the project STATS tab; filled in by `enrichProjectsWithQcStates`. */
+    qc_warnings?: ProjectQcWarning[];
     serial_number?: string;
     ship?: string;
     cruise?: string;
@@ -51,6 +54,10 @@ export interface Project {
     operator_email?: string;
     override_depth_offset?: number;
     enable_descent_filter?: boolean;
+    /** The data were filtered before their import (expected of a UVP5HD project). */
+    filtered_project?: boolean;
+    /** Warn when the samples span more than a year; disabled on a long project. */
+    time_duration_check?: boolean;
     ecotaxa_instance_id?: number | null;
     ecotaxa_project_id?: number | null;
     privacy_duration?: number;
@@ -71,6 +78,37 @@ export interface Project {
     members?: MinimalUserModel[];
     managers?: MinimalUserModel[];
     contact?: MinimalUserModel;
+}
+
+/** A warning of the project STATS tab, as the project lists show it. */
+export type ProjectQcWarningCode =
+    | "samples_not_backed_up"
+    | "samples_without_ctd"
+    | "coordinates_mismatches"
+    | "samples_on_land"
+    | "instrument_parameter_mismatches"
+    | "object_size_mismatches"
+    | "suspicious_dates"
+    | "time_span_over_a_year"
+    | "suspicious_pressures"
+    | "unfiltered_uvp5hd"
+    | "ecotaxa_not_linked"
+    | "samples_not_imported_in_ecotaxa"
+    | "classification_uncompleted";
+
+export interface ProjectQcWarning {
+    code: ProjectQcWarningCode;
+    /** How many samples the warning concerns; null for the classification, which concerns the objects. */
+    nb_samples: number | null;
+}
+
+/** "empty" without any sample, "ok" without any warning of the STATS tab, "warning" otherwise. */
+export type ProjectQcStateLabel = "empty" | "ok" | "warning";
+
+export interface ProjectQcState {
+    project_id: number;
+    qc_state: ProjectQcStateLabel;
+    warnings: ProjectQcWarning[];
 }
 
 /**
@@ -185,6 +223,8 @@ export interface PublicProjectRequestCreationModel {
     chief_scientist_email: string;
     override_depth_offset?: number;
     enable_descent_filter: boolean;
+    filtered_project?: boolean;
+    time_duration_check?: boolean;
     privacy_duration: number;
     visible_duration: number;
     public_duration: number;
@@ -223,6 +263,8 @@ export interface PublicProjectUpdateModel {
     chief_scientist_email?: string;
     override_depth_offset?: number;
     enable_descent_filter?: boolean;
+    filtered_project?: boolean;
+    time_duration_check?: boolean;
     privacy_duration?: number;
     visible_duration?: number;
     public_duration?: number;
@@ -342,14 +384,20 @@ export async function updateProject(
 }
 
 /**
- * Deletes a project (and its samples / linked EcoTaxa project, server-side).
- * Allowed for the project managers and for admins.
+ * Starts the deletion of a project (its samples, linked EcoTaxa project, past tasks and
+ * storage, server-side) and returns the DELETE_PROJECT task that runs it: the project
+ * still exists until that task is DONE (see `waitForTask`). Allowed for the project
+ * managers and for admins; refused (409) while another task runs on the project.
  * Endpoint: DELETE /projects/:id/
  */
-export async function deleteProject(projectId: number): Promise<void> {
-    await http<unknown>(`/projects/${projectId}/`, {
+export async function deleteProject(projectId: number): Promise<Task> {
+    return http<Task>(`/projects/${projectId}/`, {
         method: "DELETE",
     });
+}
+
+/** Drops the cached project once its deletion task is done, and refreshes the project lists. */
+export function forgetDeletedProject(projectId: number): void {
     queryClient.removeQueries({ queryKey: projectQueryKey(projectId) });
     void queryClient.invalidateQueries({ queryKey: [...PROJECTS_ROOT_QUERY_KEY] });
 }
@@ -880,6 +928,42 @@ export async function enrichProjectsWithSampleCounts(projects: Project[]): Promi
     return Promise.all(projects.map(enrichProject));
 }
 
+/** The most projects one `POST /projects/qc-states` call accepts. */
+export const QC_STATES_BATCH = 100;
+
+/**
+ * The QC state of up to `QC_STATES_BATCH` projects: the warnings of their STATS
+ * tab, computed by the backend from its database (unknown ids are left out).
+ * Endpoint: POST /projects/qc-states
+ */
+export async function fetchProjectsQcStates(projectIds: number[]): Promise<ProjectQcState[]> {
+    return http<ProjectQcState[]>("/projects/qc-states", {
+        method: "POST",
+        body: JSON.stringify({ project_ids: projectIds }),
+    });
+}
+
+/**
+ * Fill in `qc_state` and `qc_warnings` for a page of projects, one request per
+ * `QC_STATES_BATCH` projects. A failed request leaves its projects untouched,
+ * so the grid shows "-" (unknown) rather than a wrong state.
+ */
+export async function enrichProjectsWithQcStates(projects: Project[]): Promise<Project[]> {
+    if (projects.length === 0) return projects;
+
+    const batches: number[][] = [];
+    for (let start = 0; start < projects.length; start += QC_STATES_BATCH) {
+        batches.push(projects.slice(start, start + QC_STATES_BATCH).map((project) => project.project_id));
+    }
+    const answers = await Promise.all(batches.map((ids) => fetchProjectsQcStates(ids).catch(() => [] as ProjectQcState[])));
+    const states = new Map(answers.flat().map((state) => [state.project_id, state]));
+
+    return projects.map((project) => {
+        const state = states.get(project.project_id);
+        return state ? { ...project, qc_state: state.qc_state, qc_warnings: state.warnings } : project;
+    });
+}
+
 /**
  * List already imported EcoTaxa samples for a project.
  * Endpoint: GET /projects/:project_id/ecotaxa_samples?page=&limit=&sort_by=
@@ -916,12 +1000,26 @@ export async function getEcoTaxaSampleStats(projectId: number, sampleId: number)
 }
 
 /**
- * Delete a single UVP sample.
+ * Starts the deletion of a single UVP sample and returns the DELETE_SAMPLE task that
+ * runs it: the sample still exists until that task is DONE (see `waitForTask`).
  * Endpoint: DELETE /projects/:project_id/samples/:sample_id
  */
-export async function deleteProjectSample(projectId: number, sampleId: number): Promise<{ message: string }> {
-    return http<{ message: string }>(`/projects/${projectId}/samples/${sampleId}`, {
+export async function deleteProjectSample(projectId: number, sampleId: number): Promise<Task> {
+    return http<Task>(`/projects/${projectId}/samples/${sampleId}`, {
         method: "DELETE",
+    });
+}
+
+/**
+ * Starts the deletion of several UVP samples as one DELETE_SAMPLE task and returns it.
+ * Every id must belong to the project, otherwise nothing is deleted (404). A sample that
+ * fails does not stop the others: the task then ends in ERROR, its error listing them.
+ * Endpoint: DELETE /projects/:project_id/samples
+ */
+export async function deleteProjectSamples(projectId: number, sampleIds: number[]): Promise<Task> {
+    return http<Task>(`/projects/${projectId}/samples`, {
+        method: "DELETE",
+        body: JSON.stringify({ sample_ids: sampleIds }),
     });
 }
 
@@ -1176,6 +1274,58 @@ export async function getOneTask(taskId: number): Promise<Task> {
     return http<Task>(`/tasks/${taskId}/`, {
         method: "GET",
     });
+}
+
+/** A final status: the task will not change any more. */
+export function isTaskFinished(status: string | undefined): boolean {
+    const upper = (status ?? "").toUpperCase();
+    return upper === "DONE" || upper === "ERROR" || upper === "CANCELLED";
+}
+
+export function isTaskDone(status: string | undefined): boolean {
+    return (status ?? "").toUpperCase() === "DONE";
+}
+
+export function isTaskCancelled(status: string | undefined): boolean {
+    return (status ?? "").toUpperCase() === "CANCELLED";
+}
+
+/** How often a task launched from the UI is polled until it finishes. */
+export const TASK_POLL_MS = 2000;
+/** Give up following a task after this long; the TASKS tab still shows its real state. */
+export const TASK_MAX_POLL_MS = 30 * 60 * 1000;
+
+export interface WaitForTaskOptions {
+    /** Delay between two polls, in milliseconds. */
+    pollMs?: number;
+    /** Give up after this long, in milliseconds; the task keeps running server-side. */
+    maxMs?: number;
+    /** Called with every state read, to show the progress. */
+    onProgress?: (task: Task) => void;
+}
+
+/**
+ * Polls a task, at once then every `pollMs`, until it reaches a final status (DONE,
+ * ERROR or CANCELLED) and returns it. A read that fails (network, token refresh) is
+ * retried at the next poll; the promise rejects only when `maxMs` is exceeded.
+ */
+export async function waitForTask(taskId: number, options: WaitForTaskOptions = {}): Promise<Task> {
+    const pollMs = options.pollMs ?? TASK_POLL_MS;
+    const maxMs = options.maxMs ?? TASK_MAX_POLL_MS;
+    const startedAt = Date.now();
+    for (;;) {
+        try {
+            const task = await getOneTask(taskId);
+            options.onProgress?.(task);
+            if (isTaskFinished(task.task_status)) return task;
+        } catch (error) {
+            console.warn(`[Tasks] Could not read the state of task ${taskId}`, error);
+        }
+        if (Date.now() - startedAt >= maxMs) {
+            throw new Error(`Task #${taskId} is still running. Follow it in the TASKS tab.`);
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, pollMs));
+    }
 }
 
 /**

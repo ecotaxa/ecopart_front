@@ -265,6 +265,9 @@ export const handlers = [
     // Tests of a populated STATS tab override it with makeProjectStatsFixture().
     http.get('*/projects/:projectId/stats', ({ params }) => HttpResponse.json(makeEmptyProjectStats(Number(params.projectId)))),
 
+    // --- MOCK PROJECTS QC STATE (default: no state known, the column shows "-") ---
+    http.post('*/projects/qc-states', () => HttpResponse.json([])),
+
     // --- MOCK EXPLORE (/explore/*) ---
     ...createExploreHandlers(() => isLoggedIn),
 ];
