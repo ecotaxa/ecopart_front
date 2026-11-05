@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Link as RouterLink, useParams, useNavigate, useLocation } from "react-router-dom";
 import {
-    Box, Container, Typography, Button, Tabs, Tab, Paper, Grid,
+    Box, Chip, Container, Typography, Button, Tabs, Tab, Paper, Grid,
     TextField, LinearProgress, CircularProgress, Alert,
     Stack, InputAdornment, IconButton, Tooltip
 } from "@mui/material";
@@ -15,12 +15,42 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import SectionCard from "@/shared/components/SectionCard";
 import { ecotaxaColors } from "@/theme";
-import { cancelTask, deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task } from "../api/projects.api";
+import { cancelTask, deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task, type TaskProject } from "../api/projects.api";
 import { formatTaskOwner, isActiveTask, isCancellableTask, isDeletableTask, isDownloadableTask } from "../utils/taskColumns";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { useAuthStore } from "@/features/auth";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import { pageBackButtonSx, pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
+
+const ReadOnlyField: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
+    <TextField fullWidth label={label} value={value} size="small" slotProps={{ input: { readOnly: true } }} />
+);
+
+/** The "Projects" field of an export task: one link per exported project. */
+const ExportedProjectsField: React.FC<{ projects: TaskProject[] }> = ({ projects }) => (
+    <Box component="fieldset" sx={{ m: 0, px: 1.5, pt: 0.5, pb: 1.5, minWidth: 0, border: `1px solid ${ecotaxaColors.stone[300]}`, borderRadius: 1 }}>
+        <Box component="legend" sx={{ px: 0.5, fontSize: "0.75rem", color: "text.secondary" }}>Projects</Box>
+        {projects.length > 0 ? (
+            <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
+                {projects.map((project) => (
+                    <Chip
+                        key={project.project_id}
+                        component={RouterLink}
+                        to={`/projects/${project.project_id}/metadata`}
+                        clickable
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        label={`${project.project_title} [${project.project_id}]`}
+                        sx={{ maxWidth: "100%" }}
+                    />
+                ))}
+            </Stack>
+        ) : (
+            <Typography variant="body2" color="text.secondary">No project found</Typography>
+        )}
+    </Box>
+);
 
 export default function TaskDetailsPage() {
     const { id, taskId, tabName } = useParams<{ id?: string; taskId: string; tabName?: string }>();
@@ -330,50 +360,69 @@ export default function TaskDetailsPage() {
                                 <SectionCard sx={{ mb: 4 }}>
                                     <Typography variant="h6" sx={{ mb: 3 }}>Task information</Typography>
                                     <Box component="form" noValidate autoComplete="off">
-                                        <Grid container spacing={3}>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <TextField fullWidth label="ID" value={task.task_id} size="small" slotProps={{ input: { readOnly: true } }} />
+                                        {task.task_projects ? (
+                                            <Grid container spacing={3}>
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <Stack spacing={3}>
+                                                        <ReadOnlyField label="ID" value={task.task_id} />
+                                                        <ReadOnlyField label="Type" value={task.task_type ?? "Unknown"} />
+                                                        <ReadOnlyField label="Owner" value={formatTaskOwner(task.task_owner)} />
+                                                        <ReadOnlyField label="Message" value={task.task_progress_msg ?? "No report message available"} />
+                                                    </Stack>
+                                                </Grid>
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <Stack spacing={3}>
+                                                        <ReadOnlyField label="Status" value={task.task_status ?? "UNKNOWN"} />
+                                                        <ExportedProjectsField projects={task.task_projects} />
+                                                    </Stack>
+                                                </Grid>
                                             </Grid>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <TextField fullWidth label="Status" value={task.task_status ?? "UNKNOWN"} size="small" slotProps={{ input: { readOnly: true } }} />
+                                        ) : (
+                                            <Grid container spacing={3}>
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <ReadOnlyField label="ID" value={task.task_id} />
+                                                </Grid>
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <ReadOnlyField label="Status" value={task.task_status ?? "UNKNOWN"} />
+                                                </Grid>
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <ReadOnlyField label="Type" value={task.task_type ?? "Unknown"} />
+                                                </Grid>
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <TextField
+                                                        fullWidth
+                                                        label="Project ID"
+                                                        value={task.task_project_id ?? "Global scope"}
+                                                        size="small"
+                                                        slotProps={{
+                                                            input: {
+                                                                readOnly: true,
+                                                                endAdornment: task.task_project_id != null ? (
+                                                                    <InputAdornment position="end">
+                                                                        <Tooltip title="Open project">
+                                                                            <IconButton
+                                                                                size="small"
+                                                                                edge="end"
+                                                                                onClick={() => navigate(`/projects/${task.task_project_id}/metadata`)}
+                                                                                aria-label="Open project"
+                                                                            >
+                                                                                <OpenInNewIcon fontSize="small" />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                    </InputAdornment>
+                                                                ) : undefined,
+                                                            },
+                                                        }}
+                                                    />
+                                                </Grid>
+                                                <Grid size={{ xs: 12 }}>
+                                                    <ReadOnlyField label="Message" value={task.task_progress_msg ?? "No report message available"} />
+                                                </Grid>
+                                                <Grid size={{ xs: 12, md: 6 }}>
+                                                    <ReadOnlyField label="Owner" value={formatTaskOwner(task.task_owner)} />
+                                                </Grid>
                                             </Grid>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <TextField fullWidth label="Type" value={task.task_type ?? "Unknown"} size="small" slotProps={{ input: { readOnly: true } }} />
-                                            </Grid>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <TextField
-                                                    fullWidth
-                                                    label="Project ID"
-                                                    value={task.task_project_id ?? "Global scope"}
-                                                    size="small"
-                                                    slotProps={{
-                                                        input: {
-                                                            readOnly: true,
-                                                            endAdornment: task.task_project_id != null ? (
-                                                                <InputAdornment position="end">
-                                                                    <Tooltip title="Open project">
-                                                                        <IconButton
-                                                                            size="small"
-                                                                            edge="end"
-                                                                            onClick={() => navigate(`/projects/${task.task_project_id}/metadata`)}
-                                                                            aria-label="Open project"
-                                                                        >
-                                                                            <OpenInNewIcon fontSize="small" />
-                                                                        </IconButton>
-                                                                    </Tooltip>
-                                                                </InputAdornment>
-                                                            ) : undefined,
-                                                        },
-                                                    }}
-                                                />
-                                            </Grid>
-                                            <Grid size={{ xs: 12 }}>
-                                                <TextField fullWidth label="Message" value={task.task_progress_msg ?? "No report message available"} size="small" slotProps={{ input: { readOnly: true } }} />
-                                            </Grid>
-                                            <Grid size={{ xs: 12, md: 6 }}>
-                                                <TextField fullWidth label="Owner" value={formatTaskOwner(task.task_owner)} size="small" slotProps={{ input: { readOnly: true } }} />
-                                            </Grid>
-                                        </Grid>
+                                        )}
                                     </Box>
                                 </SectionCard>
 

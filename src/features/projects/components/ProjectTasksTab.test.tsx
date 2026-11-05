@@ -67,7 +67,7 @@ describe('ProjectTasksTab (Functional)', () => {
         await waitFor(() => expect(mockedSearchProjectTasks).toHaveBeenCalled());
         expect(mockedSearchProjectTasks.mock.calls[0][0]).toMatchObject({
             projectId: PROJECT_ID,
-            sort_by: 'desc(task_id)',
+            sort_by: 'desc(task_last_update),desc(task_id)',
         });
         expect(await screen.findAllByText('IMPORT')).not.toHaveLength(0);
     });

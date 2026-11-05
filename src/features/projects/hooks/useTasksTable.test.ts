@@ -57,7 +57,7 @@ describe('useTasksTable Hook (Unit)', () => {
 
         const callArg = mockedSearchProjectTasks.mock.calls[0][0];
         expect(callArg).not.toHaveProperty('projectId');
-        expect(callArg.sort_by).toBe('desc(task_id)');
+        expect(callArg.sort_by).toBe('desc(task_last_update),desc(task_id)');
         expect(callArg).toMatchObject({ page: 1, limit: 10, filters: [] });
     });
 
