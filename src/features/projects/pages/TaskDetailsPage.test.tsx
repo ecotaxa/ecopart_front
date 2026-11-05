@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link, Routes, Route } from 'react-router-dom';
 
@@ -80,6 +80,42 @@ describe('TaskDetailsPage (Functional)', () => {
         expect(screen.getByDisplayValue('DONE')).toBeInTheDocument(); // Status field
         expect(screen.getByDisplayValue('IMPORT')).toBeInTheDocument(); // Type field
         expect(screen.getByDisplayValue('77')).toBeInTheDocument(); // Project ID field
+    });
+
+    // TC-S11: Exported projects
+    it('TC-S11: lists the exported projects as links, instead of the Project ID field', async () => {
+        const user = userEvent.setup();
+        mockedGetOneTask.mockResolvedValue(makeTask({
+            task_type: 'EXPORT_RAW',
+            task_project_id: null,
+            task_projects: [
+                { project_id: 533, project_title: 'NIWA_1a5' },
+                { project_id: 534, project_title: 'NIWA_1a6' },
+            ],
+        }));
+        renderWithRouter(
+            <Routes>
+                <Route path="/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
+                <Route path="/projects/:id/metadata" element={<h1>Project Page</h1>} />
+            </Routes>,
+            { route: '/tasks/42/general' },
+        );
+
+        const projects = await screen.findByRole('group', { name: 'Projects' });
+        expect(within(projects).getAllByRole('link').map((link) => link.textContent)).toEqual(['NIWA_1a5 [533]', 'NIWA_1a6 [534]']);
+        expect(screen.queryByLabelText('Project ID')).not.toBeInTheDocument();
+
+        await user.click(within(projects).getByRole('link', { name: 'NIWA_1a6 [534]' }));
+        expect(await screen.findByRole('heading', { name: 'Project Page' })).toBeInTheDocument();
+    });
+
+    // TC-S11b: Export whose projects no longer exist
+    it('TC-S11b: says so when no exported project is left', async () => {
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_type: 'EXPORT_RAW', task_project_id: null, task_projects: [] }));
+        renderDetail();
+
+        const projects = await screen.findByRole('group', { name: 'Projects' });
+        expect(within(projects).getByText('No project found')).toBeInTheDocument();
     });
 
     // TC-S2b: Global task route (opened from /tasks, no project in the URL)

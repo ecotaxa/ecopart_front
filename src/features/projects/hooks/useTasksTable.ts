@@ -51,7 +51,9 @@ export const useTasksTable = (
                 limit,
                 // An explicit sort_by is required: omitting it lets the backend fall back
                 // to its bogus default `asc(user_id)`, whose ORDER BY makes the query 500.
-                sort_by: "desc(task_id)",
+                // task_last_update is what the "Last update" column shows (end date, else
+                // creation date); task_id keeps the order stable across pages on equal dates.
+                sort_by: "desc(task_last_update),desc(task_id)",
                 filters,
             });
             return { rows: response.tasks ?? [], total: response.search_info?.total ?? 0 };

@@ -57,7 +57,7 @@ describe('useProjectTasksTab Hook (Unit)', () => {
         expect(result.current.totalRows).toBe(2);
 
         const callArg = mockedSearchProjectTasks.mock.calls[0][0];
-        expect(callArg).toMatchObject({ projectId: PROJECT_ID, sort_by: 'desc(task_id)', page: 1, limit: 10, filters: [] });
+        expect(callArg).toMatchObject({ projectId: PROJECT_ID, sort_by: 'desc(task_last_update),desc(task_id)', page: 1, limit: 10, filters: [] });
     });
 
     // TC-U2: Default State

@@ -1167,6 +1167,8 @@ export interface Task {
         email?: string;
     } | null;
     task_project_id?: number | null;
+    /** The exported projects: only on an export task read by `getOneTask`. */
+    task_projects?: TaskProject[];
     task_creation_utc_date_time: string;
     task_start_utc_date_time?: string | null;
     task_end_utc_date_time?: string | null;
@@ -1175,6 +1177,11 @@ export interface Task {
     task_params?: Record<string, unknown>;
     task_result?: string | null;
     task_error?: string | null;
+}
+
+export interface TaskProject {
+    project_id: number;
+    project_title: string;
 }
 
 export interface TaskSearchResponse {

@@ -929,6 +929,8 @@ The tab reads `GET /projects/:id/stats` (`useProjectStats`), one call for every 
 | **TC-S8b** | No polling once DONE | `getOneTask` returns a task with status DONE (fake timers). | Mount the page, advance time by 8000 ms. | `getOneTask` stays at 1 call — no "non-active" task is re-polled. |
 | **TC-S8c** | Late response for a task the user has left | `getOneTask` for task 42 never resolves before the user opens task 43 (a link in the test). | Open task 42, click through to task 43, then resolve the task-42 request. | The header shows task 43 before and after the late answer; task 42 never appears — a response only applies if no newer load (other task, tab, poll) has started since. |
 | **TC-S10** | DELETE is admin-only | Logged in as the owner of a finished task, not an admin. | Open the task. | No **DELETE** button is offered (cancel rules are unchanged: owner or admin). |
+| **TC-S11** | Exported projects | `getOneTask` returns an export task with `task_projects`. | Open the task, click a project. | • The **Projects** field lists one `title [id]` link per project, instead of **Project ID**.<br>• The click opens that project's page. |
+| **TC-S11b** | Export with no project left | `getOneTask` returns an export task with an empty `task_projects`. | Open the task. | The **Projects** field reads "No project found". |
 | ♿ **TC-S9** | Tabs keyboard navigation | The page is loaded with a task. | Verify `role="tablist"`, focus the GENERAL tab, press ArrowRight then Enter. | • ArrowRight moves focus to the LOG FILE tab (roving tabindex).<br>• Enter activates it (`aria-selected=true`) — manual activation per MUI Tabs. |
 
 ### T. Project Tasks Tab (`ProjectTasksTab` — project tab)
