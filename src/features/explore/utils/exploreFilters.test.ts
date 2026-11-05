@@ -8,6 +8,7 @@ import {
     modeOf,
     parseProjectIds,
     sampleTypesError,
+    timeBinIndex,
     toBoundsDraft,
     toFilters,
 } from './exploreFilters';
@@ -64,5 +65,14 @@ describe('exploreFilters', () => {
         expect(dateRangeError('2020-01-13', '2020-01-11')).toBe('The start date must be before the end date.');
         expect(dateRangeError('2020-01-11', '2020-01-13')).toBeNull();
         expect(dateRangeError('2020-01-11', null)).toBeNull();
+    });
+
+    it('puts a time bin on the closest step the binned export accepts', () => {
+        expect(timeBinIndex(0.5)).toBe(0);
+        expect(timeBinIndex(1)).toBe(1);
+        expect(timeBinIndex(6)).toBe(5);
+        expect(timeBinIndex(24)).toBe(8);
+        expect(timeBinIndex(5.5)).toBe(5);
+        expect(timeBinIndex(100)).toBe(8);
     });
 });

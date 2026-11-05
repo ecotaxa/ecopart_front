@@ -11,7 +11,16 @@ import {
 
 /** Bounds of the "Data aggregation" sliders: the steps accepted by the binned export. */
 export const PRESSURE_BIN = { default: 5, min: 1, max: 100 } as const;
-export const TIME_BIN = { default: 1, min: 0.5, max: 24 } as const;
+// The time steps divide 24 h: the API aligns the time bins on midnight UTC and refuses any other step.
+export const TIME_BIN = { default: 1, allowed: [0.5, 1, 2, 3, 4, 6, 8, 12, 24] } as const;
+
+/** Index in TIME_BIN.allowed of the step closest to `hours`. */
+export function timeBinIndex(hours: number): number {
+    const steps: readonly number[] = TIME_BIN.allowed;
+    let best = 0;
+    for (let i = 1; i < steps.length; i++) if (Math.abs(steps[i] - hours) < Math.abs(steps[best] - hours)) best = i;
+    return best;
+}
 
 /** Bounds of the pressure filter slider, in dbar. */
 export const PRESSURE_LIMITS: [number, number] = [0, 6000];

@@ -15,7 +15,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import type {
     ExploreGraphs, ExploreSampleType, ExploreSizeClasses, GraphDataset, ProfileSeries, TimeScale, ValueScale,
 } from "../types/explore.types";
-import { PRESSURE_BIN, TIME_BIN } from "../utils/exploreFilters";
+import { PRESSURE_BIN, TIME_BIN, timeBinIndex } from "../utils/exploreFilters";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
 type GraphId = Exclude<keyof ExploreGraphs, "warnings" | "size_classes">;
@@ -366,15 +366,19 @@ interface DataAggregationProps {
 /** The "Data aggregation" block of a sample type: the bin of its curves and the particle histogram. */
 function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesChange }: DataAggregationProps) {
     const depth = mode === "depth";
-    const bounds = depth ? PRESSURE_BIN : TIME_BIN;
+    const default_bin = depth ? PRESSURE_BIN.default : TIME_BIN.default;
     const title = depth ? "Pressure bin" : "Time bin";
+    // The time slider moves over the allowed steps, evenly spaced: its value is an index in TIME_BIN.allowed.
+    const toSlider = (b: number) => (depth ? b : timeBinIndex(b));
+    const toBin = (v: number) => (depth ? v : TIME_BIN.allowed[v]);
+    const label = (v: number) => `${toBin(v)} ${depth ? "dbar" : "h"}`;
     // The slider moves freely, the bin only changes on release: each change recomputes every curve.
-    const [value, setValue] = useState(bin);
+    const [value, setValue] = useState(toSlider(bin));
     // A bin set from outside (reset) moves the slider; adjusted during render, not in an effect.
     const [shownBin, setShownBin] = useState(bin);
     if (shownBin !== bin) {
         setShownBin(bin);
-        setValue(bin);
+        setValue(toSlider(bin));
     }
     return (
         <Box component="section" aria-label="Data aggregation">
@@ -383,9 +387,9 @@ function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesCha
                 <Box sx={{ flex: 1, maxWidth: 420 }}>
                     <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
                         <Typography variant="body2">{title}</Typography>
-                        <Typography variant="caption" color="text.secondary">{value} {depth ? "dbar" : "h"}</Typography>
-                        {bin !== bounds.default && (
-                            <Link component="button" type="button" variant="caption" underline="hover" onClick={() => onBinChange(bounds.default)}>
+                        <Typography variant="caption" color="text.secondary">{label(value)}</Typography>
+                        {bin !== default_bin && (
+                            <Link component="button" type="button" variant="caption" underline="hover" onClick={() => onBinChange(default_bin)}>
                                 Reset
                             </Link>
                         )}
@@ -393,13 +397,16 @@ function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesCha
                     <Box sx={{ px: 1 }}>
                         <Slider
                             size="small"
-                            min={bounds.min}
-                            max={bounds.max}
-                            step={depth ? 1 : 0.5}
+                            min={depth ? PRESSURE_BIN.min : 0}
+                            max={depth ? PRESSURE_BIN.max : TIME_BIN.allowed.length - 1}
+                            step={1}
+                            marks={!depth}
                             value={value}
                             onChange={(_event, next) => setValue(next as number)}
-                            onChangeCommitted={(_event, next) => onBinChange(next as number)}
+                            onChangeCommitted={(_event, next) => onBinChange(toBin(next as number))}
                             valueLabelDisplay="auto"
+                            valueLabelFormat={label}
+                            getAriaValueText={label}
                             aria-label={title}
                         />
                     </Box>

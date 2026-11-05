@@ -22,6 +22,8 @@ describe("SampleInstrumentTab", () => {
         render(<SampleInstrumentTab sample={sample} />);
 
         expect(screen.getByLabelText("Aa")).toHaveValue("0.016637");
+        // In mm² per pixel for every instrument, the UVP6 Aa being divided by 10⁶ at import.
+        expect(screen.getByText("mm²/px")).toBeInTheDocument();
         expect(screen.getByLabelText("Image volume")).toHaveValue("1.03");
         expect(screen.getByLabelText("Shutter speed")).toHaveValue("12");
         expect(screen.getByLabelText("Xsize")).toHaveValue("1280");

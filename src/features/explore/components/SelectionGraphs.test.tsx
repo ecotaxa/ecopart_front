@@ -156,14 +156,31 @@ describe('SelectionGraphs', () => {
         const { rerender } = render(<SelectionGraphs {...BASE_PROPS} mode="time" graphs={graphs} bin={3} onBinChange={onBinChange} />);
 
         const aggregation = card('Data aggregation');
-        expect(within(aggregation).getByRole('slider', { name: 'Time bin' })).toHaveValue('3');
+        expect(within(aggregation).getByRole('slider', { name: 'Time bin' })).toHaveAttribute('aria-valuetext', '3 h');
         expect(within(aggregation).queryByRole('slider', { name: 'Pressure bin' })).not.toBeInTheDocument();
         await user.click(within(aggregation).getByRole('button', { name: 'Reset' }));
         expect(onBinChange).toHaveBeenCalledWith(1);
 
         rerender(<SelectionGraphs {...BASE_PROPS} mode="time" graphs={graphs} bin={1} onBinChange={onBinChange} />);
-        expect(within(aggregation).getByRole('slider', { name: 'Time bin' })).toHaveValue('1');
+        expect(within(aggregation).getByRole('slider', { name: 'Time bin' })).toHaveAttribute('aria-valuetext', '1 h');
         expect(within(aggregation).queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument();
+    });
+
+    it('moves the time bin over the steps the binned export accepts only', async () => {
+        const user = userEvent.setup();
+        const onBinChange = vi.fn();
+        render(<SelectionGraphs {...BASE_PROPS} mode="time" graphs={graphs} bin={4} onBinChange={onBinChange} />);
+
+        const slider = within(card('Data aggregation')).getByRole('slider', { name: 'Time bin' });
+        // One notch per step: from 4 h the next one is 6 h, never 4.5 or 5 h.
+        slider.focus();
+        await user.keyboard('{ArrowRight}');
+        expect(onBinChange).toHaveBeenLastCalledWith(6);
+        expect(slider).toHaveAttribute('aria-valuetext', '6 h');
+        await user.keyboard('{End}');
+        expect(onBinChange).toHaveBeenLastCalledWith(24);
+        await user.keyboard('{Home}');
+        expect(onBinChange).toHaveBeenLastCalledWith(0.5);
     });
 
     it('says the graphs are being computed when it takes long', () => {

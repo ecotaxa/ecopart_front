@@ -38,7 +38,7 @@ function LocalCalibrationOption({ sample }: { sample: SampleData }) {
                     For the given period, serial number and key image acquisition parameters
                 </Typography>
                 <Grid container spacing={2}>
-                    <FieldCell><ReadOnlyField label="Aa" value={sample.instrument_settings_aa} /></FieldCell>
+                    <FieldCell><ReadOnlyField label="Aa" value={sample.instrument_settings_aa} prefix="mm²/px" /></FieldCell>
                     <FieldCell><ReadOnlyField label="Exp" value={sample.instrument_settings_exp} /></FieldCell>
                     <FieldCell>
                         <ReadOnlyField label="Image volume" value={sample.instrument_settings_image_volume_l} prefix="L" />
