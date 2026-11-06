@@ -22,6 +22,7 @@ import type { NewProjectFormValues } from "../types/newProject.types";
 import { useEcoTaxaAccounts, useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import InfoTooltip from "@/shared/components/InfoTooltip";
+import { buildEcoTaxaProjectUrl } from "../utils/ecotaxaLinks";
 
 // What linking does and the effect of unlinking (matches the unlink warning shown on save).
 const ecoTaxaLinkInfoContent = (
@@ -126,9 +127,8 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
         ? `${linkedProject.projectName || `EcoTaxa project ${linkedProject.projectId}`} - ${linkedProject.projectId}${linkedInstanceData ? ` - ${linkedInstanceData.ecotaxa_instance_name}` : ""}`
         : "";
 
-    const linkedProjectUrl = linkedProject?.instanceId
-        ? `${linkedInstanceData?.ecotaxa_instance_url || "https://ecotaxa.obs-vlfr.fr"}/prj/${linkedProject.projectId}`
-        : `https://ecotaxa.obs-vlfr.fr/prj/${linkedProject?.projectId ?? ""}`;
+    // Only the URL stored for the instance: no link while the instance is unknown.
+    const linkedProjectUrl = buildEcoTaxaProjectUrl(linkedInstanceData?.ecotaxa_instance_url, linkedProject?.projectId);
 
     const renderEditFields = () => (
         <Stack spacing={3}>
@@ -302,7 +302,7 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
                             disabled
                             slotProps={{
                                 input: {
-                                    endAdornment: (
+                                    endAdornment: linkedProjectUrl && (
                                         <Tooltip title="Open EcoTaxa project">
                                             <IconButton
                                                 aria-label="Open EcoTaxa project"
