@@ -4,7 +4,6 @@ import {
     Typography,
     TextField,
     Divider,
-    Stack,
     FormControlLabel,
     FormHelperText,
     Switch
@@ -80,77 +79,75 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
             </Typography>
             <Divider sx={{ mb: 3 }} />
 
-            <Grid container spacing={4}>
-                {/* LEFT COLUMN: Settings */}
+            <Grid container columnSpacing={4} rowSpacing={2}>
                 <Grid size={{ xs: 12, md: 6 }}>
-                    <Stack spacing={3}>
-                        <TextField
-                            fullWidth
-                            label="Override depth offset"
-                            value={draft}
-                            onChange={handleOffsetChange}
-                            onBlur={readOnly ? undefined : handleOffsetBlur}
-                            size="small"
-                            slotProps={{
-                                input: { readOnly },
-                                htmlInput: {
-                                    // A text input with a decimal keypad: `type="number"` would
-                                    // blank the value on partial input ("1.", "-") in most browsers.
-                                    inputMode: "decimal",
-                                }
-                            }}
-                        />
-
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={values.enableDescentFilter}
-                                    onChange={(e) => onChange({ enableDescentFilter: e.target.checked })}
-                                    color="primary"
-                                    disabled={readOnly}
-                                />
+                    <TextField
+                        fullWidth
+                        label="Override depth offset"
+                        value={draft}
+                        onChange={handleOffsetChange}
+                        onBlur={readOnly ? undefined : handleOffsetBlur}
+                        size="small"
+                        slotProps={{
+                            input: { readOnly },
+                            htmlInput: {
+                                // A text input with a decimal keypad: `type="number"` would
+                                // blank the value on partial input ("1.", "-") in most browsers.
+                                inputMode: "decimal",
                             }
-                            label="Enable descent filter"
-                        />
-                    </Stack>
+                        }}
+                    />
+                </Grid>
+                {/* Spacer: the switches below start on their own row */}
+                <Grid size={{ md: 6 }} sx={{ display: { xs: "none", md: "block" } }} />
+
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={values.enableDescentFilter}
+                                onChange={(e) => onChange({ enableDescentFilter: e.target.checked })}
+                                color="primary"
+                                disabled={readOnly}
+                            />
+                        }
+                        label="Enable descent filter"
+                    />
                 </Grid>
 
-                {/* RIGHT COLUMN: the options the quality checks of the STATS tab read */}
+                {/* Filtered project and Time duration check: the options the quality checks of the STATS tab read */}
                 <Grid size={{ xs: 12, md: 6 }}>
-                    <Stack spacing={2}>
-                        <Box>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={values.filteredProject}
-                                        onChange={(e) => onChange({ filteredProject: e.target.checked })}
-                                        color="primary"
-                                        disabled={readOnly}
-                                    />
-                                }
-                                label="Filtered project"
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={values.filteredProject}
+                                onChange={(e) => onChange({ filteredProject: e.target.checked })}
+                                color="primary"
+                                disabled={readOnly}
                             />
-                            <FormHelperText sx={{ mt: 0 }}>
-                                The data were filtered before their import. A UVP5HD project left unfiltered gets a warning in its STATS tab.
-                            </FormHelperText>
-                        </Box>
-                        <Box>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={values.timeDurationCheck}
-                                        onChange={(e) => onChange({ timeDurationCheck: e.target.checked })}
-                                        color="primary"
-                                        disabled={readOnly}
-                                    />
-                                }
-                                label="Time duration check"
+                        }
+                        label="Filtered project"
+                    />
+                    <FormHelperText sx={{ mt: 0 }}>
+                        The data were filtered before their import. A UVP5HD project left unfiltered gets a warning in its STATS tab.
+                    </FormHelperText>
+                </Grid>
+
+                <Grid size={12}>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={values.timeDurationCheck}
+                                onChange={(e) => onChange({ timeDurationCheck: e.target.checked })}
+                                color="primary"
+                                disabled={readOnly}
                             />
-                            <FormHelperText sx={{ mt: 0 }}>
-                                The STATS tab warns when the samples span more than a year. Disable it on a project longer than a year.
-                            </FormHelperText>
-                        </Box>
-                    </Stack>
+                        }
+                        label="Time duration check"
+                    />
+                    <FormHelperText sx={{ mt: 0 }}>
+                        The STATS tab warns when the samples span more than a year. Disable it on a project longer than a year.
+                    </FormHelperText>
                 </Grid>
             </Grid>
         </Box>
