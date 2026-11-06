@@ -698,6 +698,31 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         expect(screen.getByLabelText(/^Password/i, { selector: 'input' })).toHaveValue('');
     });
 
+    // TC-F8: the instance URL ends up in an href, where React doesn't block `javascript:`
+    it('TC-F8: should hide the registration link when the instance URL is not http(s)', async () => {
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [] })),
+            http.get('*/ecotaxa_instances', () => {
+                return HttpResponse.json([
+                    {
+                        ecotaxa_instance_id: 1,
+                        ecotaxa_instance_name: 'FR',
+                        ecotaxa_instance_description: 'France instance',
+                        ecotaxa_instance_url: 'javascript:alert(1)//'
+                    }
+                ]);
+            })
+        );
+
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        // The instance is selected once the list is loaded: only then the link could show
+        const instanceSelect = await screen.findByRole('combobox', { name: /Instance/i });
+        await waitFor(() => expect(instanceSelect).toHaveTextContent(/FR/));
+
+        expect(screen.queryByRole('link', { name: /Create an account!/i })).not.toBeInTheDocument();
+    });
+
 });
 
 // ============================================================================

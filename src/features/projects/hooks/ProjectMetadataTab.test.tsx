@@ -327,6 +327,14 @@ describe('ProjectMetadataTab (Functional)', () => {
                 search_info: { total: 1, page: 1, limit: 1 },
                 projects: [{ ...linkedMockProjectData, managers: [{ user_id: 2 }] }],
             })),
+            http.get('*/ecotaxa_instances', () => HttpResponse.json([
+                {
+                    ecotaxa_instance_id: 1,
+                    ecotaxa_instance_name: 'FR',
+                    ecotaxa_instance_description: 'France instance',
+                    ecotaxa_instance_url: 'https://ecotaxa.obs-vlfr.fr'
+                }
+            ])),
             http.get('*/users/:id/ecotaxa_account', ({ request }) => {
                 accountRequests.push(request.url);
                 return HttpResponse.json({ ecotaxa_accounts: [] });
@@ -349,8 +357,32 @@ describe('ProjectMetadataTab (Functional)', () => {
         expect(screen.queryByRole('button', { name: /unlink ecotaxa project/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /ADD AN ECOTAXA ACCOUNT/i })).not.toBeInTheDocument();
         // The linked project itself stays visible (and openable in EcoTaxa).
-        expect(screen.getByRole('button', { name: /Open EcoTaxa project/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /Open EcoTaxa project/i })).toBeInTheDocument();
         expect(accountRequests).toEqual([]);
+    }, 15000);
+
+    // TC-J12: the instance URL ends up in window.open, which runs a `javascript:` URL.
+    it('TC-J12: does not offer to open the EcoTaxa project when the instance URL is not http(s)', async () => {
+        server.use(
+            http.post('*/projects/searches*', () => HttpResponse.json({
+                search_info: { total: 1, page: 1, limit: 1 },
+                projects: [{ ...linkedMockProjectData, managers: [{ user_id: 2 }] }],
+            })),
+            http.get('*/ecotaxa_instances', () => HttpResponse.json([
+                {
+                    ecotaxa_instance_id: 1,
+                    ecotaxa_instance_name: 'FR',
+                    ecotaxa_instance_description: 'France instance',
+                    ecotaxa_instance_url: 'javascript:alert(1)//'
+                }
+            ])),
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={102} readOnly />);
+
+        // The instance name in the label shows the instance is resolved: only then the link could show.
+        expect(await screen.findByDisplayValue('EcoTaxa linked project - 20092 - FR')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Open EcoTaxa project/i })).not.toBeInTheDocument();
     }, 15000);
 
     // TC-J9: the backend leaves the import folder out of the project a user without privilege sees.
