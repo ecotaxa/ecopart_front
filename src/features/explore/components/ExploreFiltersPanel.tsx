@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import EditLocationAltIcon from "@mui/icons-material/EditLocationAlt";
 
+import { useAuthStore } from "@/features/auth";
 import PrivacyStatusInfo from "@/shared/components/PrivacyStatusInfo";
 import { useInstrumentModels } from "@/shared/api/referenceData.hooks";
 import {
@@ -75,6 +76,7 @@ export default function ExploreFiltersPanel({
     draft, onChange, projectOptions,
     drawing, onToggleDrawing, boundsError, dateError, sampleTypesError, dirty, onApply, onClearAll,
 }: ExploreFiltersPanelProps) {
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const { data: instrumentModels = [] } = useInstrumentModels();
     const instrumentNames = instrumentModels.map((model) => model.instrument_model_name);
     const selectedProjects = projectOptions.filter((project) => draft.project_ids.includes(project.project_id));
@@ -299,16 +301,18 @@ export default function ExploreFiltersPanel({
                             )}
                         />
                     ))}
-                    <FormControlLabel
-                        label="My projects"
-                        control={(
-                            <Checkbox
-                                size="small"
-                                checked={draft.my_projects}
-                                onChange={(event) => onChange({ my_projects: event.target.checked })}
-                            />
-                        )}
-                    />
+                    {isAuthenticated && (
+                        <FormControlLabel
+                            label="My projects"
+                            control={(
+                                <Checkbox
+                                    size="small"
+                                    checked={draft.my_projects}
+                                    onChange={(event) => onChange({ my_projects: event.target.checked })}
+                                />
+                            )}
+                        />
+                    )}
                 </Stack>
             </FilterSection>
 

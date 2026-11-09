@@ -91,9 +91,8 @@ export const router = createBrowserRouter([
                     </AdminRoute>
                 ),
             },
-            // Logged-in users only: an anonymous visitor could load the server with
-            // selections over the whole database.
-            { path: "/explore/:tabName?", element: protectedPage(<ExplorePage />) },
+            // Public: anyone can browse the data; exporting needs an account.
+            { path: "/explore/:tabName?", element: page(<ExplorePage />) },
             { path: "*", element: page(<NotFoundPage />) },
         ],
     },

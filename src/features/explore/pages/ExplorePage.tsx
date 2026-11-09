@@ -8,6 +8,7 @@ import InsertChartIcon from "@mui/icons-material/InsertChart";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 
+import { useAuthStore } from "@/features/auth";
 import SectionCard from "@/shared/components/SectionCard";
 import { pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
 import ExploreFiltersPanel from "../components/ExploreFiltersPanel";
@@ -73,6 +74,10 @@ const TABS: { slug: ExploreTab; label: string; icon: ReactElement }[] = [
  * only what the user may export. Before any filter is applied the map shows
  * every project.
  *
+ * The page is public: an anonymous visitor gets the three tabs with the rights of
+ * a user without any privilege (no contact e-mail), the exportable one showing
+ * what a login would let them export. Only the export itself needs an account.
+ *
  * The project pages open it on their projects (`?projects=12,15`): that project
  * filter is applied from the start.
  */
@@ -80,6 +85,7 @@ export default function ExplorePage() {
     const { tabName } = useParams<{ tabName?: string }>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
     const tab: ExploreTab = TABS.find((t) => t.slug === tabName)?.slug ?? "stats";
 
@@ -137,9 +143,11 @@ export default function ExplorePage() {
         </Alert>
     );
 
-    const exportDisabledReason = !data.available || !data.exportable.summary?.counts.samples
-        ? "No exportable sample in the selection"
-        : null;
+    const exportDisabledReason = !isAuthenticated
+        ? "Log in to export data"
+        : !data.available || !data.exportable.summary?.counts.samples
+            ? "No exportable sample in the selection"
+            : null;
 
     return (
         <Container

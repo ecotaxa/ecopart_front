@@ -16,10 +16,9 @@ import type {
 // ---------------------------------------------------------------------------
 // The backend /explore routes: two projects, three depth samples (two of them
 // exportable), their summary, EcoTaxa part, images and curves. The handlers
-// answer whatever the body; /explore/graphs refuses a caller without session
-// (401), like the backend on every /explore route. `ecotaxaHandler(n)` answers
-// a partial EcoTaxa part n times before the complete one, like the backend
-// while it reads the statistics from EcoTaxa.
+// answer whatever the body, with or without a session, like the backend.
+// `ecotaxaHandler(n)` answers a partial EcoTaxa part n times before the complete
+// one, like the backend while it reads the statistics from EcoTaxa.
 // ---------------------------------------------------------------------------
 
 const projects: ExploreProjectOption[] = [
@@ -211,14 +210,14 @@ export const ecotaxaHandler = (partialAnswers = 0) => {
     return http.post('*/explore/ecotaxa', () => HttpResponse.json(answers++ < partialAnswers ? partialEcotaxa : ecotaxa));
 };
 
-/** The /explore handlers; `isLoggedIn` reads the fake session of the other handlers. */
-export const createExploreHandlers = (isLoggedIn: () => boolean) => [
+/** The /explore handlers. */
+export const createExploreHandlers = () => [
     http.get('*/explore/projects', () => HttpResponse.json({ projects })),
     http.post('*/explore/map', () => HttpResponse.json({ samples: mapSamples })),
     http.post('*/explore/selection', () => HttpResponse.json(selection)),
     ecotaxaHandler(),
     http.post('*/explore/images', () => HttpResponse.json({ images })),
-    http.post('*/explore/graphs', async ({ request }) => (isLoggedIn()
-        ? HttpResponse.json(((await request.json()) as { size_classes?: string }).size_classes === 'detailed' ? detailedGraphs : graphs)
-        : HttpResponse.json({ errors: ['User is not logged in'] }, { status: 401 }))),
+    http.post('*/explore/graphs', async ({ request }) => HttpResponse.json(
+        ((await request.json()) as { size_classes?: string }).size_classes === 'detailed' ? detailedGraphs : graphs,
+    )),
 ];

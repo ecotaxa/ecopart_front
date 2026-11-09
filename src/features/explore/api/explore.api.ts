@@ -21,7 +21,7 @@ import type {
 // Every route but GET /explore/projects takes `{ mode, filters }` as a JSON
 // body: `mode` is the sample types filter, one type (depth / time) or both (all,
 // refused by /explore/graphs), `filters: null` means no criterion.
-// Every route needs a session (401 otherwise): the Explore page is for logged-in users.
+// Anonymous users may call them all: only exporting (the /exports routes) needs a session.
 // ============================================================================
 
 /** Number of random object images drawn per request (the backend default). */
@@ -101,7 +101,7 @@ export async function fetchExploreImages(request: ExploreImagesRequest): Promise
     return response.images;
 }
 
-/** POST /explore/graphs: the curves of the selection, binned with the given steps (logged-in users only). */
+/** POST /explore/graphs: the curves of the selection, binned with the given steps. */
 export function fetchExploreGraphs(request: ExploreGraphsRequest): Promise<ExploreGraphs> {
     return post<ExploreGraphs>("/explore/graphs", request);
 }

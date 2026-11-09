@@ -269,7 +269,7 @@ export const handlers = [
     http.post('*/projects/qc-states', () => HttpResponse.json([])),
 
     // --- MOCK EXPLORE (/explore/*) ---
-    ...createExploreHandlers(() => isLoggedIn),
+    ...createExploreHandlers(),
 ];
 
 /**

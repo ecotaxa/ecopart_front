@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 
 import { server } from '@/test/msw/server';
 import { ecotaxaHandler, exploreFixtures } from '@/test/msw/explore.handlers';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 import { createTestQueryClient } from '@/test/utils';
 import { toExploreRequest } from '../api/explore.api';
 import type { ExploreAggregation, ExploreFilters, ExploreSampleType, ExploreSizeClasses, ExploreTab } from '../types/explore.types';
@@ -74,7 +74,6 @@ describe('useExploreData', () => {
     });
 
     beforeEach(() => {
-        // The hook serves a page behind ProtectedRoute: a logged-in user.
         loginAsUser();
         requests = [];
         server.events.removeAllListeners('request:start');
@@ -259,6 +258,15 @@ describe('useExploreData', () => {
         update({ filters: null });
         expect(result.current.all).toEqual(NO_SELECTION);
         expect(result.current.exportable).toEqual(NO_SELECTION);
+    });
+
+    it('asks for the graphs of an anonymous visitor too', async () => {
+        logoutUser();
+        const { result } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
+
+        await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
+        expect(result.current.graphs.time).toBeNull();
+        expect(await bodiesOf('/explore/graphs')).toEqual([{ mode: 'depth', filters: SENT, pressure_bin: 5, size_classes: 'reduced' }]);
     });
 
     it('asks for the graphs only on the graphs tab, and only once filters are applied', async () => {

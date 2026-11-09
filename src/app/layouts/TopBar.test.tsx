@@ -96,7 +96,7 @@ describe('TopBar (Z)', () => {
         const user = userEvent.setup();
         renderWithMarkers();
 
-        expect(screen.queryByRole('link', { name: 'Explore' })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Explore' })).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'Projects' })).not.toBeInTheDocument();
         const loginBtn = screen.getByRole('button', { name: /Log in/i });
         expect(loginBtn).toBeInTheDocument();
