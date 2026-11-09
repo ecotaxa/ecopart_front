@@ -228,7 +228,12 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
                     label="EcoTaxa project ID"
                     placeholder="Enter existing EcoTaxa project ID (e.g. 16188)"
                     value={values.project}
-                    onChange={(e) => onChange({ project: e.target.value })}
+                    // Linking this project and creating a new one exclude each other: typing an ID
+                    // turns the creation off (and turning it on clears the ID, see the switch below).
+                    onChange={(e) => onChange({
+                        project: e.target.value,
+                        ...(e.target.value.trim() !== "" && { createNewProject: false }),
+                    })}
                     size="small"
                     disabled={!values.account}
                     error={Boolean(errors?.project)}

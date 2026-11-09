@@ -269,6 +269,41 @@ describe('NewProjectPage (Functional)', () => {
     }, 60000);
 
 
+    // TC-H9: linking an existing EcoTaxa project and creating a new one exclude each other
+    it('TC-H9: typing an EcoTaxa project ID turns the creation of a new EcoTaxa project off', async () => {
+        const user = userEvent.setup({ delay: null });
+        server.use(
+            http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({
+                ecotaxa_accounts: [{
+                    ecotaxa_account_id: 7,
+                    ecotaxa_account_ecotaxa_id: 70,
+                    ecotaxa_user_name: 'John Doe',
+                    ecotaxa_user_login: 'john@doe.com',
+                    ecotaxa_expiration_date: '2099-01-01T00:00:00.000Z',
+                    ecotaxa_account_instance_id: 1,
+                    ecotaxa_account_instance_name: 'FR',
+                }],
+            })),
+        );
+
+        renderWithRouter(<NewProjectPage />);
+
+        const createSwitch = await screen.findByRole('switch', { name: /Create a new EcoTaxa project/i });
+        expect(createSwitch).toBeChecked();
+        // The first linked account is picked once loaded, which enables the project ID.
+        const projectIdInput = screen.getByLabelText(/EcoTaxa project ID/i);
+        await waitFor(() => expect(projectIdInput).toBeEnabled());
+
+        await user.type(projectIdInput, '16188');
+        expect(projectIdInput).toHaveValue('16188');
+        expect(createSwitch).not.toBeChecked();
+
+        // Turning the creation back on clears the typed ID.
+        await user.click(createSwitch);
+        expect(createSwitch).toBeChecked();
+        expect(projectIdInput).toHaveValue('');
+    }, 30000);
+
     // TC-H6: Load Metadata Failure Resilience
     it('TC-H6: should preserve entered values and show error when metadata loading fails', async () => {
         const user = userEvent.setup({ delay: null });

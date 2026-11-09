@@ -34,6 +34,7 @@ import { ProjectLoadError, ProjectPrivacyNotice } from "../components/ProjectAcc
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import { BusyOverlay } from "@/shared/components/BusyOverlay";
+import { useLeaveSignal } from "@/shared/hooks/useLeaveSignal";
 
 // Icons based on your mockup
 import BarChartIcon from "@mui/icons-material/BarChart";
@@ -91,6 +92,9 @@ export default function ProjectDetailsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteProgress, setDeleteProgress] = useState<{ taskId: number; message?: string } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    // Leaving the page (or opening another project) stops following the deletion task,
+    // so its end can never redirect the user from wherever they went meanwhile.
+    const leaveSignal = useLeaveSignal(projectId);
 
     // Tabs are addressed by slug, so hiding one never shifts the others. A tab the
     // user may not open (deep link, stale navigation state) falls back to METADATA.
@@ -139,6 +143,7 @@ export default function ProjectDetailsPage() {
             confirmLabel: "Delete",
         }))) return;
 
+        const signal = leaveSignal();
         setIsDeleting(true);
         setDeleteError(null);
         try {
@@ -146,6 +151,7 @@ export default function ProjectDetailsPage() {
             const task = await deleteProject(projectId);
             setDeleteProgress({ taskId: task.task_id });
             const finished = await waitForTask(task.task_id, {
+                signal,
                 onProgress: (state) => setDeleteProgress({ taskId: task.task_id, message: state.task_progress_msg }),
             });
             if (isTaskDone(finished.task_status)) {
@@ -157,6 +163,8 @@ export default function ProjectDetailsPage() {
                 ? `deletion task #${task.task_id} was cancelled, the project is kept.`
                 : (finished.task_error || `deletion task #${task.task_id} failed.`));
         } catch (err) {
+            // The user left the page: the task goes on server-side, its notification tells the outcome.
+            if (signal.aborted) return;
             console.error("[Project Details] Delete failed", err);
             setDeleteError(err instanceof Error ? err.message : "Unknown error while deleting the project.");
         } finally {

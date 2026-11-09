@@ -15,6 +15,22 @@ vi.mock('@/features/auth/store/auth.store', () => ({
 
 import { useNewProjectForm } from './useNewProjectForm';
 
+/** Every required field filled in, so only the rule under test can block the submit. */
+const fillValidValues = (updateField: ReturnType<typeof useNewProjectForm>['updateField']) => {
+    updateField('rootFolderPath', 'valid');
+    updateField('instrument', { model: 'A', serialNumber: 'B' });
+    updateField('metadata', { title: 'T', acronym: 'A', cruise: 'C', description: 'D', ship: ['S'] });
+    updateField('people', {
+        dataOwnerName: 'N',
+        dataOwnerEmail: 'owner@test.com',
+        chiefScientistName: 'N',
+        chiefScientistEmail: 'chief@test.com',
+        operatorName: 'N',
+        operatorEmail: 'operator@test.com'
+    });
+    updateField('privileges', [{ userId: "1", role: "Manager", contact: true }]);
+};
+
 describe('useNewProjectForm Hook (Unit)', () => {
 
     beforeEach(() => {
@@ -216,6 +232,60 @@ describe('useNewProjectForm Hook (Unit)', () => {
         // The hook should catch the 400 error, extract the message, and map it to `privilegesManager`
         expect(result.current.errors.privilegesManager).toBe("Invalid manager assigned");
         expect(result.current.snackbar.severity).toBe('error');
+    });
+
+    // TC-L11: an EcoTaxa account picked without "create a new project" needs the ID of the project to link
+    it('TC-L11: should require a valid EcoTaxa project ID when linking an existing EcoTaxa project', async () => {
+        let created = false;
+        server.use(
+            http.post('*/projects', () => {
+                created = true;
+                return HttpResponse.json({ project_id: 5 });
+            })
+        );
+        const { result } = renderHook(() => useNewProjectForm());
+
+        act(() => {
+            fillValidValues(result.current.updateField);
+            result.current.updateField('ecoTaxa', { instance: '1', account: '7', createNewProject: false, project: '' });
+        });
+        await act(async () => {
+            await result.current.handleSubmit();
+        });
+        expect(result.current.errors.ecoTaxaProject).toBe('Enter the ID of the EcoTaxa project to link, or choose to create a new one.');
+
+        act(() => {
+            result.current.updateField('ecoTaxa', { project: '16188abc' });
+        });
+        await act(async () => {
+            await result.current.handleSubmit();
+        });
+        expect(result.current.errors.ecoTaxaProject).toBe('The EcoTaxa project ID must be a positive whole number.');
+        expect(created).toBe(false);
+    });
+
+    // TC-L12: the typed EcoTaxa project is linked, no new EcoTaxa project is asked for
+    it('TC-L12: should send the typed EcoTaxa project ID instead of asking for a new EcoTaxa project', async () => {
+        let body: Record<string, unknown> | null = null;
+        server.use(
+            http.post('*/projects', async ({ request }) => {
+                body = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({ project_id: 5 });
+            })
+        );
+        const { result } = renderHook(() => useNewProjectForm());
+
+        act(() => {
+            fillValidValues(result.current.updateField);
+            result.current.updateField('ecoTaxa', { instance: '1', account: '7', createNewProject: false, project: '16188' });
+        });
+        await act(async () => {
+            await result.current.handleSubmit();
+        });
+
+        expect(result.current.errors.ecoTaxaProject).toBeUndefined();
+        expect(body).toMatchObject({ ecotaxa_project_id: 16188, ecotaxa_instance_id: 1, ecotaxa_account_id: 7 });
+        expect(body).not.toHaveProperty('new_ecotaxa_project');
     });
 
     // TC-L6: The title loaded from the import folder becomes a locked prefix.

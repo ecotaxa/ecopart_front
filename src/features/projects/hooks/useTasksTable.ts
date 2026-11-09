@@ -77,7 +77,7 @@ export const useTasksTable = (
     });
 
     const handleDeleteTasks = useCallback(() => runBulkAction({
-        action: deleteProjectTask,
+        action: (taskId) => deleteProjectTask(taskId),
         confirm: {
             title: "Delete tasks",
             message: "This removes the selected background tasks and their logs. It does not undo work a completed task already performed. This cannot be undone.",

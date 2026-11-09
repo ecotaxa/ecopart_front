@@ -175,11 +175,17 @@ describe('ProjectsPage (Functional)', () => {
         const deletedIds: string[] = [];
 
         mockProjectsResponse([MOCK_PROJECT_1, MOCK_PROJECT_2]);
+        let taskReads = 0;
         server.use(
+            // The deletion runs as a task: the project only counts as deleted once that task is DONE.
             http.delete('*/projects/:projectId/', ({ params }) => {
                 deletedIds.push(String(params.projectId));
-                return HttpResponse.json({ message: 'deleted' });
-            })
+                return HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: 'PENDING' });
+            }),
+            http.get('*/tasks/42/', () => {
+                taskReads++;
+                return HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: 'DONE' });
+            }),
         );
         const confirmSpy = answerConfirmDialogs(true);
 
@@ -199,6 +205,33 @@ describe('ProjectsPage (Functional)', () => {
         expect(confirmSpy).toHaveBeenCalled();
         expect(await screen.findByText(/Project\(s\) deleted\./i)).toBeInTheDocument();
         expect(deletedIds).toEqual(['101']);
+        expect(taskReads).toBeGreaterThan(0);
+
+        confirmSpy.mockRestore();
+    }, 15000);
+
+    // TC-G4d: a deletion whose task fails is reported as failed, the project staying selected
+    it('TC-G4d: should report a failure and keep the project selected when its deletion task fails', async () => {
+        const user = userEvent.setup();
+
+        mockProjectsResponse([MOCK_PROJECT_1, MOCK_PROJECT_2]);
+        server.use(
+            http.delete('*/projects/:projectId/', () =>
+                HttpResponse.json({ task_id: 43, task_type: 'DELETE_PROJECT', task_status: 'PENDING' })),
+            http.get('*/tasks/43/', () =>
+                HttpResponse.json({ task_id: 43, task_type: 'DELETE_PROJECT', task_status: 'ERROR', task_error: 'EcoTaxa unreachable' })),
+        );
+        const confirmSpy = answerConfirmDialogs(true);
+
+        renderWithRouter(<ProjectsPage />, { route: '/projects' });
+
+        await screen.findByText('Ocean Deep Exploration');
+        await user.click(screen.getAllByLabelText(/Select row/i)[0]);
+        await user.click(screen.getByRole('button', { name: /DELETE/i }));
+
+        expect(await screen.findByText(/Failed to delete some projects/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Project\(s\) deleted\./i)).not.toBeInTheDocument();
+        expect(screen.getByText('1 items selected')).toBeInTheDocument();
 
         confirmSpy.mockRestore();
     }, 15000);

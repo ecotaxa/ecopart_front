@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
 import ProjectDetailsPage from './ProjectDetailsPage';
+import { TASK_POLL_MS } from '../api/projects.api';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsRole, loginAsUser } from '@/test/helpers/auth.helpers';
@@ -285,6 +286,56 @@ describe('ProjectDetailsPage (Functional)', () => {
 
         finishDelete();
         expect(await screen.findByText('Projects List Mock')).toBeInTheDocument();
+
+        confirmSpy.mockRestore();
+    }, 15000);
+
+    it('stops following the deletion task once the user leaves the page, and never redirects them afterwards', async () => {
+        const user = userEvent.setup();
+        let taskDone = false;
+        let taskReads = 0;
+
+        mockProjectFetch('manager');
+        server.use(
+            http.delete('*/projects/:projectId/', () =>
+                HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: 'PENDING' })),
+            http.get('*/tasks/42/', () => {
+                taskReads++;
+                return HttpResponse.json({ task_id: 42, task_type: 'DELETE_PROJECT', task_status: taskDone ? 'DONE' : 'RUNNING' });
+            }),
+        );
+        const confirmSpy = answerConfirmDialogs(true);
+
+        // The overlay greys the page out, but the browser history (back button) still works.
+        function LeaveButton() {
+            const navigate = useNavigate();
+            return <button onClick={() => navigate('/elsewhere')}>Leave</button>;
+        }
+        renderWithRouter(
+            <>
+                <LeaveButton />
+                <Routes>
+                    <Route path="/projects/:id/:tabName?" element={<ProjectDetailsPage />} />
+                    <Route path="/projects" element={<h1>Projects List Mock</h1>} />
+                    <Route path="/elsewhere" element={<h1>Elsewhere</h1>} />
+                </Routes>
+            </>,
+            { route: '/projects/101' }
+        );
+        await screen.findByRole('heading', { name: 'Test Project' });
+
+        await user.click(await screen.findByRole('button', { name: /^DELETE$/i }));
+        await waitFor(() => expect(taskReads).toBe(1));
+
+        await user.click(screen.getByRole('button', { name: 'Leave' }));
+        expect(await screen.findByRole('heading', { name: 'Elsewhere' })).toBeInTheDocument();
+
+        // The task ends after the user left: past the next poll time, nothing reads it nor redirects.
+        taskDone = true;
+        await new Promise((resolve) => setTimeout(resolve, TASK_POLL_MS + 500));
+        expect(taskReads).toBe(1);
+        expect(screen.getByRole('heading', { name: 'Elsewhere' })).toBeInTheDocument();
+        expect(screen.queryByText('Projects List Mock')).not.toBeInTheDocument();
 
         confirmSpy.mockRestore();
     }, 15000);

@@ -5,7 +5,7 @@ import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
     PROJECTS_ROOT_QUERY_KEY,
-    deleteProject,
+    deleteProjectAndWait,
     enrichProjectsWithQcStates,
     enrichProjectsWithSampleCounts,
     type Project,
@@ -95,12 +95,14 @@ export const useProjectsTable = () => {
     /**
      * Delete every project in the current selection (after confirmation).
      *
-     * Server-side this is restricted to the project managers (and admins), so a
-     * member/contact selection comes back rejected: only the projects that
-     * actually failed stay selected, so a retry targets just those.
+     * Each deletion runs as a task: the projects exist until their task is DONE, so
+     * the outcome is only reported once every task has ended. Server-side this is
+     * restricted to the project managers (and admins); only the projects whose
+     * deletion was refused or whose task failed stay selected, so a retry targets
+     * just those.
      */
     const handleDeleteProjects = useCallback(() => runBulkAction({
-        action: deleteProject,
+        action: (projectId, signal) => deleteProjectAndWait(projectId, { signal }),
         confirm: {
             title: "Delete projects",
             message: createElement(ConfirmWarningMessage, null,
@@ -108,7 +110,7 @@ export const useProjectsTable = () => {
             confirmLabel: "Delete",
         },
         successMessage: "Project(s) deleted.",
-        failureMessage: "Failed to delete some projects. Only a project manager can delete it.",
+        failureMessage: "Failed to delete some projects: they stay selected, see their deletion task in the TASKS page.",
     }), [runBulkAction]);
 
     return {

@@ -13,6 +13,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { isAccessDenied, isNotFound } from "@/shared/api/http";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
+import { useLeaveSignal } from "@/shared/hooks/useLeaveSignal";
 import { deleteProjectSample, getProjectSample, isTaskCancelled, isTaskDone, waitForTask } from "../api/projects.api";
 import { useProject } from "../hooks/useProject";
 import { useProjectAccess } from "../hooks/useProjectAccess";
@@ -61,6 +62,9 @@ export default function SampleDetailsPage() {
 
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
+    // Leaving the page (or opening another sample) stops following the deletion task,
+    // so its end can never redirect the user from wherever they went meanwhile.
+    const leaveSignal = useLeaveSignal(`${projectId}/${parsedSampleId}`);
 
     const samplesListPath = `/projects/${projectId}/data`;
 
@@ -87,12 +91,13 @@ export default function SampleDetailsPage() {
             confirmLabel: "Delete",
         }))) return;
 
+        const signal = leaveSignal();
         setIsDeleting(true);
         setDeleteError(null);
         try {
             // The deletion runs as a task: the sample exists until it is DONE, so the page waits for it.
             const task = await deleteProjectSample(projectId, parsedSampleId);
-            const finished = await waitForTask(task.task_id);
+            const finished = await waitForTask(task.task_id, { signal });
             if (isTaskDone(finished.task_status)) {
                 queryClient.removeQueries({ queryKey: sampleQueryKey });
                 navigate(samplesListPath);
@@ -102,6 +107,8 @@ export default function SampleDetailsPage() {
                 ? `deletion task #${task.task_id} was cancelled, the sample is kept.`
                 : (finished.task_error || `deletion task #${task.task_id} failed.`));
         } catch (err) {
+            // The user left the page: the task goes on server-side, its notification tells the outcome.
+            if (signal.aborted) return;
             console.error("[Sample Details] Delete failed", err);
             setDeleteError(err instanceof Error ? err.message : "Unknown error while deleting the sample.");
         } finally {
