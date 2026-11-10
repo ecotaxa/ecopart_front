@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
@@ -22,7 +22,7 @@ vi.mock('@/shared/api/referenceData.hooks', () => ({
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { ecotaxaHandler } from '@/test/msw/explore.handlers';
-import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 import { ECOTAXA_POLL_MS } from '../hooks/useExploreData';
 import ExplorePage from './ExplorePage';
 
@@ -49,7 +49,6 @@ describe('ExplorePage', () => {
     });
 
     beforeEach(() => {
-        // The page sits behind ProtectedRoute: only a logged-in user reaches it.
         loginAsUser();
         requests = [];
         server.events.removeAllListeners('request:start');
@@ -283,5 +282,51 @@ describe('ExplorePage', () => {
 
         await user.click(screen.getByRole('button', { name: 'Other random images' }));
         await waitFor(() => expect(callsTo('/explore/images')).toHaveLength(2));
+    });
+
+    describe('for an anonymous visitor', () => {
+        beforeEach(() => {
+            logoutUser();
+        });
+
+        it('opens the three tabs on the selection', async () => {
+            const user = userEvent.setup();
+            renderPage();
+
+            await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+            await waitFor(() => expect(within(counter('Samples')).getByText('3')).toBeInTheDocument());
+
+            await user.click(screen.getByRole('tab', { name: /Selected data graphs/ }));
+            expect(await screen.findByRole('heading', { name: 'Selected data graphs: depth profiles' })).toBeInTheDocument();
+            expect(screen.getByRole('heading', { name: 'Selected data graphs: time series' })).toBeInTheDocument();
+            expect((await screen.findAllByRole('region', { name: 'Particles abundance' })).length).toBeGreaterThan(0);
+            await waitFor(() => expect(callsTo('/explore/graphs')).toHaveLength(2));
+
+            await user.click(screen.getByRole('tab', { name: /Exportable selection/ }));
+            await waitFor(() => expect(within(counter('Samples')).getByText('2')).toBeInTheDocument());
+            expect(await screen.findAllByRole('img', { name: /^Object / })).toHaveLength(4);
+        });
+
+        it('may not export: the button stays disabled once the selection is there, and says to log in', async () => {
+            const user = userEvent.setup();
+            renderPage('/explore/exportable');
+
+            await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+            await waitFor(() => expect(within(counter('Samples')).getByText('2')).toBeInTheDocument());
+
+            const exportButton = screen.getByRole('button', { name: /Export selection/ });
+            expect(exportButton).toBeDisabled();
+            expect(screen.getByLabelText('Log in to export data')).toContainElement(exportButton);
+        });
+
+        it('offers no "My projects" filter, which only a logged-in user has', () => {
+            renderPage();
+            expect(screen.queryByRole('checkbox', { name: 'My projects' })).not.toBeInTheDocument();
+
+            cleanup();
+            loginAsUser();
+            renderPage();
+            expect(screen.getByRole('checkbox', { name: 'My projects' })).toBeInTheDocument();
+        });
     });
 });

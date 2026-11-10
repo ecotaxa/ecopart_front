@@ -1,6 +1,7 @@
 import { memo, useMemo, type ReactNode } from "react";
 import { Box, Stack, Typography, useTheme } from "@mui/material";
 
+import { useAuthStore } from "@/features/auth";
 import { PolarMap, type MapPoint, type MarkerShape } from "@/shared/components/map";
 import type { ExploreMapSample, GeoBounds, PrivacyStatus } from "../types/explore.types";
 import { PRIVACY_LABELS } from "../utils/exploreFilters";
@@ -112,6 +113,8 @@ function MapLegend({ statusColors, ringColor, neutral }: {
     ringColor: string;
     neutral: string;
 }) {
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
     return (
         <Stack direction="row" sx={{ flexWrap: "wrap", columnGap: 2.5, rowGap: 0.5, mt: 1 }}>
             <LegendItem swatch={<LegendSwatch shape="triangle" color={neutral} />} label="UVP5" />
@@ -119,7 +122,9 @@ function MapLegend({ statusColors, ringColor, neutral }: {
             {(Object.keys(statusColors) as PrivacyStatus[]).map((status) => (
                 <LegendItem key={status} swatch={<LegendSwatch shape="circle" color={statusColors[status]} />} label={PRIVACY_LABELS[status]} />
             ))}
-            <LegendItem swatch={<LegendSwatch shape="circle" color="transparent" ring={ringColor} />} label="My projects" />
+            {isAuthenticated && (
+                <LegendItem swatch={<LegendSwatch shape="circle" color="transparent" ring={ringColor} />} label="My projects" />
+            )}
         </Stack>
     );
 }
