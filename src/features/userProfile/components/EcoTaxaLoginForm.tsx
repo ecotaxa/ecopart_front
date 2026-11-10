@@ -17,6 +17,7 @@ import { PasswordInput } from "@/shared/components/PasswordInput";
 import InfoTooltip from "@/shared/components/InfoTooltip";
 // Validation utility
 import { isNonEmpty } from "@/shared/utils/validation";
+import { safeHttpUrl } from "@/shared/utils/safeHttpUrl";
 // API calls - using centralized functions from profile.api
 import { linkEcoTaxaAccount } from "../api/profile.api";
 import { useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
@@ -148,6 +149,7 @@ export const EcoTaxaLoginForm = ({
     // Helper to find selected instance details (for the register link)
     // Now uses the dynamically fetched instances instead of hardcoded values
     const selectedEtInstance = instances.find(i => i.ecotaxa_instance_id === etInstance);
+    const selectedEtInstanceUrl = safeHttpUrl(selectedEtInstance?.ecotaxa_instance_url);
 
     return (
         <Stack spacing={3} sx={{ maxWidth: 400, mx: 'auto', textAlign: 'center', alignItems: 'center' }}>
@@ -252,9 +254,9 @@ export const EcoTaxaLoginForm = ({
             </Button>
 
             {/* Helper Link - Uses the dynamically fetched instance URL for registration */}
-            {selectedEtInstance && (
+            {selectedEtInstance && selectedEtInstanceUrl && (
                 <Link
-                    href={`${selectedEtInstance.ecotaxa_instance_url}${selectedEtInstance.ecotaxa_instance_url.endsWith('/') ? '' : '/'}register`}
+                    href={`${selectedEtInstanceUrl}${selectedEtInstanceUrl.endsWith('/') ? '' : '/'}register`}
                     target="_blank"
                     rel="noopener noreferrer"
                     variant="body2"

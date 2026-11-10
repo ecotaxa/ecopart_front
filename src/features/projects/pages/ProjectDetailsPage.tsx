@@ -30,6 +30,7 @@ import { useProject } from "../hooks/useProject";
 import { useEcoTaxaInstances } from "@/shared/api/referenceData.hooks";
 import { useProjectAccess } from "../hooks/useProjectAccess";
 import { privacyLabel, type ProjectAction } from "../utils/projectAccess";
+import { buildEcoTaxaProjectUrl } from "../utils/ecotaxaLinks";
 import { ProjectLoadError, ProjectPrivacyNotice } from "../components/ProjectAccessStates";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
@@ -86,7 +87,7 @@ export default function ProjectDetailsPage() {
     // The page of the linked EcoTaxa project, for the classification warning of the STATS tab.
     const { data: ecoTaxaInstances = [] } = useEcoTaxaInstances();
     const ecoTaxaInstanceUrl = ecoTaxaInstances.find((instance) => instance.ecotaxa_instance_id === project?.ecotaxa_instance_id)?.ecotaxa_instance_url;
-    const ecoTaxaProjectUrl = project?.ecotaxa_project_id != null && ecoTaxaInstanceUrl ? `${ecoTaxaInstanceUrl}/prj/${project.ecotaxa_project_id}` : undefined;
+    const ecoTaxaProjectUrl = buildEcoTaxaProjectUrl(ecoTaxaInstanceUrl, project?.ecotaxa_project_id) ?? undefined;
     const projectTitle = project?.project_title?.trim() ? project.project_title : "Project Details";
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteProgress, setDeleteProgress] = useState<{ taskId: number; message?: string } | null>(null);
