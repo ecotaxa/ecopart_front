@@ -402,6 +402,22 @@ export function forgetDeletedProject(projectId: number): void {
     void queryClient.invalidateQueries({ queryKey: [...PROJECTS_ROOT_QUERY_KEY] });
 }
 
+/**
+ * Deletes a project and follows its DELETE_PROJECT task: resolves once the project
+ * is really gone (and dropped from the cache), rejects when the deletion is refused
+ * or its task ends in ERROR or CANCELLED.
+ */
+export async function deleteProjectAndWait(projectId: number, options: WaitForTaskOptions = {}): Promise<void> {
+    const task = await deleteProject(projectId);
+    const finished = await waitForTask(task.task_id, options);
+    if (!isTaskDone(finished.task_status)) {
+        throw new Error(isTaskCancelled(finished.task_status)
+            ? `Deletion task #${task.task_id} was cancelled, the project is kept.`
+            : (finished.task_error || `Deletion task #${task.task_id} failed.`));
+    }
+    forgetDeletedProject(projectId);
+}
+
 
 // ============================================================================
 // FILE SYSTEM API CALLS
@@ -1277,9 +1293,10 @@ export async function downloadTaskFile(taskId: number): Promise<void> {
  * Fetches single task record from the server.
  * Route: GET /tasks/:task_id/
  */
-export async function getOneTask(taskId: number): Promise<Task> {
+export async function getOneTask(taskId: number, signal?: AbortSignal): Promise<Task> {
     return http<Task>(`/tasks/${taskId}/`, {
         method: "GET",
+        signal,
     });
 }
 
@@ -1309,29 +1326,50 @@ export interface WaitForTaskOptions {
     maxMs?: number;
     /** Called with every state read, to show the progress. */
     onProgress?: (task: Task) => void;
+    /** Stops following the task (the user left the page): the promise rejects with its reason. */
+    signal?: AbortSignal;
 }
+
+/** Waits `ms`, or rejects with the reason of `signal` as soon as it is aborted. */
+const pause = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+    const abort = () => {
+        window.clearTimeout(timer);
+        reject(signal?.reason);
+    };
+    const timer = window.setTimeout(() => {
+        signal?.removeEventListener("abort", abort);
+        resolve();
+    }, ms);
+    signal?.addEventListener("abort", abort, { once: true });
+});
 
 /**
  * Polls a task, at once then every `pollMs`, until it reaches a final status (DONE,
  * ERROR or CANCELLED) and returns it. A read that fails (network, token refresh) is
- * retried at the next poll; the promise rejects only when `maxMs` is exceeded.
+ * retried at the next poll; the promise rejects when `maxMs` is exceeded, or at once
+ * when `signal` is aborted (the task keeps running server-side either way).
  */
 export async function waitForTask(taskId: number, options: WaitForTaskOptions = {}): Promise<Task> {
     const pollMs = options.pollMs ?? TASK_POLL_MS;
     const maxMs = options.maxMs ?? TASK_MAX_POLL_MS;
+    const { signal } = options;
     const startedAt = Date.now();
     for (;;) {
+        signal?.throwIfAborted();
         try {
-            const task = await getOneTask(taskId);
+            const task = await getOneTask(taskId, signal);
+            signal?.throwIfAborted();
             options.onProgress?.(task);
             if (isTaskFinished(task.task_status)) return task;
         } catch (error) {
+            // Stopped by the caller: never retried.
+            signal?.throwIfAborted();
             console.warn(`[Tasks] Could not read the state of task ${taskId}`, error);
         }
         if (Date.now() - startedAt >= maxMs) {
             throw new Error(`Task #${taskId} is still running. Follow it in the TASKS tab.`);
         }
-        await new Promise((resolve) => window.setTimeout(resolve, pollMs));
+        await pause(pollMs, signal);
     }
 }
 

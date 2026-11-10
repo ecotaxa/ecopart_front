@@ -220,11 +220,8 @@ export const useProjectMetadataTab = (projectId: number) => {
             const isNewEcoTaxaLink = !linkedEcoTaxaProject && ecoTaxaAccountId !== null;
 
             if (isNewEcoTaxaLink) {
-                if (!values.ecoTaxa.createNewProject && ecoTaxaProjectId === null) {
-                    // A null project id would be read as an unlink request.
-                    showSnackbar("Select the EcoTaxa project to link, or choose to create a new one.", "warning");
-                    return;
-                }
+                // validateProjectForm made sure a new link has an EcoTaxa project ID or creates one:
+                // a null project id would be read as an unlink request.
                 payload.ecotaxa_instance_id = toNullableInt(values.ecoTaxa.instance);
                 payload.ecotaxa_account_id = ecoTaxaAccountId;
                 if (values.ecoTaxa.createNewProject) {

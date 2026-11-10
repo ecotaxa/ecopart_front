@@ -65,11 +65,16 @@ const mockSampleCounts = (total = 0) => {
     );
 };
 
+// A project deletion answers with the DELETE_PROJECT task that runs it (here the task
+// id is the project id); the grid reports it once that task is DONE (see beforeEach).
+const deletionTask = (projectId: number) =>
+    HttpResponse.json({ task_id: projectId, task_type: 'DELETE_PROJECT', task_status: 'PENDING' });
+
 const mockProjectDelete = () => {
     server.use(
         http.delete('*/projects/:projectId/', ({ params }) => {
             deletedIds.push(Number(params.projectId));
-            return HttpResponse.json({ message: 'deleted' });
+            return deletionTask(Number(params.projectId));
         }),
     );
 };
@@ -84,6 +89,10 @@ describe('AdminProjectsTab', () => {
         searchCalls = [];
         deletedIds = [];
         mockSampleCounts(0);
+        server.use(
+            http.get('*/tasks/:taskId/', ({ params }) =>
+                HttpResponse.json({ task_id: Number(params.taskId), task_type: 'DELETE_PROJECT', task_status: 'DONE' })),
+        );
     });
 
     afterEach(() => {
@@ -341,7 +350,7 @@ describe('AdminProjectsTab', () => {
             http.delete('*/projects/:projectId/', ({ params }) => {
                 const projectId = Number(params.projectId);
                 if (projectId === 2) return new HttpResponse(null, { status: 500 });
-                return HttpResponse.json({ message: 'deleted' });
+                return deletionTask(projectId);
             }),
         );
 

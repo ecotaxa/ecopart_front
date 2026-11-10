@@ -23,6 +23,7 @@ import { getEcoTaxaInstances } from "@/shared/api/ecotaxa.api";
 import { buildEcoTaxaSampleUrl as buildSampleUrl } from "../utils/ecotaxaLinks";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
+import { useLeaveSignal } from "@/shared/hooks/useLeaveSignal";
 import { ALL_PAGE_SIZE, toRequestLimit } from "@/shared/utils/pageSizeOptions";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 
@@ -120,6 +121,9 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
     const [ecoTaxaProjectId, setEcoTaxaProjectId] = useState<number | null>(null);
 
     const [isActionRunning, setIsActionRunning] = useState(false);
+    // Leaving the tab (or another project: the route keeps it mounted) stops following
+    // a deletion task, so its end never lands in another project's lists.
+    const leaveSignal = useLeaveSignal(projectId);
     const [snackbar, setSnackbar] = useState<{ open: boolean; message: ReactNode; severity: AlertColor }>({
         open: false,
         message: "",
@@ -302,13 +306,14 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
             confirmLabel: "Delete",
         }))) return;
 
+        const signal = leaveSignal();
         setIsActionRunning(true);
         try {
             // One task deletes the whole selection, one sample after the other; a failing sample does
             // not stop the others. The samples exist until the task is DONE, so the tab waits for it.
             const task = await deleteProjectSamples(projectId, selectedIds);
             showSnackbar(`Deleting ${selectedIds.length} UVP sample(s) (task #${task.task_id})...`, "info");
-            const finished = await waitForTask(task.task_id);
+            const finished = await waitForTask(task.task_id, { signal });
 
             if (isTaskDone(finished.task_status)) {
                 showSnackbar(`${selectedIds.length} UVP sample(s) deleted (task #${task.task_id}).`, "success");
@@ -321,10 +326,13 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
                 showSnackbar(`Failed to delete UVP samples (task #${task.task_id}): ${finished.task_error ?? "see the task log"}`, "error");
             }
         } catch (error) {
+            // The user left the tab: the task goes on server-side, its notification tells the outcome.
+            if (signal.aborted) return;
             console.error("Failed to delete UVP samples:", error);
             showSnackbar(`Failed to delete UVP samples: ${error instanceof Error ? error.message : "unknown error"}`, "error");
         } finally {
-            fetchUvpSamples();
+            // This handler still holds the left project's list loader: never reload it into the new one.
+            if (!signal.aborted) fetchUvpSamples();
             setIsActionRunning(false);
         }
     };

@@ -70,6 +70,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
             operatorName: errors.operatorName,
             operatorEmail: errors.operatorEmail,
         },
+        ecoTaxa: { instance: errors.ecoTaxaInstance, account: errors.ecoTaxaAccount, project: errors.ecoTaxaProject },
     }), [errors]);
 
     // Scroll to the EcoTaxa link section when navigated here with the #ecotaxa-link anchor
@@ -146,6 +147,7 @@ export const ProjectMetadataTab: React.FC<ProjectMetadataTabProps> = ({ projectI
                             onUnlink={handleUnlinkEcoTaxaProject}
                             showCreateNewProjectToggle={!linkedEcoTaxaProject}
                             autoSelectLinkedAccount={false}
+                            errors={sectionErrors.ecoTaxa}
                             readOnly={readOnly}
                         />
                     </Grid>

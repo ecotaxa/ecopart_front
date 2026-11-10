@@ -130,7 +130,8 @@ describe('hooks/useProjectDataTab', () => {
             // One task for the whole selection, waited for before the list is refreshed
             expect(deleteProjectSamples).toHaveBeenCalledTimes(1);
             expect(deleteProjectSamples).toHaveBeenCalledWith(77, [1, 2]);
-            expect(waitForTask).toHaveBeenCalledWith(42);
+            // Followed with the tab's signal, so leaving the tab stops it.
+            expect(waitForTask).toHaveBeenCalledWith(42, { signal: expect.any(AbortSignal) });
             expect(searchProjectSamples).toHaveBeenCalledTimes(2);
             await waitFor(() => expect(result.current.uvpSelectionCount).toBe(0));
         } finally {

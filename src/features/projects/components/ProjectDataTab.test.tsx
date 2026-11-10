@@ -222,7 +222,7 @@ describe('III. DATA TAB (ProjectDataTab)', () => {
             await waitFor(() => {
                 expect(deleteProjectSamples).toHaveBeenCalledTimes(1);
                 expect(deleteProjectSamples).toHaveBeenCalledWith(77, [1, 2]);
-                expect(waitForTask).toHaveBeenCalledWith(42);
+                expect(waitForTask).toHaveBeenCalledWith(42, { signal: expect.any(AbortSignal) });
             });
             expect(await screen.findByText(/2 UVP sample\(s\) deleted \(task #42\)/i)).toBeInTheDocument();
             // The UVP counter (the first of the three sections) drops back to 0 and the

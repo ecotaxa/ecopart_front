@@ -86,7 +86,7 @@ export const useAdminUsersTable = (extraFilters: SearchFilter[] = NO_EXTRA_FILTE
 
     /** Delete (deactivate) every user in the current selection, after confirmation. */
     const handleDeleteUsers = useCallback(() => runBulkAction({
-        action: deleteUser,
+        action: (userId) => deleteUser(userId),
         confirm: {
             title: "Delete user accounts",
             message: `${selectedIds.length} account(s) will be deactivated and can no longer sign in.`,

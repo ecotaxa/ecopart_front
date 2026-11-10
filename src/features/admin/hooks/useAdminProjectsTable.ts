@@ -4,7 +4,7 @@ import { useServerTable } from "@/shared/hooks/useServerTable";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import {
     PROJECTS_ROOT_QUERY_KEY,
-    deleteProject,
+    deleteProjectAndWait,
     enrichProjectsWithSampleCounts,
     type Project,
     type SearchFilter,
@@ -49,9 +49,12 @@ export const useAdminProjectsTable = (extraFilters: SearchFilter[] = NO_EXTRA_FI
 
     const { runBulkAction } = table;
 
-    /** Delete every project in the current selection (after confirmation). */
+    /**
+     * Delete every project in the current selection (after confirmation). Each
+     * deletion runs as a task: the outcome is reported once every task has ended.
+     */
     const handleDeleteProjects = useCallback(() => runBulkAction({
-        action: deleteProject,
+        action: (projectId, signal) => deleteProjectAndWait(projectId, { signal }),
         confirm: {
             title: "Delete projects",
             message: createElement(ConfirmWarningMessage, null,

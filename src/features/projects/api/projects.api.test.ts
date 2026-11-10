@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@/test/msw/server';
@@ -22,6 +22,7 @@ import {
     deleteProjectSample,
     deleteProjectSamples,
     deleteProject,
+    deleteProjectAndWait,
     waitForTask,
     deleteProjectEcoTaxaSamples,
     searchProjectCtdSamples,
@@ -250,6 +251,21 @@ describe('Projects API helpers (W)', () => {
         expect(task).toMatchObject({ task_id: 9, task_type: 'DELETE_PROJECT' });
     });
 
+    // TC-W6c: a bulk deletion only counts a project as deleted once its task is DONE
+    it('TC-W6c: deleteProjectAndWait resolves once the deletion task is DONE, and rejects with its error otherwise', async () => {
+        server.use(
+            // The task id is the project id: project 1 is deleted, project 2's task fails.
+            http.delete('*/projects/:id/', ({ params }) =>
+                HttpResponse.json({ ...TASK, task_id: Number(params.id), task_type: 'DELETE_PROJECT' })),
+            http.get('*/tasks/:taskId/', ({ params }) => Number(params.taskId) === 1
+                ? HttpResponse.json({ task_id: 1, task_status: 'DONE' })
+                : HttpResponse.json({ task_id: 2, task_status: 'ERROR', task_error: 'EcoTaxa project could not be deleted' })),
+        );
+
+        await expect(deleteProjectAndWait(1, { pollMs: 1 })).resolves.toBeUndefined();
+        await expect(deleteProjectAndWait(2, { pollMs: 1 })).rejects.toThrow('EcoTaxa project could not be deleted');
+    });
+
     // TC-W7: CTD search/import/delete + normalization
     it('TC-W7: CTD search & importable normalization, import and delete', async () => {
         // search: object shape passes through
@@ -401,6 +417,27 @@ describe('Projects API helpers (W)', () => {
         server.use(http.get('*/tasks/5/', () => HttpResponse.json({ task_id: 5, task_status: 'RUNNING' })));
 
         await expect(waitForTask(5, { pollMs: 1, maxMs: 0 })).rejects.toThrow('Task #5 is still running');
+    });
+
+    // TC-W11c: the caller stops following a task when the user leaves the page
+    it('TC-W11c: waitForTask stops polling and rejects once its signal is aborted', async () => {
+        let reads = 0;
+        server.use(
+            http.get('*/tasks/5/', () => {
+                reads++;
+                return HttpResponse.json({ task_id: 5, task_status: 'RUNNING' });
+            }),
+        );
+        const controller = new AbortController();
+
+        const waiting = waitForTask(5, { pollMs: 50, signal: controller.signal });
+        await vi.waitFor(() => expect(reads).toBe(1));
+        controller.abort();
+
+        await expect(waiting).rejects.toMatchObject({ name: 'AbortError' });
+        // No read after the abort, even past the next poll time.
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        expect(reads).toBe(1);
     });
 
     // TC-W10: getOneTask fetches a single task by id

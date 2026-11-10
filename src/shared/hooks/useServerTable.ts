@@ -8,6 +8,7 @@ import { confirmDialog, type ConfirmOptions } from "@/shared/confirm/confirm.sto
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import { toRequestLimit } from "@/shared/utils/pageSizeOptions";
 import { useDebounce } from "./useDebounce";
+import { useLeaveSignal } from "./useLeaveSignal";
 
 /** One page of rows as the backend returns it. */
 export interface ServerTablePage<Row> {
@@ -59,8 +60,11 @@ export interface UseServerTableOptions<Row> {
 export interface BulkActionOptions {
     /** The ids to act on (defaults to the current selection). */
     ids?: number[];
-    /** The per-id request; one rejection must not abort the others. */
-    action: (id: number) => Promise<unknown>;
+    /**
+     * The per-id request; one rejection must not abort the others. `signal` is aborted
+     * when the grid unmounts, for an action that keeps running (e.g. follows a task).
+     */
+    action: (id: number, signal: AbortSignal) => Promise<unknown>;
     /** When set, the user is asked first and a refusal cancels everything. */
     confirm?: ConfirmOptions;
     successMessage: string;
@@ -199,6 +203,7 @@ export function useServerTable<Row>({
 
     // --- Bulk actions -------------------------------------------------------
     const [isActionRunning, setIsActionRunning] = useState(false);
+    const leaveSignal = useLeaveSignal();
 
     /**
      * Run `action` on every id (a single failure must not abort the rest), then
@@ -211,9 +216,12 @@ export function useServerTable<Row>({
 
         if (confirm && !(await confirmDialog(confirm))) return;
 
+        const signal = leaveSignal();
         setIsActionRunning(true);
         try {
-            const results = await Promise.allSettled(targetIds.map((id) => action(id)));
+            const results = await Promise.allSettled(targetIds.map((id) => action(id, signal)));
+            // The grid is gone: nothing left to report or refresh.
+            if (signal.aborted) return;
             const failedIds = targetIds.filter((_, i) => results[i].status === "rejected");
 
             if (failedIds.length === 0) {
@@ -232,7 +240,7 @@ export function useServerTable<Row>({
         } finally {
             setIsActionRunning(false);
         }
-    }, [selectedIds, showSnackbar, refetch]);
+    }, [selectedIds, showSnackbar, refetch, leaveSignal]);
 
     return {
         rows,
