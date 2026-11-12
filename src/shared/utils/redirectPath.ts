@@ -1,5 +1,5 @@
 /** Where a signed-in user lands when nothing asked for a specific page. */
-export const DEFAULT_AFTER_LOGIN = "/dashboard";
+export const DEFAULT_AFTER_LOGIN = "/explore";
 
 /**
  * The in-app page a protected route sent the user away from (`location.state.from`,
