@@ -52,7 +52,7 @@ export interface Project {
     chief_scientist_email?: string;
     operator_name?: string;
     operator_email?: string;
-    override_depth_offset?: number;
+    override_depth_offset?: number | null;
     enable_descent_filter?: boolean;
     /** The data were filtered before their import (expected of a UVP5HD project). */
     filtered_project?: boolean;
@@ -221,7 +221,7 @@ export interface PublicProjectRequestCreationModel {
     operator_email: string;
     chief_scientist_name: string;
     chief_scientist_email: string;
-    override_depth_offset?: number;
+    override_depth_offset?: number | null;
     enable_descent_filter: boolean;
     filtered_project?: boolean;
     time_duration_check?: boolean;
@@ -261,7 +261,7 @@ export interface PublicProjectUpdateModel {
     operator_email?: string;
     chief_scientist_name?: string;
     chief_scientist_email?: string;
-    override_depth_offset?: number;
+    override_depth_offset?: number | null;
     enable_descent_filter?: boolean;
     filtered_project?: boolean;
     time_duration_check?: boolean;

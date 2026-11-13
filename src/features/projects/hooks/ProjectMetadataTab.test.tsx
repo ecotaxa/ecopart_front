@@ -122,6 +122,47 @@ describe('ProjectMetadataTab (Functional)', () => {
         expect(capturedPatchBody).toMatchObject({ filtered_project: false, time_duration_check: true });
     }, 15000);
 
+    // TC-J13: an empty offset means no project override; clearing it sends null
+    it('TC-J13: shows an absent offset as empty, and clearing an offset sends null', async () => {
+        const user = userEvent.setup({ delay: null });
+        let capturedPatchBody: Record<string, unknown> | null = null;
+        server.use(
+            http.post('*/projects/searches*', () => HttpResponse.json({
+                search_info: { total: 1, page: 1, limit: 1 },
+                projects: [{ ...mockProjectData, override_depth_offset: 1.2 }],
+            })),
+            http.patch('*/projects/101', async ({ request }) => {
+                capturedPatchBody = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({}, { status: 200 });
+            })
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} />);
+
+        const offset = await screen.findByLabelText(/Override depth offset/i);
+        expect(offset).toHaveValue('1.2');
+        await user.clear(offset);
+        await user.tab();
+        expect(offset).toHaveValue('');
+        await user.click(screen.getByRole('button', { name: /^SAVE$/i }));
+
+        expect(await screen.findByText('Project updated successfully!')).toBeInTheDocument();
+        expect(capturedPatchBody).toMatchObject({ override_depth_offset: null });
+    }, 15000);
+
+    it('TC-J14: loads a project without offset override as an empty field', async () => {
+        server.use(
+            http.post('*/projects/searches*', () => HttpResponse.json({
+                search_info: { total: 1, page: 1, limit: 1 },
+                projects: [{ ...mockProjectData, override_depth_offset: null }],
+            }))
+        );
+
+        renderWithRouter(<ProjectMetadataTab projectId={101} />);
+
+        expect(await screen.findByLabelText(/Override depth offset/i)).toHaveValue('');
+    }, 15000);
+
     // TC-J3: Update Error
     it('TC-J3: should display error message if API patch fails', async () => {
         const user = userEvent.setup();

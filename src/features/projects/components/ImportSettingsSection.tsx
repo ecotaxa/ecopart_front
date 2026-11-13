@@ -27,6 +27,9 @@ interface ImportSettingsSectionProps {
 /** A complete decimal number ("-1", "0.5", "12.") — the only drafts worth propagating while typing. */
 const COMPLETE_DECIMAL = /^-?\d+(\.\d*)?$/;
 
+/** The text shown for an offset: empty when the project does not override the samples' offsets. */
+const offsetToDraft = (value: number | null): string => (value === null ? "" : String(value));
+
 /**
  * DUMB COMPONENT (Presenter)
  * Handles the visual rendering of the Import Settings section.
@@ -38,18 +41,20 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
 }) => {
     // The offset is edited through a text draft: parsing `e.target.value` on every
     // keystroke would turn "1." or "-" into 0 and make decimals impossible to type.
-    // The draft is propagated as soon as it reads as a number and normalised on blur.
-    const [draft, setDraft] = useState(String(values.overrideDepthOffset));
+    // The draft is propagated as soon as it reads as a number, or as empty (no project
+    // override), and normalised on blur.
+    const [draft, setDraft] = useState(offsetToDraft(values.overrideDepthOffset));
     // The value this draft was last synchronised with; a different incoming value
     // (e.g. the project loaded from the backend) replaces the draft. Done as a
     // state adjustment during render, not in an effect, so no stale frame shows.
     const [syncedValue, setSyncedValue] = useState(values.overrideDepthOffset);
     if (values.overrideDepthOffset !== syncedValue) {
         setSyncedValue(values.overrideDepthOffset);
-        setDraft(String(values.overrideDepthOffset));
+        setDraft(offsetToDraft(values.overrideDepthOffset));
     }
 
-    const propagate = (next: number) => {
+    const propagate = (next: number | null) => {
+        if (next === syncedValue) return;
         setSyncedValue(next);
         onChange({ overrideDepthOffset: next });
     };
@@ -58,18 +63,17 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
         const raw = e.target.value;
         setDraft(raw);
         const trimmed = raw.trim();
-        if (COMPLETE_DECIMAL.test(trimmed)) {
+        if (trimmed === "") {
+            propagate(null);
+        } else if (COMPLETE_DECIMAL.test(trimmed)) {
             const parsed = Number.parseFloat(trimmed);
             if (Number.isFinite(parsed)) propagate(parsed);
         }
     };
 
     const handleOffsetBlur = () => {
-        const parsed = Number.parseFloat(draft.trim());
-        // An empty or unparsable field falls back to 0 (no offset).
-        const next = Number.isFinite(parsed) ? parsed : 0;
-        setDraft(String(next));
-        propagate(next);
+        // An unfinished entry ("-", "abc") goes back to the last value the form holds.
+        setDraft(offsetToDraft(syncedValue));
     };
 
     return (
@@ -83,7 +87,7 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
                 <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                         fullWidth
-                        label="Override depth offset"
+                        label="Override depth offset (m)"
                         value={draft}
                         onChange={handleOffsetChange}
                         onBlur={readOnly ? undefined : handleOffsetBlur}
@@ -96,6 +100,7 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
                                 inputMode: "decimal",
                             }
                         }}
+                        helperText="Vertical distance between the pressure sensor and the imaged zone, positive when the sensor is above it. Empty: each sample keeps its own offset (UVP6 Pressure_offset, none in UVP5 files). A value here replaces it for every sample of the project."
                     />
                 </Grid>
                 {/* Spacer: the switches below start on their own row */}

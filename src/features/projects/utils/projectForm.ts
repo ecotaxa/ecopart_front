@@ -26,11 +26,19 @@ export const createEmptyProjectFormValues = (): NewProjectFormValues => ({
         operatorEmail: "",
         operatorId: undefined,
     },
-    importSettings: { overrideDepthOffset: 0, enableDescentFilter: true, filteredProject: false, timeDurationCheck: true },
+    importSettings: { overrideDepthOffset: null, enableDescentFilter: true, filteredProject: false, timeDurationCheck: true },
     ecoTaxa: { instance: "", account: "", project: "", createNewProject: true },
     privileges: [],
     privacy: { ...DEFAULT_PRIVACY },
 });
+
+/**
+ * The depth offset proposed to a new project. A UVP5 writes none in its files, so legacy EcoPart
+ * proposed 1.2 m at project level; a UVP6 carries its own per sample (`Pressure_offset`).
+ */
+export const UVP5_DEFAULT_DEPTH_OFFSET = 1.2;
+export const defaultDepthOffsetFor = (instrumentModel: string): number | null =>
+    instrumentModel.startsWith("UVP5") ? UVP5_DEFAULT_DEPTH_OFFSET : null;
 
 /** Parse an integer, falling back to `fallback` when the input is not a number (never NaN). */
 export const safeParseInt = (value: string, fallback = 1): number => {
@@ -278,7 +286,7 @@ export const mapProjectToFormValues = (project: Project): NewProjectFormValues =
         operatorId: undefined,
     },
     importSettings: {
-        overrideDepthOffset: project.override_depth_offset ?? 0,
+        overrideDepthOffset: project.override_depth_offset ?? null,
         enableDescentFilter: project.enable_descent_filter ?? true,
         filteredProject: project.filtered_project ?? false,
         timeDurationCheck: project.time_duration_check ?? true,
