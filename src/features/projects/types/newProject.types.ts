@@ -31,7 +31,8 @@ export interface NewProjectFormValues {
     };
 
     importSettings: {
-        overrideDepthOffset: number;
+        /** Applied to every sample in place of its own offset; null = each sample keeps its own (UVP6 Pressure_offset). */
+        overrideDepthOffset: number | null;
         enableDescentFilter: boolean;
         /** The data were filtered before their import (asked of a UVP5HD project by the STATS tab). */
         filteredProject: boolean;

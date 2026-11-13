@@ -11,6 +11,7 @@ import {
     type ProjectFormErrors,
     buildPrivilegesPayload,
     createEmptyProjectFormValues,
+    defaultDepthOffsetFor,
     mapBackendErrorToFieldErrors,
     parsePositiveInt,
     toNullableInt,
@@ -193,29 +194,27 @@ export const useNewProjectForm = () => {
     // --------------------------------------------------
     // 3. DYNAMIC FIELD UPDATER
     // --------------------------------------------------
+    // The depth offset follows the instrument (1.2 m proposed for a UVP5, empty otherwise) until
+    // the user sets one: from then on an instrument change leaves it alone.
+    const depthOffsetSetByUser = useRef(false);
+
     // Stable identity (only state setters inside) so child sections can safely
     // depend on it without re-running their effects on every parent render.
     const updateField = useCallback(<T extends keyof NewProjectFormValues>(
         section: T,
         data: Partial<NewProjectFormValues[T]> | NewProjectFormValues[T]
     ) => {
+        if (section === "importSettings" && "overrideDepthOffset" in (data as object)) depthOffsetSetByUser.current = true;
+        const proposeDepthOffset = section === "instrument" && "model" in (data as object) && !depthOffsetSetByUser.current;
+
         setValues((prev) => {
             const currentValue = prev[section];
+            const next: NewProjectFormValues = typeof currentValue === "object" && !Array.isArray(currentValue) && currentValue !== null
+                ? { ...prev, [section]: { ...(currentValue as object), ...(data as object) } }
+                : { ...prev, [section]: data as NewProjectFormValues[T] };
 
-            if (typeof currentValue === "object" && !Array.isArray(currentValue) && currentValue !== null) {
-                return {
-                    ...prev,
-                    [section]: {
-                        ...(currentValue as object),
-                        ...(data as object),
-                    },
-                };
-            }
-
-            return {
-                ...prev,
-                [section]: data as NewProjectFormValues[T],
-            };
+            if (!proposeDepthOffset) return next;
+            return { ...next, importSettings: { ...next.importSettings, overrideDepthOffset: defaultDepthOffsetFor(next.instrument.model) } };
         });
 
         // Clear related errors when the user edits the corresponding section.

@@ -762,6 +762,8 @@ The tab reads `GET /projects/:id/stats` (`useProjectStats`), one call for every 
 | **TC-J9** | No root folder in the payload | The backend omits `root_folder_path` (user without privilege); the project is not linked. | Render the tab read-only. | • The *Root folder path* field is not rendered.<br>• "This project is not linked to an EcoTaxa project." replaces the link fields. |
 | **TC-J10** | Editing a field clears its inline error | The loaded project has an empty acronym. | Click **SAVE**, then type an acronym. | • After the save the acronym field is invalid with "Project acronym is required".<br>• Once edited, the field is valid again and the message is gone. |
 | **TC-J11** | Quality check options | The project is loaded with `filtered_project` true and `time_duration_check` false. | Toggle **Filtered project** and **Time duration check**, click **SAVE**. | • The switches reflect the project.<br>• The PATCH carries `filtered_project: false` and `time_duration_check: true`. |
+| **TC-J13** | Clearing the depth offset | The project is loaded with `override_depth_offset: 1.2`. | Clear **Override depth offset (m)**, leave the field, click **SAVE**. | • The field shows `1.2`, then stays empty after leaving it.<br>• The PATCH carries `override_depth_offset: null` (each sample keeps its own offset). |
+| **TC-J14** | No project offset | The project is loaded with `override_depth_offset: null`. | Render the tab. | **Override depth offset (m)** is empty (not 0). |
 
 ### K. Project Security Tab (`ProjectSecurityTab`)
 
@@ -793,6 +795,8 @@ The tab reads `GET /projects/:id/stats` (`useProjectStats`), one call for every 
 | **TC-L5** | API error mapping | The backend (MSW) is simulated to return a 400 with the message "Invalid manager assigned". | Fill the form to pass frontend validation and call `handleSubmit`. | The backend error is intercepted and mapped specifically onto `errors.privilegesManager`. |
 | **TC-L6** | `handleLoadMetadata` locks the loaded title | The hook is initialized with a valid root folder path. | Call `handleLoadMetadata()`. | The `lockedTitlePrefix` property and the title value automatically take the extracted folder name. |
 | **TC-L7** | Quality check options default | The hook is initialized. | Read `values.importSettings`. | `filteredProject` is false and `timeDurationCheck` is true, as the backend defaults. |
+| **TC-L13** | Depth offset follows the instrument | The hook is initialized. | Pick UVP5HD, then UVP6LP; set 0.5 and pick UVP5Z; clear it and change the serial number. | • Empty at start, 1.2 for the UVP5, empty again for the UVP6.<br>• Once set by the user, the offset no longer follows the instrument. |
+| **TC-L14** | Empty depth offset sent as null | A valid form whose offset is empty. | Call `handleSubmit`. | The POST carries `override_depth_offset: null`. |
 
 ### M. Project Metadata Section (`ProjectMetadataSection`)
 

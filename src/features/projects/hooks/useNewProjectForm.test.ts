@@ -288,6 +288,46 @@ describe('useNewProjectForm Hook (Unit)', () => {
         expect(body).not.toHaveProperty('new_ecotaxa_project');
     });
 
+    // TC-L13: the depth offset follows the instrument until the user sets one
+    it('TC-L13: should propose 1.2 m for a UVP5 and no project offset otherwise, until the user sets one', () => {
+        const { result } = renderHook(() => useNewProjectForm());
+        expect(result.current.values.importSettings.overrideDepthOffset).toBeNull();
+
+        act(() => result.current.updateField('instrument', { model: 'UVP5HD' }));
+        expect(result.current.values.importSettings.overrideDepthOffset).toBe(1.2);
+
+        act(() => result.current.updateField('instrument', { model: 'UVP6LP' }));
+        expect(result.current.values.importSettings.overrideDepthOffset).toBeNull();
+
+        act(() => result.current.updateField('importSettings', { overrideDepthOffset: 0.5 }));
+        act(() => result.current.updateField('instrument', { model: 'UVP5Z' }));
+        expect(result.current.values.importSettings.overrideDepthOffset).toBe(0.5);
+
+        // A serial number change alone never touches the offset.
+        act(() => result.current.updateField('importSettings', { overrideDepthOffset: null }));
+        act(() => result.current.updateField('instrument', { serialNumber: 'sn2' }));
+        expect(result.current.values.importSettings.overrideDepthOffset).toBeNull();
+    });
+
+    // TC-L14: an empty offset is sent as null, the backend then applies each sample's own offset
+    it('TC-L14: should send a null override_depth_offset when the field is empty', async () => {
+        let body: Record<string, unknown> | null = null;
+        server.use(
+            http.post('*/projects', async ({ request }) => {
+                body = (await request.json()) as Record<string, unknown>;
+                return HttpResponse.json({ project_id: 5 });
+            })
+        );
+        const { result } = renderHook(() => useNewProjectForm());
+
+        act(() => fillValidValues(result.current.updateField));
+        await act(async () => {
+            await result.current.handleSubmit();
+        });
+
+        expect(body).toMatchObject({ override_depth_offset: null });
+    });
+
     // TC-L6: The title loaded from the import folder becomes a locked prefix.
     it('TC-L6: should lock the loaded title as a non-erasable prefix after loading metadata', async () => {
         const { result } = renderHook(() => useNewProjectForm());
