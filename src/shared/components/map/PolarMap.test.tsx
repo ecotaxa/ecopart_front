@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 
 import PolarMap from './PolarMap';
 import type { MapPoint } from './types';
@@ -46,6 +47,23 @@ describe('PolarMap', () => {
         await user.click(screen.getByRole('button', { name: 'Sample med' }));
         expect(screen.getByText('Project of med')).toBeInTheDocument();
         expect(screen.getByText('Lat 43.70000, Lon 7.30000')).toBeInTheDocument();
+    });
+
+    it('offers the links of a clicked point', async () => {
+        const user = userEvent.setup();
+        const links = [
+            { label: 'Open sample', to: '/projects/1/samples/7' },
+            { label: 'Open project', to: '/projects/1', newTab: true },
+        ];
+        render(<MemoryRouter><PolarMap points={[{ ...point('med', 43.7, 7.3), links }]} /></MemoryRouter>);
+
+        await user.click(screen.getByRole('button', { name: 'Sample med' }));
+        const sampleLink = screen.getByRole('link', { name: 'Open sample' });
+        expect(sampleLink).toHaveAttribute('href', '/projects/1/samples/7');
+        expect(sampleLink).not.toHaveAttribute('target');
+        const projectLink = screen.getByRole('link', { name: 'Open project' });
+        expect(projectLink).toHaveAttribute('href', '/projects/1');
+        expect(projectLink).toHaveAttribute('target', '_blank');
     });
 
     it('says when there is nothing to show', () => {

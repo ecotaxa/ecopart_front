@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 
 import { exploreFixtures } from '@/test/msw/explore.handlers';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
@@ -50,6 +51,22 @@ describe('ExploreMap', () => {
         await user.click(within(legend()).getByRole('button', { name: 'My projects' }));
         expect(marker('ge_001')).not.toBeInTheDocument();
         expect(marker('tara_001')).toBeInTheDocument();
+    });
+
+    it('links the popup of a sample to its page and to its project page, in a new tab', async () => {
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter>
+                <ExploreMap samples={exploreFixtures.mapSamples} bounds={null} drawing={false} onBoundsDrawn={() => undefined} fitKey={0} />
+            </MemoryRouter>,
+        );
+
+        await user.click(await screen.findByRole('button', { name: 'tara_001' }));
+        expect(screen.getByText('Tara Oceans 2009 [1]')).toBeInTheDocument();
+        const sampleLink = screen.getByRole('link', { name: 'Open sample' });
+        expect(sampleLink).toHaveAttribute('href', '/projects/1/samples/101');
+        expect(sampleLink).toHaveAttribute('target', '_blank');
+        expect(screen.getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/projects/1');
     });
 
     it('draws the markers without a white outline', async () => {

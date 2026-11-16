@@ -2,6 +2,7 @@ import { memo, useMemo, useRef, useState, type MouseEvent, type PointerEvent } f
 import { Box, IconButton, Paper, Typography, useTheme } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
+import PopupLinks, { type PopupLink } from "@/shared/components/PopupLinks";
 import type { ValueScale } from "../types/explore.types";
 import { createScale, extent, formatTick } from "../utils/chartScales";
 import { decimate } from "../utils/decimate";
@@ -17,6 +18,8 @@ export interface ChartSeries {
     label: string;
     /** Extra lines of the curve's popup (its project…). */
     details?: string[];
+    /** Links of the popup (the pages of the sample, of its project), offered once a click keeps it open. */
+    links?: PopupLink[];
     color: string;
     /** [x, y] in data units. */
     points: [number, number][];
@@ -68,7 +71,9 @@ function domainOf(values: number[], axis: ChartAxis): [number, number] {
  * the chart can show is thinned out, its extremes kept).
  *
  * Hovering a curve brings it forward and names its sample, as the map popups do;
- * a click keeps that popup open until it is closed or another place is clicked.
+ * a click keeps that popup open, with its links, until it is closed or another
+ * place is clicked. The hover popup only tells about the links: it goes as soon as
+ * the pointer leaves the curve, so it could never be reached.
  */
 function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileChartProps) {
     const theme = useTheme();
@@ -237,6 +242,13 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
                     {(popupSeries.details ?? []).map((line) => (
                         <Typography key={line} variant="caption" color="text.secondary" component="div">{line}</Typography>
                     ))}
+                    {pinned ? (
+                        <PopupLinks links={popupSeries.links} />
+                    ) : popupSeries.links?.length ? (
+                        <Typography variant="caption" color="primary" component="div" sx={{ mt: 0.5 }}>
+                            Click the curve for its links
+                        </Typography>
+                    ) : null}
                 </Paper>
             )}
         </Box>

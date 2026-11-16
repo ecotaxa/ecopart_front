@@ -14,10 +14,15 @@ const positionOf = (latitude: number | null, longitude: number | null): { latitu
 /**
  * Map of the project's samples: a pin on the position of each sample's metadata,
  * a cross on the position read from its CTD file; both orange when they are too
- * far apart. Warns about samples without CTD file, mismatching positions and
- * positions on land.
+ * far apart. The popup of both links to the sample page when the user may open it
+ * (`canOpenSamples`). Warns about samples without CTD file, mismatching positions
+ * and positions on land.
  */
-export default function ProjectSamplesMap({ map, projectId }: { map: ProjectStatsMap; projectId: number }) {
+export default function ProjectSamplesMap({ map, projectId, canOpenSamples }: {
+    map: ProjectStatsMap;
+    projectId: number;
+    canOpenSamples: boolean;
+}) {
     const theme = useTheme();
     const sampleColor = theme.palette.primary.main;
     const ctdColor = theme.palette.text.primary;
@@ -32,6 +37,9 @@ export default function ProjectSamplesMap({ map, projectId }: { map: ProjectStat
             // The backend falls back on the sample position when the CTD one is unknown.
             const ctdUsed = sample.use_ctd_coordinates && ctd !== null;
             const onLand = sample.on_land ? ["Position on land"] : [];
+            const links = canOpenSamples
+                ? [{ label: "Open sample", to: `/projects/${projectId}/samples/${sample.sample_id}` }]
+                : undefined;
             if (position) {
                 result.push({
                     id: `sample-${sample.sample_id}`,
@@ -42,6 +50,7 @@ export default function ProjectSamplesMap({ map, projectId }: { map: ProjectStat
                         ...(mismatch ? ["CTD position more than 5 km away"] : []),
                         ...(ctdUsed ? [] : onLand),
                     ],
+                    links,
                     color: mismatch ? mismatchColor : sampleColor,
                     shape: "pin",
                 });
@@ -56,13 +65,14 @@ export default function ProjectSamplesMap({ map, projectId }: { map: ProjectStat
                         ...(mismatch ? ["Sample position more than 5 km away"] : []),
                         ...(ctdUsed ? onLand : []),
                     ],
+                    links,
                     color: mismatch ? mismatchColor : ctdColor,
                     shape: "cross",
                 });
             }
         }
         return result;
-    }, [map.samples, sampleColor, ctdColor, mismatchColor]);
+    }, [map.samples, sampleColor, ctdColor, mismatchColor, canOpenSamples, projectId]);
 
     return (
         <StatsSection

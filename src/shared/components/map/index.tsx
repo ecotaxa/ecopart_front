@@ -4,6 +4,7 @@ import { Skeleton } from "@mui/material";
 import type { LocationMapProps, PolarMapProps } from "./types";
 
 export type { GeoBox, LocationMapProps, MapLocation, MapPoint, MapProjection, MarkerShape, PolarMapProps } from "./types";
+export type { PopupLink } from "../PopupLinks";
 
 // d3-geo and the coastlines are only needed once a map is displayed.
 const LazyLocationMap = lazy(() => import("./LocationMap"));

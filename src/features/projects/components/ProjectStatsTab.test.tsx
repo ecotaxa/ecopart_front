@@ -110,6 +110,33 @@ describe('ProjectStatsTab', () => {
         expect(classification).toHaveAttribute('target', '_blank');
     }, 15000);
 
+    // TC-S11: the map popups lead to the sample page, only for who may open it
+    it('TC-S11: links the map popups of a sample to its page when the user may see the figures', async () => {
+        const user = userEvent.setup();
+        answerStats(makeProjectStatsFixture());
+        renderTab({ canOpenSamples: true });
+
+        const map = await screen.findByRole('region', { name: 'Samples distribution' });
+        await user.click(await within(map).findByRole('button', { name: 'tara_002' }));
+        const sampleLink = within(map).getByRole('link', { name: 'Open sample' });
+        expect(sampleLink).toHaveAttribute('href', '/projects/101/samples/2');
+        expect(sampleLink).not.toHaveAttribute('target');
+
+        await user.click(within(map).getByRole('button', { name: 'tara_002 (CTD)' }));
+        expect(within(map).getByRole('link', { name: 'Open sample' })).toHaveAttribute('href', '/projects/101/samples/2');
+    }, 15000);
+
+    it('TC-S11b: leaves the sample link out of the map popups when the user may not see the figures', async () => {
+        const user = userEvent.setup();
+        answerStats(makeProjectStatsFixture());
+        renderTab();
+
+        const map = await screen.findByRole('region', { name: 'Samples distribution' });
+        await user.click(await within(map).findByRole('button', { name: 'tara_002' }));
+        expect(within(map).getByText('CTD position more than 5 km away')).toBeInTheDocument();
+        expect(within(map).queryByRole('link', { name: 'Open sample' })).not.toBeInTheDocument();
+    }, 15000);
+
     // TC-S2: a project without sample keeps the call-to-action cards
     it('TC-S2: offers the import and link cards to who can act, and no data section, while the project has no sample', async () => {
         const user = userEvent.setup({ delay: null });

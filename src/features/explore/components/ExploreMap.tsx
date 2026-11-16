@@ -5,6 +5,7 @@ import { useAuthStore } from "@/features/auth";
 import { PolarMap, type MapPoint, type MarkerShape } from "@/shared/components/map";
 import type { ExploreMapSample, GeoBounds, PrivacyStatus } from "../types/explore.types";
 import { PRIVACY_LABELS } from "../utils/exploreFilters";
+import { samplePopup } from "../utils/samplePopup";
 
 type InstrumentFamily = "UVP5" | "UVP6" | "other";
 
@@ -47,6 +48,7 @@ export interface ExploreMapProps {
 /**
  * Polar map of the explored samples. One marker per sample: its shape gives the
  * instrument, its colour the data status, a dark ring marks the user's projects.
+ * Its popup links to the sample and project pages.
  * A click on an entry of the legend hides its samples (or shows them again), the
  * view staying as it is. Memoized: switching tabs or changing a graph leaves the map as it is.
  */
@@ -56,6 +58,7 @@ const ExploreMap = memo(function ExploreMap({
     const theme = useTheme();
     const statusColors = useStatusColors();
     const ringColor = theme.palette.text.primary;
+    const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
     const [hidden, setHidden] = useState<ReadonlySet<LegendKey>>(() => new Set());
 
     const toggle = (key: LegendKey) => setHidden((prev) => {
@@ -72,15 +75,12 @@ const ExploreMap = memo(function ExploreMap({
             latitude: sample.latitude,
             longitude: sample.longitude,
             label: sample.sample_name,
-            details: [
-                `${sample.project_title} [${sample.project_id}]`,
-                `${sample.instrument_model} · ${PRIVACY_LABELS[sample.privacy_status]}`,
-            ],
+            ...samplePopup(sample, isAdmin),
             color: statusColors[sample.privacy_status],
             shape: SHAPE_OF_FAMILY[family],
             ring: sample.is_my_project ? ringColor : undefined,
         }];
-    }), [samples, hidden, statusColors, ringColor]);
+    }), [samples, hidden, statusColors, ringColor, isAdmin]);
 
     const hasOtherInstruments = useMemo(
         () => samples.some((sample) => familyOf(sample.instrument_model) === "other"),

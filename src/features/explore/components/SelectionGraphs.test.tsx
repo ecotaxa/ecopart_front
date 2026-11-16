@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 
 import type { ExploreGraphs, GraphDataset } from '../types/explore.types';
 import SelectionGraphs from './SelectionGraphs';
@@ -203,10 +204,20 @@ describe('SelectionGraphs', () => {
         expect(field).toHaveValue('25');
     });
 
-    it('names the sample of a hovered curve, with its details, and keeps it open on click', async () => {
+    it('names the sample of a hovered curve, with its details, and keeps it open with its links on click', async () => {
         const user = userEvent.setup();
-        const sampleDetails = new Map([[1, ['Tara Oceans 2009 [1]', 'UVP5HD · Public']]]);
-        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} sampleDetails={sampleDetails} />);
+        const sampleDetails = new Map([[1, {
+            details: ['Tara Oceans 2009 [1]', 'UVP5HD · Public'],
+            links: [
+                { label: 'Open sample', to: '/projects/1/samples/1', newTab: true },
+                { label: 'Open project', to: '/projects/1', newTab: true },
+            ],
+        }]]);
+        render(
+            <MemoryRouter>
+                <SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} sampleDetails={sampleDetails} />
+            </MemoryRouter>,
+        );
 
         const chart = within(card('CTD data')).getByRole('img', { name: 'CTD data: Chloro fluo' });
         const curve = within(chart).getByTestId('curve');
@@ -214,12 +225,19 @@ describe('SelectionGraphs', () => {
         const tooltip = screen.getByRole('tooltip', { name: 'uvp5_sn201_001' });
         expect(within(tooltip).getByText('Tara Oceans 2009 [1]')).toBeInTheDocument();
         expect(within(tooltip).getByText('UVP5HD · Public')).toBeInTheDocument();
+        // The hover popup cannot be reached: it only says where the links are.
+        expect(within(tooltip).queryByRole('link')).not.toBeInTheDocument();
+        expect(within(tooltip).getByText('Click the curve for its links')).toBeInTheDocument();
         await user.unhover(curve);
         expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
 
         await user.click(curve);
         await user.unhover(curve);
         const popup = screen.getByRole('dialog', { name: 'uvp5_sn201_001' });
+        expect(within(popup).getByRole('link', { name: 'Open sample' })).toHaveAttribute('href', '/projects/1/samples/1');
+        const projectLink = within(popup).getByRole('link', { name: 'Open project' });
+        expect(projectLink).toHaveAttribute('href', '/projects/1');
+        expect(projectLink).toHaveAttribute('target', '_blank');
         await user.click(within(popup).getByRole('button', { name: 'Close' }));
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });

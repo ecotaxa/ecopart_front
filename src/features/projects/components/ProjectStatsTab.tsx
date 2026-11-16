@@ -58,6 +58,8 @@ interface ProjectStatsTabProps {
     ecoTaxaProjectUrl?: string;
     /** Omitted when the user may not import: the import card is hidden. */
     onImportData?: () => void;
+    /** The user may open the sample pages (the figures of the project): the map popups link to them. */
+    canOpenSamples?: boolean;
     /** Omitted when the user may not manage the project: the EcoTaxa link card is hidden. */
     onLinkProject?: () => void;
     /** Shown above everything, e.g. why the project data is hidden. */
@@ -71,7 +73,9 @@ interface ProjectStatsTabProps {
  * without sample gets the import card instead, and an unlinked one the EcoTaxa
  * link card, each offered only to who can act on it.
  */
-export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ projectId, ecoTaxaLinked, ecoTaxaProjectUrl, onImportData, onLinkProject, notice }) => {
+export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({
+    projectId, ecoTaxaLinked, ecoTaxaProjectUrl, onImportData, canOpenSamples = false, onLinkProject, notice,
+}) => {
     const { data: stats, isPending, isError, error } = useProjectStats(projectId);
     const hasSamples = stats !== undefined && stats.counts.samples > 0;
     const showImportCard = onImportData !== undefined && !isPending && !hasSamples;
@@ -118,7 +122,7 @@ export const ProjectStatsTab: React.FC<ProjectStatsTabProps> = ({ projectId, eco
                         {hasSamples ? (
                             <>
                                 {stats.raw_backup && <ProjectRawBackupSection rawBackup={stats.raw_backup} projectId={projectId} />}
-                                <ProjectSamplesMap map={stats.map} projectId={projectId} />
+                                <ProjectSamplesMap map={stats.map} projectId={projectId} canOpenSamples={canOpenSamples} />
                                 <ProjectSamplesSummary samples={stats.samples} projectId={projectId} />
                                 {stats.ecotaxa.linked && <ProjectEcoTaxaSection ecotaxa={stats.ecotaxa} projectId={projectId} ecoTaxaProjectUrl={ecoTaxaProjectUrl} />}
                             </>
