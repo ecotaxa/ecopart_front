@@ -5,13 +5,20 @@ import { BarChart } from "@mui/x-charts/BarChart";
 import { PieChart } from "@mui/x-charts/PieChart";
 
 import { chartColorAt } from "@/shared/utils/chartColors";
-import type { ExploreSummary, PressureHistogramBin } from "../types/explore.types";
+import type { ExploreSummary, PressureClass } from "../types/explore.types";
+import { bandLabelStep } from "../utils/chartScales";
 import SamplesSummary from "./SamplesSummary";
 import ProfilesTimeline from "./ProfilesTimeline";
 
 /** Height of a bar of the maximum pressure chart, and the bounds of its height. */
 const PRESSURE_BAR_PX = 16;
 const PRESSURE_CHART_HEIGHT = { min: 220, max: 520 };
+/** Height of the maximum pressure chart outside its bars (margins, value axis). */
+const PRESSURE_CHART_OVERHEAD_PX = 80;
+/** Room kept for each depth label: past about 27 bars the chart stops growing and only some bars are labelled. */
+const PRESSURE_LABEL_PX = 16;
+/** Height shared by the instrument pie and the table of maximum depths, side by side. */
+const SIDE_BY_SIDE_HEIGHT = 266;
 
 function ChartBlock({ title, empty, height, children }: { title: string; empty: boolean; height: number; children: ReactNode }) {
     return (
@@ -32,18 +39,14 @@ function ChartBlock({ title, empty, height, children }: { title: string; empty: 
 }
 
 /**
- * The bars of the maximum pressure chart, as a table: the depth slice of each bar (bins
- * are contiguous from 0, `max_pressure` being the upper edge) and its share of the profiles.
- * Empty slices are left out.
+ * The profiles per class of maximum depth: a few fixed classes, finer near the surface, every one
+ * shown even when empty so that the table keeps its size.
  */
-function PressureHistogramTable({ histogram, height }: { histogram: PressureHistogramBin[]; height: number }) {
-    const total = histogram.reduce((sum, bin) => sum + bin.nb_profiles, 0);
-    const rows = histogram
-        .map((bin, index) => ({ ...bin, from: index === 0 ? 0 : histogram[index - 1].max_pressure }))
-        .filter((bin) => bin.nb_profiles > 0);
+function PressureClassesTable({ classes, height }: { classes: PressureClass[]; height: number }) {
+    const total = classes.reduce((sum, row) => sum + row.nb_profiles, 0);
     return (
-        <TableContainer sx={{ maxHeight: height, border: 1, borderColor: "divider", borderRadius: 1 }}>
-            <Table size="small" stickyHeader aria-label="Profiles per maximum depth">
+        <TableContainer sx={{ height, border: 1, borderColor: "divider", borderRadius: 1 }}>
+            <Table size="small" aria-label="Profiles per maximum depth">
                 <TableHead>
                     <TableRow>
                         <TableCell>Maximum depth [m]</TableCell>
@@ -52,17 +55,19 @@ function PressureHistogramTable({ histogram, height }: { histogram: PressureHist
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {rows.map((bin) => (
-                        <TableRow key={bin.max_pressure}>
-                            <TableCell sx={{ whiteSpace: "nowrap" }}>{bin.from} - {bin.max_pressure}</TableCell>
-                            <TableCell align="right">{bin.nb_profiles}</TableCell>
-                            <TableCell align="right">{total > 0 ? `${Math.round((bin.nb_profiles / total) * 1000) / 10}%` : "—"}</TableCell>
+                    {classes.map((row) => (
+                        <TableRow key={row.min_pressure}>
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>
+                                {row.max_pressure === null ? `≥ ${row.min_pressure}` : `${row.min_pressure} - ${row.max_pressure}`}
+                            </TableCell>
+                            <TableCell align="right">{row.nb_profiles}</TableCell>
+                            <TableCell align="right">{total > 0 ? `${Math.round((row.nb_profiles / total) * 1000) / 10}%` : "—"}</TableCell>
                         </TableRow>
                     ))}
                     <TableRow>
-                        <TableCell sx={{ fontWeight: 500 }}>Total</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 500 }}>{total}</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 500 }}>100%</TableCell>
+                        <TableCell sx={{ fontWeight: 500, borderBottom: 0 }}>Total</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 500, borderBottom: 0 }}>{total}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 500, borderBottom: 0 }}>100%</TableCell>
                     </TableRow>
                 </TableBody>
             </Table>
@@ -76,18 +81,22 @@ interface SelectionSamplesSectionProps {
 }
 
 /**
- * The samples of a selection: counts per type facing the ranges, samples per instrument,
- * profiles by date and latitude, and the distribution of the maximum pressure (a chart
- * and the table of its bars).
+ * The samples of a selection: counts per type facing the ranges, samples per instrument next to
+ * the profiles per class of maximum depth, profiles by date and latitude over the whole width
+ * (dates squeezed in half a row could not be told apart), and the distribution of the maximum
+ * pressure in 100 dbar slices.
  */
 export default function SelectionSamplesSection({ title, summary }: SelectionSamplesSectionProps) {
     const instruments = summary?.instruments ?? [];
     const histogram = summary?.max_pressure_histogram ?? [];
+    const pressureClasses = summary?.max_pressure_classes ?? [];
     const profiles = summary?.profiles ?? [];
     const pressureHeight = Math.min(
-        Math.max(histogram.length * PRESSURE_BAR_PX + 80, PRESSURE_CHART_HEIGHT.min),
+        Math.max(histogram.length * PRESSURE_BAR_PX + PRESSURE_CHART_OVERHEAD_PX, PRESSURE_CHART_HEIGHT.min),
         PRESSURE_CHART_HEIGHT.max,
     );
+    // Deep selections have more bars than the capped height can label: one label every few bars.
+    const labelStep = bandLabelStep(histogram.length, pressureHeight - PRESSURE_CHART_OVERHEAD_PX, PRESSURE_LABEL_PX);
     // The bins are contiguous from 0: the first one gives the width of every slice.
     const slice = histogram[0]?.max_pressure;
 
@@ -102,10 +111,10 @@ export default function SelectionSamplesSection({ title, summary }: SelectionSam
                 <SamplesSummary summary={summary} />
 
                 <Grid container spacing={4}>
-                    <Grid size={{ xs: 12, md: 5 }}>
-                        <ChartBlock title="Sample count per instrument" empty={instruments.length === 0} height={220}>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <ChartBlock title="Sample count per instrument" empty={instruments.length === 0} height={SIDE_BY_SIDE_HEIGHT}>
                             <PieChart
-                                height={220}
+                                height={SIDE_BY_SIDE_HEIGHT}
                                 series={[{
                                     data: instruments.map((instrument, index) => ({
                                         id: instrument.label,
@@ -121,41 +130,37 @@ export default function SelectionSamplesSection({ title, summary }: SelectionSam
                             />
                         </ChartBlock>
                     </Grid>
-                    <Grid size={{ xs: 12, md: 7 }}>
-                        <ChartBlock title="Profiles by date and latitude" empty={profiles.length === 0} height={130}>
-                            <ProfilesTimeline profiles={profiles} />
+                    <Grid size={{ xs: 12, md: 6 }}>
+                        <ChartBlock title="Profiles per maximum depth" empty={pressureClasses.length === 0} height={SIDE_BY_SIDE_HEIGHT}>
+                            <PressureClassesTable classes={pressureClasses} height={SIDE_BY_SIDE_HEIGHT} />
                         </ChartBlock>
                     </Grid>
                 </Grid>
 
-                <Box>
-                    <ChartBlock title="Maximum sample pressure" empty={histogram.length === 0} height={PRESSURE_CHART_HEIGHT.min}>
-                        <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
-                            Each bar counts the profiles whose deepest point falls in a {slice} m slice: the bar
-                            &quot;{slice}&quot; holds the profiles that stop before {slice} m, the next one those
-                            that stop between {slice} and {(slice ?? 0) * 2} m, and so on.
-                        </Typography>
-                        <Grid container spacing={2} sx={{ alignItems: "flex-start" }}>
-                            <Grid size={{ xs: 12, md: 7 }}>
-                                <BarChart
-                                    height={pressureHeight}
-                                    layout="horizontal"
-                                    yAxis={[{
-                                        scaleType: "band",
-                                        data: histogram.map((bin) => bin.max_pressure),
-                                        label: "Maximum depth [m]",
-                                    }]}
-                                    xAxis={[{ label: "Nb of profiles" }]}
-                                    series={[{ data: histogram.map((bin) => bin.nb_profiles), color: chartColorAt(1), label: "Profiles" }]}
-                                    hideLegend
-                                />
-                            </Grid>
-                            <Grid size={{ xs: 12, md: 5 }}>
-                                <PressureHistogramTable histogram={histogram} height={pressureHeight} />
-                            </Grid>
-                        </Grid>
-                    </ChartBlock>
-                </Box>
+                <ChartBlock title="Profiles by date and latitude" empty={profiles.length === 0} height={150}>
+                    <ProfilesTimeline profiles={profiles} />
+                </ChartBlock>
+
+                <ChartBlock title="Maximum sample pressure" empty={histogram.length === 0} height={PRESSURE_CHART_HEIGHT.min}>
+                    <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
+                        Each bar counts the profiles whose deepest point falls in a {slice} m slice: the bar
+                        &quot;{slice}&quot; holds the profiles that stop before {slice} m, the next one those
+                        that stop between {slice} and {(slice ?? 0) * 2} m, and so on.
+                    </Typography>
+                    <BarChart
+                        height={pressureHeight}
+                        layout="horizontal"
+                        yAxis={[{
+                            scaleType: "band",
+                            data: histogram.map((bin) => bin.max_pressure),
+                            label: "Maximum depth [m]",
+                            tickInterval: (_value: number, index: number) => (index + 1) % labelStep === 0,
+                        }]}
+                        xAxis={[{ label: "Nb of profiles" }]}
+                        series={[{ data: histogram.map((bin) => bin.nb_profiles), color: chartColorAt(1), label: "Profiles" }]}
+                        hideLegend
+                    />
+                </ChartBlock>
             </Stack>
         </Box>
     );

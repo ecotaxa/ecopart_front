@@ -12,6 +12,7 @@ import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import CloseIcon from "@mui/icons-material/Close";
 
 import { ecotaxaColors } from "@/theme";
+import { useElementSize } from "@/shared/hooks/useElementSize";
 import PopupLinks from "../PopupLinks";
 import type { GeoBox, Hemisphere, MapPoint, MapProjection, MarkerShape, MarkerStyle, PolarMapProps } from "./types";
 
@@ -377,23 +378,6 @@ function useLand() {
         return () => { cancelled = true; };
     }, []);
     return land;
-}
-
-/** Width and height of an element, kept up to date. */
-function useElementSize<T extends HTMLElement>() {
-    const ref = useRef<T>(null);
-    const [size, setSize] = useState({ width: 0, height: 0 });
-    useEffect(() => {
-        const element = ref.current;
-        if (!element) return;
-        const measure = () => setSize({ width: element.clientWidth, height: element.clientHeight });
-        measure();
-        if (typeof ResizeObserver === "undefined") return;
-        const observer = new ResizeObserver(measure);
-        observer.observe(element);
-        return () => observer.disconnect();
-    }, []);
-    return [ref, size] as const;
 }
 
 type Gesture =

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { createScale, extent, formatTick, niceTicks } from './chartScales';
+import { bandLabelStep, createScale, extent, formatTick, niceTicks } from './chartScales';
 
 describe('chartScales', () => {
     it('picks round ticks', () => {
@@ -50,5 +50,15 @@ describe('chartScales', () => {
     it('falls back to a few decades in log10 when the domain has no positive bound', () => {
         expect(createScale('log10', [0, 1], [0, 300]).ticks).toEqual([0.01, 0.1, 1]);
         expect(createScale('log10', [-5, 0], [0, 300]).ticks).toEqual([0.1, 1, 10]);
+    });
+
+    it('labels every band while they are tall enough, else every 2, 5, 10... bands', () => {
+        expect(bandLabelStep(10, 400, 14)).toBe(1);
+        expect(bandLabelStep(40, 440, 14)).toBe(2);
+        expect(bandLabelStep(56, 440, 14)).toBe(2);
+        expect(bandLabelStep(120, 440, 14)).toBe(5);
+        expect(bandLabelStep(400, 440, 14)).toBe(20);
+        expect(bandLabelStep(1, 440, 14)).toBe(1);
+        expect(bandLabelStep(3, 0, 14)).toBe(1);
     });
 });

@@ -101,3 +101,18 @@ export function formatTick(value: number): string {
     if (abs >= 1e5 || abs < 1e-3) return Number(value.toPrecision(4)).toExponential().replace("+", "");
     return String(Number(value.toPrecision(4)));
 }
+
+/**
+ * Every how many bands of a band axis a label fits: the smallest step of 1, 2 or 5 × 10^n bands
+ * leaving `labelPx` per label, so that labels of regular bands (100, 200...) stay round (500, 1000...).
+ */
+export function bandLabelStep(nbBands: number, axisPx: number, labelPx: number): number {
+    if (nbBands <= 1 || axisPx <= 0) return 1;
+    const bandPx = axisPx / nbBands;
+    for (let magnitude = 1; ; magnitude *= 10) {
+        for (const factor of [1, 2, 5]) {
+            const step = factor * magnitude;
+            if (step * bandPx >= labelPx || step >= nbBands) return step;
+        }
+    }
+}

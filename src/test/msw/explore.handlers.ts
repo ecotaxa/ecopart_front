@@ -10,6 +10,7 @@ import type {
     ExploreSelectionResponse,
     ExploreSelectionSummary,
     GraphDataset,
+    PressureClass,
     ProfileSeries,
 } from '@/features/explore/types/explore.types';
 
@@ -69,6 +70,12 @@ const greenEdgeRow: ExploreProjectRow = {
     managers: [{ user_name: 'John Doe', email: 'john@doe.com' }],
 };
 
+/** The classes of maximum pressure the back serves, with these counts. */
+function pressureClasses(counts: number[]): PressureClass[] {
+    const edges = [0, 50, 200, 500, 1000, 2000];
+    return counts.map((nb_profiles, index) => ({ min_pressure: edges[index], max_pressure: edges[index + 1] ?? null, nb_profiles }));
+}
+
 const allSummary: ExploreSelectionSummary = {
     counts: { projects: 2, samples: 3, particles: 125_000, images: 4200 },
     sample_types: { depth: 3, time: 0, total: 3 },
@@ -83,6 +90,7 @@ const allSummary: ExploreSelectionSummary = {
         { max_pressure: 400, nb_profiles: 1 },
         { max_pressure: 500, nb_profiles: 1 },
     ],
+    max_pressure_classes: pressureClasses([0, 1, 2, 0, 0, 0]),
     profiles: [
         { date: '2009-09-12T08:30:00.000Z', latitude: 43.68 },
         { date: '2009-11-03T02:15:00.000Z', latitude: -12.5 },
@@ -102,6 +110,7 @@ const exportableSummary: ExploreSelectionSummary = {
         { max_pressure: 300, nb_profiles: 0 },
         { max_pressure: 400, nb_profiles: 1 },
     ],
+    max_pressure_classes: pressureClasses([0, 1, 1, 0, 0, 0]),
     profiles: allSummary.profiles.slice(0, 2),
 };
 
