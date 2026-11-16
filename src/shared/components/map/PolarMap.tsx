@@ -348,18 +348,31 @@ export default function PolarMap({
 
     const projection = useMemo(() => buildProjection(kind, hemisphere, width, height), [kind, hemisphere, width, height]);
 
-    // New points (or a new size) re-frame the map, turned to the pole they are around; with a
-    // `fitKey`, new points keep the view until the key changes (or while the map had no point).
+    // New points re-frame the map, turned to the pole they are around; with a `fitKey`, new
+    // points keep the view until the key changes (or while the map had no point). A new size
+    // keeps the place and the zoom on view: a scrollbar showing up while a selection loads
+    // used to frame the points still on screen (the whole world) and use up the key, so the
+    // selection then arrived on the world view.
     // Adjusted during render, not in an effect, so a stale frame is never painted.
     const sizeKey = `${width}x${height}`;
-    const [framed, setFramed] = useState<{ points: string; size: string; fit: PolarMapProps["fitKey"] } | null>(null);
+    const [framed, setFramed] = useState<
+        { points: string; size: string; width: number; height: number; fit: PolarMapProps["fitKey"] } | null
+    >(null);
     if (width > 0 && (framed?.points !== pointsKey || framed.size !== sizeKey)) {
-        const refit = !framed || framed.size !== sizeKey || fitKey === undefined || framed.fit !== fitKey || framed.points === "";
-        setFramed({ points: pointsKey, size: sizeKey, fit: fitKey });
+        const newPoints = framed?.points !== pointsKey;
+        const refit = !framed || (newPoints && (fitKey === undefined || framed.fit !== fitKey || framed.points === ""));
+        setFramed({ points: pointsKey, size: sizeKey, width, height, fit: framed && !newPoints ? framed.fit : fitKey });
         if (refit) {
             const nextHemisphere = framed?.points === pointsKey ? hemisphere : preferredHemisphere(validPoints);
             setHemisphere(nextHemisphere);
             setView(fitView(buildProjection(kind, nextHemisphere, width, height), kind, nextHemisphere, validPoints, width, height));
+        } else if (framed.size !== sizeKey) {
+            // The projection scale follows the size: the offsets follow it so the same place stays in the centre.
+            const ratio = projection.scale() / buildProjection(kind, hemisphere, framed.width, framed.height).scale();
+            setView(clampView(
+                { k: clamp(view.k, minZoom(kind, width, height), MAX_ZOOM), x: view.x * ratio, y: view.y * ratio },
+                kind, projection, height,
+            ));
         }
     }
 

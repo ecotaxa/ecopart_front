@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import PolarMap from './PolarMap';
@@ -140,6 +140,73 @@ describe('PolarMap', () => {
 
             // Held with the North pole edge at the top: the Arctic sample stays on the map.
             expect(markerXY('arctic')[1]).toBeLessThan(MAP_HEIGHT);
+        });
+    });
+
+    describe('when its size changes', () => {
+        const MAP_HEIGHT = 400;
+        const world = [point('arctic', 78.2, 15.6), point('so', -65, 30), point('pacific', 10, 175), point('fiji', -18, -178)];
+        // A small box off Marseille.
+        const box = [point('med', 43.2, 5.2), point('med2', 43.3, 5.4)];
+        let width = 1600;
+        let resized: Array<() => void> = [];
+        /** Gives the map a new width, as a scrollbar showing up or going away does. */
+        const resizeTo = (next: number) => {
+            width = next;
+            act(() => resized.forEach((notify) => notify()));
+        };
+        const markerXY = (name: string) => {
+            const transform = screen.getAllByRole('button', { name: `Sample ${name}` })[0].getAttribute('transform') ?? '';
+            const [, x, y] = /translate\(([-\d.e]+),([-\d.e]+)\)/.exec(transform) ?? [];
+            return [Number(x), Number(y)];
+        };
+        const scaleLabel = () => screen.getByLabelText(/^Scale: /).getAttribute('aria-label');
+
+        beforeEach(() => {
+            width = 1600;
+            resized = [];
+            vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => width);
+            vi.stubGlobal('ResizeObserver', class {
+                constructor(notify: () => void) { resized.push(notify); }
+                observe() { /* no-op */ }
+                unobserve() { /* no-op */ }
+                disconnect() { /* no-op */ }
+            });
+        });
+
+        afterEach(() => {
+            vi.restoreAllMocks();
+            vi.unstubAllGlobals();
+        });
+
+        it('still frames the next new points when it is resized while they load', () => {
+            const { rerender } = render(<PolarMap points={world} height={MAP_HEIGHT} fitKey={0} />);
+            const worldScale = scaleLabel();
+
+            // A selection is applied: its points are still loading when a scrollbar shows up.
+            rerender(<PolarMap points={world} height={MAP_HEIGHT} fitKey={1} />);
+            resizeTo(1585);
+            rerender(<PolarMap points={box} height={MAP_HEIGHT} fitKey={1} />);
+
+            expect(scaleLabel()).not.toBe(worldScale);
+            const [x, y] = markerXY('med');
+            expect(Math.abs(x - 1585 / 2)).toBeLessThan(100);
+            expect(Math.abs(y - MAP_HEIGHT / 2)).toBeLessThan(100);
+        });
+
+        it('keeps the place and the zoom on view', async () => {
+            const user = userEvent.setup();
+            render(<PolarMap points={[...world, ...box]} height={MAP_HEIGHT} />);
+            await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+            await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+            const [x, y] = markerXY('med');
+
+            resizeTo(1200);
+
+            // Same zoom on a map 3/4 as wide: the marker keeps its place relative to the centre, scaled.
+            const [nextX, nextY] = markerXY('med');
+            expect(nextX - 1200 / 2).toBeCloseTo((x - 1600 / 2) * 0.75, 0);
+            expect(nextY - MAP_HEIGHT / 2).toBeCloseTo((y - MAP_HEIGHT / 2) * 0.75, 0);
         });
     });
 
