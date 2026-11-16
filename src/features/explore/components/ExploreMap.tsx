@@ -101,6 +101,7 @@ const ExploreMap = memo(function ExploreMap({
             onBoundsDrawn={onBoundsDrawn}
             emptyMessage="No sample to show"
             markerStyle="fine"
+            basemap="quiet"
             fitKey={fitKey}
             legend={(
                 <MapLegend

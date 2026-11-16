@@ -22,6 +22,9 @@ export type MarkerShape = "circle" | "triangle" | "square" | "diamond" | "pin" |
  */
 export type MarkerStyle = "solid" | "fine";
 
+/** `classic`: light blue sea, white land. `quiet`: grey-blue sea, light grey land, under thousands of markers. */
+export type MapBasemap = "classic" | "quiet";
+
 /**
  * Latitude / longitude box, in decimal degrees (longitudes in [-180, 180]).
  * `west > east` means the box crosses the antimeridian (GeoJSON bbox convention).
@@ -74,6 +77,8 @@ export interface PolarMapProps {
     markerOutline?: string | null;
     /** How the markers are drawn, `solid` by default (see `MarkerStyle`). */
     markerStyle?: MarkerStyle;
+    /** Colours of the sea and the land, `classic` by default (see `MapBasemap`). */
+    basemap?: MapBasemap;
     /**
      * Without it, the map frames its points again whenever they change. With it, new points keep
      * the view as the user left it, until the key changes: the next new points are framed then.
