@@ -1,5 +1,6 @@
-import { memo, useMemo } from "react";
-import { Box, useTheme } from "@mui/material";
+import { memo, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { Box, IconButton, Paper, Typography, useTheme } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 import type { ValueScale } from "../types/explore.types";
 import { createScale, extent, formatTick } from "../utils/chartScales";
@@ -8,10 +9,14 @@ import { decimate } from "../utils/decimate";
 const WIDTH = 420;
 const HEIGHT = 300;
 const MARGIN = { top: 12, right: 14, bottom: 44, left: 56 };
+/** Width (viewBox units) of the invisible band around a curve that catches the pointer. */
+const HIT_WIDTH = 7;
 
 export interface ChartSeries {
     id: string;
     label: string;
+    /** Extra lines of the curve's popup (its project…). */
+    details?: string[];
     color: string;
     /** [x, y] in data units. */
     points: [number, number][];
@@ -42,6 +47,13 @@ interface ProfileChartProps {
     title: string;
 }
 
+/** The popup of a curve, at the pointer (px from the top left corner of the chart). */
+interface CurvePopup {
+    id: string;
+    left: number;
+    top: number;
+}
+
 function domainOf(values: number[], axis: ChartAxis): [number, number] {
     const range = extent(values, axis.scale) ?? [0, 1];
     const min = axis.fromZero && axis.scale !== "log10" ? Math.min(0, range[0]) : range[0];
@@ -54,11 +66,17 @@ function domainOf(values: number[], axis: ChartAxis): [number, number] {
  * along the vertical axis (depth), which line charts drawn along x cannot do, and
  * because a selection can hold thousands of points per curve (a curve longer than
  * the chart can show is thinned out, its extremes kept).
+ *
+ * Hovering a curve brings it forward and names its sample, as the map popups do;
+ * a click keeps that popup open until it is closed or another place is clicked.
  */
 function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileChartProps) {
     const theme = useTheme();
     const axisColor = theme.palette.text.secondary;
     const gridColor = theme.palette.divider;
+    const boxRef = useRef<HTMLDivElement>(null);
+    const [hovered, setHovered] = useState<CurvePopup | null>(null);
+    const [pinned, setPinned] = useState<CurvePopup | null>(null);
 
     const { xScale, yScale, paths } = useMemo(() => {
         const xs: number[] = [];
@@ -92,10 +110,19 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
                 else d += `L${sx.toFixed(1)},${sy.toFixed(1)}`;
                 drawing = true;
             }
-            return { id: s.id, label: s.label, color: s.color, d };
+            return { id: s.id, color: s.color, d };
         });
         return { xScale, yScale, paths };
     }, [series, x, y, step, valueAxis]);
+
+    const popup = pinned ?? hovered;
+    const popupSeries = popup ? series.find((s) => s.id === popup.id) : undefined;
+    const activePath = popupSeries ? paths.find((path) => path.id === popupSeries.id) : undefined;
+
+    const popupAt = (event: PointerEvent | MouseEvent, id: string): CurvePopup => {
+        const rect = boxRef.current?.getBoundingClientRect();
+        return { id, left: event.clientX - (rect?.left ?? 0), top: event.clientY - (rect?.top ?? 0) };
+    };
 
     const formatX = x.format ?? formatTick;
     const formatY = y.format ?? formatTick;
@@ -105,55 +132,113 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
     const plotBottom = HEIGHT - MARGIN.bottom;
 
     return (
-        <Box
-            component="svg"
-            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-            role="img"
-            aria-label={title}
-            sx={{ width: "100%", height: "auto", display: "block", fontFamily: theme.typography.fontFamily }}
-        >
-            {/* Grid + ticks */}
-            {xScale.ticks.map((tick) => {
-                const sx = xScale.map(tick);
-                return Number.isFinite(sx) && (
-                    <g key={`x${tick}`}>
-                        <line x1={sx} x2={sx} y1={plotTop} y2={plotBottom} stroke={gridColor} />
-                        <text x={sx} y={plotBottom + 14} fontSize={10} fill={axisColor} textAnchor="middle">{formatX(tick)}</text>
-                    </g>
-                );
-            })}
-            {yScale.ticks.map((tick) => {
-                const sy = yScale.map(tick);
-                return Number.isFinite(sy) && (
-                    <g key={`y${tick}`}>
-                        <line x1={plotLeft} x2={plotRight} y1={sy} y2={sy} stroke={gridColor} />
-                        <text x={plotLeft - 6} y={sy + 3} fontSize={10} fill={axisColor} textAnchor="end">{formatY(tick)}</text>
-                    </g>
-                );
-            })}
-            <rect x={plotLeft} y={plotTop} width={plotRight - plotLeft} height={plotBottom - plotTop} fill="none" stroke={axisColor} strokeOpacity={0.6} />
-
-            {/* Curves */}
-            <g>
-                {paths.map((path) => (
-                    <path key={path.id} d={path.d} fill="none" stroke={path.color} strokeWidth={1.1} strokeOpacity={0.85} strokeLinejoin="round">
-                        <title>{path.label}</title>
-                    </path>
-                ))}
-            </g>
-
-            {/* Axis titles */}
-            <text x={(plotLeft + plotRight) / 2} y={HEIGHT - 8} fontSize={10.5} fill={theme.palette.text.primary} textAnchor="middle">
-                {x.label}
-            </text>
-            <text
-                transform={`translate(13 ${(plotTop + plotBottom) / 2}) rotate(-90)`}
-                fontSize={10.5}
-                fill={theme.palette.text.primary}
-                textAnchor="middle"
+        <Box ref={boxRef} sx={{ position: "relative" }}>
+            <Box
+                component="svg"
+                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                role="img"
+                aria-label={title}
+                onClick={() => setPinned(null)}
+                sx={{ width: "100%", height: "auto", display: "block", fontFamily: theme.typography.fontFamily }}
             >
-                {y.label}
-            </text>
+                {/* Grid + ticks */}
+                {xScale.ticks.map((tick) => {
+                    const sx = xScale.map(tick);
+                    return Number.isFinite(sx) && (
+                        <g key={`x${tick}`}>
+                            <line x1={sx} x2={sx} y1={plotTop} y2={plotBottom} stroke={gridColor} />
+                            <text x={sx} y={plotBottom + 14} fontSize={10} fill={axisColor} textAnchor="middle">{formatX(tick)}</text>
+                        </g>
+                    );
+                })}
+                {yScale.ticks.map((tick) => {
+                    const sy = yScale.map(tick);
+                    return Number.isFinite(sy) && (
+                        <g key={`y${tick}`}>
+                            <line x1={plotLeft} x2={plotRight} y1={sy} y2={sy} stroke={gridColor} />
+                            <text x={plotLeft - 6} y={sy + 3} fontSize={10} fill={axisColor} textAnchor="end">{formatY(tick)}</text>
+                        </g>
+                    );
+                })}
+                <rect x={plotLeft} y={plotTop} width={plotRight - plotLeft} height={plotBottom - plotTop} fill="none" stroke={axisColor} strokeOpacity={0.6} />
+
+                {/* Curves: the one with a popup on top, the others faded */}
+                <g strokeOpacity={activePath ? 0.3 : 0.85}>
+                    {paths.map((path) => (
+                        <path key={path.id} d={path.d} fill="none" stroke={path.color} strokeWidth={1.1} strokeLinejoin="round" />
+                    ))}
+                </g>
+                {activePath && (
+                    <path d={activePath.d} fill="none" stroke={activePath.color} strokeWidth={2.4} strokeLinejoin="round" pointerEvents="none" />
+                )}
+                {/* Invisible wider copies of the curves, which catch the pointer */}
+                <g fill="none" stroke="transparent" strokeWidth={HIT_WIDTH} pointerEvents="stroke" style={{ cursor: "pointer" }}>
+                    {paths.map((path) => (
+                        <path
+                            key={path.id}
+                            d={path.d}
+                            data-testid="curve"
+                            onPointerEnter={(event) => setHovered(popupAt(event, path.id))}
+                            onPointerMove={(event) => setHovered(popupAt(event, path.id))}
+                            onPointerLeave={() => setHovered(null)}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                setPinned(popupAt(event, path.id));
+                            }}
+                        />
+                    ))}
+                </g>
+
+                {/* Axis titles */}
+                <text x={(plotLeft + plotRight) / 2} y={HEIGHT - 8} fontSize={10.5} fill={theme.palette.text.primary} textAnchor="middle">
+                    {x.label}
+                </text>
+                <text
+                    transform={`translate(13 ${(plotTop + plotBottom) / 2}) rotate(-90)`}
+                    fontSize={10.5}
+                    fill={theme.palette.text.primary}
+                    textAnchor="middle"
+                >
+                    {y.label}
+                </text>
+            </Box>
+
+            {popup && popupSeries && (
+                <Paper
+                    elevation={4}
+                    role={pinned ? "dialog" : "tooltip"}
+                    aria-label={popupSeries.label}
+                    sx={{
+                        position: "absolute",
+                        left: popup.left,
+                        top: popup.top - 10,
+                        transform: "translate(-50%, -100%)",
+                        px: 1.5,
+                        py: 1,
+                        pr: pinned ? 4 : 1.5,
+                        borderRadius: 1.5,
+                        maxWidth: 280,
+                        zIndex: 1,
+                        // A hover popup never steals the pointer from the curves under it.
+                        pointerEvents: pinned ? "auto" : "none",
+                    }}
+                >
+                    {pinned && (
+                        <IconButton
+                            size="small"
+                            aria-label="Close"
+                            onClick={() => setPinned(null)}
+                            sx={{ position: "absolute", top: 2, right: 2 }}
+                        >
+                            <CloseIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                    )}
+                    <Typography variant="subtitle2">{popupSeries.label}</Typography>
+                    {(popupSeries.details ?? []).map((line) => (
+                        <Typography key={line} variant="caption" color="text.secondary" component="div">{line}</Typography>
+                    ))}
+                </Paper>
+            )}
         </Box>
     );
 }
