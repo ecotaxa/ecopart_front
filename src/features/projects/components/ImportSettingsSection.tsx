@@ -84,7 +84,7 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
             <Divider sx={{ mb: 3 }} />
 
             <Grid container columnSpacing={4} rowSpacing={2}>
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={12}>
                     <TextField
                         fullWidth
                         label="Override depth offset (m)"
@@ -103,8 +103,6 @@ const ImportSettingsSectionImpl: React.FC<ImportSettingsSectionProps> = ({
                         helperText="Vertical distance between the pressure sensor and the imaged zone, positive when the sensor is above it. Empty: each sample keeps its own offset (UVP6 Pressure_offset, none in UVP5 files). A value here replaces it for every sample of the project."
                     />
                 </Grid>
-                {/* Spacer: the switches below start on their own row */}
-                <Grid size={{ md: 6 }} sx={{ display: { xs: "none", md: "block" } }} />
 
                 <Grid size={{ xs: 12, md: 6 }}>
                     <FormControlLabel
