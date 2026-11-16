@@ -15,21 +15,25 @@ const familyOf = (instrumentModel: string): InstrumentFamily => {
     return "other";
 };
 
-const SHAPE_OF_FAMILY: Record<InstrumentFamily, MarkerShape> = { UVP5: "triangle", UVP6: "square", other: "circle" };
+const SHAPE_OF_FAMILY: Record<InstrumentFamily, MarkerShape> = { UVP5: "circle", UVP6: "diamond", other: "square" };
 const FAMILY_LABELS: Record<InstrumentFamily, string> = { UVP5: "UVP5", UVP6: "UVP6", other: "Other instrument" };
 
 /** An entry of the legend, which hides or shows its samples when clicked. */
 type LegendKey = InstrumentFamily | PrivacyStatus | "mine";
 
-function useStatusColors(): Record<PrivacyStatus, string> {
-    const { palette } = useTheme();
-    return useMemo(() => ({
-        private: palette.error.main,
-        visible: palette.warning.main,
-        public: palette.info.main,
-        open: palette.success.main,
-    }), [palette]);
-}
+/**
+ * Marker colour of each data status: the hues of the theme's error, warning, info and success
+ * colours, stepped again for the map. The theme's yellow had a 1.6:1 contrast on the sea and its
+ * blue and green were too close to tell apart. These four were checked on the map's sea, every
+ * pair at once: a colour difference of at least 20 with normal vision and 10 under simulated
+ * colour blindness. The amber stays under 3:1 on the sea: the legend and the popup name the status.
+ */
+const STATUS_COLORS: Record<PrivacyStatus, string> = {
+    private: "#bf3a2b",
+    visible: "#d89000",
+    public: "#2f6fd6",
+    open: "#14a37f",
+};
 
 export interface ExploreMapProps {
     samples: ExploreMapSample[];
@@ -46,8 +50,9 @@ export interface ExploreMapProps {
 }
 
 /**
- * Polar map of the explored samples. One marker per sample: its shape gives the
- * instrument, its colour the data status, a dark ring marks the user's projects.
+ * Polar map of the explored samples, in `fine` markers (tens of thousands of samples). One
+ * marker per sample: its colour gives the data status, a dark ring marks the user's projects,
+ * its shape gives the instrument once zoomed in (every marker is a circle on the world view).
  * Its popup links to the sample and project pages.
  * A click on an entry of the legend hides its samples (or shows them again), the
  * view staying as it is. Memoized: switching tabs or changing a graph leaves the map as it is.
@@ -56,7 +61,6 @@ const ExploreMap = memo(function ExploreMap({
     samples, bounds, drawing, onBoundsDrawn, height = 420, maxHeight, fitKey,
 }: ExploreMapProps) {
     const theme = useTheme();
-    const statusColors = useStatusColors();
     const ringColor = theme.palette.text.primary;
     const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
     const [hidden, setHidden] = useState<ReadonlySet<LegendKey>>(() => new Set());
@@ -76,11 +80,11 @@ const ExploreMap = memo(function ExploreMap({
             longitude: sample.longitude,
             label: sample.sample_name,
             ...samplePopup(sample, isAdmin),
-            color: statusColors[sample.privacy_status],
+            color: STATUS_COLORS[sample.privacy_status],
             shape: SHAPE_OF_FAMILY[family],
             ring: sample.is_my_project ? ringColor : undefined,
         }];
-    }), [samples, hidden, statusColors, ringColor, isAdmin]);
+    }), [samples, hidden, ringColor, isAdmin]);
 
     const hasOtherInstruments = useMemo(
         () => samples.some((sample) => familyOf(sample.instrument_model) === "other"),
@@ -96,11 +100,11 @@ const ExploreMap = memo(function ExploreMap({
             drawing={drawing}
             onBoundsDrawn={onBoundsDrawn}
             emptyMessage="No sample to show"
-            markerOutline={null}
+            markerStyle="fine"
             fitKey={fitKey}
             legend={(
                 <MapLegend
-                    statusColors={statusColors}
+                    statusColors={STATUS_COLORS}
                     ringColor={ringColor}
                     neutral={theme.palette.text.secondary}
                     hasOtherInstruments={hasOtherInstruments}
@@ -117,6 +121,9 @@ export default ExploreMap;
 
 function LegendSwatch({ shape, color, ring }: { shape: MarkerShape; color: string; ring?: string }) {
     const size = 10;
+    if (shape === "diamond") {
+        return <Box sx={{ width: size - 2, height: size - 2, mx: "1px", flexShrink: 0, bgcolor: color, transform: "rotate(45deg)" }} />;
+    }
     if (shape === "triangle") {
         return (
             <Box
@@ -181,6 +188,7 @@ function MapLegend({ statusColors, ringColor, neutral, hasOtherInstruments, hidd
             sx={{ flexWrap: "wrap", alignItems: "center", columnGap: 1.5, rowGap: 0.25, mt: 1, ml: -0.5 }}
         >
             {families.map((family) => item(family, FAMILY_LABELS[family], <LegendSwatch shape={SHAPE_OF_FAMILY[family]} color={neutral} />))}
+            <Typography variant="caption" color="text.secondary">(shapes once zoomed in)</Typography>
             {(Object.keys(statusColors) as PrivacyStatus[]).map((status) => (
                 item(status, PRIVACY_LABELS[status], <LegendSwatch shape="circle" color={statusColors[status]} />)
             ))}

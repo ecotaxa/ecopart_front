@@ -13,7 +13,7 @@ import CloseIcon from "@mui/icons-material/Close";
 
 import { ecotaxaColors } from "@/theme";
 import PopupLinks from "../PopupLinks";
-import type { GeoBox, Hemisphere, MapPoint, MapProjection, MarkerShape, PolarMapProps } from "./types";
+import type { GeoBox, Hemisphere, MapPoint, MapProjection, MarkerShape, MarkerStyle, PolarMapProps } from "./types";
 
 const MIN_ZOOM = 0.6;
 const MAX_ZOOM = 40;
@@ -28,8 +28,25 @@ const MARKER_SIZE = 12;
  * and as many SVG markers froze the page for over a minute.
  */
 const CANVAS_MARKER_THRESHOLD = 500;
-/** How far (px) from a painted marker's centre a click still opens it. */
-const PAINTED_MARKER_REACH = MARKER_SIZE / 2 + 3;
+/** How far (px) past a painted marker's edge a click still opens it, and the least reach of a small one. */
+const PAINTED_MARKER_MARGIN = 3;
+const PAINTED_MARKER_MIN_REACH = 6;
+/** `fine` markers: size (px) on the Mercator world view (zoom 0.5) and close up, growing with the log of the zoom between. */
+const FINE_MARKER_MIN = 3.6;
+const FINE_MARKER_MAX = 9;
+const FINE_MARKER_GROWTH = 1.7;
+/** `fine` markers stay circles below this zoom: at 4 px, a triangle, a diamond and a circle look the same. */
+const FINE_SHAPES_FROM_ZOOM = 3;
+/** Width (px) of the halo around a `fine` marker, and of the ring of a ringed one (its halo then goes around the ring). */
+const FINE_HALO = 0.8;
+const FINE_RING = 0.9;
+/** A ringed `fine` marker is drawn a little larger, so that its ring does not hide its colour. */
+const FINE_RINGED_EXTRA = 0.8;
+/**
+ * `fine` markers are painted in this many slices of their mixed order. Batching every marker of
+ * one colour together would put the last colour painted on top of all the others.
+ */
+const FINE_SLICES = 6;
 /** The disc goes 20° past the equator: beyond, the far hemisphere gets too distorted to read. */
 const CLIP_ANGLE = 110;
 const FAR_LATITUDE_LIMIT = CLIP_ANGLE - 90;
@@ -176,6 +193,10 @@ const markerPath = (shape: MarkerShape, size: number) => {
     if (shape === "pin") return PIN_PATH;
     if (shape === "triangle") return `M0,${-h}L${h},${h * 0.8}L${-h},${h * 0.8}Z`;
     if (shape === "square") return `M${-h * 0.85},${-h * 0.85}h${h * 1.7}v${h * 1.7}h${-h * 1.7}Z`;
+    if (shape === "diamond") {
+        const r = h * 1.2;
+        return `M0,${-r}L${r},0L0,${r}L${-r},0Z`;
+    }
     // An X centred on the position, drawn as a thin outline.
     if (shape === "cross") {
         const t = h * 0.28;
@@ -184,16 +205,46 @@ const markerPath = (shape: MarkerShape, size: number) => {
     return `M${h},0A${h},${h} 0 1,1 ${-h},0A${h},${h} 0 1,1 ${h},0Z`;
 };
 
+/** Size (px) of the markers at a zoom (pins keep `PIN_SIZE`). */
+const markerSize = (style: MarkerStyle, k: number) => (style === "fine"
+    ? clamp(FINE_MARKER_MIN + FINE_MARKER_GROWTH * Math.log2(k / 0.5), FINE_MARKER_MIN, FINE_MARKER_MAX)
+    : MARKER_SIZE);
+
+/** The shape drawn for a point at a zoom: `fine` markers stay circles until shapes can be told apart. */
+const shapeAt = (point: MapPoint, style: MarkerStyle, k: number): MarkerShape => {
+    const shape = point.shape ?? "circle";
+    return style === "fine" && shape !== "pin" && k < FINE_SHAPES_FROM_ZOOM ? "circle" : shape;
+};
+
+/** FNV-1a hash of a point id: a rank that looks random but never changes. */
+function hashId(id: string) {
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < id.length; index++) {
+        hash ^= id.charCodeAt(index);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return hash >>> 0;
+}
+
+/** The points shuffled, the same way at every render: a marker never jumps above or below another on a new frame. */
+const mixedOrder = (points: MapPoint[]) => points
+    .map((point) => ({ point, rank: hashId(point.id) }))
+    .sort((a, b) => a.rank - b.rank)
+    .map(({ point }) => point);
+
 /** A marker placed on the screen, on one copy of the world. */
 interface ScreenMarker {
     key: string;
     point: MapPoint;
     xy: [number, number];
+    /** As drawn at the current zoom. */
+    shape: MarkerShape;
+    size: number;
 }
 
 /** Adds to `path` the outline of a marker placed at `x, y` (its tip, for a pin). */
-function traceMarker(path: Path2D, shape: MarkerShape, x: number, y: number) {
-    const h = MARKER_SIZE / 2;
+function traceMarker(path: Path2D, shape: MarkerShape, x: number, y: number, size: number) {
+    const h = size / 2;
     if (shape === "circle") {
         path.moveTo(x + h, y);
         path.arc(x, y, h, 0, 2 * Math.PI);
@@ -204,12 +255,35 @@ function traceMarker(path: Path2D, shape: MarkerShape, x: number, y: number) {
         path.closePath();
     } else if (shape === "square") {
         path.rect(x - h * 0.85, y - h * 0.85, h * 1.7, h * 1.7);
+    } else if (shape === "diamond") {
+        const r = h * 1.2;
+        path.moveTo(x, y - r);
+        path.lineTo(x + r, y);
+        path.lineTo(x, y + r);
+        path.lineTo(x - r, y);
+        path.closePath();
     } else {
         const matrix = shape === "pin"
             ? new DOMMatrix().translateSelf(x - 12 * PIN_SCALE, y - 22 * PIN_SCALE).scaleSelf(PIN_SCALE)
             : new DOMMatrix().translateSelf(x, y);
-        path.addPath(new Path2D(markerPath(shape, MARKER_SIZE)), matrix);
+        path.addPath(new Path2D(markerPath(shape, size)), matrix);
     }
+}
+
+/** Markers that look alike (shape, fill, ring), traced in one path so that one call paints them all. */
+interface MarkerBatch {
+    point: MapPoint;
+    path: Path2D;
+}
+
+function addToBatch(batches: Map<string, MarkerBatch>, { point, xy, shape, size }: ScreenMarker) {
+    const look = `${shape}|${point.color}|${point.ring ?? ""}`;
+    let batch = batches.get(look);
+    if (!batch) {
+        batch = { point, path: new Path2D() };
+        batches.set(look, batch);
+    }
+    traceMarker(batch.path, shape, xy[0], xy[1], size);
 }
 
 /**
@@ -217,17 +291,8 @@ function traceMarker(path: Path2D, shape: MarkerShape, x: number, y: number) {
  * stroke calls draw any number of them. The ringed ones (the user's data) go on top.
  */
 function paintMarkers(context: CanvasRenderingContext2D, markers: ScreenMarker[], outline: string | null) {
-    const batches = new Map<string, { point: MapPoint; path: Path2D }>();
-    for (const { point, xy } of markers) {
-        const shape = point.shape ?? "circle";
-        const look = `${shape}|${point.color}|${point.ring ?? ""}`;
-        let batch = batches.get(look);
-        if (!batch) {
-            batch = { point, path: new Path2D() };
-            batches.set(look, batch);
-        }
-        traceMarker(batch.path, shape, xy[0], xy[1]);
-    }
+    const batches = new Map<string, MarkerBatch>();
+    for (const marker of markers) addToBatch(batches, marker);
     const ordered = [...batches.values()].sort((a, b) => Number(a.point.ring !== undefined) - Number(b.point.ring !== undefined));
     for (const { point, path } of ordered) {
         context.fillStyle = point.color;
@@ -240,15 +305,56 @@ function paintMarkers(context: CanvasRenderingContext2D, markers: ScreenMarker[]
     }
 }
 
+/**
+ * Paints `fine` markers in their mixed order, slice by slice: the halos of a slice, then its fills,
+ * so that a halo keeps apart the markers it touches and the colours interleave. The ringed ones
+ * (the user's data) go on top: halo, ring, then fill.
+ */
+function paintFineMarkers(context: CanvasRenderingContext2D, markers: ScreenMarker[], halo: string | null) {
+    const ringed = new Map<string, MarkerBatch>();
+    const slice = Math.max(1, Math.ceil(markers.length / FINE_SLICES));
+    context.lineJoin = "round";
+    for (let start = 0; start < markers.length; start += slice) {
+        const batches = new Map<string, MarkerBatch>();
+        for (let index = start; index < Math.min(start + slice, markers.length); index++) {
+            addToBatch(markers[index].point.ring ? ringed : batches, markers[index]);
+        }
+        for (const { point, path } of batches.values()) {
+            if (halo) {
+                context.strokeStyle = halo;
+                context.lineWidth = 2 * FINE_HALO;
+                context.stroke(path);
+            }
+            context.fillStyle = point.color;
+            context.fill(path);
+        }
+    }
+    for (const { point, path } of ringed.values()) {
+        if (halo) {
+            context.strokeStyle = halo;
+            context.lineWidth = 2 * (FINE_RING + FINE_HALO);
+            context.stroke(path);
+        }
+        if (point.ring) {
+            context.strokeStyle = point.ring;
+            context.lineWidth = 2 * FINE_RING;
+            context.stroke(path);
+        }
+        context.fillStyle = point.color;
+        context.fill(path);
+    }
+}
+
 /** The painted marker under a position of the map (the closest within reach), if any. */
 function paintedMarkerAt(markers: ScreenMarker[], x: number, y: number): ScreenMarker | null {
     let closest: ScreenMarker | null = null;
     let closestDistance = Infinity;
     for (const marker of markers) {
-        const isPin = marker.point.shape === "pin";
+        const isPin = marker.shape === "pin";
         // A pin stands above its point: its head is what gets clicked.
         const distance = Math.hypot(x - marker.xy[0], y - (isPin ? marker.xy[1] - PIN_SIZE * 0.6 : marker.xy[1]));
-        if (distance <= (isPin ? PIN_SIZE / 2 : PAINTED_MARKER_REACH) && distance < closestDistance) {
+        const reach = isPin ? PIN_SIZE / 2 : Math.max(marker.size / 2 + PAINTED_MARKER_MARGIN, PAINTED_MARKER_MIN_REACH);
+        if (distance <= reach && distance < closestDistance) {
             closest = marker;
             closestDistance = distance;
         }
@@ -321,7 +427,7 @@ function boxBetween([lon1, lat1]: [number, number], [lon2, lat2]: [number, numbe
  */
 export default function PolarMap({
     points, height: minHeight = 320, maxHeight, bounds = null, drawing = false, onBoundsDrawn,
-    emptyMessage = "Nothing to show", legend, defaultProjection = "mercator", markerOutline, fitKey,
+    emptyMessage = "Nothing to show", legend, defaultProjection = "mercator", markerOutline, markerStyle = "solid", fitKey,
 }: PolarMapProps) {
     const theme = useTheme();
     const land = useLand();
@@ -411,9 +517,14 @@ export default function PolarMap({
         return Array.from({ length: Math.min(last - first + 1, 8) }, (_, index) => first + index);
     }, [kind, centerX, width, view, worldWidth]);
 
+    // The last marker drawn lies on top: `fine` markers are drawn in a mixed order.
+    const drawnPoints = useMemo(
+        () => (markerStyle === "fine" ? mixedOrder(validPoints) : validPoints),
+        [validPoints, markerStyle],
+    );
     const shownPoints = useMemo(
-        () => validPoints.filter((point) => isOnMap(point, kind, hemisphere)),
-        [validPoints, kind, hemisphere],
+        () => drawnPoints.filter((point) => isOnMap(point, kind, hemisphere)),
+        [drawnPoints, kind, hemisphere],
     );
     const hiddenCount = validPoints.length - shownPoints.length;
     const otherHemisphere: Hemisphere = hemisphere === "north" ? "south" : "north";
@@ -426,16 +537,19 @@ export default function PolarMap({
 
     const markers = useMemo(() => {
         const placed: ScreenMarker[] = [];
+        const size = markerSize(markerStyle, view.k);
         for (const { point, xy } of projectedPoints) {
             const y = centerY + view.y + view.k * xy[1];
+            const shape = shapeAt(point, markerStyle, view.k);
+            const pointSize = markerStyle === "fine" && point.ring ? size + FINE_RINGED_EXTRA : size;
             for (const copy of copies) {
                 const x = centerX + view.x + view.k * (xy[0] + copy * worldWidth);
                 if (kind === "mercator" && (x <= -PIN_SIZE || x >= width + PIN_SIZE)) continue;
-                placed.push({ key: `${point.id}#${copy}`, point, xy: [x, y] });
+                placed.push({ key: `${point.id}#${copy}`, point, xy: [x, y], shape, size: pointSize });
             }
         }
         return placed;
-    }, [projectedPoints, copies, view, centerX, centerY, worldWidth, kind, width]);
+    }, [projectedPoints, copies, view, centerX, centerY, worldWidth, kind, width, markerStyle]);
     const openMarker = markers.find((marker) => marker.key === openPointId);
 
     const toGeo = (clientX: number, clientY: number): [number, number] | null => {
@@ -570,8 +684,9 @@ export default function PolarMap({
         }
         context.setTransform(ratio, 0, 0, ratio, 0, 0);
         context.clearRect(0, 0, width, height);
-        paintMarkers(context, markers, outline);
-    }, [markers, width, height, outline]);
+        if (markerStyle === "fine") paintFineMarkers(context, markers, outline);
+        else paintMarkers(context, markers, outline);
+    }, [markers, width, height, outline, markerStyle]);
 
     // Polar: along the 45°E meridian. Mercator: along the left edge of the map.
     const labelLatitudes = kind === "mercator"
@@ -585,12 +700,14 @@ export default function PolarMap({
         .filter((label): label is { latitude: number; xy: [number, number] } =>
             label.xy !== null && label.xy[0] > 0 && label.xy[0] < width && label.xy[1] > 0 && label.xy[1] < height);
 
+    // A quiet base (grey-blue sea, light grey land, faint graticule): the markers stay the most contrasted thing on the map.
     const colors = {
         background: ecotaxaColors.stone[50],
-        ocean: ecotaxaColors.mainblue[100],
-        land: theme.palette.common.white,
+        ocean: ecotaxaColors.stone[100],
+        land: ecotaxaColors.stone[200],
         coast: ecotaxaColors.stone[300],
-        graticule: ecotaxaColors.mainblue[300],
+        graticule: ecotaxaColors.stone[300],
+        label: ecotaxaColors.stone[500],
     };
 
     return (
@@ -649,16 +766,17 @@ export default function PolarMap({
                             x={xy[0] + 3}
                             y={xy[1] - 3}
                             fontSize={10}
-                            fill={ecotaxaColors.mainblue[700]}
-                            fillOpacity={0.7}
+                            fill={colors.label}
+                            fillOpacity={0.8}
                             pointerEvents="none"
                         >
                             {formatLatitude(latitude)}
                         </text>
                     ))}
 
-                    {!painted && markers.map(({ key, point, xy }) => {
-                        const isPin = point.shape === "pin";
+                    {!painted && markers.map(({ key, point, xy, shape, size }) => {
+                        const isPin = shape === "pin";
+                        const d = markerPath(shape, size);
                         return (
                             <g
                                 key={key}
@@ -674,14 +792,31 @@ export default function PolarMap({
                                 }}
                             >
                                 <title>{point.label}</title>
-                                <path
-                                    d={markerPath(point.shape ?? "circle", MARKER_SIZE)}
-                                    transform={isPin ? PIN_TRANSFORM : undefined}
-                                    fill={point.color}
-                                    stroke={point.ring ?? outline ?? "none"}
-                                    strokeWidth={(point.ring ? 2.5 : 1.2) / (isPin ? PIN_SCALE : 1)}
-                                    style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))" }}
-                                />
+                                {markerStyle === "fine" && !isPin ? (
+                                    <>
+                                        {point.ring && outline && (
+                                            <path d={d} fill="none" stroke={outline} strokeWidth={2 * (FINE_RING + FINE_HALO)} strokeLinejoin="round" />
+                                        )}
+                                        {/* The stroke is painted under the fill: only its outer half shows, as a halo or a ring. */}
+                                        <path
+                                            d={d}
+                                            fill={point.color}
+                                            stroke={point.ring ?? outline ?? "none"}
+                                            strokeWidth={2 * (point.ring ? FINE_RING : FINE_HALO)}
+                                            strokeLinejoin="round"
+                                            paintOrder="stroke"
+                                        />
+                                    </>
+                                ) : (
+                                    <path
+                                        d={d}
+                                        transform={isPin ? PIN_TRANSFORM : undefined}
+                                        fill={point.color}
+                                        stroke={point.ring ?? outline ?? "none"}
+                                        strokeWidth={(point.ring ? 2.5 : 1.2) / (isPin ? PIN_SCALE : 1)}
+                                        style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))" }}
+                                    />
+                                )}
                             </g>
                         );
                     })}
@@ -700,7 +835,7 @@ export default function PolarMap({
                         sx={{
                             position: "absolute",
                             left: openMarker.xy[0],
-                            top: openMarker.xy[1] - (openMarker.point.shape === "pin" ? PIN_SIZE : MARKER_SIZE),
+                            top: openMarker.xy[1] - (openMarker.shape === "pin" ? PIN_SIZE : openMarker.size / 2 + 6),
                             transform: "translate(-50%, -100%)",
                             px: 1.5,
                             py: 1,

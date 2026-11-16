@@ -149,6 +149,22 @@ describe('PolarMap', () => {
             expect(screen.getByRole('button', { name: 'Sample med' }).querySelector('path')).toHaveAttribute('stroke', 'none');
         });
 
+        it('draws fine markers as small circles on the world view, in their shape once zoomed in', async () => {
+            const user = userEvent.setup();
+            const world = [point('centre', 0, 0), point('ne', 60, 120), point('sw', -60, -120)]
+                .map((spot) => ({ ...spot, shape: 'diamond' as const }));
+            render(<PolarMap points={world} height={MAP_HEIGHT} markerStyle="fine" />);
+            const outline = () => screen.getAllByRole('button', { name: 'Sample centre' })[0].querySelector('path')?.getAttribute('d') ?? '';
+
+            // A 3.6 px circle: an arc of radius 1.8.
+            expect(outline()).toMatch(/^M1\.8,0A1\.8,1\.8 /);
+
+            for (let step = 0; step < 7; step++) await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+            const [, corner] = /^M0,-([\d.]+)L/.exec(outline()) ?? [];
+            // A 9 px diamond: its corners 1.2 × 4.5 px from the centre.
+            expect(Number(corner)).toBeCloseTo(5.4);
+        });
+
         it('never drags the world off the top of the map', () => {
             render(<PolarMap points={spread} height={MAP_HEIGHT} />);
             const map = screen.getByRole('img', { name: /Mercator map/ });
@@ -250,6 +266,14 @@ describe('PolarMap', () => {
 
             expect(container.querySelector('canvas')).toBeInTheDocument();
             expect(screen.queryAllByRole('button', { name: /^Sample / })).toHaveLength(0);
+        });
+
+        it('opens a small fine marker from a few pixels away', () => {
+            render(<PolarMap points={crowd} height={MAP_HEIGHT} markerStyle="fine" />);
+            const map = screen.getByRole('img', { name: /Mercator map/ });
+            fireEvent.pointerDown(map, { button: 0, clientX: MAP_WIDTH / 2 + 4, clientY: MAP_HEIGHT / 2 - 3, pointerId: 1 });
+            fireEvent.pointerUp(map, { button: 0, clientX: MAP_WIDTH / 2 + 4, clientY: MAP_HEIGHT / 2 - 3, pointerId: 1 });
+            expect(screen.getByText(/^Sample \d+$/)).toBeInTheDocument();
         });
 
         it('opens a painted marker on click, and closes it on a click elsewhere', () => {
