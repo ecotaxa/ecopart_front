@@ -20,6 +20,7 @@ import SelectionGraphs from "../components/SelectionGraphs";
 import EcoTaxaSummary from "../components/EcoTaxaSummary";
 import RandomImages from "../components/RandomImages";
 import { useExploreData } from "../hooks/useExploreData";
+import { samplePopup } from "../utils/samplePopup";
 import {
     SAMPLE_TYPES_OF_MODE,
     type ExploreAggregation,
@@ -32,7 +33,6 @@ import {
 } from "../types/explore.types";
 import {
     DEFAULT_AGGREGATION,
-    PRIVACY_LABELS,
     boundsError,
     createEmptyDraft,
     dateRangeError,
@@ -142,13 +142,11 @@ export default function ExplorePage() {
 
     const goTo = (nextTab: ExploreTab) => navigate(`/explore/${nextTab}`);
 
-    // The project of each sample, under its name in the popup of its curve (as on the map).
+    // The project of each sample and the links to their pages, in the popup of its curve (as on the map).
+    const isAdmin = useAuthStore((s) => s.user?.is_admin === true);
     const sampleDetails = useMemo(
-        () => new Map(data.mapSamples.map((sample) => [
-            sample.sample_id,
-            [`${sample.project_title} [${sample.project_id}]`, `${sample.instrument_model} · ${PRIVACY_LABELS[sample.privacy_status]}`],
-        ])),
-        [data.mapSamples],
+        () => new Map(data.mapSamples.map((sample) => [sample.sample_id, samplePopup(sample, isAdmin)])),
+        [data.mapSamples, isAdmin],
     );
 
     const randomImages = (

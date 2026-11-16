@@ -12,6 +12,7 @@ import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import CloseIcon from "@mui/icons-material/Close";
 
 import { ecotaxaColors } from "@/theme";
+import PopupLinks from "../PopupLinks";
 import type { GeoBox, Hemisphere, MapPoint, MapProjection, MarkerShape, PolarMapProps } from "./types";
 
 const MIN_ZOOM = 0.6;
@@ -723,6 +724,7 @@ export default function PolarMap({
                         <Typography variant="caption" color="text.secondary" component="div">
                             Lat {openMarker.point.latitude.toFixed(5)}, Lon {openMarker.point.longitude.toFixed(5)}
                         </Typography>
+                        <PopupLinks links={openMarker.point.links} />
                     </Paper>
                 )}
 

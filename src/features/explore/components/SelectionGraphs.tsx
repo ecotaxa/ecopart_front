@@ -16,6 +16,7 @@ import type {
     ExploreGraphs, ExploreSampleType, ExploreSizeClasses, GraphDataset, ProfileSeries, TimeScale, ValueScale,
 } from "../types/explore.types";
 import { PRESSURE_BIN, TIME_BIN, timeBinIndex } from "../utils/exploreFilters";
+import type { SamplePopup } from "../utils/samplePopup";
 import BoundedNumberField from "./BoundedNumberField";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
@@ -89,8 +90,8 @@ const NO_KEYS: string[] = [];
 const NO_SELECTION: string[] = [];
 const NO_SERIES: ProfileSeries[] = [];
 
-/** Extra lines of the popup of a sample's curve (its project…), by sample id. */
-export type SampleDetails = ReadonlyMap<number, string[]>;
+/** Extra lines and links of the popup of a sample's curve (its project…), by sample id. */
+export type SampleDetails = ReadonlyMap<number, SamplePopup>;
 
 /**
  * One colour per sample, hues spread by the golden angle so that neighbouring
@@ -131,7 +132,8 @@ function toChartSeries(series: ProfileSeries[], mode: ExploreSampleType, timeSca
         return {
             id: String(sample.sample_id),
             label: sample.sample_name,
-            details: sampleDetails?.get(sample.sample_id),
+            details: sampleDetails?.get(sample.sample_id)?.details,
+            links: sampleDetails?.get(sample.sample_id)?.links,
             color: seriesColor(index),
             points: sample.positions.map((position, i): [number, number] => {
                 const value = sample.values[i];

@@ -276,6 +276,7 @@ export default function ProjectDetailsPage() {
                                     ecoTaxaLinked={project?.ecotaxa_project_id != null}
                                     ecoTaxaProjectUrl={ecoTaxaProjectUrl}
                                     onImportData={access.can.import ? () => navigate(`/projects/${projectId}/import`) : undefined}
+                                    canOpenSamples={access.can.figures}
                                     onLinkProject={access.can.manage ? () => navigate(`/projects/${projectId}/metadata#ecotaxa-link`) : undefined}
                                     notice={hiddenDataNotice}
                                 />

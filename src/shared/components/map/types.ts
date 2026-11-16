@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import type { PopupLink } from "../PopupLinks";
+
 export type Hemisphere = "north" | "south";
 
 /** Flat world map, or the Earth seen from above a pole. */
@@ -29,6 +31,8 @@ export interface MapPoint {
     label: string;
     /** Extra popup lines. */
     details?: string[];
+    /** Links under the popup lines (the pages of the point's sample, project…). */
+    links?: PopupLink[];
     /** Fill (any CSS color). */
     color: string;
     shape?: MarkerShape;
