@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { PublicOnlyRoute } from "@/app/PublicOnlyRoute";
@@ -17,7 +17,6 @@ const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));
 const ResetPasswordPage = lazy(() => import("@/features/auth/pages/ResetPasswordPage"));
 const ResetPasswordConfirmPage = lazy(() => import("@/features/auth/pages/ResetPasswordConfirmPage"));
 const ValidateEmailPage = lazy(() => import("@/features/auth/pages/ValidateEmailPage"));
-const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 const ProfilePage = lazy(() => import("@/features/userProfile/pages/ProfilePage"));
 const ProjectsPage = lazy(() => import("@/features/projects/pages/ProjectsPage"));
 const NewProjectPage = lazy(() => import("@/features/projects/pages/NewProjectPage"));
@@ -53,7 +52,8 @@ export const router = createBrowserRouter([
                     </PublicOnlyRoute>
                 ),
             },
-            { path: "/dashboard", element: protectedPage(<DashboardPage />) },
+            // The former landing page after login (a placeholder): old bookmarks land on Explore.
+            { path: "/dashboard", element: <Navigate to="/explore" replace /> },
             { path: "/reset-password", element: page(<ResetPasswordPage />) },
             { path: "/reset-password/:token", element: page(<ResetPasswordConfirmPage />) },
             {

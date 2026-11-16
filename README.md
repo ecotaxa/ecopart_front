@@ -127,7 +127,7 @@ app/
 
 ```tsx
 <ProtectedRoute>
-  <DashboardPage />
+  <ProjectsPage />
 </ProtectedRoute>
 ```
 
@@ -316,7 +316,7 @@ All routing lives in **one file**:
 ```ts
 // app/router.tsx
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
-const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
+const ProjectsPage = lazy(() => import("@/features/projects/pages/ProjectsPage"));
 
 export const router = createBrowserRouter([
   {
@@ -324,7 +324,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />, // render / chunk-load errors
     children: [
       { path: "/login", element: page(<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>) },
-      { path: "/dashboard", element: protectedPage(<DashboardPage />) },
+      { path: "/projects", element: protectedPage(<ProjectsPage />) },
       { path: "*", element: page(<NotFoundPage />) },
     ],
   },
@@ -587,10 +587,10 @@ cell. Accessibility scenarios are tagged **♿** in the ID column.
 | --- | --- | --- | --- | --- |
 | **TC-A1** | Initial rendering & state | User is not authenticated. | Navigate to `/login`. | • The login form is displayed.<br>• The login button is disabled (this implicitly verifies that empty fields prevent submission).<br>• No error message is visible. |
 | **TC-A2** | Validation logic (email) | User is on the Login page. | • Enter an invalid email format.<br>• Move focus away from the field (blur). | • The email validation error message is displayed.<br>• The login button remains disabled. |
-| **TC-A3** | Successful login (happy path) | The backend login API is available. | • Enter a valid email and password.<br>• Click **LOG IN**. | • The login API is called with the correct credentials.<br>• The user is redirected to `/dashboard`. |
+| **TC-A3** | Successful login (happy path) | The backend login API is available. | • Enter a valid email and password.<br>• Click **LOG IN**. | • The login API is called with the correct credentials.<br>• The user is redirected to `/explore`. |
 | **TC-A4** | Server error handling (500) | The backend returns a 500 Server Error. | • Enter valid credential formats.<br>• Click **LOG IN**. | • The app handles the error gracefully (no crash).<br>• The generic error message ("An unexpected error occurred…") is displayed — a backend outage is never reported as wrong credentials.<br>• The user remains on the login page. |
 | **TC-A4b** | Wrong credentials (401) | The backend rejects the email / password pair. | • Enter a wrong password.<br>• Click **LOG IN**. | • "Invalid email or password" is displayed.<br>• The user remains on the login page. |
-| **TC-A5** | Redirect authenticated user | The user is already authenticated (a session exists). | Navigate to `/login`. | The user is immediately redirected to `/dashboard`. |
+| **TC-A5** | Redirect authenticated user | The user is already authenticated (a session exists). | Navigate to `/login`. | The user is immediately redirected to `/explore`. |
 | ♿ **TC-A6** | Keyboard navigation & labels | User is on the Login page. | • Fill the form (to enable the button).<br>• Navigate through the form using only the Tab key. | • All inputs have an associated `<label>`.<br>• Focus moves logically: Email → Password → Visibility toggle → Login button. |
 
 ### B. Register Page
@@ -1079,10 +1079,10 @@ The tab reads `GET /projects/:id/stats` (`useProjectStats`), one call for every 
 
 | ID | Title | Preconditions | Steps | Expected Result |
 | --- | --- | --- | --- | --- |
-| **TC-AD1** | Block unauthenticated access | The user is not authenticated. | Render a `<ProtectedRoute>` at `/dashboard`. | • The protected content ("Protected Dashboard") is not rendered.<br>• The user is redirected to `/login` (the "Login Page" renders). |
-| **TC-AD2** | Allow authenticated access | The user is authenticated (`loginAsUser`). | Render a `<ProtectedRoute>` at `/dashboard`. | The protected content ("Protected Dashboard") is rendered; no redirect. |
-| **TC-AD3** | Public-only redirect | The user is authenticated. | Render `<PublicOnlyRoute>` at `/login`, then unmount and render it at `/register`. | • On `/login`: the Login page is not rendered; the app lands on the Dashboard.<br>• On `/register`: the Register page is not rendered; the app lands on the Dashboard. |
-| **TC-AD4** | Deep-link return after login | The user is not authenticated and opens `/projects/5` (a `ProtectedRoute`). | Get redirected to `/login`, fill the form and log in. | The app lands back on `/projects/5`, not on the Dashboard (`PublicOnlyRoute` re-renders as soon as the user is set, before the login page's own `navigate()`, so it aims at the requested page too). |
+| **TC-AD1** | Block unauthenticated access | The user is not authenticated. | Render a `<ProtectedRoute>` at `/projects`. | • The protected content ("Protected Projects") is not rendered.<br>• The user is redirected to `/login` (the "Login Page" renders). |
+| **TC-AD2** | Allow authenticated access | The user is authenticated (`loginAsUser`). | Render a `<ProtectedRoute>` at `/projects`. | The protected content ("Protected Projects") is rendered; no redirect. |
+| **TC-AD3** | Public-only redirect | The user is authenticated. | Render `<PublicOnlyRoute>` at `/login`, then unmount and render it at `/register`. | • On `/login`: the Login page is not rendered; the app lands on Explore.<br>• On `/register`: the Register page is not rendered; the app lands on Explore. |
+| **TC-AD4** | Deep-link return after login | The user is not authenticated and opens `/projects/5` (a `ProtectedRoute`). | Get redirected to `/login`, fill the form and log in. | The app lands back on `/projects/5`, not on Explore (`PublicOnlyRoute` re-renders as soon as the user is set, before the login page's own `navigate()`, so it aims at the requested page too). |
 
 ### AE. Admin — Tasks Tab (`AdminTasksTab`)
 
@@ -1316,7 +1316,7 @@ The front mirrors the backend policy to hide what would be refused: roles `admin
 | - | Anonymous visitor, no export | Not logged in. | Open `/explore/exportable`, apply. | **Export selection** stays disabled once the selection is there, with "Log in to export data". |
 | - | Anonymous visitor, no "My projects" | Not logged in, then logged in. | Open `/explore`. | The **My projects** filter only shows once logged in. |
 | - | Graphs, logged in | Logged in. | Open `/explore/depth/graphs`, apply. | The abundance and CTD charts are drawn, the backend warning shows above them; one `/explore/graphs` request. |
-| - | Random images | - | Open `/explore/depth/exportable`, apply, click **Other random images**. | Four images with their captions; the refresh requests `/explore/images` again. |
+| - | Random images | - | Open `/explore/exportable` (or the stats tab), apply: only a **Load random images** button, no `/explore/images` request. Click it, then **Other random images**. | Four images with their captions; the refresh requests `/explore/images` again. A new selection shows the button again. |
 | - | Data hook (`useExploreData`) | MSW, requests recorded. | Render the hook with filters, tabs and users. | • Before any filter: projects and map only; neither available nor unavailable until the projects answer.<br>• A 404 or an unreachable backend makes it unavailable, without error, and nothing more is asked.<br>• The selection shows before its EcoTaxa part, which is merged when it arrives (never the one of the previous filters); an EcoTaxa failure keeps the selection and reports the error.<br>• A partial EcoTaxa part is asked again every 5 s, its figures staying on screen and the poll not counted as loading, until it is complete; then, or once the filters are cleared, it is no longer asked; the other routes are never polled.<br>• New filters keep the previous selection until theirs arrive; cleared filters empty it.<br>• Graphs only on the graphs tab once filters are applied, anonymous visitors included, asked again with the bin size once the slider rests; images only on the exportable tab, again on refresh. |
 | - | API helpers (`explore.api`) | MSW. | Call every helper. | Methods, paths and JSON bodies of the contract; `{ projects }`, `{ samples }` and `{ images }` unwrapped; a refusal surfaces as an `ApiError` with the backend message; the query keys depend on the request and the user. |
 | - | Curve thinning (`decimate`) | - | Thin curves of 8 to 100 000 points. | A short curve is kept as is; each slice keeps its lowest and highest value in order, on the value axis; never more points than asked; a slice without value keeps one point. |
