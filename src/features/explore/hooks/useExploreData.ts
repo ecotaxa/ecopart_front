@@ -37,7 +37,7 @@ import {
 export interface ExploreDataOptions {
     /** Bin sizes of the graphs. */
     aggregation: ExploreAggregation;
-    /** The tab on screen: the graphs are only requested on the graphs tab, the images on the exportable one. */
+    /** The tab on screen: the graphs are only requested on the graphs tab, the images on the two others. */
     tab: ExploreTab;
     /** Particle histogram of the graphs of each sample type (reduced when absent). */
     sizeClasses?: Record<ExploreSampleType, ExploreSizeClasses>;
@@ -63,6 +63,8 @@ export interface ExploreData {
     exportable: ExploreSelection;
     images: ExploreImage[];
     refreshImages: () => void;
+    /** Images are being drawn (a first load, or the refresh button). */
+    imagesLoading: boolean;
     /** A request is in flight. */
     loading: boolean;
     /** The backend serves the explore data (its project list arrived). */
@@ -159,7 +161,7 @@ export function useExploreData(
     const request = toExploreRequest(filters);
     const depthGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("depth");
     const timeGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("time");
-    const imagesEnabled = applied && tab === "exportable";
+    const imagesEnabled = applied && tab !== "graphs";
 
     const imagesRequest = { ...request, count: RANDOM_IMAGE_COUNT };
 
@@ -248,6 +250,7 @@ export function useExploreData(
         exportable,
         images: imagesEnabled ? imagesQuery.data ?? NO_IMAGES : NO_IMAGES,
         refreshImages,
+        imagesLoading: imagesEnabled && imagesQuery.isFetching,
         loading: ecotaxaLoading
             || [projectsQuery, mapQuery, selectionQuery, depthGraphsQuery, timeGraphsQuery, imagesQuery]
                 .some((query) => query.isFetching),

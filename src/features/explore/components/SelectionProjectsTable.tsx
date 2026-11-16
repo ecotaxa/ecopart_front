@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Box, Chip, IconButton, MenuItem, Stack, TextField, Tooltip, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
+import { Box, Chip, IconButton, Link, MenuItem, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -54,6 +55,20 @@ export default function SelectionProjectsTable({ title, subtitle, rows, mode }: 
             flex: 1.5,
             minWidth: 200,
             valueGetter: (_value, row) => `${row.project_title} [${row.project_id}]`,
+            // A new tab keeps the selection of this page, which lives in its state only.
+            renderCell: ({ row, value }) => (
+                <Link
+                    component={RouterLink}
+                    to={`/projects/${row.project_id}`}
+                    target="_blank"
+                    rel="noopener"
+                    underline="hover"
+                    title="Open the project page in a new tab"
+                    sx={{ py: 1, display: "inline-block", lineHeight: 1.3 }}
+                >
+                    {value}
+                </Link>
+            ),
         },
         { field: "instrument_model", headerName: "Instrument", width: 110 },
         {

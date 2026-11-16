@@ -284,6 +284,55 @@ describe('ExplorePage', () => {
         await waitFor(() => expect(callsTo('/explore/images')).toHaveLength(2));
     });
 
+    it('also shows the random images on the stats tab, the refresh button waiting for the answer', async () => {
+        let answer: () => void = () => undefined;
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        expect(await screen.findAllByRole('img', { name: /^Object / })).toHaveLength(4);
+
+        server.use(http.post('*/explore/images', async () => {
+            await new Promise<void>((resolve) => { answer = resolve; });
+            return HttpResponse.json({ images: [] });
+        }));
+        const refresh = screen.getByRole('button', { name: 'Other random images' });
+        await user.click(refresh);
+        await waitFor(() => expect(refresh).toBeDisabled());
+        answer();
+        await waitFor(() => expect(refresh).toBeEnabled());
+        expect(callsTo('/explore/images')).toHaveLength(2);
+    });
+
+    it('links each selected project to its page, in a new tab', async () => {
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        const link = await screen.findByRole('link', { name: 'Tara Oceans 2009 [1]' });
+        expect(link).toHaveAttribute('href', '/projects/1');
+        expect(link).toHaveAttribute('target', '_blank');
+    });
+
+    it('applies a typed pressure range', async () => {
+        const bodies: { filters: { pressure_range: [number, number] | null } | null }[] = [];
+        server.events.on('request:start', async ({ request }) => {
+            if (new URL(request.url).pathname === '/explore/selection') bodies.push(await request.clone().json());
+        });
+        const user = userEvent.setup();
+        renderPage();
+
+        const pressure = screen.getByRole('region', { name: 'Pressure' });
+        const min = within(pressure).getByRole('textbox', { name: 'Min' });
+        await user.clear(min);
+        await user.type(min, '200');
+        expect(within(pressure).getByRole('slider', { name: 'Minimum pressure' })).toHaveAttribute('aria-valuenow', '200');
+        await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+        await waitFor(() => expect(bodies).toHaveLength(1));
+        expect(bodies[0].filters?.pressure_range).toEqual([200, 6000]);
+    });
+
     describe('for an anonymous visitor', () => {
         beforeEach(() => {
             logoutUser();

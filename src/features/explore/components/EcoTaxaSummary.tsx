@@ -1,5 +1,5 @@
+import { Fragment } from "react";
 import { Alert, Box, Chip, CircularProgress, Stack, Typography } from "@mui/material";
-import Grid from "@mui/material/Grid";
 import FolderIcon from "@mui/icons-material/Folder";
 import DraftsIcon from "@mui/icons-material/Drafts";
 
@@ -52,19 +52,29 @@ export default function EcoTaxaSummary({ summary }: { summary: ExploreSummary | 
 
             <Box>
                 <Typography variant="subtitle1" sx={{ mb: 1.5 }}>Classification state</Typography>
-                <Grid container spacing={2}>
+                {/* Icon, label and share per state, two states a row: each share sits right after
+                    the labels of its column instead of at the far end of it. */}
+                <Box
+                    sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "auto auto 1fr", sm: "auto auto 1fr auto auto 1fr" },
+                        columnGap: 1.5,
+                        rowGap: 2,
+                        alignItems: "center",
+                    }}
+                >
                     {STATES.map((state) => (
-                        <Grid key={state.key} size={{ xs: 12, sm: 6 }}>
-                            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-                                {state.partial
-                                    ? <DraftsIcon color={state.color} />
-                                    : <FolderIcon color={state.color} />}
-                                <Typography variant="body2" sx={{ flex: 1, textTransform: "uppercase" }}>{state.label}</Typography>
+                        <Fragment key={state.key}>
+                            {state.partial
+                                ? <DraftsIcon color={state.color} />
+                                : <FolderIcon color={state.color} />}
+                            <Typography variant="body2" sx={{ textTransform: "uppercase" }}>{state.label}</Typography>
+                            <Box sx={{ justifySelf: "start" }}>
                                 <ShareRing value={summary?.classification[state.key]} color={state.color} />
-                            </Stack>
-                        </Grid>
+                            </Box>
+                        </Fragment>
                     ))}
-                </Grid>
+                </Box>
             </Box>
         </Stack>
     );

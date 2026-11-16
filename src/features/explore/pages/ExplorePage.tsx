@@ -32,6 +32,7 @@ import {
 } from "../types/explore.types";
 import {
     DEFAULT_AGGREGATION,
+    PRIVACY_LABELS,
     boundsError,
     createEmptyDraft,
     dateRangeError,
@@ -97,6 +98,9 @@ export default function ExplorePage() {
         () => (draft.project_ids.length > 0 ? toFilters(draft) : null),
     );
     const [aggregation, setAggregation] = useState<ExploreAggregation>(DEFAULT_AGGREGATION);
+    // Counts the applied selections: the map frames the samples of a new one, and keeps
+    // its view when the filters are cleared.
+    const [fitRequest, setFitRequest] = useState(0);
     const [drawing, setDrawing] = useState(false);
     const [sumChildTaxa, setSumChildTaxa] = useState(true);
     const [sizeClasses, setSizeClasses] = useState<Record<ExploreSampleType, ExploreSizeClasses>>(REDUCED_SIZE_CLASSES);
@@ -122,6 +126,7 @@ export default function ExplorePage() {
         if (!draftFilters || draftDateError || draftSampleTypesError) return;
         setDrawing(false);
         setApplied(draftFilters);
+        setFitRequest((count) => count + 1);
     };
 
     const clearAll = () => {
@@ -137,6 +142,25 @@ export default function ExplorePage() {
 
     const goTo = (nextTab: ExploreTab) => navigate(`/explore/${nextTab}`);
 
+    // The project of each sample, under its name in the popup of its curve (as on the map).
+    const sampleDetails = useMemo(
+        () => new Map(data.mapSamples.map((sample) => [
+            sample.sample_id,
+            [`${sample.project_title} [${sample.project_id}]`, `${sample.instrument_model} · ${PRIVACY_LABELS[sample.privacy_status]}`],
+        ])),
+        [data.mapSamples],
+    );
+
+    const randomImages = (
+        <RandomImages
+            images={data.images}
+            mode={sampleType}
+            onRefresh={data.refreshImages}
+            disabled={!data.available || applied === null}
+            loading={data.imagesLoading}
+        />
+    );
+
     const noSelectionHint = applied === null && (
         <Alert severity="info" variant="outlined" sx={{ mb: 3 }}>
             Set your data selection criteria, then click <strong>Apply filters</strong>.
@@ -150,18 +174,14 @@ export default function ExplorePage() {
             : null;
 
     return (
-        <Container
-            maxWidth={false}
-            // At least 17% of the screen free on each side on wide screens; below, the two
-            // columns need the whole width.
-            sx={{ width: { xs: "100%", lg: "66%" }, mx: "auto", ...pageContainerSx }}
-        >
+        // The width of the Projects page.
+        <Container maxWidth="lg" sx={pageContainerSx}>
             <Stack sx={{ ...pageHeaderSx, alignItems: "center" }}>
                 <Typography variant="h4" component="h1">Explore data</Typography>
             </Stack>
 
             <Grid container spacing={4}>
-                <Grid size={{ xs: 12, md: 4, xl: 3 }}>
+                <Grid size={{ xs: 12, md: 4 }}>
                     <ExploreFiltersPanel
                         draft={draft}
                         onChange={updateDraft}
@@ -177,7 +197,7 @@ export default function ExplorePage() {
                     />
                 </Grid>
 
-                <Grid size={{ xs: 12, md: 8, xl: 9 }}>
+                <Grid size={{ xs: 12, md: 8 }}>
                     {data.unavailable && (
                         <Alert severity="warning" variant="outlined" sx={{ mb: 2 }}>
                             The explore data service is not available yet: the map and the selection stay empty.
@@ -194,6 +214,7 @@ export default function ExplorePage() {
                         onBoundsDrawn={handleBoundsDrawn}
                         height={MAP_HEIGHT}
                         maxHeight={MAP_MAX_HEIGHT}
+                        fitKey={fitRequest}
                     />
 
                     <Box sx={{ ...pageTabsSx, mt: 3, position: "relative" }}>
@@ -230,6 +251,8 @@ export default function ExplorePage() {
                                 <SelectionSamplesSection title="Selected samples" summary={data.all.summary} />
                                 <Divider />
                                 <EcoTaxaSummary summary={data.all.summary} />
+                                <Divider />
+                                {randomImages}
                             </Stack>
                         </SectionCard>
                     )}
@@ -259,6 +282,7 @@ export default function ExplorePage() {
                                                 sizeClasses={sizeClasses[type]}
                                                 onSizeClassesChange={(value) => setSizeClasses((prev) => ({ ...prev, [type]: value }))}
                                                 computing={data.graphsComputing[type]}
+                                                sampleDetails={sampleDetails}
                                             />
                                         </SectionCard>
                                     </Box>
@@ -295,12 +319,7 @@ export default function ExplorePage() {
                                 <Divider />
                                 <EcoTaxaSummary summary={data.exportable.summary} />
                                 <Divider />
-                                <RandomImages
-                                    images={data.images}
-                                    mode={sampleType}
-                                    onRefresh={data.refreshImages}
-                                    disabled={!data.available || applied === null}
-                                />
+                                {randomImages}
                             </Stack>
                         </SectionCard>
                     )}

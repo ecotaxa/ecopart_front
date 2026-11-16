@@ -341,18 +341,25 @@ describe('useExploreData', () => {
         expect(callsTo('/explore/graphs')).toHaveLength(3);
     });
 
-    it('asks for images on the exportable tab only, and for others on refresh', async () => {
-        const { result, update } = renderExploreData({ filters: FILTERS });
+    it('asks for images on the stats and exportable tabs, not on the graphs one, and for others on refresh', async () => {
+        const { result, update } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
         await waitFor(() => expect(result.current.all.summary).not.toBeNull());
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(callsTo('/explore/images')).toHaveLength(0);
 
-        update({ filters: FILTERS, tab: 'exportable' });
+        update({ filters: FILTERS, tab: 'stats' });
         await waitFor(() => expect(result.current.images).toEqual(exploreFixtures.images));
         expect(await bodiesOf('/explore/images')).toEqual([{ mode: 'all', filters: SENT, count: 4 }]);
 
+        // Both tabs show the same images: switching between them asks nothing.
+        update({ filters: FILTERS, tab: 'exportable' });
+        await aMoment();
+        expect(callsTo('/explore/images')).toHaveLength(1);
+        expect(result.current.images).toEqual(exploreFixtures.images);
+
         act(() => result.current.refreshImages());
         await waitFor(() => expect(callsTo('/explore/images')).toHaveLength(2));
+        await waitFor(() => expect(result.current.imagesLoading).toBe(false));
     });
 
     it('reports the message of a failed request', async () => {
