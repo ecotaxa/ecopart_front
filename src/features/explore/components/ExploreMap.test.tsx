@@ -52,9 +52,12 @@ describe('ExploreMap', () => {
         expect(marker('tara_001')).toBeInTheDocument();
     });
 
-    it('draws the markers without a white outline', async () => {
+    it('draws fine markers: circles on the world view, with a white halo under their fill', async () => {
         renderMap();
         const tara = await screen.findByRole('button', { name: 'tara_001' });
-        expect(tara.querySelector('path')).toHaveAttribute('stroke', 'none');
+        const path = tara.querySelector('path');
+        expect(path).toHaveAttribute('stroke', '#fff');
+        expect(path).toHaveAttribute('paint-order', 'stroke');
+        expect(path?.getAttribute('d')).toMatch(/A/);
     });
 });
