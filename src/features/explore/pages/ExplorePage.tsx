@@ -155,6 +155,8 @@ export default function ExplorePage() {
         <RandomImages
             images={data.images}
             mode={sampleType}
+            requested={data.imagesRequested}
+            onLoad={data.loadImages}
             onRefresh={data.refreshImages}
             disabled={!data.available || applied === null}
             loading={data.imagesLoading}

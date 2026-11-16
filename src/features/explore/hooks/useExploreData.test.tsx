@@ -341,25 +341,40 @@ describe('useExploreData', () => {
         expect(callsTo('/explore/graphs')).toHaveLength(3);
     });
 
-    it('asks for images on the stats and exportable tabs, not on the graphs one, and for others on refresh', async () => {
-        const { result, update } = renderExploreData({ filters: FILTERS, tab: 'graphs' });
+    it('asks for images only once asked, on the stats and exportable tabs, for others on refresh, and again for a new selection', async () => {
+        const { result, update } = renderExploreData({ filters: FILTERS, tab: 'stats' });
         await waitFor(() => expect(result.current.all.summary).not.toBeNull());
         await waitFor(() => expect(result.current.loading).toBe(false));
+        // Each draw calls EcoTaxa: nothing before the user asks.
         expect(callsTo('/explore/images')).toHaveLength(0);
+        expect(result.current.imagesRequested).toBe(false);
 
-        update({ filters: FILTERS, tab: 'stats' });
+        act(() => result.current.loadImages());
         await waitFor(() => expect(result.current.images).toEqual(exploreFixtures.images));
+        expect(result.current.imagesRequested).toBe(true);
         expect(await bodiesOf('/explore/images')).toEqual([{ mode: 'all', filters: SENT, count: 4 }]);
 
-        // Both tabs show the same images: switching between them asks nothing.
+        // Both tabs show the same images: switching between them asks nothing; the graphs tab has none.
         update({ filters: FILTERS, tab: 'exportable' });
         await aMoment();
-        expect(callsTo('/explore/images')).toHaveLength(1);
         expect(result.current.images).toEqual(exploreFixtures.images);
+        update({ filters: FILTERS, tab: 'graphs' });
+        expect(result.current.images).toEqual([]);
+        update({ filters: FILTERS, tab: 'stats' });
+        await aMoment();
+        expect(callsTo('/explore/images')).toHaveLength(1);
 
         act(() => result.current.refreshImages());
         await waitFor(() => expect(callsTo('/explore/images')).toHaveLength(2));
         await waitFor(() => expect(result.current.imagesLoading).toBe(false));
+
+        // A new selection waits to be asked again.
+        update({ filters: OTHER_FILTERS, tab: 'stats' });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        await aMoment();
+        expect(result.current.imagesRequested).toBe(false);
+        expect(result.current.images).toEqual([]);
+        expect(callsTo('/explore/images')).toHaveLength(2);
     });
 
     it('reports the message of a failed request', async () => {

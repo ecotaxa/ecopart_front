@@ -271,11 +271,17 @@ describe('ExplorePage', () => {
         expect(callsTo('/explore/graphs')).toHaveLength(2);
     });
 
-    it('shows random images of the exportable selection, and asks for others on refresh', async () => {
+    it('shows random images of the exportable selection once asked, and asks for others on refresh', async () => {
         const user = userEvent.setup();
         renderPage('/explore/exportable');
 
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        const load = await screen.findByRole('button', { name: 'Load random images' });
+        await waitFor(() => expect(load).toBeEnabled());
+        expect(callsTo('/explore/images')).toHaveLength(0);
+        expect(screen.queryByRole('button', { name: 'Other random images' })).not.toBeInTheDocument();
+
+        await user.click(load);
         expect(await screen.findAllByRole('img', { name: /^Object / })).toHaveLength(4);
         expect(screen.getByText('tara_001 · 12.5 m')).toBeInTheDocument();
         expect(callsTo('/explore/images')).toHaveLength(1);
@@ -284,12 +290,15 @@ describe('ExplorePage', () => {
         await waitFor(() => expect(callsTo('/explore/images')).toHaveLength(2));
     });
 
-    it('also shows the random images on the stats tab, the refresh button waiting for the answer', async () => {
+    it('also shows the random images on the stats tab once asked, the refresh button waiting for the answer', async () => {
         let answer: () => void = () => undefined;
         const user = userEvent.setup();
         renderPage();
 
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+        const load = await screen.findByRole('button', { name: 'Load random images' });
+        await waitFor(() => expect(load).toBeEnabled());
+        await user.click(load);
         expect(await screen.findAllByRole('img', { name: /^Object / })).toHaveLength(4);
 
         server.use(http.post('*/explore/images', async () => {
@@ -353,6 +362,7 @@ describe('ExplorePage', () => {
 
             await user.click(screen.getByRole('tab', { name: /Exportable selection/ }));
             await waitFor(() => expect(within(counter('Samples')).getByText('2')).toBeInTheDocument());
+            await user.click(screen.getByRole('button', { name: 'Load random images' }));
             expect(await screen.findAllByRole('img', { name: /^Object / })).toHaveLength(4);
         });
 
