@@ -284,7 +284,7 @@ export const useProfilePage = () => {
                 // (to /login with state.from=/settings/...) is issued right now, then
                 // supersede it: the later navigation wins and carries the message.
                 // Navigating first would not work: /login's PublicOnlyRoute would
-                // bounce the still-authenticated user to the dashboard.
+                // bounce the still-authenticated user to the explore page.
                 flushSync(() => clearUser());
                 queryClient.clear();
                 navigate("/login", { replace: true, state: { successMessage: "Your account has been successfully deleted." } });

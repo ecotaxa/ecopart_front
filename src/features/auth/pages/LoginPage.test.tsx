@@ -10,7 +10,7 @@ import { server } from '@/test/msw/server';
 
 // Shared helpers
 import { fillAuthForm, submitAuthForm } from '@/test/helpers/authForm.helpers';
-import { expectDashboard, expectNotOnDashboard } from '@/test/helpers/navigation.helpers';
+import { expectExplore, expectNotOnExplore } from '@/test/helpers/navigation.helpers';
 import { expectInvalidEmailMessage } from '@/test/assertions/email.assertions';
 import { expectSubmitDisabled, expectSubmitEnabled } from '@/test/assertions/submitButton.assertions';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
@@ -53,12 +53,12 @@ describe('LoginPage (Functional)', () => {
     });
 
     // TC-A3: Happy path (Successful Login)
-    it('TC-A3: should redirect to dashboard on success', async () => {
+    it('TC-A3: should redirect to explore on success', async () => {
         const user = userEvent.setup();
         renderWithRouter(
             <Routes>
                 <Route path="/" element={<LoginPage />} />
-                <Route path="/dashboard" element={<h1>Welcome to Dashboard</h1>} />
+                <Route path="/explore" element={<h1>Welcome to Explore</h1>} />
             </Routes>
         );
 
@@ -66,7 +66,7 @@ describe('LoginPage (Functional)', () => {
         expectSubmitEnabled('auth-submit');
         await submitAuthForm(user);
 
-        await expectDashboard();
+        await expectExplore();
     });
 
     // TC-A4: API Error Handling (Combined 401/500)
@@ -84,7 +84,7 @@ describe('LoginPage (Functional)', () => {
         renderWithRouter(
             <Routes>
                 <Route path="/" element={<LoginPage />} />
-                <Route path="/dashboard" element={<h1>Welcome to Dashboard</h1>} />
+                <Route path="/explore" element={<h1>Welcome to Explore</h1>} />
             </Routes>
         );
 
@@ -94,7 +94,7 @@ describe('LoginPage (Functional)', () => {
 
         // Ensure we stayed on page and got an error — a server failure is NOT
         // reported as wrong credentials.
-        expectNotOnDashboard();
+        expectNotOnExplore();
         expect(await screen.findByText(VALIDATION_MESSAGES.GENERIC_ERROR)).toBeInTheDocument();
     });
 
@@ -105,7 +105,7 @@ describe('LoginPage (Functional)', () => {
         renderWithRouter(
             <Routes>
                 <Route path="/" element={<LoginPage />} />
-                <Route path="/dashboard" element={<h1>Welcome to Dashboard</h1>} />
+                <Route path="/explore" element={<h1>Welcome to Explore</h1>} />
             </Routes>
         );
 
@@ -113,7 +113,7 @@ describe('LoginPage (Functional)', () => {
         expectSubmitEnabled('auth-submit');
         await submitAuthForm(user);
 
-        expectNotOnDashboard();
+        expectNotOnExplore();
         expect(await screen.findByText(VALIDATION_MESSAGES.LOGIN_FAILED)).toBeInTheDocument();
     });
 
@@ -127,14 +127,14 @@ describe('LoginPage (Functional)', () => {
         renderWithRouter(
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/dashboard" element={<h1>Welcome to Dashboard</h1>} />
+                <Route path="/explore" element={<h1>Welcome to Explore</h1>} />
             </Routes>,
             { route: '/login' }
         );
 
         // 3. Assertions
         expect(screen.queryByText(/Login into EcoPart/i)).not.toBeInTheDocument();
-        expect(screen.getByText(/Welcome to Dashboard/i)).toBeInTheDocument();
+        expect(screen.getByText(/Welcome to Explore/i)).toBeInTheDocument();
     });
 
 });

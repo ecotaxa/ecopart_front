@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth";
@@ -37,7 +37,7 @@ import {
 export interface ExploreDataOptions {
     /** Bin sizes of the graphs. */
     aggregation: ExploreAggregation;
-    /** The tab on screen: the graphs are only requested on the graphs tab, the images on the exportable one. */
+    /** The tab on screen: the graphs are only requested on the graphs tab, the images (once asked for) on the two others. */
     tab: ExploreTab;
     /** Particle histogram of the graphs of each sample type (reduced when absent). */
     sizeClasses?: Record<ExploreSampleType, ExploreSizeClasses>;
@@ -62,7 +62,13 @@ export interface ExploreData {
     /** Exportable selection tab: only the samples the user may export. */
     exportable: ExploreSelection;
     images: ExploreImage[];
+    /** The images were asked for the selection on screen: they cost EcoTaxa calls, so none is drawn before. */
+    imagesRequested: boolean;
+    /** Asks for the images of the selection on screen; a new selection needs asking again. */
+    loadImages: () => void;
     refreshImages: () => void;
+    /** Images are being drawn (a first load, or the refresh button). */
+    imagesLoading: boolean;
     /** A request is in flight. */
     loading: boolean;
     /** The backend serves the explore data (its project list arrived). */
@@ -159,9 +165,11 @@ export function useExploreData(
     const request = toExploreRequest(filters);
     const depthGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("depth");
     const timeGraphsEnabled = graphsEnabled && SAMPLE_TYPES_OF_MODE[request.mode].includes("time");
-    const imagesEnabled = applied && tab === "exportable";
-
     const imagesRequest = { ...request, count: RANDOM_IMAGE_COUNT };
+    const imagesKey = JSON.stringify(imagesRequest);
+    const [imagesAskedFor, setImagesAskedFor] = useState<string | null>(null);
+    const imagesRequested = applied && imagesAskedFor === imagesKey;
+    const imagesEnabled = imagesRequested && tab !== "graphs";
 
     const mapQuery = useQuery({
         queryKey: exploreQueryKeys.map(request, viewer),
@@ -214,6 +222,7 @@ export function useExploreData(
         [selection, ecotaxa],
     );
 
+    const loadImages = () => setImagesAskedFor(imagesKey);
     const { refetch: refetchImages } = imagesQuery;
     const refreshImages = useCallback(() => {
         void refetchImages();
@@ -247,7 +256,10 @@ export function useExploreData(
         },
         exportable,
         images: imagesEnabled ? imagesQuery.data ?? NO_IMAGES : NO_IMAGES,
+        imagesRequested,
+        loadImages,
         refreshImages,
+        imagesLoading: imagesEnabled && imagesQuery.isFetching,
         loading: ecotaxaLoading
             || [projectsQuery, mapQuery, selectionQuery, depthGraphsQuery, timeGraphsQuery, imagesQuery]
                 .some((query) => query.isFetching),

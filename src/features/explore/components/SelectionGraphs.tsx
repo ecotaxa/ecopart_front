@@ -16,6 +16,7 @@ import type {
     ExploreGraphs, ExploreSampleType, ExploreSizeClasses, GraphDataset, ProfileSeries, TimeScale, ValueScale,
 } from "../types/explore.types";
 import { PRESSURE_BIN, TIME_BIN, timeBinIndex } from "../utils/exploreFilters";
+import BoundedNumberField from "./BoundedNumberField";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
 type GraphId = Exclude<keyof ExploreGraphs, "warnings" | "size_classes">;
@@ -88,6 +89,9 @@ const NO_KEYS: string[] = [];
 const NO_SELECTION: string[] = [];
 const NO_SERIES: ProfileSeries[] = [];
 
+/** Extra lines of the popup of a sample's curve (its project…), by sample id. */
+export type SampleDetails = ReadonlyMap<number, string[]>;
+
 /**
  * One colour per sample, hues spread by the golden angle so that neighbouring
  * curves never look alike, however many samples the selection holds.
@@ -121,12 +125,13 @@ function cardText(id: GraphId, mode: ExploreSampleType) {
 const formatDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
 /** The curves of one key, laid out for the page: value along x for depth profiles, along y for time series. */
-function toChartSeries(series: ProfileSeries[], mode: ExploreSampleType, timeScale: TimeScale): ChartSeries[] {
+function toChartSeries(series: ProfileSeries[], mode: ExploreSampleType, timeScale: TimeScale, sampleDetails?: SampleDetails): ChartSeries[] {
     return series.map((sample, index) => {
         const start = sample.positions[0] ?? 0;
         return {
             id: String(sample.sample_id),
             label: sample.sample_name,
+            details: sampleDetails?.get(sample.sample_id),
             color: seriesColor(index),
             points: sample.positions.map((position, i): [number, number] => {
                 const value = sample.values[i];
@@ -189,11 +194,15 @@ interface GraphChartProps {
     scale: ValueScale;
     timeScale: TimeScale;
     step?: "vertical" | "horizontal";
+    sampleDetails?: SampleDetails;
 }
 
 /** One chart of a card: its curves and axes are only rebuilt when they change, not when another chart does. */
-function GraphChart({ title, series, mode, valueLabel, scale, timeScale, step }: GraphChartProps) {
-    const chartSeries = useMemo(() => toChartSeries(series, mode, timeScale), [series, mode, timeScale]);
+function GraphChart({ title, series, mode, valueLabel, scale, timeScale, step, sampleDetails }: GraphChartProps) {
+    const chartSeries = useMemo(
+        () => toChartSeries(series, mode, timeScale, sampleDetails),
+        [series, mode, timeScale, sampleDetails],
+    );
     const chartAxes = useMemo(() => axes(mode, valueLabel, scale, timeScale), [mode, valueLabel, scale, timeScale]);
     return (
         <ProfileChart
@@ -221,10 +230,11 @@ interface GraphCardProps {
     sizeClasses?: ExploreSizeClasses;
     /** Shown above the picker (EcoTaxa available taxa). */
     header?: ReactNode;
+    sampleDetails?: SampleDetails;
 }
 
 const GraphCard = memo(function GraphCard({
-    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header, sizeClasses = "reduced",
+    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header, sizeClasses = "reduced", sampleDetails,
 }: GraphCardProps) {
     const text = cardText(id, mode);
     const keys = dataset?.keys ?? NO_KEYS;
@@ -328,6 +338,7 @@ const GraphCard = memo(function GraphCard({
                             timeScale={settings.timeScale}
                             // EcoTaxa concentrations come per depth bin.
                             step={id === "ecotaxa" && mode === "depth" ? "vertical" : undefined}
+                            sampleDetails={sampleDetails}
                         />
                     </Grid>
                 ))}
@@ -353,6 +364,8 @@ interface SelectionGraphsProps {
     onSizeClassesChange: (value: ExploreSizeClasses) => void;
     /** The curves are being computed: a long computation gets a message. */
     computing?: boolean;
+    /** Shown under the sample name when a curve is hovered or clicked. */
+    sampleDetails?: SampleDetails;
 }
 
 interface DataAggregationProps {
@@ -385,9 +398,24 @@ function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesCha
             <Typography variant="subtitle1" component="h3" sx={{ mb: 1 }}>Data aggregation</Typography>
             <Stack direction={{ xs: "column", sm: "row" }} sx={{ columnGap: 4, rowGap: 1, alignItems: { sm: "center" } }}>
                 <Box sx={{ flex: 1, maxWidth: 420 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: depth ? "center" : "baseline" }}>
                         <Typography variant="body2">{title}</Typography>
-                        <Typography variant="caption" color="text.secondary">{label(value)}</Typography>
+                        {depth ? (
+                            <BoundedNumberField
+                                ariaLabel={`${title} (dbar)`}
+                                unit="dbar"
+                                value={value}
+                                min={PRESSURE_BIN.min}
+                                max={PRESSURE_BIN.max}
+                                onChange={(typed) => {
+                                    setValue(typed);
+                                    onBinChange(typed);
+                                }}
+                                sx={{ width: 110 }}
+                            />
+                        ) : (
+                            <Typography variant="caption" color="text.secondary">{label(value)}</Typography>
+                        )}
                         {bin !== default_bin && (
                             <Link component="button" type="button" variant="caption" underline="hover" onClick={() => onBinChange(default_bin)}>
                                 Reset
@@ -432,7 +460,7 @@ function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesCha
  */
 export default function SelectionGraphs({
     mode, title = "Selected data graphs", graphs, sumChildTaxa, onSumChildTaxaChange, bin, onBinChange,
-    sizeClasses, onSizeClassesChange, computing = false,
+    sizeClasses, onSizeClassesChange, computing = false, sampleDetails,
 }: SelectionGraphsProps) {
     const showComputing = useDelayedFlag(computing, COMPUTING_NOTICE_DELAY_MS);
     const [settings, setSettings] = useState<Record<GraphId, GraphSettings>>({
@@ -551,6 +579,7 @@ export default function SelectionGraphs({
                     header={id === "ecotaxa" ? taxaHeader : undefined}
                     // The histogram of the curves on screen, which may still be the previous one while the new one loads.
                     sizeClasses={graphs?.size_classes ?? "reduced"}
+                    sampleDetails={sampleDetails}
                     extra={id === "ecotaxa" ? sumChildrenOption : undefined}
                 />
             ))}

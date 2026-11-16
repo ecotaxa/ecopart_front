@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
     Autocomplete, Box, Button, Checkbox, Chip, FormControlLabel, Link, MenuItem, Radio, RadioGroup,
     Slider, Stack, TextField, Typography,
@@ -25,6 +25,7 @@ import {
     SAMPLE_TYPE_LABELS,
     type ExploreFiltersDraft,
 } from "../utils/exploreFilters";
+import BoundedNumberField from "./BoundedNumberField";
 
 const MONTHS = [
     "January", "February", "March", "April", "May", "June",
@@ -48,6 +49,87 @@ function FilterSection({ title, info, onClear, children }: { title: string; info
             </Stack>
             {children}
         </Box>
+    );
+}
+
+/** The time of day range; like the pressure slider, it only reports its range on release. */
+function HourRange({ value, onChange }: { value: [number, number] | null; onChange: (range: [number, number]) => void }) {
+    const [sliding, setSliding] = useState<[number, number] | null>(null);
+    const shown = sliding ?? value;
+    return (
+        <>
+            <Box sx={{ px: 1 }}>
+                <Slider
+                    size="small"
+                    min={HOUR_LIMITS[0]}
+                    max={HOUR_LIMITS[1]}
+                    step={0.5}
+                    value={shown ?? HOUR_LIMITS}
+                    onChange={(_event, range) => setSliding(range as [number, number])}
+                    onChangeCommitted={(_event, range) => {
+                        setSliding(null);
+                        onChange(range as [number, number]);
+                    }}
+                    valueLabelDisplay="auto"
+                    valueLabelFormat={formatHour}
+                    getAriaLabel={(index) => (index === 0 ? "Start hour" : "End hour")}
+                />
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+                {shown ? `${formatHour(shown[0])} - ${formatHour(shown[1])} (UTC)` : "Any time of day"}
+            </Typography>
+        </>
+    );
+}
+
+/**
+ * The pressure range: a slider, and the two bounds to type in. The slider moves freely
+ * and only reports its range on release, since each change of the criteria renders the
+ * whole page again.
+ */
+function PressureRange({ value, onChange }: { value: [number, number] | null; onChange: (range: [number, number]) => void }) {
+    const [sliding, setSliding] = useState<[number, number] | null>(null);
+    const [low, high] = sliding ?? value ?? PRESSURE_LIMITS;
+    return (
+        <>
+            <Box sx={{ px: 1 }}>
+                <Slider
+                    size="small"
+                    min={PRESSURE_LIMITS[0]}
+                    max={PRESSURE_LIMITS[1]}
+                    step={10}
+                    value={[low, high]}
+                    onChange={(_event, range) => setSliding(range as [number, number])}
+                    onChangeCommitted={(_event, range) => {
+                        setSliding(null);
+                        onChange(range as [number, number]);
+                    }}
+                    valueLabelDisplay="auto"
+                    getAriaLabel={(index) => (index === 0 ? "Minimum pressure" : "Maximum pressure")}
+                />
+            </Box>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: 0.5 }}>
+                <BoundedNumberField
+                    label="Min"
+                    unit="dbar"
+                    value={low}
+                    min={PRESSURE_LIMITS[0]}
+                    max={high}
+                    onChange={(typed) => onChange([typed, high])}
+                    sx={{ flex: 1 }}
+                />
+                <Typography color="text.secondary">-</Typography>
+                <BoundedNumberField
+                    label="Max"
+                    unit="dbar"
+                    value={high}
+                    min={low}
+                    max={PRESSURE_LIMITS[1]}
+                    onChange={(typed) => onChange([low, typed])}
+                    sx={{ flex: 1 }}
+                />
+            </Stack>
+        </>
     );
 }
 
@@ -246,44 +328,11 @@ export default function ExploreFiltersPanel({
             </FilterSection>
 
             <FilterSection title="Time" onClear={() => onChange({ hour_range: null })}>
-                <Box sx={{ px: 1 }}>
-                    <Slider
-                        size="small"
-                        min={HOUR_LIMITS[0]}
-                        max={HOUR_LIMITS[1]}
-                        step={0.5}
-                        value={draft.hour_range ?? HOUR_LIMITS}
-                        onChange={(_event, value) => onChange({ hour_range: value as [number, number] })}
-                        valueLabelDisplay="auto"
-                        valueLabelFormat={formatHour}
-                        getAriaLabel={(index) => (index === 0 ? "Start hour" : "End hour")}
-                    />
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                    {draft.hour_range
-                        ? `${formatHour(draft.hour_range[0])} - ${formatHour(draft.hour_range[1])} (UTC)`
-                        : "Any time of day"}
-                </Typography>
+                <HourRange value={draft.hour_range} onChange={(range) => onChange({ hour_range: range })} />
             </FilterSection>
 
             <FilterSection title="Pressure" onClear={() => onChange({ pressure_range: null })}>
-                <Box sx={{ px: 1 }}>
-                    <Slider
-                        size="small"
-                        min={PRESSURE_LIMITS[0]}
-                        max={PRESSURE_LIMITS[1]}
-                        step={10}
-                        value={draft.pressure_range ?? PRESSURE_LIMITS}
-                        onChange={(_event, value) => onChange({ pressure_range: value as [number, number] })}
-                        valueLabelDisplay="auto"
-                        getAriaLabel={(index) => (index === 0 ? "Minimum pressure" : "Maximum pressure")}
-                    />
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                    {draft.pressure_range
-                        ? `${draft.pressure_range[0]} - ${draft.pressure_range[1]} dbar`
-                        : "Any pressure"}
-                </Typography>
+                <PressureRange value={draft.pressure_range} onChange={(range) => onChange({ pressure_range: range })} />
             </FilterSection>
 
             <FilterSection title="Status" info={<PrivacyStatusInfo />}>

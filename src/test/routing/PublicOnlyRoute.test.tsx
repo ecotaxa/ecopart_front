@@ -38,13 +38,13 @@ describe('PublicOnlyRoute (Routing)', () => {
                         </PublicOnlyRoute>
                     }
                 />
-                <Route path="/dashboard" element={<h1>Dashboard</h1>} />
+                <Route path="/explore" element={<h1>Explore</h1>} />
             </Routes>,
             { route: '/login' }
         );
 
         expect(screen.queryByText(/Login Page/i)).not.toBeInTheDocument();
-        expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+        expect(screen.getByText(/Explore/i)).toBeInTheDocument();
 
         // Test /register redirect
         unmount();
@@ -66,22 +66,22 @@ describe('PublicOnlyRoute (Routing)', () => {
                         </PublicOnlyRoute>
                     }
                 />
-                <Route path="/dashboard" element={<h1>Dashboard</h1>} />
+                <Route path="/explore" element={<h1>Explore</h1>} />
             </Routes>,
             { route: '/register' }
         );
 
         expect(screen.queryByText(/Register Page/i)).not.toBeInTheDocument();
-        expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+        expect(screen.getByText(/Explore/i)).toBeInTheDocument();
     });
 
     // TC-AD4: the guard re-renders the moment the login sets the user, before the
     // login page's own navigate() lands, so it must aim at the requested page too.
-    it('TC-AD4: logging in from a deep link returns to that page, not the dashboard', async () => {
+    it('TC-AD4: logging in from a deep link returns to that page, not the explore page', async () => {
         const user = userEvent.setup();
         const router = createMemoryRouter([
             { path: '/login', element: <PublicOnlyRoute><LoginPage /></PublicOnlyRoute> },
-            { path: '/dashboard', element: <h1>Dashboard</h1> },
+            { path: '/explore', element: <h1>Explore</h1> },
             { path: '/projects/:id', element: <ProtectedRoute><h1>Project 5</h1></ProtectedRoute> },
         ], { initialEntries: ['/projects/5'] });
         render(

@@ -1,4 +1,5 @@
-import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { RANDOM_IMAGE_COUNT } from "../api/explore.api";
@@ -15,27 +16,39 @@ const caption = (image: ExploreImage, mode: ExploreMode) => {
 interface RandomImagesProps {
     images: ExploreImage[];
     mode: ExploreMode;
+    /** The images were asked for: before, only the button that asks for them. */
+    requested: boolean;
+    /** Asks for the images (each draw calls EcoTaxa, so none is drawn on its own). */
+    onLoad: () => void;
     /** Draws another set of random objects of the selection. */
     onRefresh: () => void;
     disabled: boolean;
+    /** Images are being drawn: the refresh button waits for them. */
+    loading?: boolean;
 }
 
-/** A few random object images of the selection, redrawn with the refresh button. */
-export default function RandomImages({ images, mode, onRefresh, disabled }: RandomImagesProps) {
+/** A few random object images of the selection, drawn on demand and redrawn with the refresh button. */
+export default function RandomImages({ images, mode, requested, onLoad, onRefresh, disabled, loading = false }: RandomImagesProps) {
     return (
         <Box>
             <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
                 <Typography variant="subtitle1">A few random images</Typography>
-                <Tooltip title="Other random images">
-                    <span>
-                        <IconButton onClick={onRefresh} disabled={disabled} aria-label="Other random images">
-                            <RefreshIcon />
-                        </IconButton>
-                    </span>
-                </Tooltip>
+                {requested && (
+                    <Tooltip title={loading ? "Drawing images…" : "Other random images"}>
+                        <span>
+                            <IconButton onClick={onRefresh} disabled={disabled || loading} aria-label="Other random images">
+                                {loading ? <CircularProgress size={20} aria-label="Drawing images" /> : <RefreshIcon />}
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                )}
             </Stack>
-            {images.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">No image</Typography>
+            {!requested ? (
+                <Button variant="outlined" size="small" startIcon={<ImageOutlinedIcon />} onClick={onLoad} disabled={disabled}>
+                    Load random images
+                </Button>
+            ) : images.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">{loading ? "Drawing random images…" : "No image"}</Typography>
             ) : (
                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", md: `repeat(${RANDOM_IMAGE_COUNT}, 1fr)` }, gap: 2 }}>
                     {images.map((image) => (

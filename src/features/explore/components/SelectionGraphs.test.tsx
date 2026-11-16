@@ -183,6 +183,47 @@ describe('SelectionGraphs', () => {
         expect(onBinChange).toHaveBeenLastCalledWith(0.5);
     });
 
+    it('takes a typed pressure bin within its bounds', async () => {
+        const user = userEvent.setup();
+        const onBinChange = vi.fn();
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} bin={5} onBinChange={onBinChange} />);
+
+        const field = within(card('Data aggregation')).getByRole('textbox', { name: 'Pressure bin (dbar)' });
+        await user.clear(field);
+        await user.type(field, '25');
+        expect(onBinChange).toHaveBeenLastCalledWith(25);
+        expect(within(card('Data aggregation')).getByRole('slider', { name: 'Pressure bin' })).toHaveAttribute('aria-valuetext', '25 dbar');
+
+        // Out of bounds: not taken, and given up on leaving the field.
+        onBinChange.mockClear();
+        await user.type(field, '0');
+        expect(field).toHaveValue('250');
+        expect(onBinChange).not.toHaveBeenCalled();
+        await user.tab();
+        expect(field).toHaveValue('25');
+    });
+
+    it('names the sample of a hovered curve, with its details, and keeps it open on click', async () => {
+        const user = userEvent.setup();
+        const sampleDetails = new Map([[1, ['Tara Oceans 2009 [1]', 'UVP5HD · Public']]]);
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} sampleDetails={sampleDetails} />);
+
+        const chart = within(card('CTD data')).getByRole('img', { name: 'CTD data: Chloro fluo' });
+        const curve = within(chart).getByTestId('curve');
+        await user.hover(curve);
+        const tooltip = screen.getByRole('tooltip', { name: 'uvp5_sn201_001' });
+        expect(within(tooltip).getByText('Tara Oceans 2009 [1]')).toBeInTheDocument();
+        expect(within(tooltip).getByText('UVP5HD · Public')).toBeInTheDocument();
+        await user.unhover(curve);
+        expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+
+        await user.click(curve);
+        await user.unhover(curve);
+        const popup = screen.getByRole('dialog', { name: 'uvp5_sn201_001' });
+        await user.click(within(popup).getByRole('button', { name: 'Close' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     it('says the graphs are being computed when it takes long', () => {
         vi.useFakeTimers();
         try {

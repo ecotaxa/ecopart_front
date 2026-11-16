@@ -20,10 +20,10 @@ describe('ProtectedRoute (Routing)', () => {
         renderWithRouter(
             <Routes>
                 <Route
-                    path="/dashboard"
+                    path="/projects"
                     element={
                         <ProtectedRoute>
-                            <h1>Protected Dashboard</h1>
+                            <h1>Protected Projects</h1>
                         </ProtectedRoute>
                     }
                 />
@@ -31,11 +31,11 @@ describe('ProtectedRoute (Routing)', () => {
                 <Route path="/login" element={<h1>Login Page</h1>} />
             </Routes>,
             // Try to access protected route directly
-            { route: '/dashboard' }
+            { route: '/projects' }
         );
 
         // 1. Verify content is HIDDEN
-        expect(screen.queryByText(/Protected Dashboard/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Protected Projects/i)).not.toBeInTheDocument();
 
         // 2. Verify REDIRECTION happened
         expect(screen.getByText(/Login Page/i)).toBeInTheDocument();
@@ -49,19 +49,19 @@ describe('ProtectedRoute (Routing)', () => {
         renderWithRouter(
             <Routes>
                 <Route
-                    path="/dashboard"
+                    path="/projects"
                     element={
                         <ProtectedRoute>
-                            <h1>Protected Dashboard</h1>
+                            <h1>Protected Projects</h1>
                         </ProtectedRoute>
                     }
                 />
             </Routes>,
-            { route: '/dashboard' }
+            { route: '/projects' }
         );
 
         // Verify content is VISIBLE
-        expect(screen.getByText(/Protected Dashboard/i)).toBeInTheDocument();
+        expect(screen.getByText(/Protected Projects/i)).toBeInTheDocument();
     });
 
 });

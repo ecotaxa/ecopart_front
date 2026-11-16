@@ -97,6 +97,40 @@ describe('PolarMap', () => {
             expect(Math.abs(pacificX - MAP_WIDTH / 2)).toBeLessThan(MAP_WIDTH / 2);
         });
 
+        it('with a fitKey, keeps its view on new points until the key changes', () => {
+            const med = point('med', 43.7, 7.3);
+            const { rerender } = render(<PolarMap points={[med]} height={MAP_HEIGHT} fitKey={0} />);
+            const framedOnMed = markerXY('med');
+
+            // Same key: the new points come into the view as it is.
+            rerender(<PolarMap points={[med, ...spread]} height={MAP_HEIGHT} fitKey={0} />);
+            expect(markerXY('med')).toEqual(framedOnMed);
+
+            // A new key frames the next new points.
+            rerender(<PolarMap points={[med, ...spread]} height={MAP_HEIGHT} fitKey={1} />);
+            expect(markerXY('med')).toEqual(framedOnMed);
+            rerender(<PolarMap points={[med, spread[0]]} height={MAP_HEIGHT} fitKey={1} />);
+            expect(markerXY('med')).not.toEqual(framedOnMed);
+        });
+
+        it('without a fitKey, frames every new set of points', () => {
+            const med = point('med', 43.7, 7.3);
+            const { rerender } = render(<PolarMap points={[med]} height={MAP_HEIGHT} />);
+            const framedOnMed = markerXY('med');
+
+            rerender(<PolarMap points={[med, ...spread]} height={MAP_HEIGHT} />);
+            expect(markerXY('med')).not.toEqual(framedOnMed);
+        });
+
+        it('outlines the markers in white unless told otherwise', () => {
+            const { unmount } = render(<PolarMap points={[point('med', 43.7, 7.3)]} height={MAP_HEIGHT} />);
+            expect(screen.getByRole('button', { name: 'Sample med' }).querySelector('path')).toHaveAttribute('stroke', '#fff');
+            unmount();
+
+            render(<PolarMap points={[point('med', 43.7, 7.3)]} height={MAP_HEIGHT} markerOutline={null} />);
+            expect(screen.getByRole('button', { name: 'Sample med' }).querySelector('path')).toHaveAttribute('stroke', 'none');
+        });
+
         it('never drags the world off the top of the map', () => {
             render(<PolarMap points={spread} height={MAP_HEIGHT} />);
             const map = screen.getByRole('img', { name: /Mercator map/ });

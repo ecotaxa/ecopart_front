@@ -54,6 +54,13 @@ export interface PolarMapProps {
     legend?: ReactNode;
     /** View shown first; the user can switch between both. */
     defaultProjection?: MapProjection;
+    /** Outline of the markers without `ring` (white by default), null for none. */
+    markerOutline?: string | null;
+    /**
+     * Without it, the map frames its points again whenever they change. With it, new points keep
+     * the view as the user left it, until the key changes: the next new points are framed then.
+     */
+    fitKey?: string | number;
 }
 
 export interface MapLocation {

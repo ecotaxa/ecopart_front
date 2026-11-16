@@ -215,7 +215,7 @@ function traceMarker(path: Path2D, shape: MarkerShape, x: number, y: number) {
  * Paints the markers in one batch per look (shape, fill, outline), so a few fill and
  * stroke calls draw any number of them. The ringed ones (the user's data) go on top.
  */
-function paintMarkers(context: CanvasRenderingContext2D, markers: ScreenMarker[], outline: string) {
+function paintMarkers(context: CanvasRenderingContext2D, markers: ScreenMarker[], outline: string | null) {
     const batches = new Map<string, { point: MapPoint; path: Path2D }>();
     for (const { point, xy } of markers) {
         const shape = point.shape ?? "circle";
@@ -231,7 +231,9 @@ function paintMarkers(context: CanvasRenderingContext2D, markers: ScreenMarker[]
     for (const { point, path } of ordered) {
         context.fillStyle = point.color;
         context.fill(path);
-        context.strokeStyle = point.ring ?? outline;
+        const stroke = point.ring ?? outline;
+        if (!stroke) continue;
+        context.strokeStyle = stroke;
         context.lineWidth = point.ring ? 2.5 : 1.2;
         context.stroke(path);
     }
@@ -318,7 +320,7 @@ function boxBetween([lon1, lat1]: [number, number], [lon2, lat2]: [number, numbe
  */
 export default function PolarMap({
     points, height: minHeight = 320, maxHeight, bounds = null, drawing = false, onBoundsDrawn,
-    emptyMessage = "Nothing to show", legend, defaultProjection = "mercator",
+    emptyMessage = "Nothing to show", legend, defaultProjection = "mercator", markerOutline, fitKey,
 }: PolarMapProps) {
     const theme = useTheme();
     const land = useLand();
@@ -346,15 +348,19 @@ export default function PolarMap({
 
     const projection = useMemo(() => buildProjection(kind, hemisphere, width, height), [kind, hemisphere, width, height]);
 
-    // New points (or a new size) re-frame the map, turned to the pole they are around.
+    // New points (or a new size) re-frame the map, turned to the pole they are around; with a
+    // `fitKey`, new points keep the view until the key changes (or while the map had no point).
     // Adjusted during render, not in an effect, so a stale frame is never painted.
     const sizeKey = `${width}x${height}`;
-    const [framed, setFramed] = useState<{ points: string; size: string } | null>(null);
+    const [framed, setFramed] = useState<{ points: string; size: string; fit: PolarMapProps["fitKey"] } | null>(null);
     if (width > 0 && (framed?.points !== pointsKey || framed.size !== sizeKey)) {
-        const nextHemisphere = framed?.points === pointsKey ? hemisphere : preferredHemisphere(validPoints);
-        setFramed({ points: pointsKey, size: sizeKey });
-        setHemisphere(nextHemisphere);
-        setView(fitView(buildProjection(kind, nextHemisphere, width, height), kind, nextHemisphere, validPoints, width, height));
+        const refit = !framed || framed.size !== sizeKey || fitKey === undefined || framed.fit !== fitKey || framed.points === "";
+        setFramed({ points: pointsKey, size: sizeKey, fit: fitKey });
+        if (refit) {
+            const nextHemisphere = framed?.points === pointsKey ? hemisphere : preferredHemisphere(validPoints);
+            setHemisphere(nextHemisphere);
+            setView(fitView(buildProjection(kind, nextHemisphere, width, height), kind, nextHemisphere, validPoints, width, height));
+        }
     }
 
     const path = useMemo(() => geoPath(projection), [projection]);
@@ -536,7 +542,7 @@ export default function PolarMap({
         ));
     };
 
-    const markerOutline = theme.palette.common.white;
+    const outline = markerOutline === undefined ? theme.palette.common.white : markerOutline;
     // Before the browser paints, so the markers never lag a frame behind the panned map.
     useLayoutEffect(() => {
         const canvas = canvasRef.current;
@@ -550,8 +556,8 @@ export default function PolarMap({
         }
         context.setTransform(ratio, 0, 0, ratio, 0, 0);
         context.clearRect(0, 0, width, height);
-        paintMarkers(context, markers, markerOutline);
-    }, [markers, width, height, markerOutline]);
+        paintMarkers(context, markers, outline);
+    }, [markers, width, height, outline]);
 
     // Polar: along the 45°E meridian. Mercator: along the left edge of the map.
     const labelLatitudes = kind === "mercator"
@@ -658,7 +664,7 @@ export default function PolarMap({
                                     d={markerPath(point.shape ?? "circle", MARKER_SIZE)}
                                     transform={isPin ? PIN_TRANSFORM : undefined}
                                     fill={point.color}
-                                    stroke={point.ring ?? theme.palette.common.white}
+                                    stroke={point.ring ?? outline ?? "none"}
                                     strokeWidth={(point.ring ? 2.5 : 1.2) / (isPin ? PIN_SCALE : 1)}
                                     style={{ filter: "drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))" }}
                                 />
@@ -707,7 +713,13 @@ export default function PolarMap({
                     </Paper>
                 )}
 
-                <Box sx={{ position: "absolute", top: 10, left: 10, right: 56, display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {/* Only the buttons catch the pointer: the strip around them stays part of the map. */}
+                <Box
+                    sx={{
+                        position: "absolute", top: 10, left: 10, right: 56, display: "flex", flexWrap: "wrap", gap: 1,
+                        pointerEvents: "none", "& > *": { pointerEvents: "auto" },
+                    }}
+                >
                     <Paper elevation={2} sx={{ p: 0.5, borderRadius: 2 }}>
                         <ToggleButtonGroup
                             size="small"

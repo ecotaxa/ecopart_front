@@ -242,7 +242,7 @@ describe('ProfilePage - Ecopart Tab (Functional)', () => {
         const router = createMemoryRouter([
             { path: '/settings/:userId?/:tabName?', element: <ProtectedRoute><ProfilePage /></ProtectedRoute> },
             { path: '/login', element: <PublicOnlyRoute><h1>Login Page</h1></PublicOnlyRoute> },
-            { path: '/dashboard', element: <ProtectedRoute><h1>Dashboard</h1></ProtectedRoute> },
+            { path: '/explore', element: <h1>Explore</h1> },
         ], { initialEntries: ['/settings/1/ecopart_account'] });
         render(
             <QueryClientProvider client={createTestQueryClient()}>
