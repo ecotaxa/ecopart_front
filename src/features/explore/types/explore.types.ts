@@ -100,6 +100,14 @@ export interface PressureHistogramBin {
     nb_profiles: number;
 }
 
+/** Profiles whose maximum pressure falls in [min_pressure, max_pressure), in dbar. */
+export interface PressureClass {
+    min_pressure: number;
+    /** null for the deepest class, which has no upper edge. */
+    max_pressure: number | null;
+    nb_profiles: number;
+}
+
 export interface ProfilePoint {
     /** ISO date-time of the sample. */
     date: string;
@@ -126,6 +134,8 @@ export interface ExploreSummary {
     time_range: { start: string; end: string } | null;
     instruments: LabelCount[];
     max_pressure_histogram: PressureHistogramBin[];
+    /** A few fixed classes (0-50, 50-200, 200-500, 500-1000, 1000-2000, from 2000), empty without any pressure. */
+    max_pressure_classes: PressureClass[];
     profiles: ProfilePoint[];
     ecotaxa_categories: string[];
     classification: ClassificationShares;
