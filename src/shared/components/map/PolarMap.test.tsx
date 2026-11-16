@@ -66,6 +66,15 @@ describe('PolarMap', () => {
         expect(projectLink).toHaveAttribute('target', '_blank');
     });
 
+    it('draws a light blue sea by default, a grey-blue one with the quiet basemap', () => {
+        const { container, unmount } = render(<PolarMap points={[point('med', 43.7, 7.3)]} />);
+        expect(container.querySelector('defs path')).toHaveAttribute('fill', '#d8f0f9');
+        unmount();
+
+        const quiet = render(<PolarMap points={[point('med', 43.7, 7.3)]} basemap="quiet" />);
+        expect(quiet.container.querySelector('defs path')).toHaveAttribute('fill', '#eef1f4');
+    });
+
     it('says when there is nothing to show', () => {
         render(<PolarMap points={[point('bad', 120, 0)]} emptyMessage="No location available" />);
         expect(screen.getByText('No location available')).toBeInTheDocument();

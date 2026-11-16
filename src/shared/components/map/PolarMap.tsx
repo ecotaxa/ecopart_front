@@ -427,7 +427,7 @@ function boxBetween([lon1, lat1]: [number, number], [lon2, lat2]: [number, numbe
  */
 export default function PolarMap({
     points, height: minHeight = 320, maxHeight, bounds = null, drawing = false, onBoundsDrawn,
-    emptyMessage = "Nothing to show", legend, defaultProjection = "mercator", markerOutline, markerStyle = "solid", fitKey,
+    emptyMessage = "Nothing to show", legend, defaultProjection = "mercator", markerOutline, markerStyle = "solid", basemap = "classic", fitKey,
 }: PolarMapProps) {
     const theme = useTheme();
     const land = useLand();
@@ -700,15 +700,26 @@ export default function PolarMap({
         .filter((label): label is { latitude: number; xy: [number, number] } =>
             label.xy !== null && label.xy[0] > 0 && label.xy[0] < width && label.xy[1] > 0 && label.xy[1] < height);
 
-    // A quiet base (grey-blue sea, light grey land, faint graticule): the markers stay the most contrasted thing on the map.
-    const colors = {
-        background: ecotaxaColors.stone[50],
-        ocean: ecotaxaColors.stone[100],
-        land: ecotaxaColors.stone[200],
-        coast: ecotaxaColors.stone[300],
-        graticule: ecotaxaColors.stone[300],
-        label: ecotaxaColors.stone[500],
-    };
+    // `quiet`: under thousands of markers, a grey-blue sea and a light grey land keep the markers the most contrasted thing on the map.
+    const colors = basemap === "quiet"
+        ? {
+            background: ecotaxaColors.stone[50],
+            ocean: ecotaxaColors.stone[100],
+            land: ecotaxaColors.stone[200],
+            coast: ecotaxaColors.stone[300],
+            graticule: ecotaxaColors.stone[300],
+            label: ecotaxaColors.stone[500],
+            labelOpacity: 0.8,
+        }
+        : {
+            background: ecotaxaColors.stone[50],
+            ocean: ecotaxaColors.mainblue[100],
+            land: theme.palette.common.white,
+            coast: ecotaxaColors.stone[300],
+            graticule: ecotaxaColors.mainblue[300],
+            label: ecotaxaColors.mainblue[700],
+            labelOpacity: 0.7,
+        };
 
     return (
         <Box>
@@ -767,7 +778,7 @@ export default function PolarMap({
                             y={xy[1] - 3}
                             fontSize={10}
                             fill={colors.label}
-                            fillOpacity={0.8}
+                            fillOpacity={colors.labelOpacity}
                             pointerEvents="none"
                         >
                             {formatLatitude(latitude)}
