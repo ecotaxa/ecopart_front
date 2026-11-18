@@ -35,6 +35,13 @@ const toSeries = (profile: QcBinnedDepthProfile): QcChartSeries[] =>
         }),
     }));
 
+/** Vertical-axis title of a binned graph, with the bin size the backend summed over ("depth (m), 1 m bins"). */
+const binnedYLabel = (profile: QcBinnedDepthProfile, yLabel: string): string => {
+    const isTime = profile.axis === "time";
+    const size = isTime ? profile.bin_size_h : profile.bin_size_m;
+    return size === undefined ? yLabel : `${yLabel}, ${size} ${isTime ? "h" : "m"} bins`;
+};
+
 /**
  * The four QC graphs of a sample with its image-selection metadata, without any frame: shared by the
  * pre-import review card and the Quality checks tab of an imported sample.
@@ -80,6 +87,7 @@ export const QcSampleGraphs: React.FC<{ sample: SampleQcGraphs }> = ({ sample })
             title: isTime ? "Imaged volume versus time" : "Vertical profile of imaged volume",
             series: toSeries(sample.imaged_volume_profile),
             xLabel: "imaged volume (L)",
+            yLabel: binnedYLabel(sample.imaged_volume_profile, yLabel),
             xScale: sample.imaged_volume_profile.suggested_scale,
             showLegend: false,
         },
@@ -90,6 +98,7 @@ export const QcSampleGraphs: React.FC<{ sample: SampleQcGraphs }> = ({ sample })
                 : "Vertical profile of black for 1, 2 and 3 pixels versus pressure",
             series: toSeries(sample.black_profile),
             xLabel: "count",
+            yLabel: binnedYLabel(sample.black_profile, yLabel),
             xScale: sample.black_profile.suggested_scale,
             showLegend: true,
         }] : []),
@@ -100,6 +109,7 @@ export const QcSampleGraphs: React.FC<{ sample: SampleQcGraphs }> = ({ sample })
                 : "Vertical profile of particle (LPM) for 1, 2 and 3 pixels versus pressure",
             series: toSeries(sample.particle_lpm_profile),
             xLabel: "count",
+            yLabel: binnedYLabel(sample.particle_lpm_profile, yLabel),
             xScale: sample.particle_lpm_profile.suggested_scale,
             showLegend: true,
         },
@@ -180,7 +190,7 @@ export const QcSampleGraphs: React.FC<{ sample: SampleQcGraphs }> = ({ sample })
                             title={c.title}
                             series={c.series}
                             xLabel={c.xLabel}
-                            yLabel={yLabel}
+                            yLabel={c.yLabel}
                             xScale={c.xScale}
                             height={CHART_HEIGHT}
                             showLegend={c.showLegend}
