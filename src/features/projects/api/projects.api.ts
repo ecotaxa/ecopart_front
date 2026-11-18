@@ -1188,6 +1188,12 @@ export interface Task {
     task_creation_utc_date_time: string;
     task_start_utc_date_time?: string | null;
     task_end_utc_date_time?: string | null;
+    /**
+     * From this date the log is no longer served (`getTaskLog` answers 410) and is
+     * removed: set on a task that succeeded (DONE), null on any other status, whose
+     * log is kept. Absent from an older backend.
+     */
+    task_log_expiration_utc_date_time?: string | null;
     task_progress_pct: number;
     task_progress_msg?: string;
     task_params?: Record<string, unknown>;
@@ -1386,11 +1392,14 @@ export async function cancelTask(taskId: number): Promise<Task> {
 }
 
 /**
- * Fetches the plain text server log file content for a specific task.
+ * Fetches the plain text server log file content for a specific task. With
+ * `from` (a byte offset), only the complete lines written from that offset on:
+ * a running task's log is followed without fetching it whole on every poll.
  * Route: GET /tasks/:task_id/log
  */
-export async function getTaskLog(taskId: number): Promise<string> {
-    return httpText(`/tasks/${taskId}/log`, {
+export async function getTaskLog(taskId: number, from?: number): Promise<string> {
+    const query = from === undefined ? "" : `?from=${from}`;
+    return httpText(`/tasks/${taskId}/log${query}`, {
         method: "GET",
     });
 }

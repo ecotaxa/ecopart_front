@@ -9,10 +9,12 @@ vi.mock('../api/projects.api', () => ({
     deleteProjectTask: vi.fn(),
     cancelTask: vi.fn(),
     downloadTaskFile: vi.fn(),
-    isExportTask: vi.fn(() => false),
+    // Same rule as the real one: the EXPORT* task types
+    isExportTask: vi.fn((task: { task_type?: string }) => (task.task_type ?? '').toUpperCase().startsWith('EXPORT')),
 }));
 
 import { getOneTask, getTaskLog, deleteProjectTask, cancelTask, type Task } from '../api/projects.api';
+import { ApiError } from '@/shared/api/http';
 import TaskDetailsPage from './TaskDetailsPage';
 import { renderWithRouter } from '@/test/utils';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
@@ -148,8 +150,60 @@ describe('TaskDetailsPage (Functional)', () => {
 
         await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
 
-        await waitFor(() => expect(mockedGetTaskLog).toHaveBeenCalledWith(42));
+        await waitFor(() => expect(mockedGetTaskLog).toHaveBeenCalledWith(42, 0));
         expect(await screen.findByText('streaming log output')).toBeInTheDocument();
+    });
+
+    it('TC-S3c: a running task log is followed from the bytes already shown', async () => {
+        vi.useFakeTimers();
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status: 'RUNNING', task_progress_pct: 40 }));
+        mockedGetTaskLog
+            .mockResolvedValueOnce('début\n')
+            .mockResolvedValueOnce('second line\n');
+        renderDetail('/projects/77/tasks/42/logfile');
+
+        await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+        expect(mockedGetTaskLog).toHaveBeenLastCalledWith(42, 0);
+
+        await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+        // "début\n" is 7 bytes in UTF-8
+        expect(mockedGetTaskLog).toHaveBeenLastCalledWith(42, 7);
+        expect(screen.getByText('début')).toBeInTheDocument();
+        expect(screen.getByText('second line')).toBeInTheDocument();
+    });
+
+    it('TC-S3d: downloads the log shown on the page', async () => {
+        const user = userEvent.setup();
+        const createObjectURL = vi.fn(() => 'blob:log');
+        const revokeObjectURL = vi.fn();
+        Object.assign(window.URL, { createObjectURL, revokeObjectURL });
+        const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+        renderDetail('/projects/77/tasks/42/logfile');
+        await screen.findByText('streaming log output');
+
+        await user.click(screen.getByRole('button', { name: /DOWNLOAD LOG/i }));
+
+        expect(click).toHaveBeenCalledTimes(1);
+        const blob = (createObjectURL.mock.calls[0] as unknown[])[0] as Blob;
+        // jsdom's Blob has no text(): read it like a browser would
+        const text = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsText(blob);
+        });
+        expect(text).toBe('streaming log output');
+    });
+
+    it('TC-S3e: tells that an export archive is deleted with its task', async () => {
+        const user = userEvent.setup();
+        loginAsAdmin();
+        const confirm = answerConfirmDialogs(false);
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_type: 'EXPORT_RAW' }));
+        renderDetail();
+
+        expect(await screen.findByText(/Export archives are kept until their export task is deleted/)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /^DELETE$/i }));
+        expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('its log and its export archive') }));
     });
 
     // TC-S3b: Back keeps the caller's origin after a tab switch
@@ -184,6 +238,44 @@ describe('TaskDetailsPage (Functional)', () => {
         expect(
             await screen.findByText('No log messages captured yet by the kernel stream handler.'),
         ).toBeInTheDocument();
+    });
+
+    // TC-S4b..d: Log retention of a successful task
+    it('TC-S4b: tells until when the log of a successful task is kept', async () => {
+        const user = userEvent.setup();
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_log_expiration_utc_date_time: new Date(Date.now() + 10 * 86_400_000).toISOString() }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
+
+        expect(await screen.findByText('streaming log output')).toBeInTheDocument();
+        expect(screen.getByText(/This task succeeded: its log will be deleted on .*, one month after the task ended/)).toBeInTheDocument();
+    });
+
+    it('TC-S4c: does not request an expired log and says it was removed', async () => {
+        const user = userEvent.setup();
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_log_expiration_utc_date_time: '2026-01-31T00:00:00.000Z' }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
+
+        expect(await screen.findByText(/Logs of successful tasks are deleted one month after the task ends. This one was deleted on/)).toBeInTheDocument();
+        expect(mockedGetTaskLog).not.toHaveBeenCalled();
+        expect(screen.queryByText('Failed to synchronize task metrics from server.')).not.toBeInTheDocument();
+    });
+
+    it('TC-S4d: shows the server message when the log is gone (410) instead of an error', async () => {
+        const user = userEvent.setup();
+        mockedGetTaskLog.mockRejectedValue(new ApiError(410, ['The log of a successful task is kept 30 days after its end: this one has been removed']));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
+
+        expect(await screen.findByText(/this one has been removed/)).toBeInTheDocument();
+        expect(screen.queryByText('Failed to synchronize task metrics from server.')).not.toBeInTheDocument();
     });
 
     // TC-S5: Delete Success + Navigation

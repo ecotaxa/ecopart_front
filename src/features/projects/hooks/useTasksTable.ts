@@ -80,7 +80,7 @@ export const useTasksTable = (
         action: (taskId) => deleteProjectTask(taskId),
         confirm: {
             title: "Delete tasks",
-            message: "This removes the selected background tasks and their logs. It does not undo work a completed task already performed. This cannot be undone.",
+            message: "This removes the selected background tasks, their logs and the archives of the export tasks. It does not undo work a completed task already performed. This cannot be undone.",
             confirmLabel: "Delete",
         },
         successMessage: "Selected tasks removed successfully.",

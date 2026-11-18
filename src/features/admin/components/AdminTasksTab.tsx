@@ -15,6 +15,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
 
 import { useTasksTable } from "@/features/projects/hooks/useTasksTable";
+import TaskRetentionNote from "@/features/projects/components/TaskRetentionNote";
 import type { SearchFilter, Task } from "@/features/projects/api/projects.api";
 import { ACTIVE_TASK_DELETE_HINT, buildBaseTaskColumns, isDownloadableTask } from "@/features/projects/utils/taskColumns";
 import { parseUserIdsParam } from "../utils/userFilterParams";
@@ -150,6 +151,7 @@ export default function AdminTasksTab() {
                 {/* 1. HEADER + FILTER CONTROLS */}
                 <Box sx={{ p: 3, borderBottom: "1px solid #e0e0e0" }}>
                     <Typography variant="h6">Task list</Typography>
+                    <TaskRetentionNote sx={{ mt: 1 }} />
 
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
                         <TextField
