@@ -90,6 +90,14 @@ export const isDeletableTask = (task: Task): boolean => !isActiveTask(task);
 /** Why a task grid's DELETE is greyed out while the selection holds an unfinished task. */
 export const ACTIVE_TASK_DELETE_HINT = "Unfinished tasks cannot be deleted: cancel them from their detail page first";
 
+/**
+ * Retention of task files by the server, told wherever tasks are listed or deleted.
+ * `days`: TASK_LOG_RETENTION_DAYS of the server (GET /tasks/log_retention).
+ */
+export const taskLogRetentionNote = (days: number): string =>
+    `The log of a successful task is kept whole ${days} days after the task ends, then only its warnings are kept (a log without warnings is deleted). Logs of failed or cancelled tasks are kept whole.`;
+export const EXPORT_ARCHIVE_RETENTION_NOTE = "Export archives, and their copy in the FTP export folder, are kept until their export task is deleted, and are deleted with it.";
+
 /** True when a cancellation can still be requested (the backend answers 409 otherwise). */
 export const isCancellableTask = (task: Task): boolean => {
     const status = formatTaskStatus(task);

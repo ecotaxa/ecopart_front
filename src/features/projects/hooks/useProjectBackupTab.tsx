@@ -173,7 +173,7 @@ export const useProjectBackupTab = (projectId: number) => {
                 ftp_export: exportToFtp,
             });
             showSnackbar(
-                <>Export task {taskLink(response.task_id)} started successfully! You can check its progress in the TASKS tab.</>,
+                <>Export task {taskLink(response.task_id)} started successfully! You can check its progress in the TASKS tab. Its archive{exportToFtp ? " and its copy in the FTP export folder are" : " is"} kept until the task is deleted.</>,
                 "success"
             );
         } catch (error) {
