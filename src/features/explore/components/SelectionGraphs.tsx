@@ -20,9 +20,17 @@ import type { SamplePopup } from "../utils/samplePopup";
 import BoundedNumberField from "./BoundedNumberField";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
-type GraphId = Exclude<keyof ExploreGraphs, "warnings" | "size_classes">;
+type GraphId = Exclude<keyof ExploreGraphs, "warnings" | "ctd_warnings" | "size_classes">;
 
 const GRAPH_IDS: readonly GraphId[] = ["abundance", "biovolume", "ctd", "ecotaxa"];
+
+/** Graphs the backend does not compute yet: their card says so instead of an empty picker. */
+const GRAPHS_COMING_SOON: readonly GraphId[] = ["ecotaxa"];
+
+const COMING_SOON_TEXT: Partial<Record<GraphId, string>> = {
+    ecotaxa: "Coming soon: the EcoTaxa graphs per category are not computed yet. "
+        + "The EcoTaxa categories of the selection are listed in the Selected data stats tab.",
+};
 
 const VALUE_SCALES: { value: ValueScale; label: string }[] = [
     { value: "linear", label: "linear" },
@@ -175,6 +183,24 @@ function RadioRow<T extends string>({ label, value, options, onChange }: {
     );
 }
 
+/** The card of a graph not served yet: its title, the reason, and the button that hides it. */
+function ComingSoonCard({ id, mode, onClose }: { id: GraphId; mode: ExploreSampleType; onClose: (id: GraphId) => void }) {
+    const { title } = cardText(id, mode);
+    return (
+        <Paper variant="outlined" component="section" aria-label={title} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+            <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Typography variant="h6" component="h3">{title}</Typography>
+                <Tooltip title="Hide this graph">
+                    <IconButton size="small" onClick={() => onClose(id)} aria-label={`Hide ${title}`}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            </Stack>
+            <Alert severity="info" variant="outlined">{COMING_SOON_TEXT[id] ?? "Coming soon."}</Alert>
+        </Paper>
+    );
+}
+
 function NoGraph() {
     return (
         <Box
@@ -233,10 +259,12 @@ interface GraphCardProps {
     /** Shown above the picker (EcoTaxa available taxa). */
     header?: ReactNode;
     sampleDetails?: SampleDetails;
+    /** Why samples of the selection have no curve on this graph (CTD). */
+    notes?: string[];
 }
 
 const GraphCard = memo(function GraphCard({
-    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header, sizeClasses = "reduced", sampleDetails,
+    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header, sizeClasses = "reduced", sampleDetails, notes,
 }: GraphCardProps) {
     const text = cardText(id, mode);
     const keys = dataset?.keys ?? NO_KEYS;
@@ -278,6 +306,12 @@ const GraphCard = memo(function GraphCard({
                     </Tooltip>
                 </Box>
             </Stack>
+
+            {notes && notes.length > 0 && (
+                <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+                    {notes.map((note) => <div key={note}>{note}</div>)}
+                </Alert>
+            )}
 
             {header}
 
@@ -368,6 +402,8 @@ interface SelectionGraphsProps {
     computing?: boolean;
     /** Shown under the sample name when a curve is hovered or clicked. */
     sampleDetails?: SampleDetails;
+    /** Graphs drawn as a "coming soon" card, `GRAPHS_COMING_SOON` by default. */
+    comingSoon?: readonly GraphId[];
 }
 
 interface DataAggregationProps {
@@ -462,7 +498,7 @@ function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesCha
  */
 export default function SelectionGraphs({
     mode, title = "Selected data graphs", graphs, sumChildTaxa, onSumChildTaxaChange, bin, onBinChange,
-    sizeClasses, onSizeClassesChange, computing = false, sampleDetails,
+    sizeClasses, onSizeClassesChange, computing = false, sampleDetails, comingSoon = GRAPHS_COMING_SOON,
 }: SelectionGraphsProps) {
     const showComputing = useDelayedFlag(computing, COMPUTING_NOTICE_DELAY_MS);
     const [settings, setSettings] = useState<Record<GraphId, GraphSettings>>({
@@ -568,7 +604,9 @@ export default function SelectionGraphs({
                 </Stack>
             )}
 
-            {GRAPH_IDS.filter((id) => !hidden.includes(id)).map((id) => (
+            {GRAPH_IDS.filter((id) => !hidden.includes(id)).map((id) => (comingSoon.includes(id) ? (
+                <ComingSoonCard key={id} id={id} mode={mode} onClose={hide} />
+            ) : (
                 <GraphCard
                     key={id}
                     id={id}
@@ -583,8 +621,9 @@ export default function SelectionGraphs({
                     sizeClasses={graphs?.size_classes ?? "reduced"}
                     sampleDetails={sampleDetails}
                     extra={id === "ecotaxa" ? sumChildrenOption : undefined}
+                    notes={id === "ctd" ? graphs?.ctd_warnings : undefined}
                 />
-            ))}
+            )))}
         </Stack>
     );
 }

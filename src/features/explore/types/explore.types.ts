@@ -265,4 +265,6 @@ export interface ExploreGraphs {
     ecotaxa: GraphDataset;
     /** Why some samples of the selection are not drawn (private projects, too many samples). */
     warnings: string[];
+    /** Why samples drawn have no CTD curve: no CTD imported, unreadable file, no pressure or time column (absent on an older backend). */
+    ctd_warnings?: string[];
 }
