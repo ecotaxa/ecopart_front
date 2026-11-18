@@ -16,21 +16,43 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SectionCard from "@/shared/components/SectionCard";
 import { ecotaxaColors } from "@/theme";
 import { cancelTask, deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, isExportTask, type Task, type TaskProject } from "../api/projects.api";
-import { EXPORT_ARCHIVE_RETENTION_NOTE, TASK_LOG_RETENTION_NOTE, formatTaskOwner, isActiveTask, isCancellableTask, isDeletableTask, isDownloadableTask } from "../utils/taskColumns";
+import { EXPORT_ARCHIVE_RETENTION_NOTE, taskLogRetentionNote, formatTaskOwner, isActiveTask, isCancellableTask, isDeletableTask, isDownloadableTask } from "../utils/taskColumns";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { useAuthStore } from "@/features/auth";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import { ApiError } from "@/shared/api/http";
 import { pageBackButtonSx, pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
+import { useTaskLogRetentionDays } from "../hooks/useTaskLogRetentionDays";
 
-/** True once the log of a successful task has expired (removed by the server). */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const formatDay = (iso: string): string =>
+    new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+
+/** True once the log of a successful task has expired: the server only keeps its warnings. */
 const isLogExpired = (task: Task): boolean => {
     const expiration = task.task_log_expiration_utc_date_time ? Date.parse(task.task_log_expiration_utc_date_time) : Number.NaN;
     return !Number.isNaN(expiration) && expiration <= Date.now();
 };
 
-const formatDay = (iso: string): string =>
-    new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+/** Days between the end of a successful task and the expiration of its log, as the server computed it. */
+const retentionDaysOf = (task: Task): number | null => {
+    if (!task.task_log_expiration_utc_date_time || !task.task_end_utc_date_time) return null;
+    const days = Math.round((Date.parse(task.task_log_expiration_utc_date_time) - Date.parse(task.task_end_utc_date_time)) / DAY_MS);
+    return Number.isNaN(days) ? null : days;
+};
+
+/** What the LOG FILE tab tells about the retention of this task's log, null when there is nothing to say yet. */
+const logRetentionMessage = (task: Task, serverRetentionDays: number | null): string | null => {
+    const expiration = task.task_log_expiration_utc_date_time;
+    const days = retentionDaysOf(task);
+    if (expiration && days !== null) {
+        return isLogExpired(task)
+            ? `This task succeeded more than ${days} days ago: since ${formatDay(expiration)} only the warnings of its log are kept.`
+            : `This task succeeded: its log is kept whole until ${formatDay(expiration)}, ${days} days after the task ended, then only its warnings are kept. Download it to keep it whole.`;
+    }
+    return serverRetentionDays !== null ? taskLogRetentionNote(serverRetentionDays) : null;
+};
 
 /** Saves the log shown on the page as a text file. */
 const saveLogFile = (taskId: number, content: string): void => {
@@ -112,8 +134,9 @@ export default function TaskDetailsPage() {
     };
     const [task, setTask] = useState<Task | null>(null);
     const [logContent, setLogContent] = useState<string>("");
-    // Set when the server no longer serves the log (expired log of a successful task).
+    // Set when the server no longer has the log (expired log of a successful task, without warnings).
     const [logGone, setLogGone] = useState<string | null>(null);
+    const serverRetentionDays = useTaskLogRetentionDays();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -145,6 +168,9 @@ export default function TaskDetailsPage() {
     const pendingPollKey = useRef<string | null>(null);
     // Bytes of the log already shown, for its task: a poll only fetches the lines written since.
     const logCursor = useRef<{ taskId: number; bytes: number } | null>(null);
+    // Another task drops the log shown (above, during render): its cursor goes too, before the load
+    // effect below runs, so the next log is read from its start.
+    useEffect(() => { logCursor.current = null; }, [parsedTaskId]);
     useEffect(() => () => { loadGeneration.current += 1; }, []);
 
     // --- 2. DATA HYDRATION CALLBACK ---
@@ -164,8 +190,8 @@ export default function TaskDetailsPage() {
             setTask(taskData);
 
             // Only fetch logs if we are on the log tab to preserve resources.
-            // The log of a successful task expires: no request once it has.
-            if (currentTab === 1 && !isLogExpired(taskData)) {
+            // Past its retention, the server only gives the warnings of the log (410 when none).
+            if (currentTab === 1) {
                 try {
                     const from = logCursor.current?.taskId === parsedTaskId ? logCursor.current.bytes : 0;
                     const logs = await getTaskLog(parsedTaskId, from);
@@ -259,7 +285,7 @@ export default function TaskDetailsPage() {
         if (parsedTaskId === null) return;
         if (!(await confirmDialog({
             title: `Delete task #${parsedTaskId}`,
-            message: `This removes the task and its log${task !== null && isExportTask(task) ? " and its export archive" : ""}. It does not undo work the task already performed. This cannot be undone.`,
+            message: `This removes the task and its log${task !== null && isExportTask(task) ? ` and its export archive${task.task_params?.out_to_ftp === true ? ", with its copy in the FTP export folder" : ""}` : ""}. It does not undo work the task already performed. This cannot be undone.`,
             confirmLabel: "Delete",
         }))) return;
 
@@ -305,6 +331,7 @@ export default function TaskDetailsPage() {
         return String(params);
     };
 
+    const logRetentionText = task !== null ? logRetentionMessage(task, serverRetentionDays) : null;
 
     return (
         <Container maxWidth="lg" sx={pageContainerSx}>
@@ -490,25 +517,23 @@ export default function TaskDetailsPage() {
                                     </Box>
                                 </SectionCard>
                             </Box>
-                        ) : isLogExpired(task) || logGone !== null ? (
+                        ) : logGone !== null ? (
                             <Alert severity="info">
-                                {task.task_log_expiration_utc_date_time
-                                    ? `${TASK_LOG_RETENTION_NOTE} This one was deleted on ${formatDay(task.task_log_expiration_utc_date_time)}.`
+                                {task.task_log_expiration_utc_date_time && retentionDaysOf(task) !== null
+                                    ? `This task succeeded more than ${retentionDaysOf(task)} days ago and its log had no warning to keep: it was deleted on ${formatDay(task.task_log_expiration_utc_date_time)}.`
                                     : logGone}
                             </Alert>
                         ) : (
                             /* TEXT STREAM CONSOLE COMPONENT */
                             <>
                                 <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2, alignItems: { sm: "center" } }}>
-                                    <Alert severity="info" sx={{ flex: 1 }}>
-                                        {task.task_log_expiration_utc_date_time
-                                            ? `This task succeeded: its log will be deleted on ${formatDay(task.task_log_expiration_utc_date_time)}, one month after the task ended. Download it to keep it.`
-                                            : TASK_LOG_RETENTION_NOTE}
-                                    </Alert>
+                                    {logRetentionText !== null && (
+                                        <Alert severity="info" sx={{ flex: 1 }}>{logRetentionText}</Alert>
+                                    )}
                                     <Button
                                         variant="outlined"
                                         size="small"
-                                        sx={{ fontWeight: "bold", flexShrink: 0 }}
+                                        sx={{ fontWeight: "bold", flexShrink: 0, ml: { sm: "auto" } }}
                                         startIcon={<DownloadIcon />}
                                         onClick={() => saveLogFile(task.task_id, logContent)}
                                         disabled={!logContent}

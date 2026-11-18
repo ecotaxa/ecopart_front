@@ -9,11 +9,12 @@ vi.mock('../api/projects.api', () => ({
     deleteProjectTask: vi.fn(),
     cancelTask: vi.fn(),
     downloadTaskFile: vi.fn(),
+    getTaskLogRetention: vi.fn(),
     // Same rule as the real one: the EXPORT* task types
     isExportTask: vi.fn((task: { task_type?: string }) => (task.task_type ?? '').toUpperCase().startsWith('EXPORT')),
 }));
 
-import { getOneTask, getTaskLog, deleteProjectTask, cancelTask, type Task } from '../api/projects.api';
+import { getOneTask, getTaskLog, getTaskLogRetention, deleteProjectTask, cancelTask, type Task } from '../api/projects.api';
 import { ApiError } from '@/shared/api/http';
 import TaskDetailsPage from './TaskDetailsPage';
 import { renderWithRouter } from '@/test/utils';
@@ -24,6 +25,8 @@ const mockedGetOneTask = vi.mocked(getOneTask);
 const mockedGetTaskLog = vi.mocked(getTaskLog);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
 const mockedCancelTask = vi.mocked(cancelTask);
+const mockedGetTaskLogRetention = vi.mocked(getTaskLogRetention);
+const DAY_MS = 86_400_000;
 
 const makeTask = (overrides: Partial<Task> = {}): Task => ({
     task_id: 42,
@@ -56,6 +59,7 @@ describe('TaskDetailsPage (Functional)', () => {
         mockedGetOneTask.mockResolvedValue(makeTask());
         mockedGetTaskLog.mockResolvedValue('streaming log output');
         mockedDeleteProjectTask.mockResolvedValue({ message: 'deleted' });
+        mockedGetTaskLogRetention.mockResolvedValue({ task_log_retention_days: 30 });
     });
 
     afterEach(() => {
@@ -194,16 +198,41 @@ describe('TaskDetailsPage (Functional)', () => {
         expect(text).toBe('streaming log output');
     });
 
-    it('TC-S3e: tells that an export archive is deleted with its task', async () => {
+    it('TC-S3e: tells that an export archive and its FTP copy are deleted with its task', async () => {
         const user = userEvent.setup();
         loginAsAdmin();
         const confirm = answerConfirmDialogs(false);
-        mockedGetOneTask.mockResolvedValue(makeTask({ task_type: 'EXPORT_RAW' }));
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_type: 'EXPORT_BACKUP', task_params: { out_to_ftp: true } }));
         renderDetail();
 
-        expect(await screen.findByText(/Export archives are kept until their export task is deleted/)).toBeInTheDocument();
+        expect(await screen.findByText(/Export archives, and their copy in the FTP export folder, are kept until their export task is deleted/)).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: /^DELETE$/i }));
-        expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('its log and its export archive') }));
+        expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('its log and its export archive, with its copy in the FTP export folder.') }));
+    });
+
+    it('TC-S3f: a log read again after opening another task starts from its beginning', async () => {
+        const user = userEvent.setup();
+        mockedGetOneTask.mockImplementation((taskId) => Promise.resolve(makeTask({ task_id: taskId })));
+        mockedGetTaskLog.mockImplementation((taskId) => Promise.resolve(`whole log of ${taskId}\n`));
+        renderWithRouter(
+            <>
+                <Link to="/projects/77/tasks/43/general">open task 43</Link>
+                <Link to="/projects/77/tasks/42/logfile">back to the log of 42</Link>
+                <Routes>
+                    <Route path="/projects/:id/tasks/:taskId/:tabName?" element={<TaskDetailsPage />} />
+                </Routes>
+            </>,
+            { route: '/projects/77/tasks/42/logfile' },
+        );
+        expect(await screen.findByText('whole log of 42')).toBeInTheDocument();
+
+        // Task 43 is opened on its GENERAL tab: no log is read for it
+        await user.click(screen.getByRole('link', { name: 'open task 43' }));
+        await screen.findByText('IMPORT task [43]');
+        await user.click(screen.getByRole('link', { name: 'back to the log of 42' }));
+
+        expect(await screen.findByText('whole log of 42')).toBeInTheDocument();
+        expect(mockedGetTaskLog).toHaveBeenLastCalledWith(42, 0);
     });
 
     // TC-S3b: Back keeps the caller's origin after a tab switch
@@ -240,42 +269,67 @@ describe('TaskDetailsPage (Functional)', () => {
         ).toBeInTheDocument();
     });
 
-    // TC-S4b..d: Log retention of a successful task
-    it('TC-S4b: tells until when the log of a successful task is kept', async () => {
+    // TC-S4b..e: Log retention of a successful task
+    it('TC-S4b: tells until when the log of a successful task is kept whole', async () => {
         const user = userEvent.setup();
-        mockedGetOneTask.mockResolvedValue(makeTask({ task_log_expiration_utc_date_time: new Date(Date.now() + 10 * 86_400_000).toISOString() }));
+        const end = Date.now() - 20 * DAY_MS;
+        mockedGetOneTask.mockResolvedValue(makeTask({
+            task_end_utc_date_time: new Date(end).toISOString(),
+            task_log_expiration_utc_date_time: new Date(end + 30 * DAY_MS).toISOString(),
+        }));
         renderDetail();
         await screen.findByText('IMPORT task [42]');
 
         await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
 
         expect(await screen.findByText('streaming log output')).toBeInTheDocument();
-        expect(screen.getByText(/This task succeeded: its log will be deleted on .*, one month after the task ended/)).toBeInTheDocument();
+        expect(screen.getByText(/This task succeeded: its log is kept whole until .*, 30 days after the task ended, then only its warnings are kept/)).toBeInTheDocument();
     });
 
-    it('TC-S4c: does not request an expired log and says it was removed', async () => {
+    it('TC-S4c: an expired log shows the warnings the server kept', async () => {
         const user = userEvent.setup();
-        mockedGetOneTask.mockResolvedValue(makeTask({ task_log_expiration_utc_date_time: '2026-01-31T00:00:00.000Z' }));
+        mockedGetOneTask.mockResolvedValue(makeTask({
+            task_end_utc_date_time: '2026-01-01T00:00:00.000Z',
+            task_log_expiration_utc_date_time: '2026-01-08T00:00:00.000Z',
+        }));
+        mockedGetTaskLog.mockResolvedValue('2026-01-01T00:00:00.000Z Step 3/4 particle statistics : s1 : WARNING particle statistics not computed\n');
         renderDetail();
         await screen.findByText('IMPORT task [42]');
 
         await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
 
-        expect(await screen.findByText(/Logs of successful tasks are deleted one month after the task ends. This one was deleted on/)).toBeInTheDocument();
-        expect(mockedGetTaskLog).not.toHaveBeenCalled();
-        expect(screen.queryByText('Failed to synchronize task metrics from server.')).not.toBeInTheDocument();
+        expect(await screen.findByText(/WARNING particle statistics not computed/)).toBeInTheDocument();
+        expect(screen.getByText(/This task succeeded more than 7 days ago: since .* only the warnings of its log are kept/)).toBeInTheDocument();
+        expect(mockedGetTaskLog).toHaveBeenCalledWith(42, 0);
     });
 
-    it('TC-S4d: shows the server message when the log is gone (410) instead of an error', async () => {
+    it('TC-S4d: says the log was deleted when the server has nothing left (410), instead of an error', async () => {
         const user = userEvent.setup();
-        mockedGetTaskLog.mockRejectedValue(new ApiError(410, ['The log of a successful task is kept 30 days after its end: this one has been removed']));
+        mockedGetOneTask.mockResolvedValue(makeTask({
+            task_end_utc_date_time: '2026-01-01T00:00:00.000Z',
+            task_log_expiration_utc_date_time: '2026-01-31T00:00:00.000Z',
+        }));
+        mockedGetTaskLog.mockRejectedValue(new ApiError(410, ['The log of this successful task has expired and had no warning to keep: it has been removed']));
         renderDetail();
         await screen.findByText('IMPORT task [42]');
 
         await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
 
-        expect(await screen.findByText(/this one has been removed/)).toBeInTheDocument();
+        expect(await screen.findByText(/This task succeeded more than 30 days ago and its log had no warning to keep: it was deleted on/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /DOWNLOAD LOG/i })).not.toBeInTheDocument();
         expect(screen.queryByText('Failed to synchronize task metrics from server.')).not.toBeInTheDocument();
+    });
+
+    it('TC-S4e: tells the retention set on the server for a task that has not succeeded', async () => {
+        const user = userEvent.setup();
+        mockedGetTaskLogRetention.mockResolvedValue({ task_log_retention_days: 45 });
+        mockedGetOneTask.mockResolvedValue(makeTask({ task_status: 'ERROR' }));
+        renderDetail();
+        await screen.findByText('IMPORT task [42]');
+
+        await user.click(screen.getByRole('tab', { name: /LOG FILE/i }));
+
+        expect(await screen.findByText(/The log of a successful task is kept whole 45 days after the task ends, then only its warnings are kept/)).toBeInTheDocument();
     });
 
     // TC-S5: Delete Success + Navigation
