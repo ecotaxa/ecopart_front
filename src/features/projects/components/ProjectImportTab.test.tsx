@@ -284,6 +284,29 @@ describe('I. IMPORT TAB (ProjectImportTab)', () => {
             expect(importBtn).not.toBeDisabled();
         }, 15000);
 
+        it('TC-N2b - Select all only selects the samples of the current page (UI level)', async () => {
+            // 12 samples, 10 per page: page 1 holds raw-01..raw-10, page 2 raw-11 and raw-12.
+            mockedGetImportableRawSamples.mockResolvedValue(
+                Array.from({ length: 12 }, (_, i) => ({ sample_name: `raw-${String(i + 1).padStart(2, '0')}`, qc_lvl1: true })),
+            );
+            const user = userEvent.setup();
+            renderWithRouter(<ProjectImportTab projectId={77} />);
+
+            await user.click(await screen.findByRole('checkbox', { name: /select all rows on this page/i }));
+            expect(await screen.findByText(/^10 items selected$/i)).toBeInTheDocument();
+
+            // Page 2: nothing selected there yet, its header checkbox adds its 2 samples to page 1's.
+            await user.click(screen.getByRole('button', { name: /next page/i }));
+            const pageTwoSelectAll = await screen.findByRole('checkbox', { name: /^select all rows on this page/i });
+            expect(pageTwoSelectAll).not.toBeChecked();
+            await user.click(pageTwoSelectAll);
+            expect(await screen.findByText(/^12 items selected$/i)).toBeInTheDocument();
+
+            // Unchecking it clears page 2 only.
+            await user.click(screen.getByRole('checkbox', { name: /unselect all rows on this page/i }));
+            expect(await screen.findByText(/^10 items selected$/i)).toBeInTheDocument();
+        }, 15000);
+
         it('TC-N3a - QC modal renders one card per previewed sample with remove + footer actions', async () => {
             const user = userEvent.setup();
             renderWithRouter(<ProjectImportTab projectId={77} />);
