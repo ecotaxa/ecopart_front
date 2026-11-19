@@ -9,6 +9,7 @@ import {
     RANDOM_IMAGE_COUNT,
     exploreQueryKeys,
     fetchExploreEcoTaxa,
+    fetchExploreEcoTaxaGraphs,
     fetchExploreGraphs,
     fetchExploreImages,
     fetchExploreMap,
@@ -20,6 +21,7 @@ import {
 import {
     SAMPLE_TYPES_OF_MODE,
     type ExploreAggregation,
+    type ExploreEcoTaxaGraphs,
     type ExploreEcoTaxaResponse,
     type ExploreEcoTaxaSummary,
     type ExploreFilters,
@@ -41,8 +43,10 @@ export interface ExploreDataOptions {
     tab: ExploreTab;
     /** Particle histogram of the graphs of each sample type (reduced when absent). */
     sizeClasses?: Record<ExploreSampleType, ExploreSizeClasses>;
-    /** EcoTaxa graphs: each category also counts the objects of its children (not served by the backend yet). */
+    /** EcoTaxa graphs: each category also counts the objects of its children. */
     sumChildTaxa: boolean;
+    /** EcoTaxa graphs: the predicted objects count too (validated ones only otherwise). */
+    includePredicted: boolean;
 }
 
 export interface ExploreData {
@@ -59,6 +63,10 @@ export interface ExploreData {
     graphs: Record<ExploreSampleType, ExploreGraphs | null>;
     /** The curves of a sample type are being computed (a first load, or new filters or bin). */
     graphsComputing: Record<ExploreSampleType, boolean>;
+    /** Concentrations per EcoTaxa category of the depth profiles (null when they are not on screen). */
+    ecotaxaGraphs: ExploreEcoTaxaGraphs | null;
+    /** The EcoTaxa concentrations are being computed (not counting the calls that complete a partial answer). */
+    ecotaxaGraphsComputing: boolean;
     /** Exportable selection tab: only the samples the user may export. */
     exportable: ExploreSelection;
     images: ExploreImage[];
@@ -117,6 +125,8 @@ function useGraphsQuery(request: ExploreGraphsRequest, viewer: number | null, en
 /** An older backend without the explore routes, or no backend at all. */
 const isServiceMissing = (error: unknown) => isNotFound(error) || error instanceof TypeError;
 
+const isPendingGraphs = (graphs: ExploreEcoTaxaGraphs | undefined) => (graphs?.nb_samples_pending ?? 0) > 0;
+
 const isPartial = (ecotaxa: ExploreEcoTaxaResponse | undefined) =>
     ecotaxa !== undefined && (ecotaxa.all.partial || ecotaxa.exportable.partial);
 
@@ -145,11 +155,12 @@ function withEcoTaxa(part: ExploreSelectionPart, ecotaxa: ExploreEcoTaxaSummary)
  *
  * While the backend still reads the EcoTaxa statistics of some samples (a partial
  * answer), the EcoTaxa part is asked again every `ECOTAXA_POLL_MS`, its figures
- * staying on screen, until it is complete.
+ * staying on screen, until it is complete. The EcoTaxa concentrations of the depth
+ * profiles are asked the same way while the backend reads the objects of some samples.
  */
 export function useExploreData(
     filters: ExploreFilters | null,
-    { aggregation, tab, sizeClasses = REDUCED_SIZE_CLASSES }: ExploreDataOptions,
+    { aggregation, tab, sizeClasses = REDUCED_SIZE_CLASSES, sumChildTaxa, includePredicted }: ExploreDataOptions,
 ): ExploreData {
     const viewer = useAuthStore((s) => s.user?.user_id ?? null);
     const bins = useDebounce(aggregation, AGGREGATION_DEBOUNCE_MS);
@@ -199,6 +210,15 @@ export function useExploreData(
     const timeGraphsQuery = useGraphsQuery(
         { mode: "time", filters: request.filters, time_bin: bins.time_bin, size_classes: sizeClasses.time }, viewer, timeGraphsEnabled,
     );
+    const ecotaxaGraphsRequest = { mode: "depth" as const, filters: request.filters, include_predicted: includePredicted, sum_child_taxa: sumChildTaxa };
+    const ecotaxaGraphsQuery = useQuery({
+        queryKey: exploreQueryKeys.ecotaxaGraphs(ecotaxaGraphsRequest, viewer),
+        queryFn: () => fetchExploreEcoTaxaGraphs(ecotaxaGraphsRequest),
+        enabled: depthGraphsEnabled,
+        staleTime: SELECTION_STALE_MS,
+        placeholderData: keepPreviousData,
+        refetchInterval: (query) => (isPendingGraphs(query.state.data) ? ECOTAXA_POLL_MS : false),
+    });
     const imagesQuery = useQuery({
         queryKey: exploreQueryKeys.images(imagesRequest),
         queryFn: () => fetchExploreImages(imagesRequest),
@@ -231,6 +251,9 @@ export function useExploreData(
     // Asking again for a partial EcoTaxa part is no load: the summary says its figures are completing.
     const ecotaxaLoading = ecotaxaQuery.isFetching && (ecotaxaQuery.isPlaceholderData || !isPartial(ecotaxaQuery.data));
 
+    const ecotaxaGraphsComputing = depthGraphsEnabled && ecotaxaGraphsQuery.isFetching
+        && (ecotaxaGraphsQuery.isPlaceholderData || !isPendingGraphs(ecotaxaGraphsQuery.data));
+
     // Every request fails the same way without the service: the page says so once.
     const failure = unavailable ? null : [
         projectsQuery.error,
@@ -238,6 +261,8 @@ export function useExploreData(
         applied ? selectionQuery.error : null,
         applied ? ecotaxaQuery.error : null,
         depthGraphsEnabled ? depthGraphsQuery.error : null,
+        // An older backend without the EcoTaxa concentrations: the card stays empty, no error.
+        depthGraphsEnabled && !isNotFound(ecotaxaGraphsQuery.error) ? ecotaxaGraphsQuery.error : null,
         timeGraphsEnabled ? timeGraphsQuery.error : null,
         imagesEnabled ? imagesQuery.error : null,
     ].find((error) => error != null);
@@ -254,13 +279,15 @@ export function useExploreData(
             depth: depthGraphsEnabled && depthGraphsQuery.isFetching,
             time: timeGraphsEnabled && timeGraphsQuery.isFetching,
         },
+        ecotaxaGraphs: depthGraphsEnabled ? ecotaxaGraphsQuery.data ?? null : null,
+        ecotaxaGraphsComputing,
         exportable,
         images: imagesEnabled ? imagesQuery.data ?? NO_IMAGES : NO_IMAGES,
         imagesRequested,
         loadImages,
         refreshImages,
         imagesLoading: imagesEnabled && imagesQuery.isFetching,
-        loading: ecotaxaLoading
+        loading: ecotaxaLoading || ecotaxaGraphsComputing
             || [projectsQuery, mapQuery, selectionQuery, depthGraphsQuery, timeGraphsQuery, imagesQuery]
                 .some((query) => query.isFetching),
         available: projectsQuery.isSuccess,
