@@ -270,9 +270,13 @@ describe('NewProjectPage (Functional)', () => {
 
 
     // TC-H9: linking an existing EcoTaxa project and creating a new one exclude each other
-    it('TC-H9: typing an EcoTaxa project ID turns the creation of a new EcoTaxa project off', async () => {
+    it('TC-H9: picking an EcoTaxa project turns the creation of a new EcoTaxa project off', async () => {
         const user = userEvent.setup({ delay: null });
         server.use(
+            http.get('*/users/*/ecotaxa_account/7/projects', () => HttpResponse.json([
+                { ecotaxa_project_id: 16188, ecotaxa_project_title: 'Tara UVP6', ecotaxa_project_instrument: 'UVP6', ecotaxa_project_object_count: 1200, ecotaxa_project_validated_pct: 40, already_linked: false },
+                { ecotaxa_project_id: 900, ecotaxa_project_title: 'Old cruise', ecotaxa_project_instrument: 'UVP6', ecotaxa_project_object_count: null, ecotaxa_project_validated_pct: null, already_linked: true },
+            ])),
             http.get('*/users/*/ecotaxa_account', () => HttpResponse.json({
                 ecotaxa_accounts: [{
                     ecotaxa_account_id: 7,
@@ -290,18 +294,21 @@ describe('NewProjectPage (Functional)', () => {
 
         const createSwitch = await screen.findByRole('switch', { name: /Create a new EcoTaxa project/i });
         expect(createSwitch).toBeChecked();
-        // The first linked account is picked once loaded, which enables the project ID.
-        const projectIdInput = screen.getByLabelText(/EcoTaxa project ID/i);
-        await waitFor(() => expect(projectIdInput).toBeEnabled());
+        // The first linked account is picked once loaded, which enables the project picker.
+        const projectInput = screen.getByRole('combobox', { name: /^EcoTaxa project/i });
+        await waitFor(() => expect(projectInput).toBeEnabled());
 
-        await user.type(projectIdInput, '16188');
-        expect(projectIdInput).toHaveValue('16188');
+        await user.click(projectInput);
+        // A project already linked to an EcoPart project is listed but cannot be picked.
+        expect(await screen.findByRole('option', { name: /Old cruise/i })).toHaveAttribute('aria-disabled', 'true');
+        await user.click(screen.getByRole('option', { name: /Tara UVP6/i }));
+        expect(projectInput).toHaveValue('Tara UVP6 (#16188)');
         expect(createSwitch).not.toBeChecked();
 
-        // Turning the creation back on clears the typed ID.
+        // Turning the creation back on clears the picked project.
         await user.click(createSwitch);
         expect(createSwitch).toBeChecked();
-        expect(projectIdInput).toHaveValue('');
+        expect(projectInput).toHaveValue('');
     }, 30000);
 
     // TC-H6: Load Metadata Failure Resilience

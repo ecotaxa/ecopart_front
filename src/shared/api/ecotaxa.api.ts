@@ -31,6 +31,17 @@ export interface EcoTaxaInstance {
     ecotaxa_instance_creation_date?: string; // Optional field from backend
 }
 
+/** An EcoTaxa project one of the user's EcoTaxa accounts can manage (backend PublicEcotaxaAccountProjectModel). */
+export interface EcoTaxaAccountProject {
+    ecotaxa_project_id: number;
+    ecotaxa_project_title: string;
+    ecotaxa_project_instrument: string | null;
+    ecotaxa_project_object_count: number | null;
+    ecotaxa_project_validated_pct: number | null;
+    /** Already linked to an EcoPart project: cannot be linked again. */
+    already_linked: boolean;
+}
+
 // --- API FUNCTIONS ---
 
 /**
@@ -49,6 +60,24 @@ export async function getEcoTaxaAccounts(userId: number): Promise<EcoTaxaAccount
     );
 
     return res.ecotaxa_accounts || [];
+}
+
+/**
+ * The EcoTaxa projects an EcoTaxa account of the user can manage, most recent first,
+ * only those of the matching EcoTaxa instrument when an EcoPart instrument model is given.
+ * Endpoint: GET users/:userId/ecotaxa_account/:accountId/projects?instrument_model=
+ */
+export async function getEcoTaxaAccountProjects(
+    userId: number,
+    accountId: number,
+    instrumentModel?: string
+): Promise<EcoTaxaAccountProject[]> {
+    const params = new URLSearchParams();
+    if (instrumentModel) params.set("instrument_model", instrumentModel);
+    const query = params.toString();
+    return http<EcoTaxaAccountProject[]>(
+        `/users/${userId}/ecotaxa_account/${accountId}/projects${query ? `?${query}` : ""}`
+    );
 }
 
 /**

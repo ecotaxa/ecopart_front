@@ -121,6 +121,7 @@ export default function NewProjectPage() {
                                 values={values.ecoTaxa}
                                 onChange={on.ecoTaxa}
                                 projectTitle={values.metadata.title}
+                                instrumentModel={values.instrument.model}
                                 errors={sectionErrors.ecoTaxa}
                             />
                         </Grid>

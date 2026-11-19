@@ -252,7 +252,7 @@ describe('useNewProjectForm Hook (Unit)', () => {
         await act(async () => {
             await result.current.handleSubmit();
         });
-        expect(result.current.errors.ecoTaxaProject).toBe('Enter the ID of the EcoTaxa project to link, or choose to create a new one.');
+        expect(result.current.errors.ecoTaxaProject).toBe('Pick the EcoTaxa project to link, or choose to create a new one.');
 
         act(() => {
             result.current.updateField('ecoTaxa', { project: '16188abc' });

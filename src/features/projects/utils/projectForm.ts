@@ -165,13 +165,13 @@ export const validateProjectForm = (
         errors.operatorName = operator.name;
         errors.operatorEmail = operator.email;
 
-        // A picked EcoTaxa account sets up a link: to the EcoTaxa project of the typed ID, or
+        // A picked EcoTaxa account sets up a link: to the picked (or typed) EcoTaxa project, or
         // to a new one. With neither, the backend would save the project without any link.
         // (The account is never loaded from the backend: a project that stays linked has none.)
         if (values.ecoTaxa.account && !values.ecoTaxa.createNewProject) {
             const ecoTaxaProjectId = values.ecoTaxa.project.trim();
             if (!ecoTaxaProjectId) {
-                errors.ecoTaxaProject = "Enter the ID of the EcoTaxa project to link, or choose to create a new one.";
+                errors.ecoTaxaProject = "Pick the EcoTaxa project to link, or choose to create a new one.";
             } else if (!/^[1-9]\d*$/.test(ecoTaxaProjectId)) {
                 errors.ecoTaxaProject = "The EcoTaxa project ID must be a positive whole number.";
             }
