@@ -3,6 +3,7 @@ import { http } from "@/shared/api/http";
 import { modeOf } from "../utils/exploreFilters";
 import type {
     ExploreAggregation,
+    ExploreEcoTaxaGraphs,
     ExploreEcoTaxaResponse,
     ExploreFilters,
     ExploreGraphs,
@@ -53,6 +54,14 @@ export type ExploreGraphsRequest = Omit<ExploreRequest, "mode">
     & { mode: ExploreSampleType; size_classes?: ExploreSizeClasses }
     & Partial<ExploreAggregation>;
 
+/** The EcoTaxa concentrations: depth profiles only, validated objects unless `include_predicted`. */
+export type ExploreEcoTaxaGraphsRequest = Omit<ExploreRequest, "mode"> & {
+    mode: "depth";
+    include_predicted: boolean;
+    /** A category also counts the objects of its children among the categories of the selection. */
+    sum_child_taxa: boolean;
+};
+
 /** User the cached answers were computed for (the selection, map and graphs depend on it). */
 type Viewer = number | null;
 
@@ -68,6 +77,8 @@ export const exploreQueryKeys = {
         [...EXPLORE_ROOT_QUERY_KEY, "ecotaxa", { ...request, viewer }] as const,
     graphs: (request: ExploreGraphsRequest, viewer: Viewer) =>
         [...EXPLORE_ROOT_QUERY_KEY, "graphs", { ...request, viewer }] as const,
+    ecotaxaGraphs: (request: ExploreEcoTaxaGraphsRequest, viewer: Viewer) =>
+        [...EXPLORE_ROOT_QUERY_KEY, "ecotaxaGraphs", { ...request, viewer }] as const,
     images: (request: ExploreImagesRequest) => [...EXPLORE_ROOT_QUERY_KEY, "images", request] as const,
 };
 
@@ -104,4 +115,9 @@ export async function fetchExploreImages(request: ExploreImagesRequest): Promise
 /** POST /explore/graphs: the curves of the selection, binned with the given steps. */
 export function fetchExploreGraphs(request: ExploreGraphsRequest): Promise<ExploreGraphs> {
     return post<ExploreGraphs>("/explore/graphs", request);
+}
+
+/** POST /explore/graphs/ecotaxa: the concentrations per EcoTaxa category of the depth profiles. */
+export function fetchExploreEcoTaxaGraphs(request: ExploreEcoTaxaGraphsRequest): Promise<ExploreEcoTaxaGraphs> {
+    return post<ExploreEcoTaxaGraphs>("/explore/graphs/ecotaxa", request);
 }
