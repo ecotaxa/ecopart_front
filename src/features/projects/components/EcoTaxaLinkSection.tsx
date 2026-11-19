@@ -23,6 +23,7 @@ import { useEcoTaxaAccounts, useEcoTaxaInstances } from "@/shared/api/referenceD
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import InfoTooltip from "@/shared/components/InfoTooltip";
 import { buildEcoTaxaProjectUrl } from "../utils/ecotaxaLinks";
+import { EcoTaxaProjectPicker } from "./EcoTaxaProjectPicker";
 
 // What linking does and the effect of unlinking (matches the unlink warning shown on save).
 const ecoTaxaLinkInfoContent = (
@@ -41,6 +42,8 @@ interface EcoTaxaLinkSectionProps {
     values: NewProjectFormValues["ecoTaxa"];
     onChange: (data: Partial<NewProjectFormValues["ecoTaxa"]>) => void;
     projectTitle: string;
+    /** EcoPart instrument model: the EcoTaxa projects offered are those of the matching instrument. */
+    instrumentModel?: string;
     linkedProject?: {
         projectId: number;
         projectName: string;
@@ -66,6 +69,7 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
     values,
     onChange,
     projectTitle,
+    instrumentModel = "",
     linkedProject = null,
     unlinkWarning = null,
     onUnlink,
@@ -222,24 +226,19 @@ const EcoTaxaLinkSectionImpl: React.FC<EcoTaxaLinkSectionProps> = ({
                 ))}
             </TextField>
 
-            <Box>
-                <TextField
-                    fullWidth
-                    label="EcoTaxa project ID"
-                    placeholder="Enter existing EcoTaxa project ID (e.g. 16188)"
-                    value={values.project}
-                    // Linking this project and creating a new one exclude each other: typing an ID
-                    // turns the creation off (and turning it on clears the ID, see the switch below).
-                    onChange={(e) => onChange({
-                        project: e.target.value,
-                        ...(e.target.value.trim() !== "" && { createNewProject: false }),
-                    })}
-                    size="small"
-                    disabled={!values.account}
-                    error={Boolean(errors?.project)}
-                    helperText={errors?.project}
-                />
-            </Box>
+            <EcoTaxaProjectPicker
+                userId={userId}
+                accountId={safeAccountValue}
+                instrumentModel={instrumentModel}
+                value={values.project}
+                // Linking this project and creating a new one exclude each other: picking a project
+                // turns the creation off (and turning it on clears the project, see the switch below).
+                onChange={(project) => onChange({
+                    project,
+                    ...(project.trim() !== "" && { createNewProject: false }),
+                })}
+                error={errors?.project}
+            />
 
             {showCreateNewProjectToggle && (
                 <FormControlLabel

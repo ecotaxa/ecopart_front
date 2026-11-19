@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getInstrumentModels, getOrganisations, getShips } from "./referenceData.api";
-import { getEcoTaxaAccounts, getEcoTaxaInstances } from "./ecotaxa.api";
+import { getEcoTaxaAccountProjects, getEcoTaxaAccounts, getEcoTaxaInstances } from "./ecotaxa.api";
 
 /**
  * Reference lists change rarely: keep them fresh for a while so the sections
@@ -16,6 +16,8 @@ export const REFERENCE_QUERY_KEYS = {
     organisations: ["reference", "organisations"] as const,
     ecoTaxaInstances: ["reference", "ecotaxa-instances"] as const,
     ecoTaxaAccounts: (userId: number | null | undefined) => ["ecotaxa-accounts", userId ?? null] as const,
+    ecoTaxaAccountProjects: (userId: number | null | undefined, accountId: number | null, instrumentModel: string) =>
+        ["ecotaxa-account-projects", userId ?? null, accountId, instrumentModel] as const,
 };
 
 /** Ship names (deduplicated), for the ship Autocomplete. */
@@ -47,6 +49,26 @@ export function useEcoTaxaInstances() {
         queryKey: REFERENCE_QUERY_KEYS.ecoTaxaInstances,
         queryFn: getEcoTaxaInstances,
         staleTime: REFERENCE_STALE_MS,
+    });
+}
+
+/**
+ * The EcoTaxa projects one of the user's EcoTaxa accounts can manage, for the given EcoPart
+ * instrument (every instrument when empty); held until both the user and the account are known.
+ */
+export function useEcoTaxaAccountProjects(
+    userId: number | null | undefined,
+    accountId: number | null,
+    instrumentModel: string
+) {
+    return useQuery({
+        queryKey: REFERENCE_QUERY_KEYS.ecoTaxaAccountProjects(userId, accountId, instrumentModel),
+        queryFn: () => getEcoTaxaAccountProjects(userId as number, accountId as number, instrumentModel || undefined),
+        enabled: userId != null && accountId != null,
+        // Asks EcoTaxa: kept a minute so going back and forth between accounts does not re-ask it.
+        staleTime: 60_000,
+        // A refused or expired EcoTaxa session will not fix itself on retry.
+        retry: false,
     });
 }
 

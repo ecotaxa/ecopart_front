@@ -232,6 +232,11 @@ export const handlers = [
         return HttpResponse.json({ ecotaxa_accounts: [] });
     }),
 
+    // --- MOCK ECOTAXA PROJECTS AN ACCOUNT CAN MANAGE ---
+    http.get('*/users/:id/ecotaxa_account/:accountId/projects', () => {
+        return HttpResponse.json([]);
+    }),
+
     // --- MOCK LINK ECOTAXA ACCOUNT ---
     // Success response when linking a new EcoTaxa account
     http.post('*/users/:id/ecotaxa_account', () => {
