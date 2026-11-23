@@ -81,6 +81,18 @@ export async function getEcoTaxaAccountProjects(
 }
 
 /**
+ * Renew the EcoTaxa session of a linked account without its password: the backend
+ * exchanges the stored EcoTaxa refresh token for new tokens. 409 when EcoTaxa refuses
+ * it (session over, or account linked before refresh tokens): the user must log in again.
+ * Endpoint: POST users/:userId/ecotaxa_account/:accountId/refresh
+ */
+export async function refreshEcoTaxaAccount(userId: number, accountId: number): Promise<EcoTaxaAccountLink> {
+    return http<EcoTaxaAccountLink>(`/users/${userId}/ecotaxa_account/${accountId}/refresh`, {
+        method: "POST",
+    });
+}
+
+/**
  * Unlink (remove) a specific EcoTaxa account connection.
  * Endpoint: DELETE users/:userId/ecotaxa_account/:connectionId
  */

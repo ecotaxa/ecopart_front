@@ -723,6 +723,69 @@ describe('ProfilePage - EcoTaxa Tab (Functional)', () => {
         expect(screen.queryByRole('link', { name: /Create an account!/i })).not.toBeInTheDocument();
     });
 
+    // TC-F9 / TC-F10: "Reconnect" on an expired account
+    const EXPIRED_ACCOUNT = {
+        ecotaxa_account_id: 123,
+        ecotaxa_account_instance_id: 1,
+        ecotaxa_user_login: 'expired_user',
+        ecotaxa_account_instance_name: 'FR',
+        ecotaxa_expiration_date: '2020-01-01T00:00:00.000Z',
+    };
+
+    it('TC-F9: Reconnect renews the EcoTaxa session through the backend, without the password form', async () => {
+        const user = userEvent.setup();
+        let account = EXPIRED_ACCOUNT;
+        const refreshed: string[] = [];
+        let unlinked = false;
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: [account] })),
+            http.post('*/users/:userId/ecotaxa_account/:accountId/refresh', ({ params }) => {
+                refreshed.push(String(params.accountId));
+                account = { ...EXPIRED_ACCOUNT, ecotaxa_expiration_date: FUTURE_EXPIRATION_DATE };
+                return HttpResponse.json(account);
+            }),
+            http.delete('*/users/:userId/ecotaxa_account/:connectionId', () => {
+                unlinked = true;
+                return HttpResponse.json({});
+            })
+        );
+
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        expect(await screen.findByText('Expired')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /Reconnect/i }));
+
+        expect(await screen.findByText(/days left/i)).toBeInTheDocument();
+        expect(refreshed).toEqual(['123']);
+        expect(unlinked).toBe(false);
+        expect(screen.queryByText('Expired')).not.toBeInTheDocument();
+        expect(screen.queryByText('Log in to EcoTaxa')).not.toBeInTheDocument();
+    });
+
+    it('TC-F10: when the session cannot be renewed (409), Reconnect falls back to logging in again', async () => {
+        const user = userEvent.setup();
+        let accounts = [EXPIRED_ACCOUNT];
+        let unlinked = false;
+        server.use(
+            http.get('*/users/:id/ecotaxa_account', () => HttpResponse.json({ ecotaxa_accounts: accounts })),
+            http.post('*/users/:userId/ecotaxa_account/:accountId/refresh', () =>
+                HttpResponse.json({ errors: ['Ecotaxa account session expired'] }, { status: 409 })),
+            http.delete('*/users/:userId/ecotaxa_account/:connectionId', () => {
+                unlinked = true;
+                accounts = [];
+                return HttpResponse.json({});
+            })
+        );
+
+        renderWithRouter(<ProfilePage />, { route: '/settings', state: { activeTab: 1 } });
+
+        await user.click(await screen.findByRole('button', { name: /Reconnect/i }));
+
+        expect(await screen.findByText('Log in to EcoTaxa')).toBeInTheDocument();
+        expect(unlinked).toBe(true);
+        expect(screen.queryByText(/expired_user/i)).not.toBeInTheDocument();
+    });
+
 });
 
 // ============================================================================

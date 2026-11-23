@@ -9,7 +9,8 @@ import type { User } from "@/features/auth/types/user";
 import { getUserById } from "@/features/auth/api/users.api";
 import { CountriesWrapper, type CountryOption } from "@/shared/country-wrapper";
 import { REFERENCE_QUERY_KEYS } from "@/shared/api/referenceData.hooks";
-import { type EcoTaxaAccountLink, getEcoTaxaAccounts, unlinkEcoTaxaAccount } from "@/shared/api/ecotaxa.api";
+import { type EcoTaxaAccountLink, getEcoTaxaAccounts, refreshEcoTaxaAccount, unlinkEcoTaxaAccount } from "@/shared/api/ecotaxa.api";
+import { ApiError } from "@/shared/api/http";
 import { isNonEmpty, isValidPassword, passwordsMatch } from "@/shared/utils/validation";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import { changePassword, deleteAccount, fetchMe, updateProfile } from "../api/profile.api";
@@ -311,7 +312,9 @@ export const useProfilePage = () => {
         setReconnectTarget(null);
     };
 
-    // Reconnect an expired account: unlink it first, then open the link form
+    // Reconnect an expired account. First the backend renews its EcoTaxa session with
+    // the stored refresh token (no password). When it cannot (409: session over, or an
+    // account linked before refresh tokens), unlink it, then open the link form
     // pre-filled with its email + instance so the user just re-enters the password.
     const handleReconnectClick = async (account: EcoTaxaAccountLink) => {
         if (!user) return;
@@ -320,6 +323,16 @@ export const useProfilePage = () => {
             instanceId: account.ecotaxa_account_instance_id,
         };
         setReconnecting(account.ecotaxa_account_id);
+        try {
+            await refreshEcoTaxaAccount(user.user_id, account.ecotaxa_account_id);
+            await fetchLinkedAccounts(user.user_id);
+            setReconnecting(null);
+            return;
+        } catch (err) {
+            if (!(err instanceof ApiError && err.status === 409)) {
+                console.error("Failed to refresh the EcoTaxa session, logging in again", err);
+            }
+        }
         try {
             await unlinkEcoTaxaAccount(user.user_id, account.ecotaxa_account_id);
             await fetchLinkedAccounts(user.user_id);

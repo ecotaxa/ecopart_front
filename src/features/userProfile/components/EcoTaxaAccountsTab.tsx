@@ -99,7 +99,7 @@ export function EcoTaxaAccountsTab({ page }: EcoTaxaAccountsTabProps) {
                                         disabled={ecoTaxa.reconnecting === account.ecotaxa_account_id}
                                         onClick={() => ecoTaxa.reconnect(account)}
                                     >
-                                        {ecoTaxa.reconnecting === account.ecotaxa_account_id ? "Removing…" : "Reconnect"}
+                                        {ecoTaxa.reconnecting === account.ecotaxa_account_id ? "Reconnecting…" : "Reconnect"}
                                     </Button>
                                 )}
                                 <IconButton
