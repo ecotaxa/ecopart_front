@@ -118,6 +118,8 @@ export const useProfilePage = () => {
     // When reconnecting an expired account, seed the form with its email + instance.
     const [reconnectTarget, setReconnectTarget] = useState<{ email: string; instanceId: number } | null>(null);
     const [reconnecting, setReconnecting] = useState<number | null>(null);
+    // Why the last "Refresh" of a still valid account failed, shown on that account.
+    const [refreshError, setRefreshError] = useState<{ accountId: number; message: string } | null>(null);
     const [openUnlinkDialog, setOpenUnlinkDialog] = useState(false);
     const [accountToUnlink, setAccountToUnlink] = useState<number | null>(null);
 
@@ -346,6 +348,31 @@ export const useProfilePage = () => {
         setShowLinkForm(true);
     };
 
+    // Refresh a still valid account: the backend renews its EcoTaxa session with the
+    // stored refresh token, for another full session. When it cannot, the account is
+    // left linked (it still works until it expires) and the reason shows on it.
+    const handleRefreshClick = async (account: EcoTaxaAccountLink) => {
+        if (!user) return;
+        setRefreshError(null);
+        setReconnecting(account.ecotaxa_account_id);
+        try {
+            await refreshEcoTaxaAccount(user.user_id, account.ecotaxa_account_id);
+        } catch (err) {
+            setRefreshError({
+                accountId: account.ecotaxa_account_id,
+                message: err instanceof ApiError && err.status === 409
+                    ? "This EcoTaxa session cannot be renewed without the password: disconnect, then connect this account again."
+                    : "Cannot renew this EcoTaxa session now (EcoTaxa may be unreachable): try again later.",
+            });
+        }
+        // Refused refresh tokens end the session on the backend: the list shows it.
+        try {
+            await fetchLinkedAccounts(user.user_id);
+        } finally {
+            setReconnecting(null);
+        }
+    };
+
     const openLinkForm = () => {
         setReconnectTarget(null);
         setShowLinkForm(true);
@@ -439,6 +466,8 @@ export const useProfilePage = () => {
             closeLinkForm,
             onLoginSuccess: handleLoginSuccess,
             reconnect: handleReconnectClick,
+            refresh: handleRefreshClick,
+            refreshError,
             unlinkDialogOpen: openUnlinkDialog,
             requestUnlink: handleUnlinkClick,
             cancelUnlink: () => setOpenUnlinkDialog(false),
