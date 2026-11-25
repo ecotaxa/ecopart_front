@@ -261,8 +261,22 @@ export interface ExploreGraphs {
     abundance: GraphDataset;
     biovolume: GraphDataset;
     ctd: GraphDataset;
-    /** Concentrations (depth) or abundances (time) per EcoTaxa category. */
+    /** Served empty: the EcoTaxa concentrations come from `POST /explore/graphs/ecotaxa` (`ExploreEcoTaxaGraphs`). */
     ecotaxa: GraphDataset;
     /** Why some samples of the selection are not drawn (private projects, too many samples). */
     warnings: string[];
+    /** Why samples drawn have no CTD curve: no CTD imported, unreadable file, no pressure or time column (absent on an older backend). */
+    ctd_warnings?: string[];
+}
+
+/**
+ * Concentrations per EcoTaxa category of the depth profiles (`POST /explore/graphs/ecotaxa`), in # m-3
+ * per legacy depth bin, the most abundant category first. Each curve is a step curve: its positions
+ * are the top of each bin, then the bottom of the deepest one.
+ */
+export interface ExploreEcoTaxaGraphs extends GraphDataset {
+    /** Why samples drawn have no curve: not in EcoTaxa, objects being read, no particle data, no validated object. */
+    warnings: string[];
+    /** Samples whose objects the backend is still reading from EcoTaxa: a later call answers more curves. */
+    nb_samples_pending: number;
 }

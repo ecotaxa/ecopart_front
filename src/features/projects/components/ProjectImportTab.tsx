@@ -18,6 +18,7 @@ import { useProjectImportTab } from "../hooks/useProjectImportTab";
 import type { ImportableRawSample, ImportableCtdSample } from "../api/projects.api";
 import { QcReviewDialog } from "./QcReviewDialog";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
+import { pageSelectionCheckboxColumn } from "@/shared/components/pageSelectionColumn";
 
 interface ProjectImportTabProps {
     projectId: number;
@@ -142,7 +143,9 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
 
 
     // --- DATAGRID COLUMNS DEFINITIONS ---
+    // The header checkbox of each grid selects the samples of the current page only.
     const rawSamplesColumns: GridColDef<ImportableRawSample>[] = [
+        pageSelectionCheckboxColumn<ImportableRawSample>(),
         {
             field: "qc_lvl1",
             headerName: "QC",
@@ -208,6 +211,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
     ];
 
     const ecoTaxaSamplesColumns: GridColDef[] = [
+        pageSelectionCheckboxColumn(),
         { field: "sample_name", headerName: "Sample name", flex: 2, minWidth: 200 },
         { field: "tsv_file_name", headerName: "TSV file name", flex: 2, minWidth: 200 },
         {
@@ -240,6 +244,7 @@ export const ProjectImportTab: React.FC<ProjectImportTabProps> = ({ projectId })
     ];
 
     const ctdSamplesColumns: GridColDef[] = [
+        pageSelectionCheckboxColumn(),
         { field: "sample_name", headerName: "Sample name", flex: 2, minWidth: 180 },
         { field: "ctd_sample_id", headerName: "CTD sample ID", flex: 1.5, minWidth: 160, valueGetter: (_value, row) => row.ctd_sample_id ?? row.sample_name },
         { field: "file_extension", headerName: "File extension", flex: 1, minWidth: 120, valueGetter: (_value, row) => row.file_extension ?? "ctd" },

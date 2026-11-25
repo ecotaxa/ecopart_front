@@ -103,9 +103,10 @@ export default function ExplorePage() {
     const [fitRequest, setFitRequest] = useState(0);
     const [drawing, setDrawing] = useState(false);
     const [sumChildTaxa, setSumChildTaxa] = useState(true);
+    const [includePredicted, setIncludePredicted] = useState(false);
     const [sizeClasses, setSizeClasses] = useState<Record<ExploreSampleType, ExploreSizeClasses>>(REDUCED_SIZE_CLASSES);
 
-    const data = useExploreData(applied, { aggregation, tab, sumChildTaxa, sizeClasses });
+    const data = useExploreData(applied, { aggregation, tab, sumChildTaxa, includePredicted, sizeClasses });
     // The sample types of the applied selection: both before any filter.
     const sampleType: ExploreMode = applied ? modeOf(applied.sample_types) : "all";
 
@@ -273,15 +274,18 @@ export default function ExplorePage() {
                                                 mode={type}
                                                 title={sampleType === "all" ? GRAPHS_TITLE_OF_TYPE[type] : undefined}
                                                 graphs={graphs}
+                                                ecotaxa={type === "depth" ? data.ecotaxaGraphs : null}
                                                 sumChildTaxa={sumChildTaxa}
                                                 onSumChildTaxaChange={setSumChildTaxa}
+                                                includePredicted={includePredicted}
+                                                onIncludePredictedChange={setIncludePredicted}
                                                 bin={type === "depth" ? aggregation.pressure_bin : aggregation.time_bin}
                                                 onBinChange={(bin) => setAggregation((prev) => (
                                                     type === "depth" ? { ...prev, pressure_bin: bin } : { ...prev, time_bin: bin }
                                                 ))}
                                                 sizeClasses={sizeClasses[type]}
                                                 onSizeClassesChange={(value) => setSizeClasses((prev) => ({ ...prev, [type]: value }))}
-                                                computing={data.graphsComputing[type]}
+                                                computing={data.graphsComputing[type] || (type === "depth" && data.ecotaxaGraphsComputing)}
                                                 sampleDetails={sampleDetails}
                                             />
                                         </SectionCard>

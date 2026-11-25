@@ -3,8 +3,8 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
-import type { ExploreGraphs, GraphDataset } from '../types/explore.types';
-import SelectionGraphs from './SelectionGraphs';
+import type { ExploreEcoTaxaGraphs, ExploreGraphs, GraphDataset } from '../types/explore.types';
+import SelectionGraphs, { ECOTAXA_FILTERS_NOTE } from './SelectionGraphs';
 
 const dataset = (keys: string[]): GraphDataset => ({
     keys,
@@ -36,7 +36,7 @@ const graphs: ExploreGraphs = {
 };
 
 const BASE_PROPS = {
-    sumChildTaxa: true, onSumChildTaxaChange: vi.fn(), bin: 5, onBinChange: vi.fn(),
+    sumChildTaxa: true, onSumChildTaxaChange: vi.fn(), includePredicted: false, onIncludePredictedChange: vi.fn(), bin: 5, onBinChange: vi.fn(),
     sizeClasses: "reduced" as const, onSizeClassesChange: vi.fn(),
 };
 
@@ -61,12 +61,73 @@ describe('SelectionGraphs', () => {
     });
 
     it('uses the time series wording and time scale on the time page', () => {
-        render(<SelectionGraphs {...BASE_PROPS} mode="time" graphs={graphs} onSumChildTaxaChange={vi.fn()} />);
+        render(<SelectionGraphs {...BASE_PROPS} mode="time" graphs={graphs} onSumChildTaxaChange={vi.fn()} comingSoon={[]} />);
 
         expect(card('LPM abundance')).toBeInTheDocument();
         expect(card('EcoTaxa classification')).toBeInTheDocument();
         expect(screen.getByText('Sum abundance of children categories')).toBeInTheDocument();
         expect(within(card('CTD data')).getByRole('radio', { name: 'Absolute' })).toBeChecked();
+    });
+
+    it('shows the EcoTaxa graph of time series as coming soon, without picker, and hides it', async () => {
+        const user = userEvent.setup();
+        render(<SelectionGraphs {...BASE_PROPS} mode="time" graphs={graphs} />);
+        const ecotaxa = card('EcoTaxa classification');
+
+        expect(within(ecotaxa).getByText(/Coming soon: the EcoTaxa graphs of time series are not computed yet/)).toBeInTheDocument();
+        expect(within(ecotaxa).queryByRole('combobox')).not.toBeInTheDocument();
+        expect(within(ecotaxa).queryByRole('img')).not.toBeInTheDocument();
+        expect(screen.queryByRole('checkbox', { name: 'Sum abundance of children categories' })).not.toBeInTheDocument();
+
+        await user.click(within(ecotaxa).getByRole('button', { name: 'Hide EcoTaxa classification' }));
+        expect(screen.queryByRole('region', { name: 'EcoTaxa classification' })).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'EcoTaxa classification' }));
+        expect(card('EcoTaxa classification')).toBeInTheDocument();
+    });
+
+    it('draws the EcoTaxa concentrations of depth profiles as steps, with the filters note and the backend warnings', () => {
+        const ecotaxaGraphs: ExploreEcoTaxaGraphs = {
+            ...dataset(['Appendicularia', 'Copepoda', 'detritus']),
+            warnings: ['1 of the 3 samples drawn is not imported in EcoTaxa'],
+            nb_samples_pending: 0,
+        };
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} ecotaxa={ecotaxaGraphs} />);
+        const ecotaxa = card('EcoTaxa concentrations');
+
+        expect(within(ecotaxa).getByText(ECOTAXA_FILTERS_NOTE)).toBeInTheDocument();
+        expect(ECOTAXA_FILTERS_NOTE).toMatch(/descent filter/);
+        expect(within(ecotaxa).getByText('1 of the 3 samples drawn is not imported in EcoTaxa')).toBeInTheDocument();
+        // The concentrations served apart, not the empty dataset of the other graphs; the two most abundant drawn.
+        expect(within(ecotaxa).getAllByRole('img').map((img) => img.getAttribute('aria-label'))).toEqual([
+            'EcoTaxa concentrations: Appendicularia', 'EcoTaxa concentrations: Copepoda',
+        ]);
+        expect(within(ecotaxa).getByRole('button', { name: 'detritus' })).toBeInTheDocument();
+        expect(within(card('CTD data')).queryByText(ECOTAXA_FILTERS_NOTE)).not.toBeInTheDocument();
+    });
+
+    it('shows the filters note on the EcoTaxa card before any concentration arrives', () => {
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={null} />);
+
+        expect(within(card('EcoTaxa concentrations')).getByText(ECOTAXA_FILTERS_NOTE)).toBeInTheDocument();
+    });
+
+    it('reports the "include predicted objects" option', async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} onIncludePredictedChange={onChange} />);
+
+        const checkbox = within(card('EcoTaxa concentrations')).getByRole('checkbox', { name: 'Include predicted objects' });
+        expect(checkbox).not.toBeChecked();
+        await user.click(checkbox);
+        expect(onChange).toHaveBeenCalledWith(true);
+    });
+
+    it('says in the CTD card why samples have no CTD curve', () => {
+        const notes = ['2 of the 3 samples drawn have no CTD data imported', '1 CTD file could not be read: uvp5_sn201_003'];
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={{ ...graphs, ctd_warnings: notes }} />);
+
+        for (const note of notes) expect(within(card('CTD data')).getByText(note)).toBeInTheDocument();
+        expect(within(card('Particles abundance')).queryByText(notes[0])).not.toBeInTheDocument();
     });
 
     it('hides a graph and brings it back', async () => {
@@ -82,7 +143,7 @@ describe('SelectionGraphs', () => {
 
     it('adds a taxon from the available taxa, and resets the graph', async () => {
         const user = userEvent.setup();
-        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} onSumChildTaxaChange={vi.fn()} />);
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} onSumChildTaxaChange={vi.fn()} comingSoon={[]} />);
         const ecotaxa = card('EcoTaxa concentrations');
 
         await user.click(within(ecotaxa).getByRole('button', { name: 'detritus' }));
@@ -95,7 +156,7 @@ describe('SelectionGraphs', () => {
     it('reports the "sum children" option', async () => {
         const user = userEvent.setup();
         const onChange = vi.fn();
-        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} onSumChildTaxaChange={onChange} />);
+        render(<SelectionGraphs {...BASE_PROPS} mode="depth" graphs={graphs} onSumChildTaxaChange={onChange} comingSoon={[]} />);
 
         await user.click(screen.getByRole('checkbox', { name: 'Sum concentrations of children categories' }));
         expect(onChange).toHaveBeenCalledWith(false);

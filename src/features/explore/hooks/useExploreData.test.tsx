@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 
 import { server } from '@/test/msw/server';
-import { ecotaxaHandler, exploreFixtures } from '@/test/msw/explore.handlers';
+import { ecotaxaGraphsHandler, ecotaxaHandler, exploreFixtures } from '@/test/msw/explore.handlers';
 import { loginAsUser, logoutUser } from '@/test/helpers/auth.helpers';
 import { createTestQueryClient } from '@/test/utils';
 import { toExploreRequest } from '../api/explore.api';
@@ -18,11 +18,13 @@ interface HookProps {
     tab: ExploreTab;
     aggregation: ExploreAggregation;
     sizeClasses?: Record<ExploreSampleType, ExploreSizeClasses>;
+    includePredicted?: boolean;
 }
 
 const FILTERS: ExploreFilters = toFilters(createEmptyDraft());
 const OTHER_FILTERS: ExploreFilters = { ...FILTERS, project_ids: [1] };
 const DEPTH_FILTERS: ExploreFilters = { ...FILTERS, sample_types: ['depth'] };
+const TIME_FILTERS: ExploreFilters = { ...FILTERS, sample_types: ['time'] };
 /** The criteria as sent: the sample types travel as the `mode` of the request. */
 const SENT = toExploreRequest(FILTERS).filters;
 const NO_SELECTION = { summary: null, projects: [] };
@@ -51,7 +53,8 @@ function renderExploreData(initial: Partial<HookProps> = {}) {
     );
     const props: HookProps = { filters: null, tab: 'stats', aggregation: DEFAULT_AGGREGATION, ...initial };
     const rendered = renderHook(
-        ({ filters, tab, aggregation, sizeClasses }: HookProps) => useExploreData(filters, { aggregation, tab, sumChildTaxa: true, sizeClasses }),
+        ({ filters, tab, aggregation, sizeClasses, includePredicted = false }: HookProps) =>
+            useExploreData(filters, { aggregation, tab, sumChildTaxa: true, includePredicted, sizeClasses }),
         { wrapper, initialProps: props },
     );
     return { ...rendered, props, update: (patch: Partial<HookProps>) => rendered.rerender({ ...props, ...patch }) };
@@ -267,6 +270,54 @@ describe('useExploreData', () => {
         await waitFor(() => expect(result.current.graphs.depth).toEqual(exploreFixtures.graphs));
         expect(result.current.graphs.time).toBeNull();
         expect(await bodiesOf('/explore/graphs')).toEqual([{ mode: 'depth', filters: SENT, pressure_bin: 5, size_classes: 'reduced' }]);
+    });
+
+    it('asks for the EcoTaxa concentrations of the depth profiles on the graphs tab, with the EcoTaxa options', async () => {
+        const { result, update } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
+
+        await waitFor(() => expect(result.current.ecotaxaGraphs).toEqual(exploreFixtures.ecotaxaGraphs));
+        expect(callsTo('/explore/graphs/ecotaxa')).toHaveLength(1);
+
+        update({ filters: DEPTH_FILTERS, tab: 'graphs', aggregation: DEFAULT_AGGREGATION, includePredicted: true });
+        await waitFor(() => expect(callsTo('/explore/graphs/ecotaxa')).toHaveLength(2));
+        expect(await bodiesOf('/explore/graphs/ecotaxa')).toEqual([
+            { mode: 'depth', filters: SENT, include_predicted: false, sum_child_taxa: true },
+            { mode: 'depth', filters: SENT, include_predicted: true, sum_child_taxa: true },
+        ]);
+    });
+
+    it('asks for no EcoTaxa concentration for time series, nor outside the graphs tab', async () => {
+        const { result, update } = renderExploreData({ filters: TIME_FILTERS, tab: 'graphs' });
+        await waitFor(() => expect(result.current.graphs.time).not.toBeNull());
+
+        update({ filters: DEPTH_FILTERS, tab: 'stats', aggregation: DEFAULT_AGGREGATION });
+        await aMoment();
+
+        expect(callsTo('/explore/graphs/ecotaxa')).toHaveLength(0);
+        expect(result.current.ecotaxaGraphs).toBeNull();
+    });
+
+    it('asks again for the EcoTaxa concentrations while samples are being read, without showing a load', async () => {
+        fakeIntervals();
+        server.use(ecotaxaGraphsHandler(1));
+        const { result } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
+
+        await waitFor(() => expect(result.current.ecotaxaGraphs?.nb_samples_pending).toBe(2));
+        nextPoll();
+        await waitFor(() => expect(result.current.ecotaxaGraphs).toEqual(exploreFixtures.ecotaxaGraphs));
+        expect(callsTo('/explore/graphs/ecotaxa')).toHaveLength(2);
+        expect(result.current.ecotaxaGraphsComputing).toBe(false);
+    });
+
+    it('an older backend without the EcoTaxa concentrations: no curve and no error', async () => {
+        server.use(http.post('*/explore/graphs/ecotaxa', () => HttpResponse.json({ errors: ['Not found'] }, { status: 404 })));
+        const { result } = renderExploreData({ filters: DEPTH_FILTERS, tab: 'graphs' });
+
+        await waitFor(() => expect(result.current.graphs.depth).not.toBeNull());
+        await waitFor(() => expect(callsTo('/explore/graphs/ecotaxa')).toHaveLength(1));
+        await aMoment();
+        expect(result.current.ecotaxaGraphs).toBeNull();
+        expect(result.current.error).toBeNull();
     });
 
     it('asks for the graphs only on the graphs tab, and only once filters are applied', async () => {

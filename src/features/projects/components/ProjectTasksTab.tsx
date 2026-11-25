@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import SectionCard from "@/shared/components/SectionCard";
+import TaskRetentionNote from "./TaskRetentionNote";
 
 import { useProjectTasksTab } from "../hooks/useProjectTasksTab";
 import type { Task } from "../api/projects.api";
@@ -79,6 +80,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
             <SectionCard>
                 {/* 1. SECTION TITLE + FILTER CONTROLS */}
                 <Typography variant="h6" gutterBottom>Project's tasks</Typography>
+                <TaskRetentionNote sx={{ mb: 2 }} />
                 <Stack direction="row" alignItems="center" gap={2} sx={{ mb: 3 }}>
                     <TextField
                         size="small"

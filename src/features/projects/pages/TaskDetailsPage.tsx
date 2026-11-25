@@ -15,12 +15,60 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import SectionCard from "@/shared/components/SectionCard";
 import { ecotaxaColors } from "@/theme";
-import { cancelTask, deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, type Task, type TaskProject } from "../api/projects.api";
-import { formatTaskOwner, isActiveTask, isCancellableTask, isDeletableTask, isDownloadableTask } from "../utils/taskColumns";
+import { cancelTask, deleteProjectTask, downloadTaskFile, getOneTask, getTaskLog, isExportTask, type Task, type TaskProject } from "../api/projects.api";
+import { EXPORT_ARCHIVE_RETENTION_NOTE, taskLogRetentionNote, formatTaskOwner, isActiveTask, isCancellableTask, isDeletableTask, isDownloadableTask } from "../utils/taskColumns";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { useAuthStore } from "@/features/auth";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
+import { ApiError } from "@/shared/api/http";
 import { pageBackButtonSx, pageContainerSx, pageHeaderSx, pageTabsSx } from "@/shared/layout/pageLayout";
+import { useTaskLogRetentionDays } from "../hooks/useTaskLogRetentionDays";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const formatDay = (iso: string): string =>
+    new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+
+/** True once the log of a successful task has expired: the server only keeps its warnings. */
+const isLogExpired = (task: Task): boolean => {
+    const expiration = task.task_log_expiration_utc_date_time ? Date.parse(task.task_log_expiration_utc_date_time) : Number.NaN;
+    return !Number.isNaN(expiration) && expiration <= Date.now();
+};
+
+/** Days between the end of a successful task and the expiration of its log, as the server computed it. */
+const retentionDaysOf = (task: Task): number | null => {
+    if (!task.task_log_expiration_utc_date_time || !task.task_end_utc_date_time) return null;
+    const days = Math.round((Date.parse(task.task_log_expiration_utc_date_time) - Date.parse(task.task_end_utc_date_time)) / DAY_MS);
+    return Number.isNaN(days) ? null : days;
+};
+
+/** What the LOG FILE tab tells about the retention of this task's log, null when there is nothing to say yet. */
+const logRetentionMessage = (task: Task, serverRetentionDays: number | null): string | null => {
+    const expiration = task.task_log_expiration_utc_date_time;
+    const days = retentionDaysOf(task);
+    if (expiration && days !== null) {
+        return isLogExpired(task)
+            ? `This task succeeded more than ${days} days ago: since ${formatDay(expiration)} only the warnings of its log are kept.`
+            : `This task succeeded: its log is kept whole until ${formatDay(expiration)}, ${days} days after the task ended, then only its warnings are kept. Download it to keep it whole.`;
+    }
+    return serverRetentionDays !== null ? taskLogRetentionNote(serverRetentionDays) : null;
+};
+
+/** Saves the log shown on the page as a text file. */
+const saveLogFile = (taskId: number, content: string): void => {
+    const objectUrl = window.URL.createObjectURL(new Blob([content], { type: "text/plain;charset=utf-8" }));
+    try {
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = `task_log_${taskId}.log`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    } finally {
+        // Revoke on the next tick so the click-triggered download can start.
+        window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0);
+    }
+};
 
 const ReadOnlyField: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
     <TextField fullWidth label={label} value={value} size="small" slotProps={{ input: { readOnly: true } }} />
@@ -86,6 +134,9 @@ export default function TaskDetailsPage() {
     };
     const [task, setTask] = useState<Task | null>(null);
     const [logContent, setLogContent] = useState<string>("");
+    // Set when the server no longer has the log (expired log of a successful task, without warnings).
+    const [logGone, setLogGone] = useState<string | null>(null);
+    const serverRetentionDays = useTaskLogRetentionDays();
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -102,6 +153,7 @@ export default function TaskDetailsPage() {
         setShownTaskId(parsedTaskId);
         setTask(null);
         setLogContent("");
+        setLogGone(null);
         setError(null);
         setCancelError(null);
         setIsLoading(true);
@@ -114,6 +166,11 @@ export default function TaskDetailsPage() {
     // a poll of the same task/tab is still pending, so they don't pile up.
     const loadGeneration = useRef(0);
     const pendingPollKey = useRef<string | null>(null);
+    // Bytes of the log already shown, for its task: a poll only fetches the lines written since.
+    const logCursor = useRef<{ taskId: number; bytes: number } | null>(null);
+    // Another task drops the log shown (above, during render): its cursor goes too, before the load
+    // effect below runs, so the next log is read from its start.
+    useEffect(() => { logCursor.current = null; }, [parsedTaskId]);
     useEffect(() => () => { loadGeneration.current += 1; }, []);
 
     // --- 2. DATA HYDRATION CALLBACK ---
@@ -132,11 +189,23 @@ export default function TaskDetailsPage() {
             if (!isCurrent()) return;
             setTask(taskData);
 
-            // Only fetch logs if we are on the log tab to preserve resources
+            // Only fetch logs if we are on the log tab to preserve resources.
+            // Past its retention, the server only gives the warnings of the log (410 when none).
             if (currentTab === 1) {
-                const logs = await getTaskLog(parsedTaskId);
-                if (!isCurrent()) return;
-                setLogContent(logs);
+                try {
+                    const from = logCursor.current?.taskId === parsedTaskId ? logCursor.current.bytes : 0;
+                    const logs = await getTaskLog(parsedTaskId, from);
+                    if (!isCurrent()) return;
+                    logCursor.current = { taskId: parsedTaskId, bytes: from + new TextEncoder().encode(logs).length };
+                    if (from === 0) setLogContent(logs);
+                    else if (logs) setLogContent((shown) => shown + logs);
+                    setLogGone(null);
+                } catch (logError: unknown) {
+                    if (!(logError instanceof ApiError && logError.status === 410)) throw logError;
+                    if (!isCurrent()) return;
+                    setLogContent("");
+                    setLogGone(logError.message);
+                }
             }
             setError(null);
         } catch (err: unknown) {
@@ -216,7 +285,7 @@ export default function TaskDetailsPage() {
         if (parsedTaskId === null) return;
         if (!(await confirmDialog({
             title: `Delete task #${parsedTaskId}`,
-            message: "This removes the task and its logs. It does not undo work the task already performed. This cannot be undone.",
+            message: `This removes the task and its log${task !== null && isExportTask(task) ? ` and its export archive${task.task_params?.out_to_ftp === true ? ", with its copy in the FTP export folder" : ""}` : ""}. It does not undo work the task already performed. This cannot be undone.`,
             confirmLabel: "Delete",
         }))) return;
 
@@ -262,6 +331,7 @@ export default function TaskDetailsPage() {
         return String(params);
     };
 
+    const logRetentionText = task !== null ? logRetentionMessage(task, serverRetentionDays) : null;
 
     return (
         <Container maxWidth="lg" sx={pageContainerSx}>
@@ -338,6 +408,9 @@ export default function TaskDetailsPage() {
                         {/* TAB CONTEXT DISPLAY PANEL */}
                         {currentTab === 0 ? (
                             <Box>
+                                {isExportTask(task) && (
+                                    <Alert severity="info" sx={{ mb: 3 }}>{EXPORT_ARCHIVE_RETENTION_NOTE}</Alert>
+                                )}
                                 {/* PROGRESS LINE COMPONENT */}
                                 <SectionCard sx={{ mb: 4, position: "relative" }}>
                                     <Typography variant="h6" sx={{ mb: 2 }}>General</Typography>
@@ -444,35 +517,58 @@ export default function TaskDetailsPage() {
                                     </Box>
                                 </SectionCard>
                             </Box>
+                        ) : logGone !== null ? (
+                            <Alert severity="info">
+                                {task.task_log_expiration_utc_date_time && retentionDaysOf(task) !== null
+                                    ? `This task succeeded more than ${retentionDaysOf(task)} days ago and its log had no warning to keep: it was deleted on ${formatDay(task.task_log_expiration_utc_date_time)}.`
+                                    : logGone}
+                            </Alert>
                         ) : (
                             /* TEXT STREAM CONSOLE COMPONENT */
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    p: 3,
-                                    backgroundColor: "#1e1e1e",
-                                    color: "#d4d4d4",
-                                    fontFamily: "'Courier New', Courier, monospace",
-                                    fontSize: "0.9rem",
-                                    lineHeight: 1.6,
-                                    minHeight: "450px",
-                                    maxHeight: "650px",
-                                    overflowY: "auto",
-                                    boxShadow: "inset 0px 2px 8px rgba(0,0,0,0.8)"
-                                }}
-                            >
-                                {logContent ? (
-                                    logContent.split("\n").map((line, idx) => (
-                                        <Box key={idx} sx={{
-                                            color: line.includes("failed") || line.includes("error") ? ecotaxaColors.danger[400] : line.includes("successfully") || line.includes("done") ? ecotaxaColors.success[400] : "#d4d4d4"
-                                        }}>
-                                            {line}
-                                        </Box>
-                                    ))
-                                ) : (
-                                    <Box sx={{ color: "text.disabled", fontStyle: "italic" }}>No log messages captured yet by the kernel stream handler.</Box>
-                                )}
-                            </Paper>
+                            <>
+                                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2, alignItems: { sm: "center" } }}>
+                                    {logRetentionText !== null && (
+                                        <Alert severity="info" sx={{ flex: 1 }}>{logRetentionText}</Alert>
+                                    )}
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{ fontWeight: "bold", flexShrink: 0, ml: { sm: "auto" } }}
+                                        startIcon={<DownloadIcon />}
+                                        onClick={() => saveLogFile(task.task_id, logContent)}
+                                        disabled={!logContent}
+                                    >
+                                        DOWNLOAD LOG
+                                    </Button>
+                                </Stack>
+                                <Paper
+                                    variant="outlined"
+                                    sx={{
+                                        p: 3,
+                                        backgroundColor: "#1e1e1e",
+                                        color: "#d4d4d4",
+                                        fontFamily: "'Courier New', Courier, monospace",
+                                        fontSize: "0.9rem",
+                                        lineHeight: 1.6,
+                                        minHeight: "450px",
+                                        maxHeight: "650px",
+                                        overflowY: "auto",
+                                        boxShadow: "inset 0px 2px 8px rgba(0,0,0,0.8)"
+                                    }}
+                                >
+                                    {logContent ? (
+                                        logContent.split("\n").map((line, idx) => (
+                                            <Box key={idx} sx={{
+                                                color: line.includes("failed") || line.includes("error") ? ecotaxaColors.danger[400] : line.includes("successfully") || line.includes("done") ? ecotaxaColors.success[400] : "#d4d4d4"
+                                            }}>
+                                                {line}
+                                            </Box>
+                                        ))
+                                    ) : (
+                                        <Box sx={{ color: "text.disabled", fontStyle: "italic" }}>No log messages captured yet by the kernel stream handler.</Box>
+                                    )}
+                                </Paper>
+                            </>
                         )}
                     </Box>
                 )

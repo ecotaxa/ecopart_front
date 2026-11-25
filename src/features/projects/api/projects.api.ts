@@ -1188,6 +1188,13 @@ export interface Task {
     task_creation_utc_date_time: string;
     task_start_utc_date_time?: string | null;
     task_end_utc_date_time?: string | null;
+    /**
+     * From this date only the WARNING lines of the log are kept and served
+     * (`getTaskLog` answers 410 when it had none): set on a task that succeeded
+     * (DONE), null on any other status, whose log is kept whole. Absent from an
+     * older backend.
+     */
+    task_log_expiration_utc_date_time?: string | null;
     task_progress_pct: number;
     task_progress_msg?: string;
     task_params?: Record<string, unknown>;
@@ -1386,11 +1393,25 @@ export async function cancelTask(taskId: number): Promise<Task> {
 }
 
 /**
- * Fetches the plain text server log file content for a specific task.
+ * How many days after its end the log of a successful task is kept whole, before
+ * only its warnings are kept (TASK_LOG_RETENTION_DAYS on the server).
+ * Route: GET /tasks/log_retention
+ */
+export async function getTaskLogRetention(): Promise<{ task_log_retention_days: number }> {
+    return http<{ task_log_retention_days: number }>(`/tasks/log_retention`, {
+        method: "GET",
+    });
+}
+
+/**
+ * Fetches the plain text server log file content for a specific task. With
+ * `from` (a byte offset), only the complete lines written from that offset on:
+ * a running task's log is followed without fetching it whole on every poll.
  * Route: GET /tasks/:task_id/log
  */
-export async function getTaskLog(taskId: number): Promise<string> {
-    return httpText(`/tasks/${taskId}/log`, {
+export async function getTaskLog(taskId: number, from?: number): Promise<string> {
+    const query = from === undefined ? "" : `?from=${from}`;
+    return httpText(`/tasks/${taskId}/log${query}`, {
         method: "GET",
     });
 }

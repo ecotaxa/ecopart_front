@@ -13,16 +13,28 @@ import AddIcon from "@mui/icons-material/Add";
 import CategoryIcon from "@mui/icons-material/Category";
 
 import type {
-    ExploreGraphs, ExploreSampleType, ExploreSizeClasses, GraphDataset, ProfileSeries, TimeScale, ValueScale,
+    ExploreEcoTaxaGraphs, ExploreGraphs, ExploreSampleType, ExploreSizeClasses, GraphDataset, ProfileSeries, TimeScale, ValueScale,
 } from "../types/explore.types";
 import { PRESSURE_BIN, TIME_BIN, timeBinIndex } from "../utils/exploreFilters";
 import type { SamplePopup } from "../utils/samplePopup";
 import BoundedNumberField from "./BoundedNumberField";
 import ProfileChart, { type ChartAxis, type ChartSeries } from "./ProfileChart";
 
-type GraphId = Exclude<keyof ExploreGraphs, "warnings" | "size_classes">;
+type GraphId = Exclude<keyof ExploreGraphs, "warnings" | "ctd_warnings" | "size_classes">;
 
 const GRAPH_IDS: readonly GraphId[] = ["abundance", "biovolume", "ctd", "ecotaxa"];
+
+/** Graphs the backend does not compute yet, per sample type: their card says so instead of an empty picker. */
+const GRAPHS_COMING_SOON: Record<ExploreSampleType, readonly GraphId[]> = { depth: [], time: ["ecotaxa"] };
+
+const COMING_SOON_TEXT: Partial<Record<GraphId, string>> = {
+    ecotaxa: "Coming soon: the EcoTaxa graphs of time series are not computed yet. "
+        + "The EcoTaxa categories of the selection are listed in the Selected data stats tab.",
+};
+
+/** Always shown on the EcoTaxa concentrations, until the objects follow the particle filters. */
+export const ECOTAXA_FILTERS_NOTE = "For now the EcoTaxa concentrations ignore the descent filter and the first and last image settings: "
+    + "every object with a depth is counted, while the water volume only counts the images kept.";
 
 const VALUE_SCALES: { value: ValueScale; label: string }[] = [
     { value: "linear", label: "linear" },
@@ -175,6 +187,24 @@ function RadioRow<T extends string>({ label, value, options, onChange }: {
     );
 }
 
+/** The card of a graph not served yet: its title, the reason, and the button that hides it. */
+function ComingSoonCard({ id, mode, onClose }: { id: GraphId; mode: ExploreSampleType; onClose: (id: GraphId) => void }) {
+    const { title } = cardText(id, mode);
+    return (
+        <Paper variant="outlined" component="section" aria-label={title} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}>
+            <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Typography variant="h6" component="h3">{title}</Typography>
+                <Tooltip title="Hide this graph">
+                    <IconButton size="small" onClick={() => onClose(id)} aria-label={`Hide ${title}`}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
+            </Stack>
+            <Alert severity="info" variant="outlined">{COMING_SOON_TEXT[id] ?? "Coming soon."}</Alert>
+        </Paper>
+    );
+}
+
 function NoGraph() {
     return (
         <Box
@@ -233,10 +263,12 @@ interface GraphCardProps {
     /** Shown above the picker (EcoTaxa available taxa). */
     header?: ReactNode;
     sampleDetails?: SampleDetails;
+    /** Why samples of the selection have no curve on this graph (CTD). */
+    notes?: string[];
 }
 
 const GraphCard = memo(function GraphCard({
-    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header, sizeClasses = "reduced", sampleDetails,
+    id, mode, dataset, settings, onSettingsChange, onReset, onClose, extra, header, sizeClasses = "reduced", sampleDetails, notes,
 }: GraphCardProps) {
     const text = cardText(id, mode);
     const keys = dataset?.keys ?? NO_KEYS;
@@ -278,6 +310,12 @@ const GraphCard = memo(function GraphCard({
                     </Tooltip>
                 </Box>
             </Stack>
+
+            {notes && notes.length > 0 && (
+                <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
+                    {notes.map((note) => <div key={note}>{note}</div>)}
+                </Alert>
+            )}
 
             {header}
 
@@ -355,9 +393,14 @@ interface SelectionGraphsProps {
     /** Heading of the block, "Selected data graphs" by default. */
     title?: string;
     graphs: ExploreGraphs | null;
+    /** EcoTaxa concentrations (depth profiles), served apart from the other curves. */
+    ecotaxa?: ExploreEcoTaxaGraphs | null;
     /** EcoTaxa: each category also counts the objects of its children. */
     sumChildTaxa: boolean;
     onSumChildTaxaChange: (value: boolean) => void;
+    /** EcoTaxa: the predicted objects count too. */
+    includePredicted: boolean;
+    onIncludePredictedChange: (value: boolean) => void;
     /** Bin of the curves: pressure bin (dbar) for depth profiles, time bin (h) for time series. */
     bin: number;
     onBinChange: (value: number) => void;
@@ -368,6 +411,8 @@ interface SelectionGraphsProps {
     computing?: boolean;
     /** Shown under the sample name when a curve is hovered or clicked. */
     sampleDetails?: SampleDetails;
+    /** Graphs drawn as a "coming soon" card, those of `GRAPHS_COMING_SOON` for the sample type by default. */
+    comingSoon?: readonly GraphId[];
 }
 
 interface DataAggregationProps {
@@ -461,8 +506,9 @@ function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesCha
  * or hidden, and a hidden graph can be brought back.
  */
 export default function SelectionGraphs({
-    mode, title = "Selected data graphs", graphs, sumChildTaxa, onSumChildTaxaChange, bin, onBinChange,
-    sizeClasses, onSizeClassesChange, computing = false, sampleDetails,
+    mode, title = "Selected data graphs", graphs, ecotaxa = null, sumChildTaxa, onSumChildTaxaChange,
+    includePredicted, onIncludePredictedChange, bin, onBinChange,
+    sizeClasses, onSizeClassesChange, computing = false, sampleDetails, comingSoon = GRAPHS_COMING_SOON[mode],
 }: SelectionGraphsProps) {
     const showComputing = useDelayedFlag(computing, COMPUTING_NOTICE_DELAY_MS);
     const [settings, setSettings] = useState<Record<GraphId, GraphSettings>>({
@@ -480,7 +526,9 @@ export default function SelectionGraphs({
     const reset = useCallback((id: GraphId) => update(id, DEFAULT_SETTINGS), [update]);
     const hide = useCallback((id: GraphId) => setHidden((prev) => [...prev, id]), []);
 
-    const taxa = graphs?.ecotaxa.keys ?? NO_KEYS;
+    const ecotaxaDataset: GraphDataset | null = ecotaxa ?? graphs?.ecotaxa ?? null;
+    const taxa = ecotaxaDataset?.keys ?? NO_KEYS;
+    const ecotaxaNotes = useMemo(() => [ECOTAXA_FILTERS_NOTE, ...(ecotaxa?.warnings ?? [])], [ecotaxa]);
     const selectedTaxa = useMemo(
         () => settings.ecotaxa.selected ?? taxa.slice(0, DEFAULT_SELECTION_SIZE),
         [settings.ecotaxa.selected, taxa],
@@ -520,19 +568,30 @@ export default function SelectionGraphs({
         </Box>
     ), [showTaxa, taxa, selectedTaxa, update]);
 
-    const sumChildrenOption = useMemo(() => (
-        <FormControlLabel
-            sx={{ mt: 1 }}
-            label={mode === "depth" ? "Sum concentrations of children categories" : "Sum abundance of children categories"}
-            control={(
-                <Checkbox
-                    size="small"
-                    checked={sumChildTaxa}
-                    onChange={(event) => onSumChildTaxaChange(event.target.checked)}
-                />
-            )}
-        />
-    ), [mode, sumChildTaxa, onSumChildTaxaChange]);
+    const ecotaxaOptions = useMemo(() => (
+        <Stack direction={{ xs: "column", sm: "row" }} sx={{ columnGap: 3, mt: 1 }}>
+            <FormControlLabel
+                label={mode === "depth" ? "Sum concentrations of children categories" : "Sum abundance of children categories"}
+                control={(
+                    <Checkbox
+                        size="small"
+                        checked={sumChildTaxa}
+                        onChange={(event) => onSumChildTaxaChange(event.target.checked)}
+                    />
+                )}
+            />
+            <FormControlLabel
+                label="Include predicted objects"
+                control={(
+                    <Checkbox
+                        size="small"
+                        checked={includePredicted}
+                        onChange={(event) => onIncludePredictedChange(event.target.checked)}
+                    />
+                )}
+            />
+        </Stack>
+    ), [mode, sumChildTaxa, onSumChildTaxaChange, includePredicted, onIncludePredictedChange]);
 
     return (
         <Stack spacing={3}>
@@ -568,12 +627,14 @@ export default function SelectionGraphs({
                 </Stack>
             )}
 
-            {GRAPH_IDS.filter((id) => !hidden.includes(id)).map((id) => (
+            {GRAPH_IDS.filter((id) => !hidden.includes(id)).map((id) => (comingSoon.includes(id) ? (
+                <ComingSoonCard key={id} id={id} mode={mode} onClose={hide} />
+            ) : (
                 <GraphCard
                     key={id}
                     id={id}
                     mode={mode}
-                    dataset={graphs?.[id] ?? null}
+                    dataset={id === "ecotaxa" ? ecotaxaDataset : graphs?.[id] ?? null}
                     settings={settings[id]}
                     onSettingsChange={update}
                     onReset={reset}
@@ -582,9 +643,10 @@ export default function SelectionGraphs({
                     // The histogram of the curves on screen, which may still be the previous one while the new one loads.
                     sizeClasses={graphs?.size_classes ?? "reduced"}
                     sampleDetails={sampleDetails}
-                    extra={id === "ecotaxa" ? sumChildrenOption : undefined}
+                    extra={id === "ecotaxa" ? ecotaxaOptions : undefined}
+                    notes={id === "ctd" ? graphs?.ctd_warnings : id === "ecotaxa" ? ecotaxaNotes : undefined}
                 />
-            ))}
+            )))}
         </Stack>
     );
 }

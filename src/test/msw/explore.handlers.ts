@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 
 import type {
+    ExploreEcoTaxaGraphs,
     ExploreEcoTaxaResponse,
     ExploreGraphs,
     ExploreImage,
@@ -210,13 +211,44 @@ const detailedGraphs: ExploreGraphs = {
     biovolume: sizeClasses((key, index) => `Biovolume det. class bv${19 + index} (${key}) mm3 l-1`, 0.01, DETAILED_KEYS),
 };
 
+/** POST /explore/graphs/ecotaxa: the concentrations of two categories, as step curves (# m-3). */
+const ecotaxaGraphs: ExploreEcoTaxaGraphs = {
+    keys: ['Copepoda', 'Appendicularia'],
+    axis_labels: { Copepoda: 'Copepoda and children # m-3', Appendicularia: 'Appendicularia and children # m-3' },
+    series: {
+        Copepoda: [
+            { sample_id: 101, sample_name: 'tara_001', positions: [0, 25, 50, 60], values: [1200, 800, 300, 300] },
+            { sample_id: 102, sample_name: 'tara_002', positions: [0, 25, 40], values: [900, 400, 400] },
+        ],
+        Appendicularia: [{ sample_id: 101, sample_name: 'tara_001', positions: [0, 25, 50, 60], values: [150, 0, 40, 40] }],
+    },
+    warnings: [],
+    nb_samples_pending: 0,
+};
+
+/** The same while the backend still reads the objects of two samples from EcoTaxa. */
+const pendingEcotaxaGraphs: ExploreEcoTaxaGraphs = {
+    ...ecotaxaGraphs,
+    series: { ...ecotaxaGraphs.series, Copepoda: ecotaxaGraphs.series.Copepoda.slice(0, 1) },
+    warnings: ['The objects of 2 samples are being read from EcoTaxa: the curves complete in a moment'],
+    nb_samples_pending: 2,
+};
+
 /** What the explore handlers answer, for the assertions of the tests. */
-export const exploreFixtures = { projects, mapSamples, selection, ecotaxa, partialEcotaxa, images, graphs, detailedGraphs };
+export const exploreFixtures = {
+    projects, mapSamples, selection, ecotaxa, partialEcotaxa, images, graphs, detailedGraphs, ecotaxaGraphs, pendingEcotaxaGraphs,
+};
 
 /** POST /explore/ecotaxa: `partialAnswers` partial EcoTaxa parts, then the complete one. */
 export const ecotaxaHandler = (partialAnswers = 0) => {
     let answers = 0;
     return http.post('*/explore/ecotaxa', () => HttpResponse.json(answers++ < partialAnswers ? partialEcotaxa : ecotaxa));
+};
+
+/** POST /explore/graphs/ecotaxa: `pendingAnswers` answers with samples still being read, then the complete one. */
+export const ecotaxaGraphsHandler = (pendingAnswers = 0) => {
+    let answers = 0;
+    return http.post('*/explore/graphs/ecotaxa', () => HttpResponse.json(answers++ < pendingAnswers ? pendingEcotaxaGraphs : ecotaxaGraphs));
 };
 
 /** The /explore handlers. */
@@ -226,6 +258,7 @@ export const createExploreHandlers = () => [
     http.post('*/explore/selection', () => HttpResponse.json(selection)),
     ecotaxaHandler(),
     http.post('*/explore/images', () => HttpResponse.json({ images })),
+    ecotaxaGraphsHandler(),
     http.post('*/explore/graphs', async ({ request }) => HttpResponse.json(
         ((await request.json()) as { size_classes?: string }).size_classes === 'detailed' ? detailedGraphs : graphs,
     )),

@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
 
 import SectionCard from "@/shared/components/SectionCard";
+import TaskRetentionNote from "../components/TaskRetentionNote";
 import { useTasksTable } from "../hooks/useTasksTable";
 import type { Task } from "../api/projects.api";
 import { ACTIVE_TASK_DELETE_HINT, buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
@@ -95,6 +96,7 @@ export default function TasksPage() {
                     <Typography variant="body2" color="text.secondary">
                         Projects in which you have permissions
                     </Typography>
+                    <TaskRetentionNote sx={{ mt: 1 }} />
 
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 3, alignItems: "center" }}>
                         <TextField

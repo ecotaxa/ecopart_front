@@ -201,8 +201,9 @@ describe('components/QcSampleCard', () => {
         expect(screen.getByText('Imaged volume versus time')).toBeInTheDocument();
         expect(screen.getByText(/Black for 1, 2 and 3 pixels versus time/)).toBeInTheDocument();
         expect(screen.getByText(/Particle \(LPM\) for 1, 2 and 3 pixels versus time/)).toBeInTheDocument();
-        // One vertical-axis title per graph, and no depth left anywhere.
-        expect(screen.getAllByText('time (h)')).toHaveLength(4);
+        // One vertical-axis title per graph, the binned ones giving their bin size, and no depth left anywhere.
+        expect(screen.getAllByText('time (h)')).toHaveLength(1);
+        expect(screen.getAllByText('time (h), 1 h bins')).toHaveLength(3);
         // The hour time_h counts from is spelled out once.
         expect(screen.getByText('Time axis: hours since 2024-03-03 00:00:00 UTC')).toBeInTheDocument();
         expect(screen.queryByText('depth (m)')).not.toBeInTheDocument();
@@ -214,9 +215,19 @@ describe('components/QcSampleCard', () => {
     it('TC-AB21: a depth sample, or a backend that sends no vertical_axis, keeps the depth (m) axis', () => {
         render(<QcSampleCard sample={makeSample()} onRemove={() => {}} />);
 
-        // Graph 1, imaged volume and particle graphs (no black profile in this fixture).
-        expect(screen.getAllByText('depth (m)')).toHaveLength(3);
-        expect(screen.queryByText('time (h)')).not.toBeInTheDocument();
+        // Graph 1 (per image, not binned), then the imaged volume and particle graphs with their
+        // bin size (no black profile in this fixture).
+        expect(screen.getAllByText('depth (m)')).toHaveLength(1);
+        expect(screen.getAllByText('depth (m), 1 m bins')).toHaveLength(2);
+        expect(screen.queryByText(/time \(h\)/)).not.toBeInTheDocument();
+    });
+
+    it('TC-AB22: a binned profile without a bin size keeps the plain axis title', () => {
+        const noBinSize = { ...binned('linear', [{ label: 'imaged volume', unit: 'L', values: [1, 2] }]), bin_size_m: undefined };
+        render(<QcSampleCard sample={makeSample({ imaged_volume_profile: noBinSize })} onRemove={() => {}} />);
+
+        expect(screen.getAllByText('depth (m)')).toHaveLength(2);
+        expect(screen.getAllByText('depth (m), 1 m bins')).toHaveLength(1);
     });
 
     describe('Accessibility Tests', () => {
