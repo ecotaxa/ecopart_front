@@ -15,6 +15,7 @@ import { useTasksTable } from "../hooks/useTasksTable";
 import type { Task } from "../api/projects.api";
 import { ACTIVE_TASK_DELETE_HINT, buildBaseTaskColumns, isDownloadableTask } from "../utils/taskColumns";
 import { pageContainerSx, pageHeaderSx } from "@/shared/layout/pageLayout";
+import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 
 /**
  * TasksPage — global Tasks list (TopBar "Tasks" link, route `/tasks`).
@@ -164,7 +165,7 @@ export default function TasksPage() {
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}
-                        pageSizeOptions={[5, 10, 25]}
+                        pageSizeOptions={buildPageSizeOptions()}
                         autoHeight
                         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                     />

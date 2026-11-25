@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import { useServerTable } from "@/shared/hooks/useServerTable";
+import { allSettledWithConcurrency } from "@/shared/utils/concurrency";
 import { countProjectsForUser, type SearchFilter } from "@/features/projects/api/projects.api";
 import { type AdminUser, deleteUser, searchUsers, setUserAdmin } from "../api/adminUsers.api";
 
@@ -11,6 +12,9 @@ const NO_EXTRA_FILTERS: SearchFilter[] = [];
 /** React Query key of the admin user lists; invalidate it to refresh them. */
 export const ADMIN_USERS_QUERY_KEY = ["admin", "users"] as const;
 
+/** Users whose project counts load at the same time: 2 requests each, so 6 requests in flight at most. */
+const COUNTED_USERS_IN_FLIGHT = 3;
+
 /**
  * Per-user manager / member project counts are not part of the user model, so
  * they are derived client-side: one projects search per user and per role,
@@ -18,18 +22,17 @@ export const ADMIN_USERS_QUERY_KEY = ["admin", "users"] as const;
  * (rendered as "—").
  *
  * NOTE: this is a 2N the backend should eventually fold into the user search
- * response; keep page sizes reasonable until it does.
+ * response; until it does, the "All" page size sends two requests per user of
+ * the whole list (the counts fill in after the rows), a few users at a time.
  */
 async function enrichUsersWithProjectCounts(users: AdminUser[]): Promise<AdminUser[]> {
-    const results = await Promise.allSettled(
-        users.map(async (user) => {
-            const [managerCount, memberCount] = await Promise.all([
-                countProjectsForUser(user.user_id, "managers"),
-                countProjectsForUser(user.user_id, "members"),
-            ]);
-            return { managerCount, memberCount };
-        }),
-    );
+    const results = await allSettledWithConcurrency(users, COUNTED_USERS_IN_FLIGHT, async (user) => {
+        const [managerCount, memberCount] = await Promise.all([
+            countProjectsForUser(user.user_id, "managers"),
+            countProjectsForUser(user.user_id, "members"),
+        ]);
+        return { managerCount, memberCount };
+    });
 
     return users.map((user, index) => {
         const result = results[index];

@@ -24,6 +24,7 @@ import { type SearchFilter, searchProjects } from "@/features/projects/api/proje
 import type { AdminUser } from "../api/adminUsers.api";
 import { useAdminUsersTable } from "../hooks/useAdminUsersTable";
 import { parseUserIdsParam } from "../utils/userFilterParams";
+import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import CreateUserModal from "./CreateUserModal";
 
 /** Human-readable account status derived from the admin-only user fields. */
@@ -391,7 +392,7 @@ export default function AdminUsersTab() {
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}
-                        pageSizeOptions={[5, 10, 25]}
+                        pageSizeOptions={buildPageSizeOptions()}
                         autoHeight
                         sx={{ "& .MuiDataGrid-row.row-clickable": { cursor: "pointer" } }}
                     />

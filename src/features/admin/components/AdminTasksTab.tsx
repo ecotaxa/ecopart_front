@@ -19,6 +19,7 @@ import TaskRetentionNote from "@/features/projects/components/TaskRetentionNote"
 import type { SearchFilter, Task } from "@/features/projects/api/projects.api";
 import { ACTIVE_TASK_DELETE_HINT, buildBaseTaskColumns, isDownloadableTask } from "@/features/projects/utils/taskColumns";
 import { parseUserIdsParam } from "../utils/userFilterParams";
+import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 
 /**
  * AdminTasksTab — the "TASKS" panel of the EcoPart administration page.
@@ -285,7 +286,7 @@ export default function AdminTasksTab() {
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}
-                        pageSizeOptions={[5, 10, 25]}
+                        pageSizeOptions={buildPageSizeOptions()}
                         autoHeight
                         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                     />

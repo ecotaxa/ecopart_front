@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import SectionCard from "@/shared/components/SectionCard";
+import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 import TaskRetentionNote from "./TaskRetentionNote";
 
 import { useProjectTasksTab } from "../hooks/useProjectTasksTab";
@@ -146,7 +147,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}
-                        pageSizeOptions={[5, 10, 25]}
+                        pageSizeOptions={buildPageSizeOptions()}
                         autoHeight
                         sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
                     />
