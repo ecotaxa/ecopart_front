@@ -15,6 +15,7 @@ import {
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import ReplayIcon from "@mui/icons-material/Replay";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import AddIcon from "@mui/icons-material/Add";
 import LogoutIcon from "@mui/icons-material/Logout";
 
@@ -47,7 +48,7 @@ const isExpired = (expirationDate: string) => {
 
 /**
  * ECOTAXA ACCOUNTS tab of the settings page: the linked accounts (with
- * reconnect / disconnect), the link form and the disconnect dialog.
+ * refresh / reconnect / disconnect), the link form and the disconnect dialog.
  */
 export function EcoTaxaAccountsTab({ page }: EcoTaxaAccountsTabProps) {
     const { user, ecoTaxa } = page;
@@ -86,11 +87,15 @@ export function EcoTaxaAccountsTab({ page }: EcoTaxaAccountsTabProps) {
                                         : <Typography variant="body2" color="text.secondary">
                                             {getDaysLeft(account.ecotaxa_expiration_date)} days left
                                         </Typography>}
+                                    {ecoTaxa.refreshError?.accountId === account.ecotaxa_account_id &&
+                                        <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
+                                            {ecoTaxa.refreshError.message}
+                                        </Typography>}
                                 </Box>
                             </Box>
 
                             <Stack direction="row" spacing={1} alignItems="center">
-                                {expired && (
+                                {expired ? (
                                     <Button
                                         size="small"
                                         variant="outlined"
@@ -99,7 +104,18 @@ export function EcoTaxaAccountsTab({ page }: EcoTaxaAccountsTabProps) {
                                         disabled={ecoTaxa.reconnecting === account.ecotaxa_account_id}
                                         onClick={() => ecoTaxa.reconnect(account)}
                                     >
-                                        {ecoTaxa.reconnecting === account.ecotaxa_account_id ? "Removing…" : "Reconnect"}
+                                        {ecoTaxa.reconnecting === account.ecotaxa_account_id ? "Reconnecting…" : "Reconnect"}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color="primary"
+                                        startIcon={<RefreshIcon />}
+                                        disabled={ecoTaxa.reconnecting === account.ecotaxa_account_id}
+                                        onClick={() => ecoTaxa.refresh(account)}
+                                    >
+                                        {ecoTaxa.reconnecting === account.ecotaxa_account_id ? "Refreshing…" : "Refresh"}
                                     </Button>
                                 )}
                                 <IconButton

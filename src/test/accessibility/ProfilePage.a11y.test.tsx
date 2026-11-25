@@ -143,14 +143,18 @@ describe('ProfilePage - EcoTaxa Tab (Accessibility)', () => {
         });
         expect(ecoTaxaTab).toHaveFocus();
 
-        // 2. Tab -> Logout/Unlink IconButton
+        // 2. Tab -> "Refresh" Button of the (valid) account
+        await user.tab();
+        expect(screen.getByRole('button', { name: /^Refresh$/i })).toHaveFocus();
+
+        // 3. Tab -> Logout/Unlink IconButton
         // In MUI, icon buttons without text rely on SVG. We find the specific button holding the Logout icon.
         await user.tab();
         const unlinkButtons = screen.getAllByRole('button');
         const logoutButton = unlinkButtons.find(btn => btn.querySelector('svg[data-testid="LogoutIcon"]'));
         expect(logoutButton).toHaveFocus();
 
-        // 3. Tab -> "Connect to another account" Button
+        // 4. Tab -> "Connect to another account" Button
         await user.tab();
         expect(screen.getByRole('button', { name: /Connect to another account/i })).toHaveFocus();
     });
