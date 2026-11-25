@@ -18,7 +18,8 @@ export const ADMIN_USERS_QUERY_KEY = ["admin", "users"] as const;
  * (rendered as "—").
  *
  * NOTE: this is a 2N the backend should eventually fold into the user search
- * response; keep page sizes reasonable until it does.
+ * response; until it does, the "All" page size sends two requests per user of
+ * the whole list (the counts fill in after the rows).
  */
 async function enrichUsersWithProjectCounts(users: AdminUser[]): Promise<AdminUser[]> {
     const results = await Promise.allSettled(
