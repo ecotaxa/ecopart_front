@@ -416,6 +416,29 @@ describe('AdminUsersTab', () => {
         expect(await screen.findByText('5')).toBeInTheDocument();
     });
 
+    it('TC-AF24: loads the project counts of a long list (the "All" page size) 6 requests at a time', async () => {
+        mockUsersSearch(Array.from({ length: 10 }, (_, i) => makeUser({ user_id: i + 1, email: `user${i + 1}@x.org` })), 10);
+        let inFlight = 0;
+        let maxInFlight = 0;
+        let done = 0;
+        server.use(
+            http.post('*/projects/searches', async () => {
+                inFlight += 1;
+                maxInFlight = Math.max(maxInFlight, inFlight);
+                await new Promise((resolve) => setTimeout(resolve, 5));
+                inFlight -= 1;
+                done += 1;
+                return HttpResponse.json({ search_info: { total: 0, page: 1, limit: 1 }, projects: [] });
+            }),
+        );
+
+        renderUsersTab();
+
+        // Two counts per user, every one sent, never more than 6 pending at once.
+        await waitFor(() => expect(done).toBe(20));
+        expect(maxInFlight).toBe(6);
+    });
+
     it('TC-AF22: resolves ?project= to the projects\' member + manager ids and filters the user search', async () => {
         // The user search has no project filter, so the tab first resolves the
         // project(s) to their privileged user ids via POST /projects/searches
