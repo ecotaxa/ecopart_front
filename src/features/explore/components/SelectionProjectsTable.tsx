@@ -59,7 +59,7 @@ export default function SelectionProjectsTable({ title, subtitle, rows, mode }: 
             renderCell: ({ row, value }) => (
                 <Link
                     component={RouterLink}
-                    to={`/projects/${row.project_id}`}
+                    to={`/projects/${row.project_id}/stats`}
                     target="_blank"
                     rel="noopener"
                     underline="hover"

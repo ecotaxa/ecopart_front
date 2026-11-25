@@ -156,16 +156,23 @@ function toChartSeries(series: ProfileSeries[], mode: ExploreSampleType, timeSca
     });
 }
 
+/** Labels of the time series axes, larger than the default: dates squeezed in a half-width chart were hard to read. */
+const TIME_AXIS_FONT_SIZE = 12.5;
+/** Slant of the date ticks, so that they never overlap. */
+const DATE_TICK_ANGLE = -35;
+
 function axes(mode: ExploreSampleType, valueLabel: string, scale: ValueScale, timeScale: TimeScale): { x: ChartAxis; y: ChartAxis } {
-    const value: ChartAxis = { label: valueLabel, scale, fromZero: true };
     if (mode === "depth") {
-        return { x: value, y: { label: "Depth [m]", scale: "linear", reversed: true, fromZero: true } };
+        return {
+            x: { label: valueLabel, scale, fromZero: true },
+            y: { label: "Depth [m]", scale: "linear", reversed: true, fromZero: true },
+        };
     }
     return {
         x: timeScale === "relative"
-            ? { label: "Time since sample start [h]", scale: "linear", fromZero: true }
-            : { label: "Date", scale: "linear", format: formatDate },
-        y: value,
+            ? { label: "Time since sample start [h]", scale: "linear", fromZero: true, fontSize: TIME_AXIS_FONT_SIZE }
+            : { label: "Date", scale: "linear", format: formatDate, fontSize: TIME_AXIS_FONT_SIZE, tickAngle: DATE_TICK_ANGLE },
+        y: { label: valueLabel, scale, fromZero: true, fontSize: TIME_AXIS_FONT_SIZE },
     };
 }
 
@@ -423,6 +430,9 @@ interface DataAggregationProps {
     onSizeClassesChange: (value: ExploreSizeClasses) => void;
 }
 
+/** Width of the bin slider of the "Data aggregation" block, depth profiles and time series alike. */
+const AGGREGATION_SLIDER_WIDTH = 420;
+
 /** The "Data aggregation" block of a sample type: the bin of its curves and the particle histogram. */
 function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesChange }: DataAggregationProps) {
     const depth = mode === "depth";
@@ -444,8 +454,9 @@ function DataAggregation({ mode, bin, onBinChange, sizeClasses, onSizeClassesCha
         <Box component="section" aria-label="Data aggregation">
             <Typography variant="subtitle1" component="h3" sx={{ mb: 1 }}>Data aggregation</Typography>
             <Stack direction={{ xs: "column", sm: "row" }} sx={{ columnGap: 4, rowGap: 1, alignItems: { sm: "center" } }}>
-                <Box sx={{ flex: 1, maxWidth: 420 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: depth ? "center" : "baseline" }}>
+                {/* A fixed width, the same for the pressure and the time bin, and a header row as tall as the typed pressure field. */}
+                <Box sx={{ width: { xs: "100%", sm: AGGREGATION_SLIDER_WIDTH }, maxWidth: "100%", flexShrink: 0 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center", minHeight: 40 }}>
                         <Typography variant="body2">{title}</Typography>
                         {depth ? (
                             <BoundedNumberField

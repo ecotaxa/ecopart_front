@@ -8,8 +8,15 @@ import { createScale, extent, formatTick } from "../utils/chartScales";
 import { decimate } from "../utils/decimate";
 
 const WIDTH = 420;
+/** Height of the plot area plus the default margins: slanted or larger labels make the chart taller, not the plot smaller. */
 const HEIGHT = 300;
 const MARGIN = { top: 12, right: 14, bottom: 44, left: 56 };
+/** Default size of the tick labels and of the axis titles (viewBox units). */
+const TICK_FONT_SIZE = 10;
+const TITLE_FONT_SIZE = 10.5;
+/** Room below the plot for slanted tick labels (a date at the largest font), and beside it per unit of y tick font above the default. */
+const SLANTED_TICKS_BOTTOM = 84;
+const LEFT_PER_FONT_UNIT = 4;
 /** Width (viewBox units) of the invisible band around a curve that catches the pointer. */
 const HIT_WIDTH = 7;
 
@@ -33,6 +40,10 @@ export interface ChartAxis {
     /** Starts at 0 whatever the data (abundances, depths). */
     fromZero?: boolean;
     format?: (value: number) => string;
+    /** Size of the tick labels and of the title of the axis, 10 (ticks) and 10.5 (title) by default. */
+    fontSize?: number;
+    /** x axis only: the tick labels are slanted by this angle (degrees, e.g. -35) so that long ones (dates) never overlap. */
+    tickAngle?: number;
 }
 
 interface ProfileChartProps {
@@ -83,6 +94,15 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
     const [hovered, setHovered] = useState<CurvePopup | null>(null);
     const [pinned, setPinned] = useState<CurvePopup | null>(null);
 
+    const xTickFont = x.fontSize ?? TICK_FONT_SIZE;
+    const yTickFont = y.fontSize ?? TICK_FONT_SIZE;
+    const margin = useMemo(() => ({
+        ...MARGIN,
+        bottom: x.tickAngle ? SLANTED_TICKS_BOTTOM : MARGIN.bottom + (xTickFont - TICK_FONT_SIZE) * 2,
+        left: MARGIN.left + Math.max(0, yTickFont - TICK_FONT_SIZE) * LEFT_PER_FONT_UNIT,
+    }), [x.tickAngle, xTickFont, yTickFont]);
+    const height = HEIGHT + margin.bottom - MARGIN.bottom;
+
     const { xScale, yScale, paths } = useMemo(() => {
         const xs: number[] = [];
         const ys: number[] = [];
@@ -92,8 +112,8 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
                 ys.push(py);
             }
         }
-        const xRange: [number, number] = x.reversed ? [WIDTH - MARGIN.right, MARGIN.left] : [MARGIN.left, WIDTH - MARGIN.right];
-        const yRange: [number, number] = y.reversed ? [MARGIN.top, HEIGHT - MARGIN.bottom] : [HEIGHT - MARGIN.bottom, MARGIN.top];
+        const xRange: [number, number] = x.reversed ? [WIDTH - margin.right, margin.left] : [margin.left, WIDTH - margin.right];
+        const yRange: [number, number] = y.reversed ? [margin.top, height - margin.bottom] : [height - margin.bottom, margin.top];
         const xScale = createScale(x.scale, domainOf(xs, x), xRange);
         const yScale = createScale(y.scale, domainOf(ys, y), yRange);
 
@@ -118,7 +138,7 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
             return { id: s.id, color: s.color, d };
         });
         return { xScale, yScale, paths };
-    }, [series, x, y, step, valueAxis]);
+    }, [series, x, y, step, valueAxis, margin, height]);
 
     const popup = pinned ?? hovered;
     const popupSeries = popup ? series.find((s) => s.id === popup.id) : undefined;
@@ -131,16 +151,16 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
 
     const formatX = x.format ?? formatTick;
     const formatY = y.format ?? formatTick;
-    const plotLeft = MARGIN.left;
-    const plotRight = WIDTH - MARGIN.right;
-    const plotTop = MARGIN.top;
-    const plotBottom = HEIGHT - MARGIN.bottom;
+    const plotLeft = margin.left;
+    const plotRight = WIDTH - margin.right;
+    const plotTop = margin.top;
+    const plotBottom = height - margin.bottom;
 
     return (
         <Box ref={boxRef} sx={{ position: "relative" }}>
             <Box
                 component="svg"
-                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                viewBox={`0 0 ${WIDTH} ${height}`}
                 role="img"
                 aria-label={title}
                 onClick={() => setPinned(null)}
@@ -152,7 +172,19 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
                     return Number.isFinite(sx) && (
                         <g key={`x${tick}`}>
                             <line x1={sx} x2={sx} y1={plotTop} y2={plotBottom} stroke={gridColor} />
-                            <text x={sx} y={plotBottom + 14} fontSize={10} fill={axisColor} textAnchor="middle">{formatX(tick)}</text>
+                            {x.tickAngle ? (
+                                <text
+                                    transform={`translate(${sx} ${plotBottom + 8}) rotate(${x.tickAngle})`}
+                                    dy="0.71em"
+                                    fontSize={xTickFont}
+                                    fill={axisColor}
+                                    textAnchor="end"
+                                >
+                                    {formatX(tick)}
+                                </text>
+                            ) : (
+                                <text x={sx} y={plotBottom + 4 + xTickFont} fontSize={xTickFont} fill={axisColor} textAnchor="middle">{formatX(tick)}</text>
+                            )}
                         </g>
                     );
                 })}
@@ -161,7 +193,7 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
                     return Number.isFinite(sy) && (
                         <g key={`y${tick}`}>
                             <line x1={plotLeft} x2={plotRight} y1={sy} y2={sy} stroke={gridColor} />
-                            <text x={plotLeft - 6} y={sy + 3} fontSize={10} fill={axisColor} textAnchor="end">{formatY(tick)}</text>
+                            <text x={plotLeft - 6} y={sy + yTickFont * 0.3} fontSize={yTickFont} fill={axisColor} textAnchor="end">{formatY(tick)}</text>
                         </g>
                     );
                 })}
@@ -195,12 +227,18 @@ function ProfileChart({ series, x, y, step, valueAxis = "y", title }: ProfileCha
                 </g>
 
                 {/* Axis titles */}
-                <text x={(plotLeft + plotRight) / 2} y={HEIGHT - 8} fontSize={10.5} fill={theme.palette.text.primary} textAnchor="middle">
+                <text
+                    x={(plotLeft + plotRight) / 2}
+                    y={height - 8}
+                    fontSize={x.fontSize ? x.fontSize + 0.5 : TITLE_FONT_SIZE}
+                    fill={theme.palette.text.primary}
+                    textAnchor="middle"
+                >
                     {x.label}
                 </text>
                 <text
-                    transform={`translate(13 ${(plotTop + plotBottom) / 2}) rotate(-90)`}
-                    fontSize={10.5}
+                    transform={`translate(${y.fontSize ? 15 : 13} ${(plotTop + plotBottom) / 2}) rotate(-90)`}
+                    fontSize={y.fontSize ? y.fontSize + 0.5 : TITLE_FONT_SIZE}
                     fill={theme.palette.text.primary}
                     textAnchor="middle"
                 >
