@@ -17,7 +17,7 @@ const PRESSURE_CHART_HEIGHT = { min: 220, max: 520 };
 const PRESSURE_CHART_OVERHEAD_PX = 80;
 /** Room kept for each depth label: past about 27 bars the chart stops growing and only some bars are labelled. */
 const PRESSURE_LABEL_PX = 16;
-/** Height shared by the instrument pie and the table of maximum depths, side by side. */
+/** Height of the instrument pie, and of the empty placeholders of the row it shares with the table of maximum depths. */
 const SIDE_BY_SIDE_HEIGHT = 266;
 
 function ChartBlock({ title, empty, height, children }: { title: string; empty: boolean; height: number; children: ReactNode }) {
@@ -42,16 +42,17 @@ function ChartBlock({ title, empty, height, children }: { title: string; empty: 
  * The profiles per class of maximum depth: a few fixed classes, finer near the surface, every one
  * shown even when empty so that the table keeps its size.
  */
-function PressureClassesTable({ classes, height }: { classes: PressureClass[]; height: number }) {
+function PressureClassesTable({ classes }: { classes: PressureClass[] }) {
     const total = classes.reduce((sum, row) => sum + row.nb_profiles, 0);
     return (
-        <TableContainer sx={{ height, border: 1, borderColor: "divider", borderRadius: 1 }}>
+        // No fixed height: every class shows at once, without a scroll bar.
+        <TableContainer sx={{ border: 1, borderColor: "divider", borderRadius: 1, overflow: "visible" }}>
             <Table size="small" aria-label="Profiles per maximum depth">
                 <TableHead>
                     <TableRow>
                         <TableCell>Maximum depth [m]</TableCell>
                         <TableCell align="right">Profiles</TableCell>
-                        <TableCell align="right">Share</TableCell>
+                        <TableCell align="right">Distribution</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -82,9 +83,9 @@ interface SelectionSamplesSectionProps {
 
 /**
  * The samples of a selection: counts per type facing the ranges, samples per instrument next to
- * the profiles per class of maximum depth, profiles by date and latitude over the whole width
- * (dates squeezed in half a row could not be told apart), and the distribution of the maximum
- * pressure in 100 dbar slices.
+ * the profiles per class of maximum depth, the distribution of the maximum pressure in 100 dbar
+ * slices, then profiles by date and latitude over the whole width (dates squeezed in half a row
+ * could not be told apart).
  */
 export default function SelectionSamplesSection({ title, summary }: SelectionSamplesSectionProps) {
     const instruments = summary?.instruments ?? [];
@@ -132,14 +133,10 @@ export default function SelectionSamplesSection({ title, summary }: SelectionSam
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                         <ChartBlock title="Profiles per maximum depth" empty={pressureClasses.length === 0} height={SIDE_BY_SIDE_HEIGHT}>
-                            <PressureClassesTable classes={pressureClasses} height={SIDE_BY_SIDE_HEIGHT} />
+                            <PressureClassesTable classes={pressureClasses} />
                         </ChartBlock>
                     </Grid>
                 </Grid>
-
-                <ChartBlock title="Profiles by date and latitude" empty={profiles.length === 0} height={150}>
-                    <ProfilesTimeline profiles={profiles} />
-                </ChartBlock>
 
                 <ChartBlock title="Maximum sample pressure" empty={histogram.length === 0} height={PRESSURE_CHART_HEIGHT.min}>
                     <Typography variant="caption" color="text.secondary" component="p" sx={{ mb: 1 }}>
@@ -160,6 +157,10 @@ export default function SelectionSamplesSection({ title, summary }: SelectionSam
                         series={[{ data: histogram.map((bin) => bin.nb_profiles), color: chartColorAt(1), label: "Profiles" }]}
                         hideLegend
                     />
+                </ChartBlock>
+
+                <ChartBlock title="Profiles by date and latitude" empty={profiles.length === 0} height={150}>
+                    <ProfilesTimeline profiles={profiles} />
                 </ChartBlock>
             </Stack>
         </Box>

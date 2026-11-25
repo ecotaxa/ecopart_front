@@ -25,7 +25,8 @@ export function samplePopup(sample: ExploreMapSample, isAdmin: boolean): SampleP
         ],
         links: [
             ...(canOpenSample ? [{ label: "Open sample", to: `${projectPath}/samples/${sample.sample_id}`, newTab: true }] : []),
-            { label: "Open project", to: projectPath, newTab: true },
+            // Explore is about the data: the project opens on its stats tab.
+            { label: "Open project", to: `${projectPath}/stats`, newTab: true },
         ],
     };
 }

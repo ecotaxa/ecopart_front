@@ -319,7 +319,7 @@ describe('ExplorePage', () => {
 
         await user.click(screen.getByRole('button', { name: 'Apply filters' }));
         const link = await screen.findByRole('link', { name: 'Tara Oceans 2009 [1]' });
-        expect(link).toHaveAttribute('href', '/projects/1');
+        expect(link).toHaveAttribute('href', '/projects/1/stats');
         expect(link).toHaveAttribute('target', '_blank');
     });
 

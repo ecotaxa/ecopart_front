@@ -66,7 +66,7 @@ describe('ExploreMap', () => {
         const sampleLink = screen.getByRole('link', { name: 'Open sample' });
         expect(sampleLink).toHaveAttribute('href', '/projects/1/samples/101');
         expect(sampleLink).toHaveAttribute('target', '_blank');
-        expect(screen.getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/projects/1');
+        expect(screen.getByRole('link', { name: 'Open project' })).toHaveAttribute('href', '/projects/1/stats');
     });
 
     it('draws fine markers: circles on the world view, with a white halo under their fill', async () => {

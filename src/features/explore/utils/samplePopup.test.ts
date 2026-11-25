@@ -17,7 +17,7 @@ describe('samplePopup', () => {
         expect(popup.details).toEqual(['Tara Oceans 2009 [1]', 'UVP5HD · Public']);
         expect(popup.links).toEqual([
             { label: 'Open sample', to: '/projects/1/samples/101', newTab: true },
-            { label: 'Open project', to: '/projects/1', newTab: true },
+            { label: 'Open project', to: '/projects/1/stats', newTab: true },
         ]);
     });
 
