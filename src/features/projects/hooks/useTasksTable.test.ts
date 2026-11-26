@@ -10,6 +10,7 @@ import { searchProjectTasks, deleteProjectTask, type Task, type TaskSearchRespon
 import { TASKS_QUERY_KEY, useTasksTable } from './useTasksTable';
 import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 import { renderHookWithProviders } from '@/test/utils';
+import { ApiError } from '@/shared/api/http';
 
 const mockedSearchProjectTasks = vi.mocked(searchProjectTasks);
 const mockedDeleteProjectTask = vi.mocked(deleteProjectTask);
@@ -262,5 +263,26 @@ describe('useTasksTable Hook (Unit)', () => {
         await waitFor(() => {
             expect(mockedSearchProjectTasks.mock.calls.length).toBeGreaterThan(callsBefore);
         });
+    });
+
+    it('shows an empty list, not an error, when the searched label matches no task status', async () => {
+        const { result } = renderHookWithProviders(() => useTasksTable());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        mockedSearchProjectTasks.mockRejectedValue(new ApiError(404, ['Task status label not found']));
+        act(() => {
+            result.current.setSearchText('zzz');
+        });
+
+        await waitFor(() => expect(result.current.tasks).toEqual([]));
+        expect(result.current.totalRows).toBe(0);
+        expect(result.current.error).toBeNull();
+    });
+
+    it('still reports any other 404 as an error', async () => {
+        mockedSearchProjectTasks.mockRejectedValue(new ApiError(404, ['Cannot find project']));
+        const { result } = renderHookWithProviders(() => useTasksTable());
+
+        await waitFor(() => expect(result.current.error).toBe('Cannot find project'));
     });
 });

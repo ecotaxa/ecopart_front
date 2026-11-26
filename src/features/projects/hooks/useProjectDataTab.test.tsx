@@ -462,4 +462,49 @@ describe('hooks/useProjectDataTab', () => {
             acceptSpy.mockRestore();
         }
     });
+
+    it('searches the UVP samples on the chosen attribute, back on the first page with no selection', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({
+            samples: [{ sample_id: 1, sample_name: 'a' }],
+            search_info: { total: 30, page: 1, limit: 10 }
+        });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+
+        const { result } = renderHook(() => useProjectDataTab(77));
+        await waitFor(() => expect(result.current.totalUvpRows).toBe(30));
+
+        act(() => {
+            result.current.setUvpPaginationModel({ page: 2, pageSize: 10 });
+            result.current.setSelectedUvpSamples({ type: 'include', ids: new Set([1]) });
+        });
+        act(() => {
+            result.current.setUvpSearchAttribute('filename');
+            result.current.setUvpSearchText(' 2012 ');
+        });
+
+        await waitFor(() => {
+            const lastCall = vi.mocked(searchProjectSamples).mock.calls.at(-1);
+            expect(lastCall?.[1]).toMatchObject({ page: 1, filters: [{ field: 'filename', operator: 'LIKE', value: '%2012%' }] });
+        });
+        expect(result.current.uvpSelectionCount).toBe(0);
+    });
+
+    it('filters the CTD links on the sample name and drops their selection', async () => {
+        vi.mocked(searchProjectSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectEcoTaxaSamples).mockResolvedValue({ samples: [], search_info: { total: 0, page: 1, limit: 10 } });
+        vi.mocked(searchProjectCtdSamples).mockResolvedValue({
+            samples: [{ sample_name: 'Station_A1' }, { sample_name: 'station_b2' }, { sample_name: 'other' }] as never,
+            search_info: { total: 3, page: 1, limit: 0 }
+        });
+
+        const { result } = renderHook(() => useProjectDataTab(77));
+        await waitFor(() => expect(result.current.visibleCtdSamples).toHaveLength(3));
+
+        act(() => result.current.setSelectedCtdSamples({ type: 'include', ids: new Set(['other']) }));
+        act(() => result.current.setCtdSearchText('STATION'));
+
+        expect(result.current.visibleCtdSamples.map((s) => s.sample_name)).toEqual(['Station_A1', 'station_b2']);
+        expect(result.current.ctdSelectionCount).toBe(0);
+    });
 });
