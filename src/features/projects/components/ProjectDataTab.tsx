@@ -1,7 +1,7 @@
 import React from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
-    Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, LinearProgress, Link
+    Box, Typography, Button, Divider, Snackbar, Alert, Stack, Tooltip, LinearProgress, Link, MenuItem, TextField
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close"; // Used for Delete based on mockup
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -44,7 +44,7 @@ const ecoTaxaDeleteInfoContent = (
     </Box>
 );
 
-import { useProjectDataTab } from "../hooks/useProjectDataTab";
+import { UVP_SEARCH_ATTRIBUTES, useProjectDataTab, type UvpSearchAttribute } from "../hooks/useProjectDataTab";
 import type { EcoTaxaSampleData, SampleData, CtdSampleData } from "../api/projects.api";
 import { buildPageSizeOptions } from "@/shared/utils/pageSizeOptions";
 
@@ -102,11 +102,13 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
     const {
         uvpSamples, loadingUvp, totalUvpRows, uvpPaginationModel, setUvpPaginationModel,
         selectedUvpSamples, setSelectedUvpSamples, uvpSelectionCount,
+        uvpSearchText, setUvpSearchText, uvpSearchAttribute, setUvpSearchAttribute,
 
         ecoTaxaSamples, loadingEcoTaxa, totalEcoTaxaRows, ecoTaxaPaginationModel, setEcoTaxaPaginationModel,
         selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount,
 
-        ctdSamples, loadingCtd, ctdPaginationModel, setCtdPaginationModel,
+        ctdSamples, visibleCtdSamples, ctdSearchText, setCtdSearchText,
+        loadingCtd, ctdPaginationModel, setCtdPaginationModel,
         selectedCtdSamples, setSelectedCtdSamples, ctdSelectionCount,
 
         uvpError, ecoTaxaError, ctdError,
@@ -227,6 +229,30 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                     </Typography>
                 </Box>
 
+                {(totalUvpRows > 0 || uvpSearchText !== "") && (
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
+                        <TextField
+                            size="small"
+                            label="Search"
+                            value={uvpSearchText}
+                            onChange={(e) => setUvpSearchText(e.target.value)}
+                            sx={{ width: { xs: "100%", sm: 300 } }}
+                        />
+                        <TextField
+                            select
+                            size="small"
+                            label="Attribute"
+                            value={uvpSearchAttribute}
+                            onChange={(e) => setUvpSearchAttribute(e.target.value as UvpSearchAttribute)}
+                            sx={{ width: { xs: "100%", sm: 200 } }}
+                        >
+                            {UVP_SEARCH_ATTRIBUTES.map(({ value, label }) => (
+                                <MenuItem key={value} value={value}>{label}</MenuItem>
+                            ))}
+                        </TextField>
+                    </Stack>
+                )}
+
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="body2" fontWeight="bold">{uvpSelectionCount} items selected</Typography>
                     <Stack direction="row" spacing={2}>
@@ -252,7 +278,8 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                     renderEmptyState(
                         loadingUvp ? "Loading UVP samples..."
                             : uvpError ? `Failed to load UVP samples (${uvpError})`
-                                : "No samples imported.",
+                                : uvpSearchText.trim() !== "" ? "No sample matches the search."
+                                    : "No samples imported.",
                         !loadingUvp && !!uvpError
                     )
                 ) : (
@@ -292,6 +319,16 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                             </Typography>
                         </Box>
 
+                        {ctdSamples.length > 0 && (
+                            <TextField
+                                size="small"
+                                label="Search by sample name"
+                                value={ctdSearchText}
+                                onChange={(e) => setCtdSearchText(e.target.value)}
+                                sx={{ width: { xs: "100%", sm: 300 }, mb: 2 }}
+                            />
+                        )}
+
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'grey.100', p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
                             <Typography variant="body2" fontWeight="bold">{ctdSelectionCount} items selected</Typography>
                             {canManage && (
@@ -300,17 +337,18 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                                 </Button>
                             )}
                         </Box>
-                        {ctdSamples.length === 0 ? (
+                        {visibleCtdSamples.length === 0 ? (
                             renderEmptyState(
                                 loadingCtd ? "Loading CTD samples..."
                                     : ctdError ? `Failed to load CTD samples (${ctdError})`
-                                        : "No CTD samples imported.",
+                                        : ctdSamples.length > 0 ? "No sample matches the search."
+                                            : "No CTD samples imported.",
                                 !loadingCtd && !!ctdError
                             )
                         ) : (
                             <Box sx={{ width: '100%', mb: 1 }}>
                                 <DataGrid<CtdSampleData>
-                                    rows={ctdSamples}
+                                    rows={visibleCtdSamples}
                                     columns={ctdSamplesColumns}
                                     getRowId={(row) => row.sample_name}
                                     checkboxSelection

@@ -266,7 +266,8 @@ export default function AdminUsersTab() {
                             onChange={(e) => setSearchAttribute(e.target.value)}
                             sx={{ width: 200 }}
                         >
-                            <MenuItem value="last_name">Name</MenuItem>
+                            <MenuItem value="last_name">Last name</MenuItem>
+                            <MenuItem value="first_name">First name</MenuItem>
                             <MenuItem value="email">Email</MenuItem>
                             <MenuItem value="organisation">Organisation</MenuItem>
                             <MenuItem value="country">Country</MenuItem>

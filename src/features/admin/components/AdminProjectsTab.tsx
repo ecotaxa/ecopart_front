@@ -210,10 +210,14 @@ export default function AdminProjectsTab() {
                         >
                             <MenuItem value="project_title">Title</MenuItem>
                             <MenuItem value="project_acronym">Acronym</MenuItem>
+                            <MenuItem value="project_description">Description</MenuItem>
                             <MenuItem value="instrument_model">Instrument model</MenuItem>
+                            <MenuItem value="serial_number">Serial number</MenuItem>
                             <MenuItem value="ecotaxa_project_name">EcoTaxa project</MenuItem>
                             <MenuItem value="cruise">Cruise</MenuItem>
                             <MenuItem value="ship">Ship</MenuItem>
+                            {/* Filtering on the import folder is refused to non-admins only. */}
+                            <MenuItem value="root_folder_path">Root path</MenuItem>
                             <MenuItem value="project_id">Project id</MenuItem>
                             {/* managers / members resolve a user id to the projects where
                                 that user holds the privilege (backend-side). */}

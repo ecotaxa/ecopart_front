@@ -28,11 +28,9 @@ export interface UseTasksTableOptions {
  * TASKS tab (with `extraFilters` pre-scoping the list to a set of task owners
  * / projects) and, through `useProjectTasksTab`, a project's TASKS tab.
  *
- * task_status (resolved via its label) and task_id (exact) are fully supported
- * by the backend task search. task_type (Label) and task_owner (Owner) are also
- * offered as LIKE attributes, but they only match once the backend filter bugs
- * are fixed (task_type filters on the id instead of the label; task_owner has
- * no SQL column).
+ * Searchable attributes: task_id (exact), task_status and task_type (LIKE on
+ * their label, resolved to ids by the backend) and task_owner (LIKE on the
+ * "First Last (email)" string the Owner column shows).
  *
  * `extraFilters` must be memoized by the caller so it stays referentially stable.
  */

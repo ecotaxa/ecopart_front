@@ -4,6 +4,7 @@ import type { AlertColor } from "@mui/material";
 import type { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 
 import type { SearchFilter } from "@/shared/types/api";
+import { isNoMatchingLabel } from "@/shared/api/http";
 import { confirmDialog, type ConfirmOptions } from "@/shared/confirm/confirm.store";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import { toRequestLimit } from "@/shared/utils/pageSizeOptions";
@@ -135,7 +136,12 @@ export function useServerTable<Row>({
 
     const query = useQuery({
         queryKey: [...queryKey, pageParams],
-        queryFn: () => fetchPage(pageParams),
+        // A label search matching no label (e.g. status "zzz") is answered with a 404:
+        // the user sees an empty grid, like for any other search without result.
+        queryFn: () => fetchPage(pageParams).catch((error: unknown) => {
+            if (isNoMatchingLabel(error)) return { rows: [], total: 0 };
+            throw error;
+        }),
         enabled,
         // Keep the previous page on screen while the next one loads (no flash of empty grid).
         placeholderData: keepPreviousData,
