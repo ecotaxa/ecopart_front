@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import { useServerTable } from "@/shared/hooks/useServerTable";
+import type { ServerFields } from "@/shared/hooks/useServerGridModels";
 import { allSettledWithConcurrency } from "@/shared/utils/concurrency";
 import { countProjectsForUser, type SearchFilter } from "@/features/projects/api/projects.api";
 import { type AdminUser, deleteUser, searchUsers, setUserAdmin } from "../api/adminUsers.api";
@@ -8,6 +9,21 @@ import { type AdminUser, deleteUser, searchUsers, setUserAdmin } from "../api/ad
 // Stable default so callers that pass no extra filters don't get a fresh array
 // reference every render (which would make the query key unstable → refetch loop).
 const NO_EXTRA_FILTERS: SearchFilter[] = [];
+
+/**
+ * What the user search can sort and filter on, per column of the USERS grid. The
+ * name sorts on the last then first name (the search box filters either one); the
+ * country is stored as a code, so neither sorted nor filtered on the name shown.
+ * The project counts and the account status are computed: neither.
+ */
+const USER_FIELDS: ServerFields = {
+    user_id: { sort: "user_id", filter: "user_id", type: "number" },
+    name: { sort: ["last_name", "first_name"] },
+    email: { sort: "email", filter: "email" },
+    organisation: { sort: "organisation", filter: "organisation" },
+    user_creation_utc_date_time: { sort: "user_creation_utc_date_time" },
+    is_admin: { sort: "is_admin" },
+};
 
 /** React Query key of the admin user lists; invalidate it to refresh them. */
 export const ADMIN_USERS_QUERY_KEY = ["admin", "users"] as const;
@@ -58,8 +74,8 @@ async function enrichUsersWithProjectCounts(users: AdminUser[]): Promise<AdminUs
 export const useAdminUsersTable = (extraFilters: SearchFilter[] = NO_EXTRA_FILTERS) => {
     const table = useServerTable<AdminUser>({
         queryKey: [...ADMIN_USERS_QUERY_KEY],
-        fetchPage: async ({ page, limit, filters }) => {
-            const response = await searchUsers({ page, limit, filters, sort_by: "desc(user_id)" });
+        fetchPage: async ({ page, limit, filters, sort_by }) => {
+            const response = await searchUsers({ page, limit, filters, sort_by });
             return { rows: response.users ?? [], total: response.search_info?.total ?? 0 };
         },
         // last_name (Name), email, organisation and country are LIKE attributes;
@@ -68,6 +84,8 @@ export const useAdminUsersTable = (extraFilters: SearchFilter[] = NO_EXTRA_FILTE
         numericAttributes: ["user_id"],
         extraFilters,
         enrich: enrichUsersWithProjectCounts,
+        serverFields: USER_FIELDS,
+        defaultSort: "desc(user_id)",
     });
 
     const { runBulkAction, selectedIds } = table;
@@ -106,6 +124,8 @@ export const useAdminUsersTable = (extraFilters: SearchFilter[] = NO_EXTRA_FILTE
         error: table.error,
         paginationModel: table.paginationModel,
         setPaginationModel: table.setPaginationModel,
+        gridProps: table.gridProps,
+        serverColumns: table.serverColumns,
         selectedUsers: table.selectionModel,
         setSelectedUsers: table.setSelectionModel,
         selectedUserIds: table.selectedIds,

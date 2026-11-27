@@ -64,6 +64,7 @@ export default function AdminTasksTab() {
     const {
         tasks, loading, totalRows, error,
         paginationModel, setPaginationModel,
+        gridProps, serverColumns,
         selectedTasks, setSelectedTasks, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
@@ -268,7 +269,7 @@ export default function AdminTasksTab() {
                 <Box sx={{ width: "100%" }}>
                     <DataGrid
                         rows={tasks}
-                        columns={columns}
+                        columns={serverColumns(columns)}
                         getRowId={(row) => row.task_id}
                         onRowClick={(params) => {
                             const projectId = params.row.task_project_id;
@@ -283,6 +284,7 @@ export default function AdminTasksTab() {
                         rowSelectionModel={selectedTasks}
                         onRowSelectionModelChange={setSelectedTasks}
                         paginationMode="server"
+                        {...gridProps}
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}

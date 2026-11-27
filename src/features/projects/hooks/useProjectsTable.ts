@@ -7,12 +7,12 @@ import {
     PROJECTS_ROOT_QUERY_KEY,
     deleteProjectAndWait,
     enrichProjectsWithQcStates,
-    enrichProjectsWithSampleCounts,
     type Project,
     type SearchFilter,
     searchProjects,
 } from "../api/projects.api";
 import { privacySearchFilters, type PrivacyFilterValue } from "../utils/projectAccess";
+import { PROJECTS_DEFAULT_SORT, projectServerFields } from "../utils/projectServerFields";
 
 /**
  * The scoping choices of the "My projects" filter menu. "All" is every project
@@ -23,28 +23,16 @@ export type ProjectsScope = "All" | "Manager" | "Validated" | "Everything";
 /** Attributes searched with an exact numeric match rather than `LIKE`. */
 const NUMERIC_ATTRIBUTES = ["project_id"] as const;
 
-/** Sample totals and QC state of a page of projects, fetched side by side. */
-async function enrichProjects(projects: Project[]): Promise<Project[]> {
-    const [counted, checked] = await Promise.all([
-        enrichProjectsWithSampleCounts(projects),
-        enrichProjectsWithQcStates(projects),
-    ]);
-    return counted.map((project, index) => ({
-        ...project,
-        qc_state: checked[index].qc_state,
-        qc_warnings: checked[index].qc_warnings,
-    }));
-}
-
 /**
  * Hook backing the user-facing Projects page (`/projects`).
  *
  * By default every request is scoped to projects the current user holds a
  * privilege on (`for_managing`), or strictly to the ones they manage; the
  * "Everything" scope drops that filter (the backend lists every project to any
- * logged-in user, data access then follows the privacy status). The rows are
- * enriched with their sample totals (see `enrichProjectsWithSampleCounts`) and
- * their QC state (see `enrichProjectsWithQcStates`).
+ * logged-in user, data access then follows the privacy status). The search
+ * returns the sample totals of each project, so the grid sorts and filters on
+ * them server-side (e.g. the projects with the most samples first); the rows are
+ * then enriched with their QC state (see `enrichProjectsWithQcStates`).
  */
 export const useProjectsTable = () => {
     const currentUser = useAuthStore((state) => state.user);
@@ -71,6 +59,9 @@ export const useProjectsTable = () => {
         return filters;
     }, [currentUser, selectedFilter]);
 
+    // The import folder can only be sorted and filtered on by an admin.
+    const serverFields = useMemo(() => projectServerFields(currentUser?.is_admin === true), [currentUser?.is_admin]);
+
     const extraFilters = useMemo<SearchFilter[]>(
         () => [...scopeFilters, ...privacySearchFilters(privacyFilter)],
         [scopeFilters, privacyFilter],
@@ -78,8 +69,8 @@ export const useProjectsTable = () => {
 
     const table = useServerTable<Project>({
         queryKey: [...PROJECTS_ROOT_QUERY_KEY, "list", "mine", { userId: currentUser?.user_id ?? null }],
-        fetchPage: async ({ page, limit, filters }) => {
-            const response = await searchProjects({ page, limit, filters, sort_by: "desc(project_id)" });
+        fetchPage: async ({ page, limit, filters, sort_by }) => {
+            const response = await searchProjects({ page, limit, filters, sort_by });
             return { rows: response.projects ?? [], total: response.search_info?.total ?? 0 };
         },
         defaultAttribute: "project_title",
@@ -87,7 +78,9 @@ export const useProjectsTable = () => {
         extraFilters,
         // Nothing to scope to until the user is loaded into the store.
         enabled: currentUser !== null,
-        enrich: enrichProjects,
+        enrich: enrichProjectsWithQcStates,
+        serverFields,
+        defaultSort: PROJECTS_DEFAULT_SORT,
     });
 
     const { runBulkAction } = table;
@@ -128,6 +121,8 @@ export const useProjectsTable = () => {
         setPrivacyFilter,
         paginationModel: table.paginationModel,
         setPaginationModel: table.setPaginationModel,
+        gridProps: table.gridProps,
+        serverColumns: table.serverColumns,
         rowSelectionModel: table.selectionModel,
         setRowSelectionModel: table.setSelectionModel,
         isActionRunning: table.isActionRunning,

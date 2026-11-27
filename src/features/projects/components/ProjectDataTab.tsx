@@ -101,10 +101,12 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
 }) => {
     const {
         uvpSamples, loadingUvp, totalUvpRows, uvpPaginationModel, setUvpPaginationModel,
+        uvpGridProps, uvpServerColumns,
         selectedUvpSamples, setSelectedUvpSamples, uvpSelectionCount,
         uvpSearchText, setUvpSearchText, uvpSearchAttribute, setUvpSearchAttribute,
 
         ecoTaxaSamples, loadingEcoTaxa, totalEcoTaxaRows, ecoTaxaPaginationModel, setEcoTaxaPaginationModel,
+        ecoTaxaGridProps, ecoTaxaServerColumns,
         selectedEcoTaxaSamples, setSelectedEcoTaxaSamples, ecoTaxaSelectionCount,
 
         ctdSamples, visibleCtdSamples, ctdSearchText, setCtdSearchText,
@@ -286,7 +288,7 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                     <Box sx={{ width: '100%', mb: 1 }}>
                         <DataGrid<SampleData>
                             rows={uvpSamples}
-                            columns={uvpSamplesColumns}
+                            columns={uvpServerColumns(uvpSamplesColumns)}
                             getRowId={(row) => row.sample_id}
                             checkboxSelection
                             disableRowSelectionExcludeModel
@@ -298,6 +300,7 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                             rowCount={totalUvpRows}
                             paginationModel={uvpPaginationModel}
                             onPaginationModelChange={setUvpPaginationModel}
+                            {...uvpGridProps}
                             pageSizeOptions={buildPageSizeOptions()}
                             autoHeight
                         />
@@ -399,7 +402,7 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                             <Box sx={{ width: '100%', mb: 1 }}>
                                 <DataGrid<EcoTaxaSampleData>
                                     rows={ecoTaxaSamples}
-                                    columns={ecoTaxaSamplesColumns}
+                                    columns={ecoTaxaServerColumns(ecoTaxaSamplesColumns)}
                                     getRowId={(row) => row.sample_name} // Backend expects sample_name array for deletion
                                     onRowClick={(params) => {
                                         const url = buildEcoTaxaSampleUrl(params.row);
@@ -415,6 +418,7 @@ const ProjectDataTabContent: React.FC<Omit<ProjectDataTabProps, "canSeeFigures" 
                                     rowCount={totalEcoTaxaRows}
                                     paginationModel={ecoTaxaPaginationModel}
                                     onPaginationModelChange={setEcoTaxaPaginationModel}
+                                    {...ecoTaxaGridProps}
                                     pageSizeOptions={buildPageSizeOptions()}
                                     autoHeight
                                     sx={{ '& .MuiDataGrid-row': { cursor: buildEcoTaxaSampleUrl(ecoTaxaSamples[0]!) ? 'pointer' : 'default' } }}

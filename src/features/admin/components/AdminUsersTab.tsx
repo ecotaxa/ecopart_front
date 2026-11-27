@@ -135,6 +135,7 @@ export default function AdminUsersTab() {
     const {
         users, loading, totalRows, error,
         paginationModel, setPaginationModel,
+        gridProps, serverColumns,
         selectedUsers, setSelectedUsers, selectedUserIds, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
@@ -375,7 +376,7 @@ export default function AdminUsersTab() {
                 <Box sx={{ width: "100%" }}>
                     <DataGrid
                         rows={users}
-                        columns={columns}
+                        columns={serverColumns(columns)}
                         getRowId={(row) => row.user_id}
                         checkboxSelection
                         // Deleted / anonymized accounts cannot be updated (the backend
@@ -390,6 +391,7 @@ export default function AdminUsersTab() {
                         rowSelectionModel={selectedUsers}
                         onRowSelectionModelChange={setSelectedUsers}
                         paginationMode="server"
+                        {...gridProps}
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}

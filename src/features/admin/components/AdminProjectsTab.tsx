@@ -96,6 +96,7 @@ export default function AdminProjectsTab() {
     const {
         projects, loading, totalRows, error,
         paginationModel, setPaginationModel,
+        gridProps, serverColumns,
         selectedProjects, setSelectedProjects, selectedProjectIds, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
@@ -310,7 +311,7 @@ export default function AdminProjectsTab() {
                 <Box sx={{ width: "100%" }}>
                     <DataGrid
                         rows={projects}
-                        columns={columns}
+                        columns={serverColumns(columns)}
                         getRowId={(row) => row.project_id}
                         onRowClick={(params) => navigate(`/projects/${params.row.project_id}/metadata`)}
                         checkboxSelection
@@ -320,6 +321,7 @@ export default function AdminProjectsTab() {
                         rowSelectionModel={selectedProjects}
                         onRowSelectionModelChange={setSelectedProjects}
                         paginationMode="server"
+                        {...gridProps}
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}

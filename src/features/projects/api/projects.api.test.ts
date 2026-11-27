@@ -35,7 +35,6 @@ import {
     getOneTask,
     cancelTask,
     enrichProjectsWithQcStates,
-    enrichProjectsWithSampleCounts,
     QC_STATES_BATCH,
     type Project,
     type SearchFilter,
@@ -551,53 +550,6 @@ describe('cancelTask', () => {
         );
 
         await expect(cancelTask(9)).rejects.toThrow('Task cannot be cancelled');
-    });
-});
-
-describe('enrichProjectsWithSampleCounts', () => {
-    const project = (project_id: number): Project => ({
-        project_id,
-        project_title: `p${project_id}`,
-        project_acronym: 'P',
-        instrument_model: 'UVP6',
-        ecotaxa_project_name: null,
-    });
-
-    it('fills nbr_sample and nbr_ctd_sample (ctd_imported filter), leaving a failed count undefined', async () => {
-        server.use(
-            http.post('*/projects/:id/samples/searches', async ({ request, params }) => {
-                const filters = (await request.json()) as SearchFilter[];
-                const isCtd = filters.some((filter) => filter.field === 'ctd_imported' && filter.value === 1);
-                if (params.id === '2' && isCtd) return new HttpResponse(null, { status: 500 });
-                return HttpResponse.json({ search_info: { total: isCtd ? 4 : 10, page: 1, limit: 1 }, samples: [] });
-            }),
-        );
-
-        const [first, second] = await enrichProjectsWithSampleCounts([project(1), project(2)]);
-
-        expect(first).toMatchObject({ nbr_sample: 10, nbr_ctd_sample: 4 });
-        expect(second.nbr_sample).toBe(10);
-        expect(second.nbr_ctd_sample).toBeUndefined();
-    });
-
-    it('skips the CTD count of an empty project and of a project whose count failed', async () => {
-        const ctdRequests: string[] = [];
-        server.use(
-            http.post('*/projects/:id/samples/searches', async ({ request, params }) => {
-                const filters = (await request.json()) as SearchFilter[];
-                if (filters.some((filter) => filter.field === 'ctd_imported')) ctdRequests.push(String(params.id));
-                if (params.id === '2') return new HttpResponse(null, { status: 403 });
-                return HttpResponse.json({ search_info: { total: params.id === '1' ? 0 : 5, page: 1, limit: 1 }, samples: [] });
-            }),
-        );
-
-        const [empty, refused, filled] = await enrichProjectsWithSampleCounts([project(1), project(2), project(3)]);
-
-        expect(empty).toMatchObject({ nbr_sample: 0, nbr_ctd_sample: 0 });
-        expect(refused.nbr_sample).toBeUndefined();
-        expect(refused.nbr_ctd_sample).toBeUndefined();
-        expect(filled).toMatchObject({ nbr_sample: 5, nbr_ctd_sample: 5 });
-        expect(ctdRequests).toEqual(['3']);
     });
 });
 

@@ -29,6 +29,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
     const {
         tasks, loading, totalRows,
         paginationModel, setPaginationModel,
+        gridProps, serverColumns,
         selectedTasks, setSelectedTasks, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
@@ -134,7 +135,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                 <Box sx={{ width: "100%" }}>
                     <DataGrid
                         rows={tasks}
-                        columns={columns}
+                        columns={serverColumns(columns)}
                         getRowId={(row) => row.task_id}
                         onRowClick={(params) => navigate(`/projects/${projectId}/tasks/${params.row.task_id}/general`)}
                         checkboxSelection
@@ -144,6 +145,7 @@ export const ProjectTasksTab: React.FC<ProjectTasksTabProps> = ({ projectId }) =
                         rowSelectionModel={selectedTasks}
                         onRowSelectionModelChange={setSelectedTasks}
                         paginationMode="server"
+                        {...gridProps}
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}

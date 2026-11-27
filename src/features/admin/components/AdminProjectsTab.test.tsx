@@ -18,9 +18,8 @@ function LocationProbe() {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — the admin PROJECTS tab hits POST /projects/searches (list),
-// POST /projects/:id/samples/searches (per-row sample count enrichment) and
-// DELETE /projects/:id/ (bulk delete).
+// Helpers — the admin PROJECTS tab hits POST /projects/searches (list, with the
+// sample totals of each project) and DELETE /projects/:id/ (bulk delete).
 // ---------------------------------------------------------------------------
 type SearchCall = { page: string | null; limit: string | null; sort_by: string | null; filters: unknown };
 
@@ -55,16 +54,6 @@ const mockProjectsSearch = (projects: Project[], total = projects.length) => {
     );
 };
 
-// The rows are enriched with their sample counts (total, then samples with a CTD)
-// via samples searches; this mock answers both with the same total.
-const mockSampleCounts = (total = 0) => {
-    server.use(
-        http.post('*/projects/:projectId/samples/searches', () =>
-            HttpResponse.json({ search_info: { total, page: 1, limit: 1 }, samples: [] }),
-        ),
-    );
-};
-
 // A project deletion answers with the DELETE_PROJECT task that runs it (here the task
 // id is the project id); the grid reports it once that task is DONE (see beforeEach).
 const deletionTask = (projectId: number) =>
@@ -88,7 +77,6 @@ describe('AdminProjectsTab', () => {
         vi.clearAllMocks();
         searchCalls = [];
         deletedIds = [];
-        mockSampleCounts(0);
         server.use(
             http.get('*/tasks/:taskId/', ({ params }) =>
                 HttpResponse.json({ task_id: Number(params.taskId), task_type: 'DELETE_PROJECT', task_status: 'DONE' })),
@@ -409,25 +397,39 @@ describe('AdminProjectsTab', () => {
         });
     });
 
-    it('TC-AG18: shows the number of samples with a linked CTD per project', async () => {
-        const ctdFilters: unknown[] = [];
-        server.use(
-            http.post('*/projects/:projectId/samples/searches', async ({ request }) => {
-                const filters = (await request.json()) as { field: string }[];
-                const isCtd = filters.some((filter) => filter.field === 'ctd_imported');
-                if (isCtd) ctdFilters.push(filters);
-                return HttpResponse.json({ search_info: { total: isCtd ? 7 : 12, page: 1, limit: 1 }, samples: [] });
-            }),
-        );
-        mockProjectsSearch([makeProject({ project_id: 473 })], 1);
+    it('TC-AG18: shows the sample totals the project search returns, each in its own column', async () => {
+        mockProjectsSearch([makeProject({ project_id: 473, nbr_sample: 12, nbr_ctd_sample: 7 })], 1);
 
         renderProjectsTab();
 
-        // Each count lands in its own column, not just somewhere on the page.
         const cellOf = (field: string) => document.querySelector(`[role="gridcell"][data-field="${field}"]`);
         await waitFor(() => expect(cellOf('nbr_ctd_sample')).toHaveTextContent('7'));
         expect(cellOf('nbr_sample')).toHaveTextContent('12');
-        expect(ctdFilters).toEqual([[{ field: 'ctd_imported', operator: '=', value: 1 }]]);
         expect(screen.getByRole('columnheader', { name: 'Samples with CTD' })).toBeInTheDocument();
+    });
+
+    it('TC-AG19: sorts on the sample totals server-side, over every project and not just the page', async () => {
+        const user = userEvent.setup();
+        mockProjectsSearch([makeProject({ project_id: 473, nbr_sample: 12 })], 40);
+        renderProjectsTab();
+        await screen.findByText('BATS2020-21 UVP5 (EU)');
+
+        // Ascending, then descending: the projects with the most samples first.
+        const header = screen.getByRole('columnheader', { name: 'Samples' });
+        await user.click(within(header).getByText('Samples'));
+        await waitFor(() => expect(searchCalls.at(-1)?.sort_by).toBe('asc(nbr_sample),desc(project_id)'));
+        await user.click(within(header).getByText('Samples'));
+        await waitFor(() => expect(searchCalls.at(-1)?.sort_by).toBe('desc(nbr_sample),desc(project_id)'));
+        expect(searchCalls.at(-1)?.page).toBe('1');
+    });
+
+    it('TC-AG20: leaves the columns the backend cannot sort without a sort', async () => {
+        mockProjectsSearch([makeProject({ project_id: 473 })], 1);
+        renderProjectsTab();
+        await screen.findByText('BATS2020-21 UVP5 (EU)');
+
+        expect(screen.getByRole('columnheader', { name: 'Samples' })).toHaveClass('MuiDataGrid-columnHeader--sortable');
+        expect(screen.getByRole('columnheader', { name: 'Managers' })).not.toHaveClass('MuiDataGrid-columnHeader--sortable');
+        expect(screen.getByRole('columnheader', { name: 'Privacy' })).not.toHaveClass('MuiDataGrid-columnHeader--sortable');
     });
 });

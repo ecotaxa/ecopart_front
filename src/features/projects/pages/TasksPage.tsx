@@ -31,6 +31,7 @@ export default function TasksPage() {
     const {
         tasks, loading, totalRows, error,
         paginationModel, setPaginationModel,
+        gridProps, serverColumns,
         selectedTasks, setSelectedTasks, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
@@ -152,7 +153,7 @@ export default function TasksPage() {
                 <Box sx={{ width: "100%" }}>
                     <DataGrid
                         rows={tasks}
-                        columns={columns}
+                        columns={serverColumns(columns)}
                         getRowId={(row) => row.task_id}
                         onRowClick={(params) => navigate(`/tasks/${params.row.task_id}/general`)}
                         checkboxSelection
@@ -162,6 +163,7 @@ export default function TasksPage() {
                         rowSelectionModel={selectedTasks}
                         onRowSelectionModelChange={setSelectedTasks}
                         paginationMode="server"
+                        {...gridProps}
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}
