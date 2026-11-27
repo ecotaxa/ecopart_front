@@ -12,6 +12,7 @@ import { BusyOverlay } from "@/shared/components/BusyOverlay";
 import { countColumn } from "@/shared/components/countColumn";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DataGrid, type GridColDef, type GridRenderCellParams } from "@mui/x-data-grid";
@@ -57,7 +58,8 @@ const renderPeopleCell = (users: MinimalUserModel[] | undefined) => {
  *
  * Lists EVERY project (the admin scope, unlike the user-facing "My projects"
  * page) with server-side search + pagination through `useAdminProjectsTable`.
- * Bulk actions: DELETE, plus the TASKS / USERS shortcuts that jump to the
+ * Bulk actions: DELETE, RECOMPUTE PIVOTS (one admin task for the selected UVP5
+ * projects), plus the TASKS / USERS shortcuts that jump to the
  * matching admin tab pre-scoped to the selected project(s) — mirroring the
  * USERS tab's TASKS / PROJECTS shortcuts.
  */
@@ -101,6 +103,7 @@ export default function AdminProjectsTab() {
         searchAttribute, setSearchAttribute,
         isActionRunning,
         handleDeleteProjects,
+        isPivotStarting, handleRecomputePivots,
         snackbar, closeSnackbar
     } = useAdminProjectsTable(extraFilters);
 
@@ -174,7 +177,7 @@ export default function AdminProjectsTab() {
     // "id (exact)" placeholder; the LIKE text attributes get the generic one.
     const isNumericAttribute = ["project_id", "managers", "members"].includes(searchAttribute);
 
-    const actionsDisabled = selectionCount === 0 || isActionRunning;
+    const actionsDisabled = selectionCount === 0 || isActionRunning || isPivotStarting;
 
     return (
         <Box>
@@ -263,8 +266,9 @@ export default function AdminProjectsTab() {
                             title={
                                 <Typography variant="caption" component="p">
                                     DELETE permanently deletes the selected projects, including their samples and any
-                                    linked EcoTaxa project (this cannot be undone). TASKS / USERS open the matching admin
-                                    tab filtered to the selected project(s).
+                                    linked EcoTaxa project (this cannot be undone). RECOMPUTE PIVOTS rebuilds the particle
+                                    pivot of every sample of the selected UVP5 projects, in one background task. TASKS / USERS
+                                    open the matching admin tab filtered to the selected project(s).
                                 </Typography>
                             }
                         />
@@ -278,6 +282,15 @@ export default function AdminProjectsTab() {
                             sx={{ fontWeight: "bold" }}
                         >
                             DELETE
+                        </Button>
+                        <Button
+                            variant="text" color="inherit"
+                            disabled={actionsDisabled}
+                            onClick={handleRecomputePivots}
+                            startIcon={<RefreshIcon />}
+                            sx={{ fontWeight: "bold" }}
+                        >
+                            RECOMPUTE PIVOTS
                         </Button>
                         {/* TASKS / USERS: jump to the matching admin tab, scoped to the
                             selected project(s). Disabled while nothing is selected. */}

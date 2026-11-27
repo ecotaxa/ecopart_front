@@ -1,5 +1,4 @@
 import { createElement, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import type { AlertColor } from "@mui/material";
 import type { GridRowSelectionModel, GridPaginationModel } from "@mui/x-data-grid";
 
@@ -11,7 +10,6 @@ import {
     deleteProjectEcoTaxaSamples,
     deleteProjectCtdSamples,
     getProjectById,
-    regenerateSamplePivots,
     isTaskCancelled,
     isTaskDone,
     waitForTask,
@@ -25,7 +23,6 @@ import { confirmDialog } from "@/shared/confirm/confirm.store";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
 import { useLeaveSignal } from "@/shared/hooks/useLeaveSignal";
 import { ALL_PAGE_SIZE, toRequestLimit } from "@/shared/utils/pageSizeOptions";
-import { extractErrorMessage } from "@/shared/utils/errorMessage";
 
 /**
  * 0-based index of the last page that holds rows. A page past it comes back
@@ -337,34 +334,6 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
         }
     };
 
-    // Rebuilds the UVP6 pivot of the selected UVP5 samples, or of every sample when none is
-    // selected. Forced: a pivot already at the current converter version is rebuilt too.
-    const handleRegeneratePivots = async () => {
-        const selectedIds = new Set(getSelectedUvpSampleIds(selectedUvpSamples));
-        const sampleNames = uvpSamples.filter((sample) => selectedIds.has(sample.sample_id)).map((sample) => sample.sample_name);
-        const scope = sampleNames.length > 0 ? `${sampleNames.length} selected sample(s)` : "every sample of this project";
-
-        if (!(await confirmDialog({
-            title: "Regenerate pivots",
-            message: `This rebuilds the particle pivot of ${scope} from their raw UVP5 data, in a background task.`,
-            confirmLabel: "Regenerate",
-        }))) return;
-
-        setIsActionRunning(true);
-        try {
-            const task = await regenerateSamplePivots(projectId, { sample_names: sampleNames, force: true });
-            showSnackbar(createElement("span", null,
-                "Pivot regeneration task ",
-                createElement(Link, { to: `/projects/${projectId}/tasks/${task.task_id}`, style: { color: "inherit", fontWeight: "bold", textDecoration: "underline" } }, `#${task.task_id}`),
-                " started. You can check its progress in the TASKS tab."), "success");
-        } catch (error) {
-            console.error("Failed to start pivot regeneration:", error);
-            showSnackbar(extractErrorMessage(error, "Failed to start pivot regeneration."), "error");
-        } finally {
-            setIsActionRunning(false);
-        }
-    };
-
     const handleDeleteEcoTaxaSamples = async () => {
         const selectedNames = getSelectedEcoTaxaSampleNames(selectedEcoTaxaSamples);
         if (selectedNames.length === 0) return;
@@ -447,7 +416,6 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
         handleDeleteUvpSamples,
         handleDeleteEcoTaxaSamples,
         handleDeleteCtdSamples,
-        handleRegeneratePivots,
         buildEcoTaxaSampleUrl,
         snackbar,
         closeSnackbar,

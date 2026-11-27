@@ -290,7 +290,6 @@ export default function ProjectDetailsPage() {
                                     canSeeFigures={access.can.figures}
                                     canImport={access.can.import}
                                     canManage={access.can.manage}
-                                    isUvp5={project?.instrument_model?.startsWith("UVP5") ?? false}
                                     hiddenDataNotice={hiddenDataNotice}
                                 />
                             )}

@@ -1,6 +1,7 @@
+import { useState } from "react";
 import {
     Box, Typography, TextField, MenuItem,
-    Alert, Stack, Link, Divider,
+    Alert, Stack, Link, Divider, Button, Snackbar, type AlertColor,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
@@ -8,11 +9,14 @@ import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import ListAltIcon from "@mui/icons-material/ListAlt";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import SectionCard from "@/shared/components/SectionCard";
 import StatCard, { STAT_CARD_COLORS } from "@/shared/components/StatCard";
 import { QUICK_ACCESS_PERIODS, useAdminQuickAccess } from "../hooks/useAdminQuickAccess";
 import AdminStatisticsSection from "./AdminStatisticsSection";
+import { pivotTaskStartedMessage, startPivotRegeneration } from "../utils/startPivotRegeneration";
+import { extractErrorMessage } from "@/shared/utils/errorMessage";
 
 // Headline-counter accents shared with the explore counters (StatCard).
 const [PROJECTS_COLOR, USERS_COLOR, EXPORTS_COLOR, TASKS_COLOR] = STAT_CARD_COLORS;
@@ -33,11 +37,27 @@ const USEFUL_LINKS: { label: string; href: string }[] = [
  * AdminQuickAccessTab — the "QUICK ACCESS" panel of the EcoPart administration page.
  *
  * Shows the four headline counters (projects, users, exports, tasks) scoped to a
- * selectable time window (`useAdminQuickAccess`), plus the admin shortcuts and the
- * useful external links from the mockup.
+ * selectable time window (`useAdminQuickAccess`), the admin maintenance actions
+ * (RECOMPUTE ALL PIVOTS) and the useful external links from the mockup.
  */
 export default function AdminQuickAccessTab() {
     const { stats, loading, error, period, setPeriod } = useAdminQuickAccess();
+    const [pivotsStarting, setPivotsStarting] = useState(false);
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({ open: false, message: "", severity: "info" });
+
+    // Forced regeneration of the pivots of every UVP5 project, as one admin task.
+    const handleRecomputeAllPivots = async () => {
+        setPivotsStarting(true);
+        try {
+            const task = await startPivotRegeneration();
+            if (task) setSnackbar({ open: true, message: pivotTaskStartedMessage(task), severity: "success" });
+        } catch (err) {
+            console.error("Failed to start pivot regeneration:", err);
+            setSnackbar({ open: true, message: extractErrorMessage(err, "Failed to start pivot regeneration."), severity: "error" });
+        } finally {
+            setPivotsStarting(false);
+        }
+    };
 
     return (
         <Box>
@@ -96,6 +116,21 @@ export default function AdminQuickAccessTab() {
                     </Grid>
                 </Grid>
 
+                {/* ADMIN ACTIONS */}
+                <Box sx={{ mb: 4 }}>
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        Admin actions:
+                    </Typography>
+                    <Button
+                        variant="outlined"
+                        startIcon={<RefreshIcon />}
+                        disabled={pivotsStarting}
+                        onClick={handleRecomputeAllPivots}
+                    >
+                        Recompute all pivots
+                    </Button>
+                </Box>
+
                 {/* USEFUL LINKS */}
                 <Box>
                     <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
@@ -149,6 +184,12 @@ export default function AdminQuickAccessTab() {
                 {/* Full /admin/stats analytics dashboard, in the same container. */}
                 <AdminStatisticsSection />
             </SectionCard>
+
+            <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+                <Alert onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }
