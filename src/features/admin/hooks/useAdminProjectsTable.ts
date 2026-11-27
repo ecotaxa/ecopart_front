@@ -5,11 +5,14 @@ import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage
 import {
     PROJECTS_ROOT_QUERY_KEY,
     deleteProjectAndWait,
-    enrichProjectsWithSampleCounts,
     type Project,
     type SearchFilter,
     searchProjects,
 } from "@/features/projects/api/projects.api";
+import { PROJECTS_DEFAULT_SORT, projectServerFields } from "@/features/projects/utils/projectServerFields";
+
+// An admin may sort and filter on every column the backend serves, the import folder included.
+const ADMIN_PROJECT_FIELDS = projectServerFields(true);
 
 // Stable default so callers that pass no extra filters don't get a fresh array
 // reference every render (which would make the query key unstable → refetch loop).
@@ -26,8 +29,9 @@ const NUMERIC_ATTRIBUTES = ["project_id", "managers", "members"] as const;
  *
  * Unlike the user-facing `useProjectsTable`, it deliberately omits the
  * `for_managing` scoping filter: the backend project search is unscoped by
- * default, so an admin sees EVERY project. Rows are enriched with their sample
- * totals the same way, and `handleDeleteProjects` is the bulk DELETE action.
+ * default, so an admin sees EVERY project. The search returns the sample totals
+ * of each project (sortable and filterable server-side), and `handleDeleteProjects`
+ * is the bulk DELETE action.
  *
  * `extraFilters` are merged into every request on top of the attribute search —
  * used to pre-scope the list to a set of user ids (granted_users → projects where
@@ -37,14 +41,15 @@ const NUMERIC_ATTRIBUTES = ["project_id", "managers", "members"] as const;
 export const useAdminProjectsTable = (extraFilters: SearchFilter[] = NO_EXTRA_FILTERS) => {
     const table = useServerTable<Project>({
         queryKey: [...PROJECTS_ROOT_QUERY_KEY, "list", "admin"],
-        fetchPage: async ({ page, limit, filters }) => {
-            const response = await searchProjects({ page, limit, filters, sort_by: "desc(project_id)" });
+        fetchPage: async ({ page, limit, filters, sort_by }) => {
+            const response = await searchProjects({ page, limit, filters, sort_by });
             return { rows: response.projects ?? [], total: response.search_info?.total ?? 0 };
         },
         defaultAttribute: "project_title",
         numericAttributes: NUMERIC_ATTRIBUTES,
         extraFilters,
-        enrich: enrichProjectsWithSampleCounts,
+        serverFields: ADMIN_PROJECT_FIELDS,
+        defaultSort: PROJECTS_DEFAULT_SORT,
     });
 
     const { runBulkAction } = table;
@@ -72,6 +77,8 @@ export const useAdminProjectsTable = (extraFilters: SearchFilter[] = NO_EXTRA_FI
         error: table.error,
         paginationModel: table.paginationModel,
         setPaginationModel: table.setPaginationModel,
+        gridProps: table.gridProps,
+        serverColumns: table.serverColumns,
         selectedProjects: table.selectionModel,
         setSelectedProjects: table.setSelectionModel,
         selectedProjectIds: table.selectedIds,

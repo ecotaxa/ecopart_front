@@ -96,6 +96,7 @@ export default function AdminProjectsTab() {
     const {
         projects, loading, totalRows, error,
         paginationModel, setPaginationModel,
+        gridProps, serverColumns,
         selectedProjects, setSelectedProjects, selectedProjectIds, selectionCount,
         searchText, setSearchText,
         searchAttribute, setSearchAttribute,
@@ -210,10 +211,14 @@ export default function AdminProjectsTab() {
                         >
                             <MenuItem value="project_title">Title</MenuItem>
                             <MenuItem value="project_acronym">Acronym</MenuItem>
+                            <MenuItem value="project_description">Description</MenuItem>
                             <MenuItem value="instrument_model">Instrument model</MenuItem>
+                            <MenuItem value="serial_number">Serial number</MenuItem>
                             <MenuItem value="ecotaxa_project_name">EcoTaxa project</MenuItem>
                             <MenuItem value="cruise">Cruise</MenuItem>
                             <MenuItem value="ship">Ship</MenuItem>
+                            {/* Filtering on the import folder is refused to non-admins only. */}
+                            <MenuItem value="root_folder_path">Root path</MenuItem>
                             <MenuItem value="project_id">Project id</MenuItem>
                             {/* managers / members resolve a user id to the projects where
                                 that user holds the privilege (backend-side). */}
@@ -306,7 +311,7 @@ export default function AdminProjectsTab() {
                 <Box sx={{ width: "100%" }}>
                     <DataGrid
                         rows={projects}
-                        columns={columns}
+                        columns={serverColumns(columns)}
                         getRowId={(row) => row.project_id}
                         onRowClick={(params) => navigate(`/projects/${params.row.project_id}/metadata`)}
                         checkboxSelection
@@ -316,6 +321,7 @@ export default function AdminProjectsTab() {
                         rowSelectionModel={selectedProjects}
                         onRowSelectionModelChange={setSelectedProjects}
                         paginationMode="server"
+                        {...gridProps}
                         rowCount={totalRows}
                         paginationModel={paginationModel}
                         onPaginationModelChange={setPaginationModel}

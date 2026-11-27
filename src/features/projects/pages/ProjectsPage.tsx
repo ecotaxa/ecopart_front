@@ -75,6 +75,8 @@ export default function ProjectsPage() {
         setPrivacyFilter,
         paginationModel,
         setPaginationModel,
+        gridProps,
+        serverColumns,
         rowSelectionModel,
         setRowSelectionModel,
         isActionRunning,
@@ -373,10 +375,11 @@ export default function ProjectsPage() {
                     <Box sx={{ height: 600 }}>
                         <DataGrid
                             rows={projects}
-                            columns={columns}
+                            columns={serverColumns(columns)}
                             getRowId={(row) => row.project_id}
                             pagination
                             paginationMode="server"
+                            {...gridProps}
                             rowCount={totalRows}
                             paginationModel={paginationModel}
                             onPaginationModelChange={setPaginationModel}

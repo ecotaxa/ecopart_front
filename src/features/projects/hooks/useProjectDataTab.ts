@@ -1,4 +1,4 @@
-import { createElement, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { createElement, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { AlertColor } from "@mui/material";
 import type { GridRowSelectionModel, GridPaginationModel } from "@mui/x-data-grid";
@@ -18,7 +18,10 @@ import {
     type SampleData,
     type EcoTaxaSampleData,
     type CtdSampleData,
+    type SearchFilter,
 } from "../api/projects.api";
+import { useDebounce } from "@/shared/hooks/useDebounce";
+import { useServerGridModels, type ServerFields } from "@/shared/hooks/useServerGridModels";
 import { getEcoTaxaInstances } from "@/shared/api/ecotaxa.api";
 import { buildEcoTaxaSampleUrl as buildSampleUrl } from "../utils/ecotaxaLinks";
 import { confirmDialog } from "@/shared/confirm/confirm.store";
@@ -33,6 +36,35 @@ import { extractErrorMessage } from "@/shared/utils/errorMessage";
  */
 const getLastPageIndex = (totalRows: number, pageSize: number): number =>
     pageSize === ALL_PAGE_SIZE || pageSize <= 0 ? 0 : Math.max(Math.ceil(totalRows / pageSize) - 1, 0);
+
+/** The UVP sample attributes the backend sample search filters on (LIKE). */
+export const UVP_SEARCH_ATTRIBUTES = [
+    { value: "sample_name", label: "Sample name" },
+    { value: "filename", label: "Raw file name" },
+    { value: "station_id", label: "Station" },
+    { value: "comment", label: "Comment" },
+] as const;
+export type UvpSearchAttribute = (typeof UVP_SEARCH_ATTRIBUTES)[number]["value"];
+
+/**
+ * What the sample search can sort and filter on, per column of the UVP grid. The
+ * type and the visual QC sort on ids and the linked CTD is a flag: neither.
+ */
+const UVP_SAMPLE_FIELDS: ServerFields = {
+    sample_name: { sort: "sample_name", filter: "sample_name" },
+    sampling_utc_date_time: { sort: "sampling_utc_date_time" },
+    filename: { sort: "filename", filter: "filename" },
+    comment: { sort: "comment", filter: "comment" },
+};
+
+/** The EcoTaxa samples list sorts on its own columns but has no filter. */
+const ECOTAXA_SAMPLE_FIELDS: ServerFields = {
+    sample_name: { sort: "sample_name" },
+    ecotaxa_sample_id: { sort: "ecotaxa_sample_id" },
+};
+
+/** The backend's own default order, also the tie-breaker of a column sort. */
+const SAMPLES_DEFAULT_SORT = "asc(sample_id)";
 
 export interface UseProjectDataTabOptions {
     /**
@@ -108,6 +140,58 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
     const [selectedCtdSamples, setSelectedCtdSamples] = useState<GridRowSelectionModel>(createEmptySelectionModel());
     const [ctdPaginationModel, setCtdPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 10 });
 
+    // --- Search -------------------------------------------------------------
+    // UVP samples: searched server-side on one attribute. CTD links: every row is
+    // loaded, so they are filtered here on the sample name.
+    const [uvpSearchText, setUvpSearchText] = useState("");
+    const [uvpSearchAttribute, setUvpSearchAttribute] = useState<UvpSearchAttribute>("sample_name");
+    const debouncedUvpSearchText = useDebounce(uvpSearchText, 500).trim();
+    // The column menus of the server-paginated lists sort (and, for UVP, filter) server-side.
+    const uvpGrid = useServerGridModels({ fields: UVP_SAMPLE_FIELDS, defaultSort: SAMPLES_DEFAULT_SORT });
+    const ecoTaxaGrid = useServerGridModels({ fields: ECOTAXA_SAMPLE_FIELDS, defaultSort: SAMPLES_DEFAULT_SORT });
+    const uvpColumnFilters = uvpGrid.columnFilters;
+    const uvpSortBy = uvpGrid.sortBy;
+    const ecoTaxaSortBy = ecoTaxaGrid.sortBy;
+    const uvpFilters = useMemo<SearchFilter[]>(
+        () => [
+            ...(debouncedUvpSearchText
+                ? [{ field: uvpSearchAttribute, operator: "LIKE", value: `%${debouncedUvpSearchText}%` }]
+                : []),
+            ...uvpColumnFilters,
+        ],
+        [debouncedUvpSearchText, uvpSearchAttribute, uvpColumnFilters],
+    );
+    const [ctdSearchText, setCtdSearchText] = useState("");
+
+    // A new search or sort goes back to the first page and drops the selection, so a
+    // DELETE never targets rows the search hides. Adjusted during render (not in an
+    // effect) so no request is sent for the stale page.
+    const uvpFiltersKey = JSON.stringify([uvpFilters, uvpSortBy]);
+    const [lastUvpFiltersKey, setLastUvpFiltersKey] = useState(uvpFiltersKey);
+    if (uvpFiltersKey !== lastUvpFiltersKey) {
+        setLastUvpFiltersKey(uvpFiltersKey);
+        setUvpPaginationModel((prev) => (prev.page === 0 ? prev : { ...prev, page: 0 }));
+        setSelectedUvpSamples(createEmptySelectionModel());
+    }
+    const [lastEcoTaxaSortBy, setLastEcoTaxaSortBy] = useState(ecoTaxaSortBy);
+    if (ecoTaxaSortBy !== lastEcoTaxaSortBy) {
+        setLastEcoTaxaSortBy(ecoTaxaSortBy);
+        setEcoTaxaPaginationModel((prev) => (prev.page === 0 ? prev : { ...prev, page: 0 }));
+    }
+    const ctdSearchKey = ctdSearchText.trim().toLowerCase();
+    const [lastCtdSearchKey, setLastCtdSearchKey] = useState(ctdSearchKey);
+    if (ctdSearchKey !== lastCtdSearchKey) {
+        setLastCtdSearchKey(ctdSearchKey);
+        setCtdPaginationModel((prev) => (prev.page === 0 ? prev : { ...prev, page: 0 }));
+        setSelectedCtdSamples(createEmptySelectionModel());
+    }
+    const visibleCtdSamples = useMemo(
+        () => ctdSearchKey
+            ? ctdSamples.filter((sample) => sample.sample_name.toLowerCase().includes(ctdSearchKey))
+            : ctdSamples,
+        [ctdSamples, ctdSearchKey],
+    );
+
     // Per-section load error (null = no error). Lets the UI show a real error state
     // instead of a silent "No rows" when the backend fails (e.g. 500/401).
     const [uvpError, setUvpError] = useState<string | null>(null);
@@ -146,7 +230,8 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
             const response = await searchProjectSamples(projectId, {
                 page: uvpPaginationModel.page + 1,
                 limit: toRequestLimit(uvpPaginationModel.pageSize),
-                filters: [],
+                filters: uvpFilters,
+                sort_by: uvpSortBy,
             });
             if (!isLatest()) return;
             const samples = response.samples || [];
@@ -171,7 +256,7 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
         } finally {
             if (isLatest() && !steppedBack) setLoadingUvp(false);
         }
-    }, [projectId, uvpPaginationModel.page, uvpPaginationModel.pageSize]);
+    }, [projectId, uvpPaginationModel.page, uvpPaginationModel.pageSize, uvpFilters, uvpSortBy]);
 
     const fetchEcoTaxaSamples = useCallback(async () => {
         const requestId = ++ecoTaxaRequestId.current;
@@ -184,6 +269,7 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
                 page: ecoTaxaPaginationModel.page + 1,
                 limit: toRequestLimit(ecoTaxaPaginationModel.pageSize),
                 filters: [],
+                sort_by: ecoTaxaSortBy,
             });
             if (!isLatest()) return;
             const samples = response.samples || [];
@@ -206,7 +292,7 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
         } finally {
             if (isLatest() && !steppedBack) setLoadingEcoTaxa(false);
         }
-    }, [projectId, ecoTaxaPaginationModel.page, ecoTaxaPaginationModel.pageSize]);
+    }, [projectId, ecoTaxaPaginationModel.page, ecoTaxaPaginationModel.pageSize, ecoTaxaSortBy]);
 
     const fetchCtdSamples = useCallback(async () => {
         const requestId = ++ctdRequestId.current;
@@ -421,16 +507,27 @@ export const useProjectDataTab = (projectId: number, { withLinkedSamples = true 
         totalUvpRows,
         uvpPaginationModel,
         setUvpPaginationModel,
+        uvpGridProps: uvpGrid.gridProps,
+        uvpServerColumns: uvpGrid.serverColumns,
         selectedUvpSamples,
         setSelectedUvpSamples,
+        uvpSearchText,
+        setUvpSearchText,
+        uvpSearchAttribute,
+        setUvpSearchAttribute,
         ecoTaxaSamples,
         loadingEcoTaxa,
         totalEcoTaxaRows,
         ecoTaxaPaginationModel,
         setEcoTaxaPaginationModel,
+        ecoTaxaGridProps: ecoTaxaGrid.gridProps,
+        ecoTaxaServerColumns: ecoTaxaGrid.serverColumns,
         selectedEcoTaxaSamples,
         setSelectedEcoTaxaSamples,
         ctdSamples,
+        visibleCtdSamples,
+        ctdSearchText,
+        setCtdSearchText,
         loadingCtd,
         totalCtdRows,
         ctdPaginationModel,

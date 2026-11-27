@@ -4,10 +4,12 @@ import type { AlertColor } from "@mui/material";
 import type { GridPaginationModel, GridRowSelectionModel } from "@mui/x-data-grid";
 
 import type { SearchFilter } from "@/shared/types/api";
+import { isNoMatchingLabel } from "@/shared/api/http";
 import { confirmDialog, type ConfirmOptions } from "@/shared/confirm/confirm.store";
 import { extractErrorMessage } from "@/shared/utils/errorMessage";
 import { toRequestLimit } from "@/shared/utils/pageSizeOptions";
 import { useDebounce } from "./useDebounce";
+import { useServerGridModels, type ServerFields } from "./useServerGridModels";
 import { useLeaveSignal } from "./useLeaveSignal";
 
 /** One page of rows as the backend returns it. */
@@ -20,8 +22,10 @@ export interface ServerTableFetchParams {
     /** 1-based page number, as the backend expects it. */
     page: number;
     limit: number;
-    /** The attribute search (if any) followed by the caller's extra filters. */
+    /** The attribute search (if any), the column filters, then the caller's extra filters. */
     filters: SearchFilter[];
+    /** The column sort followed by `defaultSort`; undefined when neither is set. */
+    sort_by?: string;
 }
 
 export interface UseServerTableOptions<Row> {
@@ -55,6 +59,13 @@ export interface UseServerTableOptions<Row> {
      */
     enrich?: (rows: Row[]) => Promise<Row[]>;
     initialPageSize?: number;
+    /**
+     * What the backend can sort and filter on, per grid column (see `ServerFields`).
+     * A column left out can be neither sorted nor filtered. Must be referentially stable.
+     */
+    serverFields?: ServerFields;
+    /** The order without a column sort, also the tie-breaker of one (e.g. `"desc(project_id)"`). */
+    defaultSort?: string;
 }
 
 export interface BulkActionOptions {
@@ -72,6 +83,7 @@ export interface BulkActionOptions {
 }
 
 const NO_FILTERS: SearchFilter[] = [];
+const NO_SERVER_FIELDS: ServerFields = {};
 
 const createEmptySelectionModel = (): GridRowSelectionModel => ({ type: "include", ids: new Set() });
 
@@ -93,6 +105,8 @@ export function useServerTable<Row>({
     enabled = true,
     enrich,
     initialPageSize = 10,
+    serverFields = NO_SERVER_FIELDS,
+    defaultSort,
 }: UseServerTableOptions<Row>) {
     const queryClient = useQueryClient();
 
@@ -111,15 +125,22 @@ export function useServerTable<Row>({
         return [{ field: searchAttribute, operator: "LIKE", value: `%${text}%` }];
     }, [debouncedSearchText, searchAttribute, numericAttributes]);
 
-    const filters = useMemo(() => [...searchFilters, ...extraFilters], [searchFilters, extraFilters]);
+    // --- Column sort and filters (column menus) -----------------------------
+    const grid = useServerGridModels({ fields: serverFields, defaultSort });
+    const { sortBy, columnFilters } = grid;
+
+    const filters = useMemo(
+        () => [...searchFilters, ...columnFilters, ...extraFilters],
+        [searchFilters, columnFilters, extraFilters],
+    );
 
     // --- Pagination ---------------------------------------------------------
     const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: initialPageSize });
 
-    // Any change of the filters sends the user back to the first page. Done as
-    // a state adjustment during render (not in an effect) so no request is ever
-    // issued for the stale page with the new filters.
-    const filtersKey = JSON.stringify(filters);
+    // Any change of the filters or of the sort sends the user back to the first page.
+    // Done as a state adjustment during render (not in an effect) so no request is
+    // ever issued for the stale page with the new filters.
+    const filtersKey = JSON.stringify([filters, sortBy]);
     const [lastFiltersKey, setLastFiltersKey] = useState(filtersKey);
     if (filtersKey !== lastFiltersKey) {
         setLastFiltersKey(filtersKey);
@@ -131,11 +152,17 @@ export function useServerTable<Row>({
         page: paginationModel.page + 1,
         limit: toRequestLimit(paginationModel.pageSize),
         filters,
-    }), [paginationModel.page, paginationModel.pageSize, filters]);
+        ...(sortBy !== undefined && { sort_by: sortBy }),
+    }), [paginationModel.page, paginationModel.pageSize, filters, sortBy]);
 
     const query = useQuery({
         queryKey: [...queryKey, pageParams],
-        queryFn: () => fetchPage(pageParams),
+        // A label search matching no label (e.g. status "zzz") is answered with a 404:
+        // the user sees an empty grid, like for any other search without result.
+        queryFn: () => fetchPage(pageParams).catch((error: unknown) => {
+            if (isNoMatchingLabel(error)) return { rows: [], total: 0 };
+            throw error;
+        }),
         enabled,
         // Keep the previous page on screen while the next one loads (no flash of empty grid).
         placeholderData: keepPreviousData,
@@ -251,6 +278,15 @@ export function useServerTable<Row>({
 
         paginationModel,
         setPaginationModel,
+
+        /** Spread on the DataGrid: server-side column sort and filters. */
+        gridProps: grid.gridProps,
+        /** The columns with only the sort and filter menus the backend serves. */
+        serverColumns: grid.serverColumns,
+        sortModel: grid.sortModel,
+        setSortModel: grid.setSortModel,
+        filterModel: grid.filterModel,
+        setFilterModel: grid.setFilterModel,
 
         selectionModel,
         setSelectionModel,

@@ -50,6 +50,21 @@ export const isAccessDenied = (error: unknown): boolean =>
 export const isNotFound = (error: unknown): boolean =>
     error instanceof ApiError && error.status === 404;
 
+/**
+ * The 404 a search answers when the text typed for a label attribute matches no
+ * label at all: the backend resolves the label to ids first and refuses when
+ * there are none (search-tasks.ts, search-projects.ts).
+ */
+const NO_MATCHING_LABEL_MESSAGES = new Set([
+    "Task status label not found",
+    "Task type label not found",
+    "Instrument model not found",
+]);
+
+/** A search that found no matching label: an empty result for the user, not a failure. */
+export const isNoMatchingLabel = (error: unknown): boolean =>
+    isNotFound(error) && NO_MATCHING_LABEL_MESSAGES.has((error as ApiError).message);
+
 /** Every usable message of an error body, the one `messageFromApiError` picks first. */
 function messagesFromBody(body: unknown): string[] {
     const first = messageFromApiError(body);

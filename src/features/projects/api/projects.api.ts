@@ -26,9 +26,9 @@ export interface Project {
     /** Omitted by the backend for a user without privilege on the project. */
     root_folder_path?: string;
 
-    /** Not returned by the project search; filled in by `enrichProjectsWithSampleCounts`. */
+    /** Returned by the project search; left out for a project whose samples the user may not look into. */
     nbr_sample?: number;
-    /** Samples with an imported CTD file; filled in by `enrichProjectsWithSampleCounts`. */
+    /** Samples with an imported CTD file; same rule as `nbr_sample`. */
     nbr_ctd_sample?: number;
 
     /**
@@ -899,49 +899,6 @@ export async function setSampleVisualQc(
         method: "PATCH",
         body: JSON.stringify({ visual_qc_status_label: status, comment }),
     });
-}
-
-/** Samples search filter keeping only the samples with an imported CTD file. */
-const CTD_IMPORTED_FILTER: SearchFilter = { field: "ctd_imported", operator: "=", value: 1 };
-
-/**
- * Fill in `nbr_sample` and `nbr_ctd_sample` for a page of projects.
- *
- * The project-search endpoint returns neither count, so we ask the samples
- * search endpoint for `search_info.total` (limit=1): unfiltered first, then
- * filtered on `ctd_imported` only when the project has samples — an empty
- * project has no CTD either, and a refused or failed first count (no access)
- * would fail the same way. A failed request leaves its count undefined so the
- * grid shows "—" (unknown) rather than a misleading "0"; the two counts fail
- * independently.
- *
- * NOTE: this is an N+1 the backend should eventually fold into the project
- * search response; keep page sizes reasonable until it does.
- */
-export async function enrichProjectsWithSampleCounts(projects: Project[]): Promise<Project[]> {
-    if (projects.length === 0) return projects;
-
-    const countSamples = async (projectId: number, filters: SearchFilter[]) => {
-        try {
-            const response = await searchProjectSamples(projectId, { page: 1, limit: 1, filters });
-            return response.search_info?.total;
-        } catch {
-            return undefined;
-        }
-    };
-
-    const enrichProject = async (project: Project): Promise<Project> => {
-        const nbrSample = await countSamples(project.project_id, []);
-        if (nbrSample === undefined) return project;
-        const nbrCtdSample = nbrSample === 0 ? 0 : await countSamples(project.project_id, [CTD_IMPORTED_FILTER]);
-        return {
-            ...project,
-            nbr_sample: nbrSample,
-            ...(nbrCtdSample !== undefined && { nbr_ctd_sample: nbrCtdSample }),
-        };
-    };
-
-    return Promise.all(projects.map(enrichProject));
 }
 
 /** The most projects one `POST /projects/qc-states` call accepts. */
