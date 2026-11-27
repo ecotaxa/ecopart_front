@@ -7,6 +7,7 @@ import AdminQuickAccessTab from './AdminQuickAccessTab';
 import { renderWithRouter } from '@/test/utils';
 import { server } from '@/test/msw/server';
 import { loginAsUser } from '@/test/helpers/auth.helpers';
+import { answerConfirmDialogs } from '@/test/helpers/confirm.helpers';
 
 // ---------------------------------------------------------------------------
 // The QUICK ACCESS panel derives its four counters from `search_info.total` of:
@@ -188,5 +189,46 @@ describe('AdminQuickAccessTab', () => {
         renderQuickAccess();
 
         expect(await screen.findByText(/Failed to load the administration statistics/i)).toBeInTheDocument();
+    });
+
+    it('TC-AH7: RECOMPUTE ALL PIVOTS starts one forced regeneration of every UVP5 project after confirmation', async () => {
+        const user = userEvent.setup();
+        mockCounters();
+        const bodies: unknown[] = [];
+        server.use(
+            http.post('*/admin/samples/pivots/regenerate', async ({ request }) => {
+                bodies.push(await request.json());
+                return HttpResponse.json({ task_id: 77, task_type: 'REGENERATE_PIVOT', task_status: 'PENDING' });
+            }),
+        );
+        renderQuickAccess();
+
+        const refuse = answerConfirmDialogs(false);
+        await user.click(screen.getByRole('button', { name: /recompute all pivots/i }));
+        await new Promise((r) => setTimeout(r, 50));
+        expect(bodies).toHaveLength(0);
+        refuse.mockRestore();
+
+        const accept = answerConfirmDialogs(true);
+        await user.click(screen.getByRole('button', { name: /recompute all pivots/i }));
+
+        await waitFor(() => expect(bodies).toEqual([{ force: true }]));
+        expect(accept.mock.calls[0][0]).toMatchObject({ title: 'Recompute pivots' });
+        expect(await screen.findByText(/Pivot regeneration task #77 started/)).toBeInTheDocument();
+    });
+
+    it('TC-AH8: RECOMPUTE ALL PIVOTS reports a refused start', async () => {
+        const user = userEvent.setup();
+        mockCounters();
+        answerConfirmDialogs(true);
+        server.use(
+            http.post('*/admin/samples/pivots/regenerate', () =>
+                HttpResponse.json({ errors: ['Logged user cannot regenerate pivots'] }, { status: 403 })),
+        );
+        renderQuickAccess();
+
+        await user.click(screen.getByRole('button', { name: /recompute all pivots/i }));
+
+        expect(await screen.findByText('Logged user cannot regenerate pivots')).toBeInTheDocument();
     });
 });

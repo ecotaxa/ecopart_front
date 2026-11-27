@@ -430,4 +430,31 @@ describe('AdminProjectsTab', () => {
         expect(ctdFilters).toEqual([[{ field: 'ctd_imported', operator: '=', value: 1 }]]);
         expect(screen.getByRole('columnheader', { name: 'Samples with CTD' })).toBeInTheDocument();
     });
+
+    it('TC-AG17: RECOMPUTE PIVOTS starts one forced regeneration of the selected projects, keeping the selection', async () => {
+        const user = userEvent.setup();
+        answerConfirmDialogs(true);
+        mockProjectsSearch([
+            makeProject({ project_id: 1 }),
+            makeProject({ project_id: 2, project_title: 'second_project' }),
+        ], 2);
+        const bodies: unknown[] = [];
+        server.use(
+            http.post('*/admin/samples/pivots/regenerate', async ({ request }) => {
+                bodies.push(await request.json());
+                return HttpResponse.json({ task_id: 9, task_type: 'REGENERATE_PIVOT', task_status: 'PENDING' });
+            }),
+        );
+
+        renderProjectsTab();
+        await screen.findByText('second_project');
+        expect(screen.getByRole('button', { name: 'RECOMPUTE PIVOTS' })).toBeDisabled();
+
+        await user.click(screen.getAllByRole('checkbox')[2]);
+        await user.click(screen.getByRole('button', { name: 'RECOMPUTE PIVOTS' }));
+
+        await waitFor(() => expect(bodies).toEqual([{ project_ids: [2], force: true }]));
+        expect(await screen.findByText(/Pivot regeneration task #9 started/)).toBeInTheDocument();
+        expect(screen.getByText('1 items selected')).toBeInTheDocument();
+    });
 });

@@ -1,4 +1,4 @@
-import { createElement, useCallback } from "react";
+import { createElement, useCallback, useState } from "react";
 
 import { useServerTable } from "@/shared/hooks/useServerTable";
 import { ConfirmWarningMessage } from "@/shared/components/ConfirmWarningMessage";
@@ -10,6 +10,8 @@ import {
     type SearchFilter,
     searchProjects,
 } from "@/features/projects/api/projects.api";
+import { extractErrorMessage } from "@/shared/utils/errorMessage";
+import { pivotTaskStartedMessage, startPivotRegeneration } from "../utils/startPivotRegeneration";
 
 // Stable default so callers that pass no extra filters don't get a fresh array
 // reference every render (which would make the query key unstable → refetch loop).
@@ -27,7 +29,8 @@ const NUMERIC_ATTRIBUTES = ["project_id", "managers", "members"] as const;
  * Unlike the user-facing `useProjectsTable`, it deliberately omits the
  * `for_managing` scoping filter: the backend project search is unscoped by
  * default, so an admin sees EVERY project. Rows are enriched with their sample
- * totals the same way, and `handleDeleteProjects` is the bulk DELETE action.
+ * totals the same way, `handleDeleteProjects` is the bulk DELETE action and
+ * `handleRecomputePivots` the RECOMPUTE PIVOTS one.
  *
  * `extraFilters` are merged into every request on top of the attribute search —
  * used to pre-scope the list to a set of user ids (granted_users → projects where
@@ -65,6 +68,26 @@ export const useAdminProjectsTable = (extraFilters: SearchFilter[] = NO_EXTRA_FI
         failureMessage: "Failed to delete some projects.",
     }), [runBulkAction]);
 
+    /**
+     * Forced pivot regeneration of the selected projects, as one admin task (the backend
+     * skips the non-UVP5 ones). The selection is kept: the task runs in the background.
+     */
+    const { selectedIds, showSnackbar } = table;
+    const [isPivotStarting, setIsPivotStarting] = useState(false);
+    const handleRecomputePivots = useCallback(async () => {
+        if (selectedIds.length === 0) return;
+        setIsPivotStarting(true);
+        try {
+            const task = await startPivotRegeneration(selectedIds);
+            if (task) showSnackbar(pivotTaskStartedMessage(task), "success");
+        } catch (error) {
+            console.error("Failed to start pivot regeneration:", error);
+            showSnackbar(extractErrorMessage(error, "Failed to start pivot regeneration."), "error");
+        } finally {
+            setIsPivotStarting(false);
+        }
+    }, [selectedIds, showSnackbar]);
+
     return {
         projects: table.rows,
         loading: table.loading,
@@ -82,6 +105,8 @@ export const useAdminProjectsTable = (extraFilters: SearchFilter[] = NO_EXTRA_FI
         setSearchAttribute: table.setSearchAttribute,
         isActionRunning: table.isActionRunning,
         handleDeleteProjects,
+        isPivotStarting,
+        handleRecomputePivots,
         snackbar: table.snackbar,
         closeSnackbar: table.closeSnackbar,
     };
